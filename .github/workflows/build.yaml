@@ -6,25 +6,8 @@ on:
       - main
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            goos: linux
-            goarch: amd64
-            ext: ""
-          - os: macos-latest
-            goos: darwin
-            goarch: amd64
-            ext: ""
-          - os: windows-latest
-            goos: windows
-            goarch: amd64
-            ext: .exe
-
+  build-linux:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -34,19 +17,64 @@ jobs:
         with:
           go-version: 1.22
 
-      - name: Install dependencies on Linux
-        if: matrix.os == 'ubuntu-latest'
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libayatana-appindicator3-dev
 
-      - name: Build binary
+      - name: Build binary for Linux
         run: |
           mkdir -p dist
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/wazuh-tray${{ matrix.ext }} .
+          GOOS=linux GOARCH=amd64 go build -o dist/wazuh-tray .
 
-      - name: Upload binary
+      - name: Upload Linux binary
         uses: actions/upload-artifact@v2
         with:
-          name: wazuh-tray-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/wazuh-tray${{ matrix.ext }}
+          name: wazuh-tray-linux-amd64
+          path: dist/wazuh-tray
+
+  build-macos:
+    runs-on: macos-latest
+    needs: build-linux
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.22
+
+      - name: Build binary for macOS
+        run: |
+          mkdir -p dist
+          GOOS=darwin GOARCH=amd64 go build -o dist/wazuh-tray
+
+      - name: Upload macOS binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: wazuh-tray-darwin-amd64
+          path: dist/wazuh-tray
+
+  build-windows:
+    runs-on: windows-latest
+    needs: build-macos
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.22
+
+      - name: Build binary for Windows
+        run: |
+          mkdir -p dist
+          GOOS=windows GOARCH=amd64 go build -o dist/wazuh-tray.exe
+
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: wazuh-tray-windows-amd64
+          path: dist/wazuh-tray.exe
