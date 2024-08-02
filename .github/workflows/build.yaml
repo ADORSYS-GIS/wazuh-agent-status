@@ -69,7 +69,7 @@ jobs:
           path: dist/wazuh-tray
 
   build-windows:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     needs: build-macos
     steps:
       - name: Checkout code
