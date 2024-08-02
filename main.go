@@ -62,10 +62,10 @@ func checkServiceStatus() (string, string) {
         statusCmd = exec.Command("sudo", "systemctl", "status", "wazuh-agent.service")
         connectionCmd = exec.Command("sudo", "grep", "^status", "/var/ossec/var/run/wazuh-agentd.state")
     case "darwin":
-        statusCmd = exec.Command("/Library/Ossec/bin/wazuh-control", "status")
+        statusCmd = exec.Command("sudo ", "/Library/Ossec/bin/wazuh-control", "status")
         connectionCmd = exec.Command("sudo", "grep", "^status", "/Library/Ossec/var/run/wazuh-agentd.state")
     case "windows":
-        statusCmd = exec.Command("C:\\Program Files\\ossec\\bin\\wazuh-control", "status")
+        statusCmd = exec.Command("C:\\Program Files (x86)\\ossec\\bin\\wazuh-control", "status")
         connectionCmd = exec.Command("powershell", "-Command", "Select-String -Path 'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state' -Pattern '^status'")
     default:
         return "Unsupported OS", "Unsupported OS"
