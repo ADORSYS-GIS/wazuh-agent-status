@@ -1,7 +1,3 @@
-Sure, here's an updated draft of your README file with the instructions to build binaries for different systems:
-
----
-
 # Wazuh Agent Status
 
 **Wazuh Agent Status** is an application designed to monitor the state of Wazuh agents. This tool provides real-time insights into the operational status of agents, ensuring that they are functioning correctly and efficiently.
@@ -67,7 +63,3 @@ We welcome contributions! Please fork the repository and submit pull requests.
 ## License
 
 This project is licensed under the MIT License.
-
----
-
-Feel free to modify this as needed! 😊
