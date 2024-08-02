@@ -60,7 +60,7 @@ jobs:
       - name: Build binary for macOS
         run: |
           mkdir -p dist
-          GOOS=darwin GOARCH=amd64 go build -o dist/wazuh-tray
+          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o dist/wazuh-tray
 
       - name: Upload macOS binary
         uses: actions/upload-artifact@v2
