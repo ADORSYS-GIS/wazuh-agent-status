@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: 1.22
           
@@ -34,7 +34,7 @@ jobs:
           GOOS=linux GOARCH=amd64 go build -o dist/wazuh-tray .
 
       - name: Upload Linux binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: wazuh-tray-linux-amd64
           path: dist/wazuh-tray
@@ -44,10 +44,10 @@ jobs:
     needs: build-linux
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: 1.22
           
@@ -63,7 +63,7 @@ jobs:
           CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o dist/wazuh-tray
 
       - name: Upload macOS binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: wazuh-tray-darwin-amd64
           path: dist/wazuh-tray
@@ -73,10 +73,10 @@ jobs:
     needs: build-macos
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: 1.22
           
@@ -92,7 +92,7 @@ jobs:
           GOOS=windows GOARCH=amd64 go build -o dist/wazuh-tray.exe
 
       - name: Upload Windows binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: wazuh-tray-windows-amd64
           path: dist/wazuh-tray.exe
