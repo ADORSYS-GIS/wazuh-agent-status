@@ -6,8 +6,18 @@ on:
       - main
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        goos: [linux, darwin, windows]
+        goarch: [amd64]
+        ext: 
+          linux: ""
+          darwin: ""
+          windows: .exe
+
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -19,62 +29,17 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libayatana-appindicator3-dev
+          go get github.com/getlantern/systray
+          go mod tidy
+          go mod download
 
-      - name: Build binary for Linux
+      - name: Build binary
         run: |
           mkdir -p dist
-          GOOS=linux GOARCH=amd64 go build -o dist/wazuh-tray .
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o dist/wazuh-tray${{ matrix.ext }} .
 
-      - name: Upload Linux binary
+      - name: Upload binary
         uses: actions/upload-artifact@v2
         with:
-          name: wazuh-tray-linux-amd64
-          path: dist/wazuh-tray
-
-  build-macos:
-    runs-on: macos-latest
-    needs: build-linux
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.22
-
-      - name: Build binary for macOS
-        run: |
-          mkdir -p dist
-          GOOS=darwin GOARCH=amd64 go build -o dist/wazuh-tray
-
-      - name: Upload macOS binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: wazuh-tray-darwin-amd64
-          path: dist/wazuh-tray
-
-  build-windows:
-    runs-on: windows-latest
-    needs: build-macos
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.22
-
-      - name: Build binary for Windows
-        run: |
-          mkdir -p dist
-          GOOS=windows GOARCH=amd64 go build -o dist/wazuh-tray.exe
-
-      - name: Upload Windows binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: wazuh-tray-windows-amd64
-          path: dist/wazuh-tray.exe
+          name: wazuh-tray-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/wazuh-tray${{ matrix.ext }}
