@@ -23,7 +23,7 @@ func main() {
 }
 
 func onReady() {
-    systray.SetIcon(getIcon("/home/armand-meppa/Pictures/wazuh-logo-min.png"))
+    systray.SetIcon(getIcon("./assets/wazuh-logo-min.png"))
     systray.SetTitle("Wazuh Agent")
     systray.SetTooltip("Wazuh Agent Status")
 
