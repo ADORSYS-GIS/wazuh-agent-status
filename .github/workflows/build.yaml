@@ -88,8 +88,8 @@ jobs:
 
       - name: Create directory structure for .pkg
         run: |
-          mkdir -p pkgroot/${{ env.INSTALL_PATH }}
-          mv ${{ env.APP_NAME }} pkgroot/${{ env.INSTALL_PATH }}/
+          mkdir -p pkgroot${{ env.INSTALL_PATH }}
+          mv ${{ env.APP_NAME }} pkgroot${{ env.INSTALL_PATH }}/
 
       - name: Build .pkg package
         run: |
