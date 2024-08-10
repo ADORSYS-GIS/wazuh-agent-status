@@ -52,8 +52,8 @@ jobs:
           Architecture: ${{ env.DEB_ARCH }}
           Depends: libc6 (>= 2.14)
           Maintainer: ${{ env.MAINTENER_NAME }} ${{ env.MAINTENER_EMAIL }}
-          Description: Wazuh Agent
-          A system tray application to monitor Wazuh Agent status." > ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/DEBIAN/control    
+          Description: Wazuh Agent Status
+            A system tray application to monitor Wazuh Agent status." > ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/DEBIAN/control    
           
       - name: Build .deb package
         run: dpkg-deb --build ${{ env.APP_NAME }}_${{ env.APP_VERSION }}
