@@ -51,7 +51,7 @@ jobs:
           Priority: optional
           Architecture: ${{ env.DEB_ARCH }}
           Depends: libc6 (>= 2.14)
-          Maintainer: ${{ MAINTENER_NAME }} ${{ MAINTENER_EMAIL }}
+          Maintainer: ${{ env.MAINTENER_NAME }} ${{ env.MAINTENER_EMAIL }}
           Description: Wazuh Agent
           A system tray application to monitor Wazuh Agent status." > ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/DEBIAN/control    
           
