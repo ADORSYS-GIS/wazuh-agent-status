@@ -44,8 +44,8 @@ jobs:
       - name: Create directory structure for .deb
         run: |
           mkdir -p ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/{DEBIAN,${{ env.INSTALL_PATH }}}
-          cp ./assets ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/${{ env.INSTALL_PATH }}/
           mv ${{ env.APP_NAME }} ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/${{ env.INSTALL_PATH }}/
+          cp assets ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/${{ env.INSTALL_PATH }}/
           echo "Package: ${{ env.APP_NAME }}
           Version: ${{ env.APP_VERSION }}
           Section: base
