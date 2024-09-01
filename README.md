@@ -6,7 +6,9 @@
 
 - **Real-time Monitoring**: Continuously checks the status of Wazuh agents.
 - **Build Pipeline**: Improved build pipeline for better performance.
-- **Cross-platform**: Supports Linux, MacOS and Windows platforms
+
+## Supported Operating Systems
+- **Ubuntu**
 
 ## Installation
 
@@ -29,22 +31,10 @@ To install the application, follow these steps:
 
 You can build binaries for different systems by setting the `GOOS` and `GOARCH` environment variables before running the `go build` command. Here's how you can do it:
 
-- For macOS (amd64):
-
-  ```bash
-  CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o dist/wazuh-tray
-  ```
-
 - For Linux (amd64):
 
   ```bash
   CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o dist/wazuh-tray
-  ```
-
-- For Windows (amd64):
-
-  ```bash
-  CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -o dist/wazuh-tray.exe
   ```
 
 Please note that you'll need to have a suitable C compiler installed in your system for this to work.
@@ -53,13 +43,5 @@ Please note that you'll need to have a suitable C compiler installed in your sys
 
 Run the application with the following command:
 ```bash
-go run main.go
+sudo bash ./dist/wazuh-tray 
 ```
-
-## Contributing
-
-We welcome contributions! Please fork the repository and submit pull requests.
-
-## License
-
-This project is licensed under the MIT License.
