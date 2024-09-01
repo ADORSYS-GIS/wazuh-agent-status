@@ -24,7 +24,12 @@ To install the application, follow these steps:
    ```
 3. Install dependencies:
    ```bash
+   go get github.com/getlantern/systray
    go mod tidy
+   go mod download
+
+   sudo apt-get update
+   sudo apt-get install -y libayatana-appindicator3-dev
    ```
 
 ## Building Binaries
@@ -34,14 +39,14 @@ You can build binaries for different systems by setting the `GOOS` and `GOARCH` 
 - For Linux (amd64):
 
   ```bash
-  CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o dist/wazuh-tray
+  go build
   ```
 
-Please note that you'll need to have a suitable C compiler installed in your system for this to work.
+Please note that you'll need to have a suitable C compiler installed in your system and be on an Ubuntu machine for this to work.
 
 ## Usage
 
 Run the application with the following command:
 ```bash
-sudo bash ./dist/wazuh-tray 
+./wazuh-tray 
 ```
