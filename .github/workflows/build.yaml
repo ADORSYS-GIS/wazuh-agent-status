@@ -43,9 +43,9 @@ jobs:
           
       - name: Create directory structure for .deb
         run: |
-          mkdir -p ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/{DEBIAN,${{ env.INSTALL_PATH }},/usr/share/${{ env.APP_NAME }}/assets}
+          mkdir -p ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/{DEBIAN,${{ env.INSTALL_PATH }}}
           mv ${{ env.APP_NAME }} ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/${{ env.INSTALL_PATH }}/
-          cp -r assets ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/usr/share/${{ env.APP_NAME }}/
+          cp -r assets ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/${{ env.INSTALL_PATH }}/
           echo "Package: ${{ env.APP_NAME }}
           Version: ${{ env.APP_VERSION }}
           Section: base
@@ -69,7 +69,7 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT }}
         with:
           tag_name: v${{ env.APP_VERSION }}
           release_name: ${{ env.APP_NAME }} v${{ env.APP_VERSION }}
@@ -79,7 +79,7 @@ jobs:
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./${{ env.APP_NAME }}_${{ env.APP_VERSION }}.deb
