@@ -3,7 +3,7 @@ name: Build Binaries
 on:
   push:
     branches:
-      - main
+      - dev
 
 env:
   GO_VERSION: 1.22
@@ -16,8 +16,15 @@ env:
   MAINTAINER_EMAIL: Armand.Meppa@adorsys.com
 
 jobs:
-  build-linux:
+  build-ubuntu:
+    name: Build CLI
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,31 +46,13 @@ jobs:
           sudo apt-get install -y libayatana-appindicator3-dev
 
       - name: Build binary
-        run: GOOS=linux GOARCH=${{ env.DEB_ARCH }} go build -o ${{ env.APP_NAME }}
-          
-      - name: Create directory structure for .deb
-        run: |
-          mkdir -p ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/{DEBIAN,${{ env.INSTALL_PATH }}}
-          mv ${{ env.APP_NAME }} ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/${{ env.INSTALL_PATH }}/
-          cp -r assets ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/${{ env.INSTALL_PATH }}/
-          echo "Package: ${{ env.APP_NAME }}
-          Version: ${{ env.APP_VERSION }}
-          Section: base
-          Priority: optional
-          Architecture: ${{ env.DEB_ARCH }}
-          Depends: libc6 (>= 2.14)
-          Maintainer: ${{ env.MAINTAINER_NAME }} ${{ env.MAINTAINER_EMAIL }}
-          Description: Wazuh Agent Status
-            A system tray application to monitor Wazuh Agent status." > ${{ env.APP_NAME }}_${{ env.APP_VERSION }}/DEBIAN/control    
-          
-      - name: Build .deb package
-        run: dpkg-deb --build ${{ env.APP_NAME }}_${{ env.APP_VERSION }}
+        run: GOOS=linux GOARCH=${{ env.DEB_ARCH }} go build -o ${{ env.APP_NAME }}-${{ matrix.target }}
 
       - name: Upload Linux binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APP_NAME }}-deb
-          path: ${{ env.APP_NAME }}_${{ env.APP_VERSION }}.deb
+          name: ${{ env.APP_NAME }}-${{ matrix.target }}
+          path: ./
 
       - name: Create GitHub Release
         id: create_release
@@ -85,3 +74,35 @@ jobs:
           asset_path: ./${{ env.APP_NAME }}_${{ env.APP_VERSION }}.deb
           asset_name: ${{ env.APP_NAME }}_${{ env.APP_VERSION }}.deb
           asset_content_type: application/octet-stream
+
+  release:
+    name: Release
+    permissions: write-all
+    needs:
+      - build-ubuntu
+      # - build-macos
+      # - build-windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.APP_VERSION }}
+          release_name: Release ${{ env.APP_VERSION }}
+          draft: true
+          prerelease: false
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: .
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: '**'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
