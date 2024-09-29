@@ -54,27 +54,6 @@ jobs:
           name: ${{ env.APP_NAME }}-${{ matrix.target }}
           path: ./
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
-        with:
-          tag_name: v${{ env.APP_VERSION }}
-          release_name: ${{ env.APP_NAME }} v${{ env.APP_VERSION }}
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ env.APP_NAME }}_${{ env.APP_VERSION }}.deb
-          asset_name: ${{ env.APP_NAME }}_${{ env.APP_VERSION }}.deb
-          asset_content_type: application/octet-stream
-
   release:
     name: Release
     permissions: write-all
