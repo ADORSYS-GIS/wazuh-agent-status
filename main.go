@@ -1,8 +1,8 @@
 package main
 
 import (
+	"embed"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os/exec"
 	"runtime"
@@ -12,27 +12,34 @@ import (
 	"github.com/getlantern/systray"
 )
 
+//go:embed assets/*
+var embeddedFiles embed.FS // Embeds all files in the assets folder
+
 var statusItem, connectionItem *systray.MenuItem
 
 func main() {
-	go func() {
-		systray.Run(onReady, onExit)
-	}()
-	// This keeps the application running in the background.
-	select {}
+	log.Println("Wazuh agent status started...")
+	systray.Run(onReady, onExit)
 }
 
 func onReady() {
 	var iconPath string
 	switch runtime.GOOS {
-	case "linux":
-		iconPath = "./assets/wazuh-logo-min.png"
+	case "linux", "darwin":
+		iconPath = "assets/wazuh-logo-min.png"
 	case "windows":
-		iconPath = "./assets/wazuh-logo-min.ico"
+		iconPath = "assets/wazuh-logo-min.ico"
 	default:
-		iconPath = "./assets/wazuh-logo-min.png" // Fallback to PNG for other OS
+		iconPath = "assets/wazuh-logo-min.png" // Fallback to PNG for other OS
 	}
-	systray.SetIcon(getIcon(iconPath))
+
+	// Get the icon from the embedded file system
+	iconData, err := getEmbeddedFile(iconPath)
+	if err != nil {
+		log.Fatalf("Failed to load icon: %v", err)
+	}
+
+	systray.SetIcon(iconData)
 	systray.SetTitle("Wazuh Agent")
 	systray.SetTooltip("Wazuh Agent Status")
 
@@ -55,7 +62,7 @@ func onReady() {
 }
 
 func onExit() {
-	// Perform cleanup if necessary
+	log.Println("Wazuh agent status stopped")
 }
 
 func updateStatus() {
@@ -71,7 +78,7 @@ func checkServiceStatus() (string, string) {
 		statusCmd = exec.Command("sudo", "systemctl", "status", "wazuh-agent.service")
 		connectionCmd = exec.Command("sudo", "grep", "^status", "/var/ossec/var/run/wazuh-agentd.state")
 	case "darwin":
-		statusCmd = exec.Command("sudo ", "/Library/Ossec/bin/wazuh-control", "status")
+		statusCmd = exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "status")
 		connectionCmd = exec.Command("sudo", "grep", "^status", "/Library/Ossec/var/run/wazuh-agentd.state")
 	case "windows":
 		statusCmd = exec.Command("C:\\Program Files (x86)\\ossec\\bin\\wazuh-control", "status")
@@ -104,24 +111,19 @@ func checkServiceStatus() (string, string) {
 
 	if connectionErr == nil {
 		stdout := string(connectionOutput)
-		if runtime.GOOS == "windows" {
-			if strings.Contains(stdout, "status='connected'") {
-				connection = "Connected"
-			}
-		} else {
-			if strings.Contains(stdout, "status='connected'") {
-				connection = "Connected"
-			}
+		if strings.Contains(stdout, "status='connected'") {
+			connection = "Connected"
 		}
 	}
 
 	return status, connection
 }
 
-func getIcon(path string) []byte {
-	b, err := ioutil.ReadFile(path)
+func getEmbeddedFile(path string) ([]byte, error) {
+	// Read the file from the embedded file system
+	fileData, err := embeddedFiles.ReadFile(path)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed to read embedded file: %w", err)
 	}
-	return b
+	return fileData, nil
 }
