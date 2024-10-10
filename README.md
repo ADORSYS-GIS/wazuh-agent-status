@@ -39,7 +39,7 @@ You can build binaries for different systems by setting the `GOOS` and `GOARCH` 
 - For Linux (amd64):
 
   ```bash
-  go build
+  go build -o dist/ 
   ```
 
 Please note that you'll need to have a suitable C compiler installed in your system and be on an Ubuntu machine for this to work.
@@ -48,5 +48,5 @@ Please note that you'll need to have a suitable C compiler installed in your sys
 
 Run the application with the following command:
 ```bash
-./wazuh-tray 
+./dist/wazuh-agent-status 
 ```
