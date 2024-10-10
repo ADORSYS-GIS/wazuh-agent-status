@@ -29,8 +29,6 @@ func onReady() {
 		iconPath = "assets/wazuh-logo-min.png"
 	case "windows":
 		iconPath = "assets/wazuh-logo-min.ico"
-	default:
-		iconPath = "assets/wazuh-logo-min.png" // Fallback to PNG for other OS
 	}
 
 	// Get the icon from the embedded file system

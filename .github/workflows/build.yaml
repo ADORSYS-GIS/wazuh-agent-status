@@ -3,19 +3,13 @@ name: Build Binaries
 on:
   push:
     branches:
-      - dev
+      - main
     tags:
       - 'v*'
 
 env:
   GO_VERSION: 1.22
   APP_NAME: wazuh-agent-status
-  APP_VERSION: 1.0.0
-  DEB_ARCH: amd64
-  PKG_IDENTIFIER: com.adorsys.wazuh-agent-status
-  INSTALL_PATH: /usr/local/bin
-  MAINTAINER_NAME: Armand Meppa
-  MAINTAINER_EMAIL: Armand.Meppa@adorsys.com
 
 jobs:
   build-ubuntu:
@@ -61,8 +55,6 @@ jobs:
     permissions: write-all
     needs:
       - build-ubuntu
-      # - build-macos
-      # - build-windows
     runs-on: ubuntu-latest
     steps:
       - name: Get the version
