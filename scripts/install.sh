@@ -8,8 +8,8 @@ else
 fi
 
 # Default log level and application details
-APP_NAME=${APP_NAME:-"wazuh-cert-oauth2-client"}
-WOPS_VERSION=${WOPS_VERSION:-"0.2.6"}
+APP_NAME=${APP_NAME:-"wazuh-agent-status"}
+WOPS_VERSION=${WOPS_VERSION:-"0.1.1"}
 
 # Define text formatting
 RED='\033[0;31m'
@@ -91,7 +91,7 @@ esac
 
 # Construct binary name and URL for download
 BIN_NAME="$APP_NAME-${ARCH}-${OS}"
-BASE_URL="https://github.com/ADORSYS-GIS/wazuh-cert-oauth2/releases/download/v$WOPS_VERSION"
+BASE_URL="https://github.com/ADORSYS-GIS/$APP_NAME/releases/download/v$WOPS_VERSION"
 URL="$BASE_URL/$BIN_NAME"
 
 # Create a temporary directory and ensure it is cleaned up
@@ -109,4 +109,4 @@ maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$BIN_DIR/$APP_NAME" || error_exit "Failed t
 maybe_sudo chmod 750 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
 
 success_message "Installation and configuration complete! You can now use '$BIN_DIR/$APP_NAME' from your terminal."
-info_message "Run \n\n\t${GREEN}${BOLD}sudo $BIN_DIR/$APP_NAME o-auth2${NORMAL}\n\n to start configuring. If you don't have sudo on your machine, you can run the command without sudo."
+info_message "Run \n\n\t${GREEN}${BOLD}sudo $BIN_DIR/$APP_NAME ${NORMAL}\n\n to start configuring. If you don't have sudo on your machine, you can run the command without sudo."
