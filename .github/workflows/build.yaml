@@ -32,7 +32,43 @@ jobs:
           
       - name: Install dependencies
         run: |
-          go get github.com/getlantern/systray
+          go mod tidy
+          go mod download
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libayatana-appindicator3-dev
+
+      - name: Build binary
+        run: go build -o dist/${{ env.APP_NAME }}-${{ matrix.target }}
+
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ matrix.target }}
+          path: ./dist
+          
+  build-macos:
+    name: Build CLI for macOS
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          
+      - name: Install dependencies
+        run: |
           go mod tidy
           go mod download
 
@@ -55,6 +91,7 @@ jobs:
     permissions: write-all
     needs:
       - build-ubuntu
+      - build-macos
     runs-on: ubuntu-latest
     steps:
       - name: Get the version
