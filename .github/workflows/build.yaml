@@ -42,13 +42,13 @@ jobs:
           sudo apt-get install -y libayatana-appindicator3-dev
 
       - name: Build binary
-        run: GOOS=linux GOARCH=${{ env.DEB_ARCH }} go build -o ${{ env.APP_NAME }}-${{ matrix.target }}
+        run: go build -o dist/${{ env.APP_NAME }}-${{ matrix.target }}
 
       - name: Upload Linux binary
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-${{ matrix.target }}
-          path: ./
+          path: ./dist
 
   release:
     name: Release
@@ -76,7 +76,7 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: .
+          path: ./dist
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v1
