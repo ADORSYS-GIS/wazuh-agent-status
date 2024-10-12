@@ -15,7 +15,7 @@ import (
 //go:embed assets/*
 var embeddedFiles embed.FS // Embeds all files in the assets folder
 
-var statusItem, connectionItem *systray.MenuItem
+var statusItem, connectionItem, pauseItem, restartItem *systray.MenuItem
 
 func main() {
 	log.Println("Wazuh agent status started...")
@@ -26,7 +26,7 @@ func onReady() {
 	var iconPath string
 	switch runtime.GOOS {
 	case "linux", "darwin":
-		iconPath = "assets/wazuh-logo-min.png"
+		iconPath = "assets/wazuh-logo.png"
 	case "windows":
 		iconPath = "assets/wazuh-logo-min.ico"
 	}
@@ -37,12 +37,23 @@ func onReady() {
 		log.Fatalf("Failed to load icon: %v", err)
 	}
 
+	// Set the main tray icon
 	systray.SetIcon(iconData)
-	systray.SetTitle("Wazuh Agent")
 	systray.SetTooltip("Wazuh Agent Status")
 
 	statusItem = systray.AddMenuItem("Status: Checking...", "Wazuh Agent Status")
 	connectionItem = systray.AddMenuItem("Connection: Checking...", "Wazuh Agent Connection")
+	systray.AddSeparator()
+
+	// Load icons for the pause and restart items
+	pauseIconData, _ := getEmbeddedFile("assets/pause.png")
+	restartIconData, _ := getEmbeddedFile("assets/restart.png")
+
+	// Add menu items with icons
+	pauseItem = systray.AddMenuItem("Pause", "Pause the Wazuh Agent")
+	pauseItem.SetIcon(pauseIconData)
+	restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
+	restartItem.SetIcon(restartIconData)
 
 	quitItem := systray.AddMenuItem("Quit", "Quit the application")
 
@@ -54,8 +65,16 @@ func onReady() {
 	}()
 
 	go func() {
-		<-quitItem.ClickedCh
-		systray.Quit()
+		for {
+			select {
+			case <-pauseItem.ClickedCh:
+				pauseAgent()
+			case <-restartItem.ClickedCh:
+				restartAgent()
+			case <-quitItem.ClickedCh:
+				systray.Quit()
+			}
+		}
 	}()
 }
 
@@ -63,12 +82,14 @@ func onExit() {
 	log.Println("Wazuh agent status stopped")
 }
 
+// updateStatus updates the agent's status and connection status in the tray
 func updateStatus() {
 	status, connection := checkServiceStatus()
-	statusItem.SetTitle(fmt.Sprintf("Status: %s", status))
-	connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
+	statusItem.SetTitle(fmt.Sprintf("● Status: %s", status))
+	connectionItem.SetTitle(fmt.Sprintf("● Connection: %s", connection))
 }
 
+// checkServiceStatus checks the status and connection of the Wazuh agent
 func checkServiceStatus() (string, string) {
 	var statusCmd, connectionCmd *exec.Cmd
 	switch runtime.GOOS {
@@ -117,8 +138,52 @@ func checkServiceStatus() (string, string) {
 	return status, connection
 }
 
+// pauseAgent pauses the Wazuh agent based on the OS
+func pauseAgent() {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "linux":
+		cmd = exec.Command("sudo", "systemctl", "stop", "wazuh-agent.service")
+	case "darwin":
+		cmd = exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "stop")
+	case "windows":
+		cmd = exec.Command("net", "stop", "wazuh-agent")
+	default:
+		log.Println("Unsupported OS for pausing the agent")
+		return
+	}
+
+	if err := cmd.Run(); err != nil {
+		log.Printf("Failed to pause agent: %v", err)
+	} else {
+		log.Println("Wazuh agent paused successfully")
+	}
+}
+
+// restartAgent restarts the Wazuh agent based on the OS
+func restartAgent() {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "linux":
+		cmd = exec.Command("sudo", "systemctl", "restart", "wazuh-agent.service")
+	case "darwin":
+		cmd = exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "restart")
+	case "windows":
+		cmd = exec.Command("net", "start", "wazuh-agent")
+	default:
+		log.Println("Unsupported OS for restarting the agent")
+		return
+	}
+
+	if err := cmd.Run(); err != nil {
+		log.Printf("Failed to restart agent: %v", err)
+	} else {
+		log.Println("Wazuh agent restarted successfully")
+	}
+}
+
+// getEmbeddedFile reads a file from the embedded file system
 func getEmbeddedFile(path string) ([]byte, error) {
-	// Read the file from the embedded file system
 	fileData, err := embeddedFiles.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read embedded file: %w", err)
