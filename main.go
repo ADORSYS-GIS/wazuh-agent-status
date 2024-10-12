@@ -60,12 +60,8 @@ func onReady() {
 
 	quitItem := systray.AddMenuItem("Quit", "Quit the Agent application")
 
-	go func() {
-		for {
-			updateStatus(connectedIcon, disconnectedIcon)
-			time.Sleep(10 * time.Second) // Update every 10 seconds
-		}
-	}()
+	// Start the monitoring function
+	go monitorStatusAndConnection(connectedIcon, disconnectedIcon)
 
 	go func() {
 		for {
@@ -85,63 +81,32 @@ func onExit() {
 	log.Println("Wazuh agent status stopped")
 }
 
-// updateStatus updates the agent's status and connection status in the tray
-func updateStatus(connectedIcon, disconnectedIcon []byte) {
-	status, connection := checkServiceStatus()
-
-	if status == "Active" {
-		statusItem.SetTitle(fmt.Sprintf("Status: %s", status))
-		statusItem.SetIcon(connectedIcon)
-	} else {
-		statusItem.SetTitle(fmt.Sprintf("Status: %s", status))
-		statusItem.SetIcon(disconnectedIcon)
-		go monitorStatusAndConnection(connectedIcon, disconnectedIcon)
-	}
-
-	if connection == "Connected" {
-		connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
-		connectionItem.SetIcon(connectedIcon)
-	} else {
-		connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
-		connectionItem.SetIcon(disconnectedIcon)
-		go monitorStatusAndConnection(connectedIcon, disconnectedIcon)
-	}
-}
-
-// monitorStatusAndConnection checks the status and connection every 10 seconds if they are not in their desired states
+// monitorStatusAndConnection checks the status and connection every 10 seconds and updates the tray items accordingly
 func monitorStatusAndConnection(connectedIcon, disconnectedIcon []byte) {
 	for {
-		time.Sleep(10 * time.Second)
 		status, connection := checkServiceStatus()
 
 		if status == "Active" {
+			statusItem.SetTitle(fmt.Sprintf("Status: %s", status))
 			statusItem.SetIcon(connectedIcon)
-			statusItem.SetTitle("Status: Active")
 		} else {
+			statusItem.SetTitle(fmt.Sprintf("Status: %s", status))
 			statusItem.SetIcon(disconnectedIcon)
-			statusItem.SetTitle("Status: Rechecking...")
 		}
 
 		if connection == "Connected" {
+			connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
 			connectionItem.SetIcon(connectedIcon)
-			connectionItem.SetTitle("Connection: Connected")
 		} else {
+			connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
 			connectionItem.SetIcon(disconnectedIcon)
-			connectionItem.SetTitle("Connection: Rechecking...")
 		}
 
-		// Stop monitoring when both are resolved
-		if status == "Active" && connection == "Connected" {
-			break
-		}
+		time.Sleep(10 * time.Second) // Update every 10 seconds
 	}
 }
 
-// checkServiceStatus checks the status and connection of the Wazuh agen based on the OS
-//1. Simplify the status and connection checks by using helper functions.
-//2. Use constants for repeated strings.
-//3. Handle errors more gracefully.
-
+// checkServiceStatus checks the status and connection of the Wazuh agent based on the OS
 func checkServiceStatus() (string, string) {
 	const (
 		linuxStatusCmd       = "sudo systemctl status wazuh-agent.service"
