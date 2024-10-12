@@ -44,8 +44,8 @@ func onReady() {
 	connectedIcon, _ := getEmbeddedFile("assets/green-dot.png")
 	disconnectedIcon, _ := getEmbeddedFile("assets/gray-dot.png")
 
-	statusItem = systray.AddMenuItem("Status: Checking...", "Wazuh Agent Status")
-	connectionItem = systray.AddMenuItem("Connection: Checking...", "Wazuh Agent Connection")
+	statusItem = systray.AddMenuItem("Agent Status: Checking...", "Wazuh Agent Status")
+	connectionItem = systray.AddMenuItem("Connection Status: Checking...", "Wazuh Agent Connection")
 	systray.AddSeparator()
 
 	// Load icons for the pause and restart items
@@ -58,7 +58,7 @@ func onReady() {
 	restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
 	restartItem.SetIcon(restartIconData)
 
-	quitItem := systray.AddMenuItem("Quit", "Quit the application")
+	quitItem := systray.AddMenuItem("Quit", "Quit the Agent application")
 
 	go func() {
 		for {
