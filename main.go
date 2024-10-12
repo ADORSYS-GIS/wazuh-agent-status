@@ -44,8 +44,8 @@ func onReady() {
 	connectedIcon, _ := getEmbeddedFile("assets/green-dot.png")
 	disconnectedIcon, _ := getEmbeddedFile("assets/gray-dot.png")
 
-	statusItem = systray.AddMenuItem("Agent Status: Checking...", "Wazuh Agent Status")
-	connectionItem = systray.AddMenuItem("Connection Status: Checking...", "Wazuh Agent Connection")
+	statusItem = systray.AddMenuItem("Agent: Inactive", "Wazuh Agent Status")
+	connectionItem = systray.AddMenuItem("Connection: Disconnected", "Wazuh Agent Connection")
 	systray.AddSeparator()
 
 	// Load icons for the pause and restart items
@@ -60,7 +60,7 @@ func onReady() {
 
 	quitItem := systray.AddMenuItem("Quit", "Quit the Agent application")
 
-	// Start the monitoring function
+	// Start the background monitoring process
 	go monitorStatusAndConnection(connectedIcon, disconnectedIcon)
 
 	go func() {
@@ -81,15 +81,11 @@ func onExit() {
 	log.Println("Wazuh agent status stopped")
 }
 
-// monitorStatusAndConnection checks the status and connection every 10 seconds and updates the tray items accordingly with retries
+// monitorStatusAndConnection checks the status and connection in the background and updates the tray items accordingly
 func monitorStatusAndConnection(connectedIcon, disconnectedIcon []byte) {
 	for {
-		// Set status to "Checking..." while retrying
-		statusItem.SetTitle("Agent: Checking...")
-		connectionItem.SetTitle("Connection: Checking...")
-
-		// Retry checking every 3 seconds, for 3 retries (9 seconds total)
-		status, connection := retryCheckServiceStatus(3, 3*time.Second)
+		// Check the agent status and connection in the background
+		status, connection := checkServiceStatus()
 
 		// Update the UI with the actual status
 		if status == "Active" {
@@ -109,25 +105,9 @@ func monitorStatusAndConnection(connectedIcon, disconnectedIcon []byte) {
 			connectionItem.SetIcon(disconnectedIcon)
 		}
 
-		// Wait 10 seconds before checking again
-		time.Sleep(10 * time.Second)
+		// Check every 5 seconds
+		time.Sleep(5 * time.Second)
 	}
-}
-
-// retryCheckServiceStatus attempts to check the service status and connection multiple times
-func retryCheckServiceStatus(retries int, interval time.Duration) (string, string) {
-	var status, connection string
-	for i := 0; i < retries; i++ {
-		status, connection = checkServiceStatus()
-		// If both are valid, return early
-		if status == "Active" && connection == "Connected" {
-			return status, connection
-		}
-		// Wait for the specified interval before retrying
-		time.Sleep(interval)
-	}
-	// Return the last status after all retries
-	return status, connection
 }
 
 // checkServiceStatus checks the status and connection of the Wazuh agent based on the OS
