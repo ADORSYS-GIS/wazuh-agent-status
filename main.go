@@ -84,7 +84,7 @@ func onExit() {
 // monitorStatusAndConnection checks the status and connection every 10 seconds and updates the tray items accordingly with retries
 func monitorStatusAndConnection(connectedIcon, disconnectedIcon []byte) {
 	for {
-		// While checking, set both status and connection to "Checking..."
+		// Set status to "Checking..." while retrying
 		statusItem.SetTitle("Agent: Checking...")
 		connectionItem.SetTitle("Connection: Checking...")
 
@@ -133,7 +133,7 @@ func retryCheckServiceStatus(retries int, interval time.Duration) (string, strin
 // checkServiceStatus checks the status and connection of the Wazuh agent based on the OS
 func checkServiceStatus() (string, string) {
 	const (
-		linuxStatusCmd       = "sudo systemctl status wazuh-agent.service"
+		linuxStatusCmd       = "sudo /var/ossec/bin/wazuh-control status"
 		linuxConnectionCmd   = "sudo grep ^status /var/ossec/var/run/wazuh-agentd.state"
 		darwinStatusCmd      = "sudo /Library/Ossec/bin/wazuh-control status"
 		darwinConnectionCmd  = "sudo grep ^status /Library/Ossec/var/run/wazuh-agentd.state"
@@ -169,14 +169,8 @@ func getStatus(cmd *exec.Cmd) string {
 	}
 
 	stdout := string(output)
-	if runtime.GOOS == "linux" && strings.Contains(stdout, "Active: active (running)") {
+	if runtime.GOOS == "linux" && strings.Contains(stdout, "wazuh-agentd is running") {
 		return "Active"
-	}
-
-	for _, line := range strings.Split(stdout, "\n") {
-		if strings.Contains(line, "is running...") {
-			return "Active"
-		}
 	}
 
 	return "Inactive"
