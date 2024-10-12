@@ -95,6 +95,7 @@ func updateStatus(connectedIcon, disconnectedIcon []byte) {
 	} else {
 		statusItem.SetTitle(fmt.Sprintf("Status: %s", status))
 		statusItem.SetIcon(disconnectedIcon)
+		go monitorStatusAndConnection(connectedIcon, disconnectedIcon)
 	}
 
 	if connection == "Connected" {
@@ -103,6 +104,36 @@ func updateStatus(connectedIcon, disconnectedIcon []byte) {
 	} else {
 		connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
 		connectionItem.SetIcon(disconnectedIcon)
+		go monitorStatusAndConnection(connectedIcon, disconnectedIcon)
+	}
+}
+
+// monitorStatusAndConnection checks the status and connection every 10 seconds if they are not in their desired states
+func monitorStatusAndConnection(connectedIcon, disconnectedIcon []byte) {
+	for {
+		time.Sleep(10 * time.Second)
+		status, connection := checkServiceStatus()
+
+		if status == "Active" {
+			statusItem.SetIcon(connectedIcon)
+			statusItem.SetTitle("Status: Active")
+		} else {
+			statusItem.SetIcon(disconnectedIcon)
+			statusItem.SetTitle("Status: Rechecking...")
+		}
+
+		if connection == "Connected" {
+			connectionItem.SetIcon(connectedIcon)
+			connectionItem.SetTitle("Connection: Connected")
+		} else {
+			connectionItem.SetIcon(disconnectedIcon)
+			connectionItem.SetTitle("Connection: Rechecking...")
+		}
+
+		// Stop monitoring when both are resolved
+		if status == "Active" && connection == "Connected" {
+			break
+		}
 	}
 }
 
