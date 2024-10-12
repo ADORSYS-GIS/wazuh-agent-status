@@ -4,23 +4,23 @@ on:
   push:
     branches:
       - main
+      - develop
     tags:
       - 'v*'
+  pull_request:
 
 env:
   GO_VERSION: 1.22
   APP_NAME: wazuh-agent-status
 
 jobs:
-  build-ubuntu:
-    name: Build CLI
+  build:
+    name: Build Multi-Platform Binaries
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
-    
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        arch: [amd64, arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -29,91 +29,72 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          
-      - name: Install dependencies
-        run: |
-          go mod tidy
-          go mod download
 
-      - name: Install dependencies
+      - name: Install Linux Dependencies
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libayatana-appindicator3-dev
+          sudo apt-get install -y \
+            libayatana-appindicator3-dev \
+            libdbusmenu-glib-dev \
+            libgtk-3-dev \
+            libharfbuzz-dev \
+            libpango1.0-dev \
+            libcairo2-dev \
+            libgdk-pixbuf2.0-dev \
+            libatk1.0-dev
 
-      - name: Build binary
-        run: go build -o dist/${{ env.APP_NAME }}-${{ matrix.target }}
-
-      - name: Upload Linux binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.APP_NAME }}-${{ matrix.target }}
-          path: ./dist
-          
-  build-macos:
-    name: Build CLI for macOS
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        target:
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          
-      - name: Install dependencies
+      - name: Install MacOS Dependencies
+        if: matrix.os == 'macos-latest'
         run: |
-          go mod tidy
-          go mod download
+          brew install gtk+3
 
       - name: Build binary
-        run: go build -o dist/${{ env.APP_NAME }}-${{ matrix.target }}
+        run: |
+          GOOS=${{ matrix.os == 'ubuntu-latest' && 'linux' || (matrix.os == 'macos-latest' && 'darwin' || 'windows') }}
+          GOARCH=${{ matrix.arch }}
+          EXT=$([ "$GOOS" == "windows" ] && echo ".exe" || echo "")
+          go build -o dist/${{ env.APP_NAME }}-$GOOS-${{ matrix.arch }}$EXT
 
-      - name: Upload Linux binary
+      - name: Upload binary artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APP_NAME }}-${{ matrix.target }}
-          path: ./dist
+          name: ${{ env.APP_NAME }}-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/
 
-  release:
-    name: Release
-    permissions: write-all
-    needs:
-      - build-ubuntu
-      - build-macos
-    runs-on: ubuntu-latest
-    steps:
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: Release ${{ steps.get_version.outputs.VERSION }}
-          draft: false
-          prerelease: false
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./dist
-
-      - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          files: '**'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#  release:
+#    name: Release
+#    permissions: write-all
+#    needs:
+#      - build-ubuntu
+#      - build-macos
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Get the version
+#        id: get_version
+#        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+#
+#      - name: Create Release
+#        id: create_release
+#        uses: actions/create-release@v1
+#        if: startsWith(github.ref, 'refs/tags/v')
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          tag_name: ${{ steps.get_version.outputs.VERSION }}
+#          release_name: Release ${{ steps.get_version.outputs.VERSION }}
+#          draft: false
+#          prerelease: false
+#
+#      - name: Download Artifacts
+#        uses: actions/download-artifact@v4
+#        with:
+#          path: ./dist
+#
+#      - name: Create Release and Upload Assets
+#        uses: softprops/action-gh-release@v1
+#        if: startsWith(github.ref, 'refs/tags/v')
+#        with:
+#          files: '**'
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

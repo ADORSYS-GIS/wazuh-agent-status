@@ -4,9 +4,6 @@ import (
 	"embed"
 	"fmt"
 	"log"
-	"os/exec"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/getlantern/systray"
@@ -17,50 +14,57 @@ var embeddedFiles embed.FS // Embeds all files in the assets folder
 
 var statusItem, connectionItem, pauseItem, restartItem *systray.MenuItem
 
+var statusTitle string
+
+var connectionTitle string
+
 func main() {
 	log.Println("Wazuh agent status started...")
 	systray.Run(onReady, onExit)
 }
 
 func onReady() {
-	var iconPath string
-	switch runtime.GOOS {
-	case "linux", "darwin":
-		iconPath = "assets/wazuh-logo.png"
-	case "windows":
-		iconPath = "assets/wazuh-logo-min.ico"
-	}
-
-	// Get the icon from the embedded file system
-	iconData, err := getEmbeddedFile(iconPath)
+	// Set the main icon
+	iconData, err := getEmbeddedFile("assets/wazuh-logo.png")
 	if err != nil {
 		log.Fatalf("Failed to load icon: %v", err)
 	}
-
 	systray.SetIcon(iconData)
 	systray.SetTooltip("Wazuh Agent Status")
 
-	// Load icons for the status and connection
+	// Load icons for status and connection
 	connectedIcon, _ := getEmbeddedFile("assets/green-dot.png")
 	disconnectedIcon, _ := getEmbeddedFile("assets/gray-dot.png")
 
+	// Load icons for pause and restart
+	pauseIconData, err := getEmbeddedFile("assets/pause.png")
+	if err != nil {
+		log.Printf("Failed to load pause icon: %v", err)
+	}
+	restartIconData, err := getEmbeddedFile("assets/restart.png")
+	if err != nil {
+		log.Printf("Failed to load restart icon: %v", err)
+	}
+
+	// Set the menu items
 	statusItem = systray.AddMenuItem("Agent: Inactive", "Wazuh Agent Status")
 	connectionItem = systray.AddMenuItem("Connection: Disconnected", "Wazuh Agent Connection")
 	systray.AddSeparator()
 
-	// Load icons for the pause and restart items
-	pauseIconData, _ := getEmbeddedFile("assets/pause.png")
-	restartIconData, _ := getEmbeddedFile("assets/restart.png")
-
-	// Add menu items with icons
+	// Add pause and restart items with icons
 	pauseItem = systray.AddMenuItem("Pause", "Pause the Wazuh Agent")
-	pauseItem.SetIcon(pauseIconData)
+	if pauseIconData != nil {
+		pauseItem.SetIcon(pauseIconData)
+	}
+
 	restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
-	restartItem.SetIcon(restartIconData)
+	if restartIconData != nil {
+		restartItem.SetIcon(restartIconData)
+	}
 
 	quitItem := systray.AddMenuItem("Quit", "Quit the Agent application")
 
-	// Start the background monitoring process
+	// Start background monitoring
 	go monitorStatusAndConnection(connectedIcon, disconnectedIcon)
 
 	go func() {
@@ -81,135 +85,44 @@ func onExit() {
 	log.Println("Wazuh agent status stopped")
 }
 
-// monitorStatusAndConnection checks the status and connection in the background and updates the tray items accordingly
+// monitorStatusAndConnection periodically checks the status of the Wazuh agent
 func monitorStatusAndConnection(connectedIcon, disconnectedIcon []byte) {
 	for {
-		// Check the agent status and connection in the background
 		status, connection := checkServiceStatus()
 
-		// Update the UI with the actual status
 		if status == "Active" {
-			statusItem.SetTitle(fmt.Sprintf("Agent: %s", status))
+			if statusTitle != "Agent: Active" {
+				log.Printf("[%s] Wazuh agent is now active\n", time.Now().Format(time.RFC3339))
+				statusTitle = "Agent: Active"
+			}
+			statusItem.SetTitle(statusTitle)
 			statusItem.SetIcon(connectedIcon)
 		} else {
-			statusItem.SetTitle(fmt.Sprintf("Agent: %s", status))
+			if statusTitle != "Agent: Inactive" {
+				log.Printf("[%s] Wazuh agent is now inactive\n", time.Now().Format(time.RFC3339))
+				statusTitle = "Agent: Inactive"
+			}
+			statusItem.SetTitle(statusTitle)
 			statusItem.SetIcon(disconnectedIcon)
 		}
 
-		// Update the UI with the actual connection status
 		if connection == "Connected" {
-			connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
+			if connectionTitle != "Connection: Connected" {
+				log.Printf("[%s] Wazuh agent connection established\n", time.Now().Format(time.RFC3339))
+				connectionTitle = "Connection: Connected"
+			}
+			connectionItem.SetTitle(connectionTitle)
 			connectionItem.SetIcon(connectedIcon)
 		} else {
-			connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
+			if connectionTitle != "Connection: Disconnected" {
+				log.Printf("[%s] Wazuh agent connection lost\n", time.Now().Format(time.RFC3339))
+				connectionTitle = "Connection: Disconnected"
+			}
+			connectionItem.SetTitle(connectionTitle)
 			connectionItem.SetIcon(disconnectedIcon)
 		}
 
-		// Check every 5 seconds
 		time.Sleep(5 * time.Second)
-	}
-}
-
-// checkServiceStatus checks the status and connection of the Wazuh agent based on the OS
-func checkServiceStatus() (string, string) {
-	const (
-		linuxStatusCmd       = "sudo /var/ossec/bin/wazuh-control status"
-		linuxConnectionCmd   = "sudo grep ^status /var/ossec/var/run/wazuh-agentd.state"
-		darwinStatusCmd      = "sudo /Library/Ossec/bin/wazuh-control status"
-		darwinConnectionCmd  = "sudo grep ^status /Library/Ossec/var/run/wazuh-agentd.state"
-		windowsStatusCmd     = `C:\Program Files (x86)\ossec\bin\wazuh-control status`
-		windowsConnectionCmd = `powershell -Command "Select-String -Path 'C:\Program Files (x86)\ossec-agent\wazuh-agent.state' -Pattern '^status'"`
-	)
-
-	var statusCmd, connectionCmd *exec.Cmd
-	switch runtime.GOOS {
-	case "linux":
-		statusCmd = exec.Command("sh", "-c", linuxStatusCmd)
-		connectionCmd = exec.Command("sh", "-c", linuxConnectionCmd)
-	case "darwin":
-		statusCmd = exec.Command("sh", "-c", darwinStatusCmd)
-		connectionCmd = exec.Command("sh", "-c", darwinConnectionCmd)
-	case "windows":
-		statusCmd = exec.Command("cmd", "/C", windowsStatusCmd)
-		connectionCmd = exec.Command("cmd", "/C", windowsConnectionCmd)
-	default:
-		return "Unsupported OS", "Unsupported OS"
-	}
-
-	status := getStatus(statusCmd)
-	connection := getConnection(connectionCmd)
-
-	return status, connection
-}
-
-func getStatus(cmd *exec.Cmd) string {
-	output, err := cmd.Output()
-	if err != nil {
-		return "Inactive"
-	}
-
-	stdout := string(output)
-	if runtime.GOOS == "linux" && strings.Contains(stdout, "wazuh-agentd is running") {
-		return "Active"
-	}
-
-	return "Inactive"
-}
-
-func getConnection(cmd *exec.Cmd) string {
-	output, err := cmd.Output()
-	if err != nil {
-		return "Disconnected"
-	}
-
-	if strings.Contains(string(output), "status='connected'") {
-		return "Connected"
-	}
-
-	return "Disconnected"
-}
-
-// pauseAgent pauses the Wazuh agent based on the OS
-func pauseAgent() {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "linux":
-		cmd = exec.Command("sudo", "/var/ossec/bin/wazuh-control", "stop")
-	case "darwin":
-		cmd = exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "stop")
-	case "windows":
-		cmd = exec.Command("net", "stop", "wazuh-agent")
-	default:
-		log.Println("Unsupported OS for pausing the agent")
-		return
-	}
-
-	if err := cmd.Run(); err != nil {
-		log.Printf("Failed to pause agent: %v", err)
-	} else {
-		log.Println("Wazuh agent paused successfully")
-	}
-}
-
-// restartAgent restarts the Wazuh agent based on the OS
-func restartAgent() {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "linux":
-		cmd = exec.Command("sudo", "/var/ossec/bin/wazuh-control", "restart")
-	case "darwin":
-		cmd = exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "restart")
-	case "windows":
-		cmd = exec.Command("net", "start", "wazuh-agent")
-	default:
-		log.Println("Unsupported OS for restarting the agent")
-		return
-	}
-
-	if err := cmd.Run(); err != nil {
-		log.Printf("Failed to restart agent: %v", err)
-	} else {
-		log.Println("Wazuh agent restarted successfully")
 	}
 }
 
