@@ -81,19 +81,26 @@ func onExit() {
 	log.Println("Wazuh agent status stopped")
 }
 
-// monitorStatusAndConnection checks the status and connection every 10 seconds and updates the tray items accordingly
+// monitorStatusAndConnection checks the status and connection every 10 seconds and updates the tray items accordingly with retries
 func monitorStatusAndConnection(connectedIcon, disconnectedIcon []byte) {
 	for {
-		status, connection := checkServiceStatus()
+		// While checking, set both status and connection to "Checking..."
+		statusItem.SetTitle("Agent: Checking...")
+		connectionItem.SetTitle("Connection: Checking...")
 
+		// Retry checking every 3 seconds, for 3 retries (9 seconds total)
+		status, connection := retryCheckServiceStatus(3, 3*time.Second)
+
+		// Update the UI with the actual status
 		if status == "Active" {
-			statusItem.SetTitle(fmt.Sprintf("Status: %s", status))
+			statusItem.SetTitle(fmt.Sprintf("Agent: %s", status))
 			statusItem.SetIcon(connectedIcon)
 		} else {
-			statusItem.SetTitle(fmt.Sprintf("Status: %s", status))
+			statusItem.SetTitle(fmt.Sprintf("Agent: %s", status))
 			statusItem.SetIcon(disconnectedIcon)
 		}
 
+		// Update the UI with the actual connection status
 		if connection == "Connected" {
 			connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
 			connectionItem.SetIcon(connectedIcon)
@@ -102,8 +109,25 @@ func monitorStatusAndConnection(connectedIcon, disconnectedIcon []byte) {
 			connectionItem.SetIcon(disconnectedIcon)
 		}
 
-		time.Sleep(10 * time.Second) // Update every 10 seconds
+		// Wait 10 seconds before checking again
+		time.Sleep(10 * time.Second)
 	}
+}
+
+// retryCheckServiceStatus attempts to check the service status and connection multiple times
+func retryCheckServiceStatus(retries int, interval time.Duration) (string, string) {
+	var status, connection string
+	for i := 0; i < retries; i++ {
+		status, connection = checkServiceStatus()
+		// If both are valid, return early
+		if status == "Active" && connection == "Connected" {
+			return status, connection
+		}
+		// Wait for the specified interval before retrying
+		time.Sleep(interval)
+	}
+	// Return the last status after all retries
+	return status, connection
 }
 
 // checkServiceStatus checks the status and connection of the Wazuh agent based on the OS
@@ -176,7 +200,7 @@ func pauseAgent() {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "linux":
-		cmd = exec.Command("sudo", "systemctl", "stop", "wazuh-agent.service")
+		cmd = exec.Command("sudo", "/var/ossec/bin/wazuh-control", "stop")
 	case "darwin":
 		cmd = exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "stop")
 	case "windows":
@@ -198,7 +222,7 @@ func restartAgent() {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "linux":
-		cmd = exec.Command("sudo", "systemctl", "restart", "wazuh-agent.service")
+		cmd = exec.Command("sudo", "/var/ossec/bin/wazuh-control", "restart")
 	case "darwin":
 		cmd = exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "restart")
 	case "windows":
