@@ -37,9 +37,12 @@ func onReady() {
 		log.Fatalf("Failed to load icon: %v", err)
 	}
 
-	// Set the main tray icon
 	systray.SetIcon(iconData)
 	systray.SetTooltip("Wazuh Agent Status")
+
+	// Load icons for the status and connection
+	connectedIcon, _ := getEmbeddedFile("assets/green-dot.png")
+	disconnectedIcon, _ := getEmbeddedFile("assets/gray-dot.png")
 
 	statusItem = systray.AddMenuItem("Status: Checking...", "Wazuh Agent Status")
 	connectionItem = systray.AddMenuItem("Connection: Checking...", "Wazuh Agent Connection")
@@ -59,8 +62,8 @@ func onReady() {
 
 	go func() {
 		for {
-			updateStatus()
-			time.Sleep(5 * time.Second)
+			updateStatus(connectedIcon, disconnectedIcon)
+			time.Sleep(10 * time.Second) // Update every 10 seconds
 		}
 	}()
 
@@ -83,10 +86,24 @@ func onExit() {
 }
 
 // updateStatus updates the agent's status and connection status in the tray
-func updateStatus() {
+func updateStatus(connectedIcon, disconnectedIcon []byte) {
 	status, connection := checkServiceStatus()
-	statusItem.SetTitle(fmt.Sprintf("● Status: %s", status))
-	connectionItem.SetTitle(fmt.Sprintf("● Connection: %s", connection))
+
+	if status == "Active" {
+		statusItem.SetTitle(fmt.Sprintf("Status: %s", status))
+		statusItem.SetIcon(connectedIcon)
+	} else {
+		statusItem.SetTitle(fmt.Sprintf("Status: %s", status))
+		statusItem.SetIcon(disconnectedIcon)
+	}
+
+	if connection == "Connected" {
+		connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
+		connectionItem.SetIcon(connectedIcon)
+	} else {
+		connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
+		connectionItem.SetIcon(disconnectedIcon)
+	}
 }
 
 // checkServiceStatus checks the status and connection of the Wazuh agent
