@@ -137,53 +137,73 @@ func monitorStatusAndConnection(connectedIcon, disconnectedIcon []byte) {
 	}
 }
 
-// checkServiceStatus checks the status and connection of the Wazuh agent
+// checkServiceStatus checks the status and connection of the Wazuh agen based on the OS
+//1. Simplify the status and connection checks by using helper functions.
+//2. Use constants for repeated strings.
+//3. Handle errors more gracefully.
+
 func checkServiceStatus() (string, string) {
+	const (
+		linuxStatusCmd       = "sudo systemctl status wazuh-agent.service"
+		linuxConnectionCmd   = "sudo grep ^status /var/ossec/var/run/wazuh-agentd.state"
+		darwinStatusCmd      = "sudo /Library/Ossec/bin/wazuh-control status"
+		darwinConnectionCmd  = "sudo grep ^status /Library/Ossec/var/run/wazuh-agentd.state"
+		windowsStatusCmd     = `C:\Program Files (x86)\ossec\bin\wazuh-control status`
+		windowsConnectionCmd = `powershell -Command "Select-String -Path 'C:\Program Files (x86)\ossec-agent\wazuh-agent.state' -Pattern '^status'"`
+	)
+
 	var statusCmd, connectionCmd *exec.Cmd
 	switch runtime.GOOS {
 	case "linux":
-		statusCmd = exec.Command("sudo", "systemctl", "status", "wazuh-agent.service")
-		connectionCmd = exec.Command("sudo", "grep", "^status", "/var/ossec/var/run/wazuh-agentd.state")
+		statusCmd = exec.Command("sh", "-c", linuxStatusCmd)
+		connectionCmd = exec.Command("sh", "-c", linuxConnectionCmd)
 	case "darwin":
-		statusCmd = exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "status")
-		connectionCmd = exec.Command("sudo", "grep", "^status", "/Library/Ossec/var/run/wazuh-agentd.state")
+		statusCmd = exec.Command("sh", "-c", darwinStatusCmd)
+		connectionCmd = exec.Command("sh", "-c", darwinConnectionCmd)
 	case "windows":
-		statusCmd = exec.Command("C:\\Program Files (x86)\\ossec\\bin\\wazuh-control", "status")
-		connectionCmd = exec.Command("powershell", "-Command", "Select-String -Path 'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state' -Pattern '^status'")
+		statusCmd = exec.Command("cmd", "/C", windowsStatusCmd)
+		connectionCmd = exec.Command("cmd", "/C", windowsConnectionCmd)
 	default:
 		return "Unsupported OS", "Unsupported OS"
 	}
 
-	statusOutput, statusErr := statusCmd.Output()
-	connectionOutput, connectionErr := connectionCmd.Output()
-
-	status := "Inactive"
-	connection := "Disconnected"
-
-	if statusErr == nil {
-		stdout := string(statusOutput)
-		if runtime.GOOS == "linux" {
-			if strings.Contains(stdout, "Active: active (running)") {
-				status = "Active"
-			}
-		} else {
-			for _, line := range strings.Split(stdout, "\n") {
-				if strings.Contains(line, "is running...") {
-					status = "Active"
-					break
-				}
-			}
-		}
-	}
-
-	if connectionErr == nil {
-		stdout := string(connectionOutput)
-		if strings.Contains(stdout, "status='connected'") {
-			connection = "Connected"
-		}
-	}
+	status := getStatus(statusCmd)
+	connection := getConnection(connectionCmd)
 
 	return status, connection
+}
+
+func getStatus(cmd *exec.Cmd) string {
+	output, err := cmd.Output()
+	if err != nil {
+		return "Inactive"
+	}
+
+	stdout := string(output)
+	if runtime.GOOS == "linux" && strings.Contains(stdout, "Active: active (running)") {
+		return "Active"
+	}
+
+	for _, line := range strings.Split(stdout, "\n") {
+		if strings.Contains(line, "is running...") {
+			return "Active"
+		}
+	}
+
+	return "Inactive"
+}
+
+func getConnection(cmd *exec.Cmd) string {
+	output, err := cmd.Output()
+	if err != nil {
+		return "Disconnected"
+	}
+
+	if strings.Contains(string(output), "status='connected'") {
+		return "Connected"
+	}
+
+	return "Disconnected"
 }
 
 // pauseAgent pauses the Wazuh agent based on the OS
