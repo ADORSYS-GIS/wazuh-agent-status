@@ -51,7 +51,7 @@ jobs:
       - name: Build binary
         run: |
           set -x
-          CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.arch }} go build -o dist/${{ env.APP_NAME }}-${{ matrix.os }}-${{ matrix.arch }}
+          CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.arch }} go build -o dist/${{ env.APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Upload Linux binary
         if: ${{ !env.ACT }}
