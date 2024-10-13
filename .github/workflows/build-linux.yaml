@@ -1,0 +1,61 @@
+name: Build Binaries for Linux (amd64, arm64)
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+  pull_request:
+
+env:
+  GO_VERSION: 1.22
+  APP_NAME: wazuh-agent-status
+
+jobs:
+  build-linux:
+    name: Build for Linux (amd64, arm64)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Display Go Environment
+        run: |
+          go env
+
+      - name: Install Linux dependencies
+        run: |
+          set -x
+          sudo apt-get update
+          sudo apt-get install -y \
+            libayatana-appindicator3-dev \
+            libdbusmenu-glib-dev \
+            libgtk-3-dev \
+            libharfbuzz-dev \
+            libpango1.0-dev \
+            libcairo2-dev \
+            libgdk-pixbuf2.0-dev \
+            libatk1.0-dev \
+            gcc-arm-linux-gnueabi
+
+      - name: Build binary
+        run: |
+          set -x
+          CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.arch }} go build -o dist/${{ env.APP_NAME }}-${{ matrix.os }}-${{ matrix.arch }}
+
+      - name: Upload Linux binary
+        if: ${{ !env.ACT }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-linux-${{ matrix.arch }}
+          path: ./dist/
