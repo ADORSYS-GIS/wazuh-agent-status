@@ -34,7 +34,7 @@ To install the application, follow these steps:
 
 You can build binaries for different systems using this command:
 
-- Cross Platform build For Unix (Linux, macOS and Windows):
+- Cross Platform build For Linux, macOS and Windows:
   ```bash
     GOOS=linux GOARCH=amd64 go build -o dist/wazuh-agent-status-linux
     GOOS=darwin GOARCH=amd64 go build -o dist/wazuh-agent-status-macos
