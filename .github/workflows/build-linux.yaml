@@ -29,13 +29,8 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Display Go Environment
-        run: |
-          go env
-
       - name: Install Linux dependencies
         run: |
-          set -x
           sudo apt-get update
           sudo apt-get install -y \
             libayatana-appindicator3-dev \
@@ -45,13 +40,11 @@ jobs:
             libpango1.0-dev \
             libcairo2-dev \
             libgdk-pixbuf2.0-dev \
-            libatk1.0-dev \
-            gcc-arm-linux-gnueabi
+            libatk1.0-dev
 
       - name: Build binary
         run: |
-          set -x
-          CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.arch }} go build -o dist/${{ env.APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -o dist/${{ env.APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Upload Linux binary
         if: ${{ !env.ACT }}
