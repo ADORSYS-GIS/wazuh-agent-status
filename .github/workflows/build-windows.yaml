@@ -30,13 +30,18 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Install Windows Dependencies
+      - name: Install Dependencies
         run: |
-          choco install gtk+3
+          go mod tidy
+        
+      - name: Set environment variables for Go
+        run: |
+          $env:GOOS=windows
+          $env:GOARCH=${{ matrix.arch }}
 
       - name: Build binary for Windows
         run: |
-          GOOS=windows GOARCH=${{ matrix.arch }} go build -o dist/${{ env.APP_NAME }}-windows-${{ matrix.arch }}.exe
+          go build -o dist/${{ env.APP_NAME }}-windows-${{ matrix.arch }}.exe
 
       - name: Upload Windows binary
         uses: actions/upload-artifact@v4
