@@ -4,9 +4,6 @@ import (
 	"embed"
 	"fmt"
 	"log"
-	"os/exec"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/getlantern/systray"
@@ -15,7 +12,11 @@ import (
 //go:embed assets/*
 var embeddedFiles embed.FS // Embeds all files in the assets folder
 
-var statusItem, connectionItem *systray.MenuItem
+var statusItem, connectionItem, pauseItem, restartItem *systray.MenuItem
+
+var statusTitle string
+
+var connectionTitle string
 
 func main() {
 	log.Println("Wazuh agent status started...")
@@ -23,39 +24,60 @@ func main() {
 }
 
 func onReady() {
-	var iconPath string
-	switch runtime.GOOS {
-	case "linux", "darwin":
-		iconPath = "assets/wazuh-logo-min.png"
-	case "windows":
-		iconPath = "assets/wazuh-logo-min.ico"
-	}
-
-	// Get the icon from the embedded file system
-	iconData, err := getEmbeddedFile(iconPath)
+	// Set the main icon
+	iconData, err := getEmbeddedFile("assets/wazuh-logo.png")
 	if err != nil {
 		log.Fatalf("Failed to load icon: %v", err)
 	}
-
 	systray.SetIcon(iconData)
-	systray.SetTitle("Wazuh Agent")
 	systray.SetTooltip("Wazuh Agent Status")
 
-	statusItem = systray.AddMenuItem("Status: Checking...", "Wazuh Agent Status")
-	connectionItem = systray.AddMenuItem("Connection: Checking...", "Wazuh Agent Connection")
+	// Load icons for status and connection
+	connectedIcon, _ := getEmbeddedFile("assets/green-dot.png")
+	disconnectedIcon, _ := getEmbeddedFile("assets/gray-dot.png")
 
-	quitItem := systray.AddMenuItem("Quit", "Quit the application")
+	// Load icons for pause and restart
+	pauseIconData, err := getEmbeddedFile("assets/pause.png")
+	if err != nil {
+		log.Printf("Failed to load pause icon: %v", err)
+	}
+	restartIconData, err := getEmbeddedFile("assets/restart.png")
+	if err != nil {
+		log.Printf("Failed to load restart icon: %v", err)
+	}
+
+	// Set the menu items
+	statusItem = systray.AddMenuItem("Agent: Inactive", "Wazuh Agent Status")
+	connectionItem = systray.AddMenuItem("Connection: Disconnected", "Wazuh Agent Connection")
+	systray.AddSeparator()
+
+	// Add pause and restart items with icons
+	pauseItem = systray.AddMenuItem("Pause", "Pause the Wazuh Agent")
+	if pauseIconData != nil {
+		pauseItem.SetIcon(pauseIconData)
+	}
+
+	restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
+	if restartIconData != nil {
+		restartItem.SetIcon(restartIconData)
+	}
+
+	quitItem := systray.AddMenuItem("Quit", "Quit the Agent application")
+
+	// Start background monitoring
+	go monitorStatusAndConnection(connectedIcon, disconnectedIcon)
 
 	go func() {
 		for {
-			updateStatus()
-			time.Sleep(5 * time.Second)
+			select {
+			case <-pauseItem.ClickedCh:
+				pauseAgent()
+			case <-restartItem.ClickedCh:
+				restartAgent()
+			case <-quitItem.ClickedCh:
+				systray.Quit()
+			}
 		}
-	}()
-
-	go func() {
-		<-quitItem.ClickedCh
-		systray.Quit()
 	}()
 }
 
@@ -63,62 +85,49 @@ func onExit() {
 	log.Println("Wazuh agent status stopped")
 }
 
-func updateStatus() {
-	status, connection := checkServiceStatus()
-	statusItem.SetTitle(fmt.Sprintf("Status: %s", status))
-	connectionItem.SetTitle(fmt.Sprintf("Connection: %s", connection))
-}
+// monitorStatusAndConnection periodically checks the status of the Wazuh agent
+func monitorStatusAndConnection(connectedIcon, disconnectedIcon []byte) {
+	for {
+		status, connection := checkServiceStatus()
 
-func checkServiceStatus() (string, string) {
-	var statusCmd, connectionCmd *exec.Cmd
-	switch runtime.GOOS {
-	case "linux":
-		statusCmd = exec.Command("sudo", "systemctl", "status", "wazuh-agent.service")
-		connectionCmd = exec.Command("sudo", "grep", "^status", "/var/ossec/var/run/wazuh-agentd.state")
-	case "darwin":
-		statusCmd = exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "status")
-		connectionCmd = exec.Command("sudo", "grep", "^status", "/Library/Ossec/var/run/wazuh-agentd.state")
-	case "windows":
-		statusCmd = exec.Command("C:\\Program Files (x86)\\ossec\\bin\\wazuh-control", "status")
-		connectionCmd = exec.Command("powershell", "-Command", "Select-String -Path 'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state' -Pattern '^status'")
-	default:
-		return "Unsupported OS", "Unsupported OS"
-	}
-
-	statusOutput, statusErr := statusCmd.Output()
-	connectionOutput, connectionErr := connectionCmd.Output()
-
-	status := "Inactive"
-	connection := "Disconnected"
-
-	if statusErr == nil {
-		stdout := string(statusOutput)
-		if runtime.GOOS == "linux" {
-			if strings.Contains(stdout, "Active: active (running)") {
-				status = "Active"
+		if status == "Active" {
+			if statusTitle != "Agent: Active" {
+				log.Printf("[%s] Wazuh agent is now active\n", time.Now().Format(time.RFC3339))
+				statusTitle = "Agent: Active"
 			}
+			statusItem.SetTitle(statusTitle)
+			statusItem.SetIcon(connectedIcon)
 		} else {
-			for _, line := range strings.Split(stdout, "\n") {
-				if strings.Contains(line, "is running...") {
-					status = "Active"
-					break
-				}
+			if statusTitle != "Agent: Inactive" {
+				log.Printf("[%s] Wazuh agent is now inactive\n", time.Now().Format(time.RFC3339))
+				statusTitle = "Agent: Inactive"
 			}
+			statusItem.SetTitle(statusTitle)
+			statusItem.SetIcon(disconnectedIcon)
 		}
-	}
 
-	if connectionErr == nil {
-		stdout := string(connectionOutput)
-		if strings.Contains(stdout, "status='connected'") {
-			connection = "Connected"
+		if connection == "Connected" {
+			if connectionTitle != "Connection: Connected" {
+				log.Printf("[%s] Wazuh agent connection established\n", time.Now().Format(time.RFC3339))
+				connectionTitle = "Connection: Connected"
+			}
+			connectionItem.SetTitle(connectionTitle)
+			connectionItem.SetIcon(connectedIcon)
+		} else {
+			if connectionTitle != "Connection: Disconnected" {
+				log.Printf("[%s] Wazuh agent connection lost\n", time.Now().Format(time.RFC3339))
+				connectionTitle = "Connection: Disconnected"
+			}
+			connectionItem.SetTitle(connectionTitle)
+			connectionItem.SetIcon(disconnectedIcon)
 		}
-	}
 
-	return status, connection
+		time.Sleep(5 * time.Second)
+	}
 }
 
+// getEmbeddedFile reads a file from the embedded file system
 func getEmbeddedFile(path string) ([]byte, error) {
-	// Read the file from the embedded file system
 	fileData, err := embeddedFiles.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read embedded file: %w", err)
