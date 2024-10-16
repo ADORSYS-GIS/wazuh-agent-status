@@ -77,8 +77,8 @@ maybe_sudo() {
 
 # Determine the OS and architecture
 case "$(uname)" in
-    "Linux") OS="unknown-linux-gnu"; BIN_DIR="/var/ossec/bin" ;;
-    "Darwin") OS="apple-darwin"; BIN_DIR="/Library/Ossec/bin" ;;
+    "Linux") OS="unknown-linux-gnu"; BIN_DIR="/var/ossec/bin"; LOCAL_BIN_DIR="/bin" ;;
+    "Darwin") OS="apple-darwin"; BIN_DIR="/Library/Ossec/bin"; LOCAL_BIN_DIR="/usr/local/bin" ;;
     *) error_exit "Unsupported operating system: $(uname)" ;;
 esac
 
@@ -106,7 +106,9 @@ curl -SL --progress-bar -o "$TEMP_DIR/$BIN_NAME" "$URL" || error_exit "Failed to
 print_step 2 "Installing binary to $BIN_DIR..."
 maybe_sudo mkdir -p "$BIN_DIR" || error_exit "Failed to create directory $BIN_DIR"
 maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$BIN_DIR/$APP_NAME" || error_exit "Failed to move binary to $BIN_DIR"
-maybe_sudo chmod 750 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
+maybe_sudo chmod 751 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
+maybe_sudo cp "$BIN_DIR/$APP_NAME" "$LOCAL_BIN_DIR" || error_exit "Failed to add binary to bin folder"
 
-success_message "Installation and configuration complete! You can now use '$BIN_DIR/$APP_NAME' from your terminal."
-info_message "Run \n\n\t${GREEN}${BOLD}sudo $BIN_DIR/$APP_NAME ${NORMAL}\n\n to start configuring. If you don't have sudo on your machine, you can run the command without sudo."
+
+success_message "Installation and configuration complete! You can now use '$APP_NAME' from your terminal."
+info_message "Run \n\n\t${GREEN}${BOLD}$APP_NAME ${NORMAL}\n\n to start configuring. If you don't have sudo on your machine, you can run the command without sudo."
