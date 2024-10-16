@@ -116,6 +116,10 @@ jobs:
   release:
     name: Release
     permissions: write-all
+    needs:
+      - build-linux
+      - build-macos
+      - build-windows
     runs-on: ubuntu-latest
     steps:
       - name: Get the version
