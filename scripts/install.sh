@@ -9,7 +9,7 @@ fi
 
 # Default log level and application details
 APP_NAME=${APP_NAME:-"wazuh-agent-status"}
-WOPS_VERSION=${WOPS_VERSION:-"0.1.2"}
+WOPS_VERSION=${WOPS_VERSION:-"0.1.1"}
 
 # Define text formatting
 RED='\033[0;31m'
