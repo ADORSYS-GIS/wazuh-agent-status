@@ -1,5 +1,5 @@
 # Wazuh Agent Status
-[![Release Client](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/build.yaml/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/build.yaml)
+[![Release Client](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/release.yaml/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/release.yaml)
 
 **Wazuh Agent Status** is an application designed to monitor the state of Wazuh agents. This tool provides real-time insights into the operational status of agents, ensuring they are functioning correctly and efficiently.
 

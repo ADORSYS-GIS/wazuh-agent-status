@@ -1,12 +1,14 @@
 name: Build Release
 
 on:
+  workflow_run:
+    workflows: ["Build Binaries for Windows (AMD64)"]
+    branches: [main]
+    types: 
+      - completed
   push:
-    branches:
-      - main
     tags:
       - 'v*'
-  pull_request:
 
 env:
   GO_VERSION: 1.22
