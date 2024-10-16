@@ -30,9 +30,9 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Install Windows Dependencies
+      - name: Install Dependencies
         run: |
-          choco install gtk+3
+          go mod tidy
 
       - name: Build binary for Windows
         run: |
