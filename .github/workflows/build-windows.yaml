@@ -1,4 +1,4 @@
-name: Build Binaries for macOS (Silicon ARM64)
+name: Build Binaries for Windows (Silicon AMD64)
 
 on:
   push:
@@ -33,11 +33,6 @@ jobs:
       - name: Install Dependencies
         run: |
           go mod tidy
-        
-      - name: Set environment variables for Go
-        run: |
-          $env:GOOS=windows
-          $env:GOARCH=${{ matrix.arch }}
 
       - name: Build binary for Windows
         run: |
