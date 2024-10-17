@@ -77,8 +77,8 @@ maybe_sudo() {
 
 # Determine the OS and architecture
 case "$(uname)" in
-    "Linux") OS="linux"; BIN_DIR="/var/ossec/bin"; LOCAL_BIN_DIR="/usr/local/bin" ;;
-    "Darwin") OS="darwin"; BIN_DIR="/Library/Ossec/bin"; LOCAL_BIN_DIR="/usr/local/bin" ;;
+    "Linux") OS="linux"; BIN_DIR="/usr/local/bin" ;;
+    "Darwin") OS="darwin"; BIN_DIR="/usr/local/bin" ;;
     *) error_exit "Unsupported operating system: $(uname)" ;;
 esac
 
@@ -89,10 +89,14 @@ case "$ARCH" in
     *) error_exit "Unsupported architecture: $ARCH" ;;
 esac
 
+#https://github.com/ADORSYS-GIS/wazuh-agent-status/releases/download/v0.1.2/wazuh-agent-status-darwin-arm64
+
 # Construct binary name and URL for download
-BIN_NAME="$APP_NAME-${ARCH}-${OS}"
+BIN_NAME="$APP_NAME-${OS}-${ARCH}"
 BASE_URL="https://github.com/ADORSYS-GIS/$APP_NAME/releases/download/v$WOPS_VERSION"
 URL="$BASE_URL/$BIN_NAME"
+
+echo $URL
 
 # Create a temporary directory and ensure it is cleaned up
 TEMP_DIR=$(mktemp -d) || error_exit "Failed to create temporary directory"
@@ -104,10 +108,8 @@ curl -SL --progress-bar -o "$TEMP_DIR/$BIN_NAME" "$URL" || error_exit "Failed to
 
 # Step 2: Install the binary
 print_step 2 "Installing binary to $BIN_DIR..."
-maybe_sudo mkdir -p "$BIN_DIR" || error_exit "Failed to create directory $BIN_DIR"
-maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$LOCAL_BIN_DIR/$APP_NAME" || error_exit "Failed to move binary to $BIN_DIR"
-maybe_sudo chmod 751 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
-maybe_sudo cp "$BIN_DIR/$APP_NAME" "$LOCAL_BIN_DIR/$APP_NAME" || error_exit "Failed to add binary to bin folder"
+maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$BIN_DIR/$APP_NAME" || error_exit "Failed to move binary to $BIN_DIR"
+maybe_sudo chmod 111 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
 
 
 success_message "Installation and configuration complete! You can now use '$APP_NAME' from your terminal."
