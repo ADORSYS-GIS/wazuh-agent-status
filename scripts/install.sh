@@ -9,7 +9,7 @@ fi
 
 # Default log level and application details
 APP_NAME=${APP_NAME:-"wazuh-agent-status"}
-WOPS_VERSION=${WOPS_VERSION:-"0.1.1"}
+WOPS_VERSION=${WOPS_VERSION:-"0.1.2"}
 
 # Define text formatting
 RED='\033[0;31m'
@@ -77,15 +77,15 @@ maybe_sudo() {
 
 # Determine the OS and architecture
 case "$(uname)" in
-    "Linux") OS="unknown-linux-gnu"; BIN_DIR="/var/ossec/bin"; LOCAL_BIN_DIR="/bin" ;;
-    "Darwin") OS="apple-darwin"; BIN_DIR="/Library/Ossec/bin"; LOCAL_BIN_DIR="/usr/local/bin" ;;
+    "Linux") OS="linux"; BIN_DIR="/var/ossec/bin"; LOCAL_BIN_DIR="/usr/local/bin" ;;
+    "Darwin") OS="darwin"; BIN_DIR="/Library/Ossec/bin"; LOCAL_BIN_DIR="/usr/local/bin" ;;
     *) error_exit "Unsupported operating system: $(uname)" ;;
 esac
 
 ARCH=$(uname -m)
 case "$ARCH" in
-    "x86_64") ARCH="x86_64" ;;
-    "arm64"|"aarch64") ARCH="aarch64" ;;
+    "x86_64") ARCH="amd64" ;;
+    "arm64"|"aarch64") ARCH="arm64" ;;
     *) error_exit "Unsupported architecture: $ARCH" ;;
 esac
 
@@ -105,9 +105,9 @@ curl -SL --progress-bar -o "$TEMP_DIR/$BIN_NAME" "$URL" || error_exit "Failed to
 # Step 2: Install the binary
 print_step 2 "Installing binary to $BIN_DIR..."
 maybe_sudo mkdir -p "$BIN_DIR" || error_exit "Failed to create directory $BIN_DIR"
-maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$BIN_DIR/$APP_NAME" || error_exit "Failed to move binary to $BIN_DIR"
+maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$LOCAL_BIN_DIR/$APP_NAME" || error_exit "Failed to move binary to $BIN_DIR"
 maybe_sudo chmod 751 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
-maybe_sudo cp "$BIN_DIR/$APP_NAME" "$LOCAL_BIN_DIR" || error_exit "Failed to add binary to bin folder"
+maybe_sudo cp "$BIN_DIR/$APP_NAME" "$LOCAL_BIN_DIR/$APP_NAME" || error_exit "Failed to add binary to bin folder"
 
 
 success_message "Installation and configuration complete! You can now use '$APP_NAME' from your terminal."
