@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+func getIconPath() string {
+    return "assets/wazuh-logo.png" // Path to the PNG icon for Linux
+}
+
 // checkServiceStatus checks the status of Wazuh agent and its connection on Linux
 func checkServiceStatus() (string, string) {
 	// Command to check agent status

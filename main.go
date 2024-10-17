@@ -25,7 +25,7 @@ func main() {
 
 func onReady() {
 	// Set the main icon
-	iconData, err := getEmbeddedFile("assets/wazuh-logo.png")
+	iconData, err := getEmbeddedFile(getIconPath())
 	if err != nil {
 		log.Fatalf("Failed to load icon: %v", err)
 	}
