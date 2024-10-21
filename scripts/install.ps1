@@ -1,5 +1,5 @@
 # Set default application details
-$APP_NAME = $env:APP_NAME -or "wazuh-agent-status"
+$APP_NAME = if ($env:APP_NAME -ne $null) { $env:APP_NAME } else { "wazuh-agent-status" }
 $WOPS_VERSION = $env:WOPS_VERSION -or "0.1.2"
 
 # Define text formatting (Windows doesn't support color in native console, this is a placeholder)
@@ -9,6 +9,7 @@ $YELLOW = "YELLOW"
 $BLUE = "BLUE"
 $BOLD = ""
 $NORMAL = ""
+
 # Function for logging with timestamp
 function Log {
     param (
