@@ -9,70 +9,58 @@ $YELLOW = "YELLOW"
 $BLUE = "BLUE"
 $BOLD = ""
 $NORMAL = ""
-
 # Function for logging with timestamp
 function Log {
-    param(
-        [string]$LEVEL,
-        [string]$MESSAGE
+    param (
+        [string]$Level,
+        [string]$Message
     )
-    $TIMESTAMP = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "$TIMESTAMP $LEVEL $MESSAGE"
+    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "$Timestamp $Level $Message"
 }
 
 # Logging helpers
-function Info-Message {
-    param(
-        [string]$Message
-    )
-    Log "$BLUE$BOLD[INFO]$NORMAL" $Message
+function InfoMessage {
+    param ([string]$Message)
+    Log "[INFO]" $Message
 }
 
-function Warn-Message {
-    param(
-        [string]$Message
-    )
-    Log "$YELLOW$BOLD[WARNING]$NORMAL" $Message
+function WarnMessage {
+    param ([string]$Message)
+    Log "[WARNING]" $Message
 }
 
-function Error-Message {
-    param(
-        [string]$Message
-    )
-    Log "$RED$BOLD[ERROR]$NORMAL" $Message
+function ErrorMessage {
+    param ([string]$Message)
+    Log "[ERROR]" $Message
 }
 
-function Success-Message {
-    param(
-        [string]$Message
-    )
-    Log "$GREEN$BOLD[SUCCESS]$NORMAL" $Message
+function SuccessMessage {
+    param ([string]$Message)
+    Log "[SUCCESS]" $Message
 }
 
-function Print-Step {
-    param(
+function PrintStep {
+    param (
         [int]$StepNumber,
         [string]$Message
     )
-    Log "$BLUE$BOLD[STEP]$NORMAL" "$StepNumber: $Message"
+    Log "[STEP]" "Step ${StepNumber}: $Message"
 }
 
 # Exit script with an error message
-function Error-Exit {
-    param(
-        [string]$Message
-    )
-    Error-Message $Message
+function ErrorExit {
+    param ([string]$Message)
+    ErrorMessage $Message
     exit 1
 }
 
-# Check if a command exists
-function Command-Exists {
-    param(
-        [string]$Command
-    )
-    Get-Command $Command -ErrorAction SilentlyContinue
+# Check if a command exists (in PowerShell, we check if a command is available in PATH)
+function CommandExists {
+    param ([string]$Command)
+    return Get-Command $Command -ErrorAction SilentlyContinue
 }
+
 
 # Ensure admin privileges
 function EnsureAdmin {
