@@ -130,5 +130,5 @@ icacls "$BIN_DIR\$APP_NAME.exe" /grant Users:RX
 
 
 
-Success-Message "Installation and configuration complete! You can now use '$APP_NAME' from your terminal."
-Info-Message "Run ``& '$BIN_DIR\$APP_NAME.exe'`` to start configuring."
+SuccessMessage "Installation and configuration complete! You can now use '$APP_NAME' from your terminal."
+InfoMessage "Run ``& '$BIN_DIR\$APP_NAME.exe'`` to start configuring."
