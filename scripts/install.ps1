@@ -1,6 +1,7 @@
 # Set default application details
 $APP_NAME = if ($env:APP_NAME -ne $null) { $env:APP_NAME } else { "wazuh-agent-status" }
-$WOPS_VERSION = $env:WOPS_VERSION -or "0.1.2"
+$DEFAULT_WOPS_VERSION = "0.1.2"
+$WOPS_VERSION = if ($env:WOPS_VERSION -ne $null) { $env:WOPS_VERSION } else { $DEFAULT_WOPS_VERSION }
 
 # Define text formatting (Windows doesn't support color in native console, this is a placeholder)
 $RED = "RED"
