@@ -117,11 +117,7 @@ try {
 }
 
 # Step 2: Install the binary based on architecture
-if ($ARCH -eq "amd64") {
-    $BIN_DIR = "C:\Program Files (x86)\ossec-agent"
-} else {
-    $BIN_DIR = "C:\Program Files\ossec-agent"
-}
+$BIN_DIR = "C:\Program Files (x86)\ossec-agent"
 
 PrintStep 2 "Installing binary to $BIN_DIR..."
 New-Item -ItemType Directory -Path $BIN_DIR -Force
