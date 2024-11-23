@@ -10,6 +10,7 @@ fi
 # Default log level and application details
 APP_NAME=${APP_NAME:-"wazuh-agent-status"}
 WOPS_VERSION=${WOPS_VERSION:-"0.1.2"}
+USER=${USER:-"root"}
 
 # Define text formatting
 RED='\033[0;31m'
@@ -75,6 +76,58 @@ maybe_sudo() {
     fi
 }
 
+# Function to create the systemd service file
+create_service_file() {
+    SERVICE_FILE="/etc/systemd/system/$APP_NAME.service"
+    
+    if [ -f "$SERVICE_FILE" ]; then
+        info_message "Service file $SERVICE_FILE already exists. Exiting."
+        exit 1
+    fi
+
+    echo "Creating service file at $SERVICE_FILE..."
+
+    sudo bash -c "cat > $SERVICE_FILE" <<EOF
+[Unit]
+Description=Wazuh Agent Systray Icon Application
+After=graphical.target
+
+[Service]
+ExecStart=$BIN_DIR/$APP_NAME
+Restart=always
+User=$USER
+Environment=DISPLAY=:0
+Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_RUNTIME_DIR=/run/user/100
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+
+    info_message "Service file created."
+}
+
+# Function to reload systemd and enable the service
+reload_and_enable_service() {
+    info_message "Reloading systemd daemon..."
+    sudo systemctl daemon-reload
+    
+    info_message "Enabling service to start on boot..."
+    sudo systemctl enable $APP_NAME.service
+
+    info_message "Starting the service..."
+    sudo systemctl start $APP_NAME.service
+}
+
+# Function to check if the binary exists
+check_binary_exists() {
+    if [ ! -f "$BIN_DIR" ]; then
+        warn_message "Binary $BIN_DIR does not exist. Exiting."
+        exit 1
+    fi
+}
+
 # Determine the OS and architecture
 case "$(uname)" in
     "Linux") OS="linux"; BIN_DIR="/usr/local/bin" ;;
@@ -110,6 +163,13 @@ curl -SL --progress-bar -o "$TEMP_DIR/$BIN_NAME" "$URL" || error_exit "Failed to
 print_step 2 "Installing binary to $BIN_DIR..."
 maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$BIN_DIR/$APP_NAME" || error_exit "Failed to move binary to $BIN_DIR"
 maybe_sudo chmod 111 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
+
+# Step 3: Run the binary as a service
+print_step 3 "Starting service creation process..."
+xhost +SI:localuser:root
+create_service_file
+reload_and_enable_service
+info_message "Service creation and setup complete."
 
 
 success_message "Installation and configuration complete! You can now use '$APP_NAME' from your terminal."
