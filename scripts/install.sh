@@ -79,6 +79,12 @@ maybe_sudo() {
 # Function to create the systemd service file
 create_service_file() {
     SERVICE_FILE="/etc/systemd/system/$APP_NAME.service"
+    
+    if [ -f "$SERVICE_FILE" ]; then
+        info_message "Service file $SERVICE_FILE already exists. Deleting..."
+        sudo rm $SERVICE_FILE
+        info_message "Old version of service file deleted successfully"
+    fi
 
     echo "Creating service file at $SERVICE_FILE..."
 
