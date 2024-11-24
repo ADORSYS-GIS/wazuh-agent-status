@@ -99,6 +99,7 @@ Restart=always
 User=$USER
 Environment=DISPLAY=:0
 Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_RUNTIME_DIR=/run/user/100
 
 [Install]
 WantedBy=multi-user.target
