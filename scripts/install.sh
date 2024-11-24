@@ -133,6 +133,42 @@ reload_and_enable_service() {
     sudo systemctl start $APP_NAME.service
 }
 
+grant_display_access() {
+    # Detect the current user's default shell
+    echo "This is the Home: $HOME and the Shell: $SHELL"
+
+    # Determine the shell configuration file
+    case "$SHELL" in
+        *bash)
+            SH_RC="$HOME/.bashrc"
+            ;;
+        *zsh)
+            SH_RC="$HOME/.zshrc"
+            ;;
+        *)
+            error_message "Unsupported shell: $DEFAULT_SHELL. Please add the command manually."
+            return 1
+            ;;
+    esac
+
+    # The command to be added
+    COMMAND="xhost +SI:localuser:$WAZUH_USER"
+
+    # Check if the command already exists in the config file
+    if grep -Fxq "$COMMAND" "$SH_RC"; then
+        info_message "The command is already present in $SH_RC."
+    else
+        # Add the command to the configuration file
+        echo "$COMMAND" >> "$SH_RC"
+        info_message "Added the command to $SH_RC. It will take effect in new terminal sessions."
+    fi
+
+    # Apply the changes for the current session
+    eval "$COMMAND"
+    info_message "Display access granted to user '$WAZUH_USER' for the current session."
+}
+
+
 # Function to check if the binary exists
 check_binary_exists() {
     if [ ! -f "$BIN_DIR" ]; then
@@ -179,7 +215,7 @@ maybe_sudo chmod 111 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executabl
 
 # Step 3: Run the binary as a service
 print_step 3 "Starting service creation process..."
-xhost +SI:localuser:root
+grant_display_access
 create_service_file
 reload_and_enable_service
 info_message "Service creation and setup complete."
