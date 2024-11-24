@@ -10,7 +10,8 @@ fi
 # Default log level and application details
 APP_NAME=${APP_NAME:-"wazuh-agent-status"}
 WOPS_VERSION=${WOPS_VERSION:-"0.1.2"}
-USER=${USER:-"root"}
+WAZUH_USER=${WAZUH_USER:-"root"}
+SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$APP_NAME.service"}
 
 # Define text formatting
 RED='\033[0;31m'
@@ -76,13 +77,24 @@ maybe_sudo() {
     fi
 }
 
+# Function to reload systemd and enable the service
+remove_service() {
+    info_message "Stopping $APP_NAME service..."
+    sudo systemctl stop $APP_NAME
+    
+    info_message "Deleting $SERVICE_FILE file..."
+    sudo rm $SERVICE_FILE
+    
+    info_message "Reloading systemd daemon..."
+    sudo systemctl daemon-reload
+}
+
 # Function to create the systemd service file
 create_service_file() {
-    SERVICE_FILE="/etc/systemd/system/$APP_NAME.service"
     
     if [ -f "$SERVICE_FILE" ]; then
         info_message "Service file $SERVICE_FILE already exists. Deleting..."
-        sudo rm $SERVICE_FILE
+        remove_service
         info_message "Old version of service file deleted successfully"
     fi
 
@@ -96,7 +108,7 @@ After=graphical.target
 [Service]
 ExecStart=$BIN_DIR/$APP_NAME
 Restart=always
-User=$USER
+User=$WAZUH_USER
 Environment=DISPLAY=:0
 Environment=XDG_SESSION_TYPE=wayland
 Environment=XDG_RUNTIME_DIR=/run/user/100
