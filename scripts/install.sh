@@ -12,6 +12,7 @@ APP_NAME=${APP_NAME:-"wazuh-agent-status"}
 WOPS_VERSION=${WOPS_VERSION:-"0.1.2"}
 WAZUH_USER=${WAZUH_USER:-"root"}
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$APP_NAME.service"}
+PROFILE_RC=${PROFILE_RC:-"$HOME/.profile"}
 
 # Define text formatting
 RED='\033[0;31m'
@@ -135,32 +136,32 @@ reload_and_enable_service() {
 
 grant_display_access() {
     # Detect the current user's default shell
-    echo "This is the Home: $HOME and the Shell: $SHELL"
+    # echo "This is the Home: $HOME and the Shell: $SHELL"
 
-    # Determine the shell configuration file
-    case "$SHELL" in
-        *bash)
-            SH_RC="$HOME/.bashrc"
-            ;;
-        *zsh)
-            SH_RC="$HOME/.zshrc"
-            ;;
-        *)
-            error_message "Unsupported shell: $DEFAULT_SHELL. Please add the command manually."
-            return 1
-            ;;
-    esac
+    # # Determine the shell configuration file
+    # case "$SHELL" in
+    #     *bash)
+    #         SH_RC="$HOME/.bashrc"
+    #         ;;
+    #     *zsh)
+    #         SH_RC="$HOME/.zshrc"
+    #         ;;
+    #     *)
+    #         error_message "Unsupported shell: $DEFAULT_SHELL. Please add the command manually."
+    #         return 1
+    #         ;;
+    # esac
 
     # The command to be added
     COMMAND="xhost +SI:localuser:$WAZUH_USER"
 
     # Check if the command already exists in the config file
-    if grep -Fxq "$COMMAND" "$SH_RC"; then
-        info_message "The command is already present in $SH_RC."
+    if grep -Fxq "$COMMAND" "$PROFILE_RC"; then
+        info_message "The command is already present in $PROFILE_RC."
     else
         # Add the command to the configuration file
-        echo "$COMMAND" >> "$SH_RC"
-        info_message "Added the command to $SH_RC. It will take effect in new terminal sessions."
+        echo "$COMMAND" >> "$PROFILE_RC"
+        info_message "Added the command to $PROFILE_RC. It will take effect in new GUI sessions."
     fi
 
     # Apply the changes for the current session
