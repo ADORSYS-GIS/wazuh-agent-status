@@ -94,41 +94,49 @@ remove_service() {
 }
 
 # macOS: Function to create launchd plist file
-create_mac_service_file() {
-    if [ -f "$MAC_SERVICE_FILE" ]; then
-        info_message "Launchd service file $MAC_SERVICE_FILE already exists. Deleting..."
-        remove_mac_service
+create_service_file_mac() {
+    if [ -f "$SERVICE_FILE" ]; then
+        info_message "Service file $SERVICE_FILE already exists. Deleting..."
+        remove_service
         info_message "Old version of service file deleted successfully"
     fi
 
-    info_message "Creating launchd plist file at $MAC_SERVICE_FILE..."
+    # Create the macOS launchd plist file
+    MAC_SERVICE_FILE="/Library/LaunchDaemons/com.adoresys.wazuh-agent-status.plist"
 
-    cat > "$MAC_SERVICE_FILE" <<EOF
+    echo "Creating launchd plist at $MAC_SERVICE_FILE..."
+
+    sudo bash -c "cat > $MAC_SERVICE_FILE" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.adoresys.wazuh-agent-status</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>$BIN_DIR/$APP_NAME</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>UserName</key>
+    <string>$WAZUH_USER</string>
+    <key>EnvironmentVariables</key>
     <dict>
-        <key>Label</key>
-        <string>$APP_NAME</string>
-        <key>ProgramArguments</key>
-        <array>
-            <string>$BIN_DIR/$APP_NAME</string>
-        </array>
-        <key>RunAtLoad</key>
-        <true/>
-        <key>KeepAlive</key>
-        <true/>
-        <key>WorkingDirectory</key>
-        <string>/</string>
-        <key>StandardErrorPath</key>
-        <string>/tmp/$APP_NAME.err</string>
-        <key>StandardOutPath</key>
-        <string>/tmp/$APP_NAME.out</string>
+      <key>DISPLAY</key>
+      <string>:0</string>
+      <key>XDG_SESSION_TYPE</key>
+      <string>wayland</string>
+      <key>XDG_RUNTIME_DIR</key>
+      <string>/run/user/100</string>
     </dict>
+  </dict>
 </plist>
 EOF
 
-    info_message "Launchd plist file created."
+    info_message "Launchd plist created."
 }
 
 # macOS: Function to remove launchd service
@@ -140,13 +148,16 @@ remove_mac_service() {
     rm "$MAC_SERVICE_FILE"
 }
 
-# macOS: Function to reload and enable the service
-reload_and_enable_mac_service() {
-    info_message "Loading $APP_NAME service with launchd..."
-    launchctl bootout user/$(id -u) "$MAC_SERVICE_FILE" || true
-    launchctl bootstrap user/$(id -u) "$MAC_SERVICE_FILE"
+reload_and_enable_service_mac() {
+    info_message "Loading the launchd service..."
 
-    info_message "Service $APP_NAME has been started. It will now start automatically on boot."
+    # Load the service (starts automatically at boot/login)
+    sudo launchctl load -w /Library/LaunchDaemons/com.adorsys.wazuh-agent-status.plist
+
+    # Start the service immediately
+    sudo launchctl start com.adorsys.wazuh-agent-status
+
+    info_message "Service loaded and started."
 }
 
 # Function to check if the binary exists
