@@ -78,78 +78,128 @@ maybe_sudo() {
     fi
 }
 
-# Function to create a launchd plist file for macOS
-create_launchd_plist() {
-    local PLIST_FILE="/Library/LaunchDaemons/com.example.$APP_NAME.plist"
-
-    if [ -f "$PLIST_FILE" ]; then
-        info_message "LaunchDaemon plist $PLIST_FILE already exists. Removing..."
-        sudo rm "$PLIST_FILE"
-    fi
-
-    info_message "Creating LaunchDaemon plist at $PLIST_FILE..."
-
-    sudo tee "$PLIST_FILE" > /dev/null <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.example.$APP_NAME</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$BIN_DIR/$APP_NAME</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>/tmp/$APP_NAME.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/$APP_NAME.err</string>
-    <key>UserName</key>
-    <string>$WAZUH_USER</string>
-</dict>
-</plist>
-EOF
-
-    info_message "LaunchDaemon plist created."
+# Function to reload systemd and enable the service
+remove_service() {
+    info_message "Stopping $APP_NAME service..."
+    sudo systemctl stop $APP_NAME
+    
+    info_message "Deleting $SERVICE_FILE file..."
+    sudo rm $SERVICE_FILE
+    
+    info_message "Reloading systemd daemon..."
+    sudo systemctl daemon-reload
 }
 
-# Function to load and start the launchd service (macOS)
-load_and_start_launchd_service() {
-    local PLIST_FILE="/Library/LaunchDaemons/com.example.$APP_NAME.plist"
+# Function to create the systemd service file
+create_service_file() {
+    
+    if [ -f "$SERVICE_FILE" ]; then
+        info_message "Service file $SERVICE_FILE already exists. Deleting..."
+        remove_service
+        info_message "Old version of service file deleted successfully"
+    fi
 
-    info_message "Loading and starting LaunchDaemon service..."
-    sudo launchctl load -w "$PLIST_FILE"
-    sudo launchctl start "com.example.$APP_NAME"
+    echo "Creating service file at $SERVICE_FILE..."
+
+    sudo bash -c "cat > $SERVICE_FILE" <<EOF
+[Unit]
+Description=Wazuh Agent Systray Icon Application
+After=graphical.target
+
+[Service]
+ExecStart=$BIN_DIR/$APP_NAME
+Restart=always
+User=$WAZUH_USER
+Environment=DISPLAY=:0
+Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_RUNTIME_DIR=/run/user/100
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+
+    info_message "Service file created."
+}
+
+# Function to reload systemd and enable the service
+reload_and_enable_service() {
+    info_message "Reloading systemd daemon..."
+    sudo systemctl daemon-reload
+    
+    info_message "Enabling service to start on boot..."
+    sudo systemctl enable $APP_NAME.service
+
+    info_message "Starting the service..."
+    sudo systemctl start $APP_NAME.service
+}
+
+grant_display_access() {
+    # Detect the current user's default shell
+    # echo "This is the Home: $HOME and the Shell: $SHELL"
+
+    # # Determine the shell configuration file
+    # case "$SHELL" in
+    #     *bash)
+    #         SH_RC="$HOME/.bashrc"
+    #         ;;
+    #     *zsh)
+    #         SH_RC="$HOME/.zshrc"
+    #         ;;
+    #     *)
+    #         error_message "Unsupported shell: $DEFAULT_SHELL. Please add the command manually."
+    #         return 1
+    #         ;;
+    # esac
+
+    # The command to be added
+    COMMAND="xhost +SI:localuser:$WAZUH_USER"
+
+    # Check if the command already exists in the config file
+    if grep -Fxq "$COMMAND" "$PROFILE_RC"; then
+        info_message "The command is already present in $PROFILE_RC."
+    else
+        # Add the command to the configuration file
+        echo "$COMMAND" >> "$PROFILE_RC"
+        info_message "Added the command to $PROFILE_RC. It will take effect in new GUI sessions."
+    fi
+
+    # Apply the changes for the current session
+    eval "$COMMAND"
+    info_message "Display access granted to user '$WAZUH_USER' for the current session."
+}
+
+
+# Function to check if the binary exists
+check_binary_exists() {
+    if [ ! -f "$BIN_DIR" ]; then
+        warn_message "Binary $BIN_DIR does not exist. Exiting."
+        exit 1
+    fi
 }
 
 # Determine the OS and architecture
 case "$(uname)" in
-    "Darwin") 
-        OS="darwin"
-        BIN_DIR="/usr/local/bin"
-        ;;
-    *) 
-        error_exit "This script is intended for macOS only."
-        ;;
+    "Linux") OS="linux"; BIN_DIR="/usr/local/bin" ;;
+    "Darwin") OS="darwin"; BIN_DIR="/usr/local/bin" ;;
+    *) error_exit "Unsupported operating system: $(uname)" ;;
 esac
 
 ARCH=$(uname -m)
 case "$ARCH" in
     "x86_64") ARCH="amd64" ;;
-    "arm64") ARCH="arm64" ;;
+    "arm64"|"aarch64") ARCH="arm64" ;;
     *) error_exit "Unsupported architecture: $ARCH" ;;
 esac
+
+#https://github.com/ADORSYS-GIS/wazuh-agent-status/releases/download/v0.1.2/wazuh-agent-status-darwin-arm64
 
 # Construct binary name and URL for download
 BIN_NAME="$APP_NAME-${OS}-${ARCH}"
 BASE_URL="https://github.com/ADORSYS-GIS/$APP_NAME/releases/download/v$WOPS_VERSION"
 URL="$BASE_URL/$BIN_NAME"
 
-echo "Download URL: $URL"
+echo $URL
 
 # Create a temporary directory and ensure it is cleaned up
 TEMP_DIR=$(mktemp -d) || error_exit "Failed to create temporary directory"
@@ -162,15 +212,15 @@ curl -SL --progress-bar -o "$TEMP_DIR/$BIN_NAME" "$URL" || error_exit "Failed to
 # Step 2: Install the binary
 print_step 2 "Installing binary to $BIN_DIR..."
 maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$BIN_DIR/$APP_NAME" || error_exit "Failed to move binary to $BIN_DIR"
-maybe_sudo chmod 755 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
+maybe_sudo chmod 111 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
 
-# Step 3: Set up and start the service
+# Step 3: Run the binary as a service
 print_step 3 "Starting service creation process..."
-create_launchd_plist
-load_and_start_launchd_service
-
+grant_display_access
+create_service_file
+reload_and_enable_service
 info_message "Service creation and setup complete."
 
-success_message "Installation and configuration complete! The $APP_NAME service should now be running."
-info_message "You can check its status using: sudo launchctl list | grep $APP_NAME"
-info_message "Logs can be found at /tmp/$APP_NAME.log and /tmp/$APP_NAME.err"
+
+success_message "Installation and configuration complete! You can now use '$APP_NAME' from your terminal."
+info_message "Run \n\n\t${GREEN}${BOLD}$APP_NAME ${NORMAL}\n\n to start configuring. If you don't have sudo on your machine, you can run the command without sudo."
