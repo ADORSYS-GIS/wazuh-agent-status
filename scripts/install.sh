@@ -14,6 +14,9 @@ WAZUH_USER=${WAZUH_USER:-"root"}
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$APP_NAME.service"}
 PROFILE_RC=${PROFILE_RC:-"$HOME/.profile"}
 
+# macOS-specific service file location
+MAC_SERVICE_FILE="$HOME/Library/LaunchAgents/$APP_NAME.plist"
+
 # Define text formatting
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -78,7 +81,7 @@ maybe_sudo() {
     fi
 }
 
-# Function to reload systemd and enable the service
+# Function to reload systemd and enable the service (Linux-specific)
 remove_service() {
     info_message "Stopping $APP_NAME service..."
     sudo systemctl stop $APP_NAME
@@ -90,85 +93,61 @@ remove_service() {
     sudo systemctl daemon-reload
 }
 
-# Function to create the systemd service file
-create_service_file() {
-    
-    if [ -f "$SERVICE_FILE" ]; then
-        info_message "Service file $SERVICE_FILE already exists. Deleting..."
-        remove_service
+# macOS: Function to create launchd plist file
+create_mac_service_file() {
+    if [ -f "$MAC_SERVICE_FILE" ]; then
+        info_message "Launchd service file $MAC_SERVICE_FILE already exists. Deleting..."
+        remove_mac_service
         info_message "Old version of service file deleted successfully"
     fi
 
-    echo "Creating service file at $SERVICE_FILE..."
+    info_message "Creating launchd plist file at $MAC_SERVICE_FILE..."
 
-    sudo bash -c "cat > $SERVICE_FILE" <<EOF
-[Unit]
-Description=Wazuh Agent Systray Icon Application
-After=graphical.target
-
-[Service]
-ExecStart=$BIN_DIR/$APP_NAME
-Restart=always
-User=$WAZUH_USER
-Environment=DISPLAY=:0
-Environment=XDG_SESSION_TYPE=wayland
-Environment=XDG_RUNTIME_DIR=/run/user/100
-
-[Install]
-WantedBy=multi-user.target
-
+    cat > "$MAC_SERVICE_FILE" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>$APP_NAME</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>$BIN_DIR/$APP_NAME</string>
+        </array>
+        <key>RunAtLoad</key>
+        <true/>
+        <key>KeepAlive</key>
+        <true/>
+        <key>WorkingDirectory</key>
+        <string>/</string>
+        <key>StandardErrorPath</key>
+        <string>/tmp/$APP_NAME.err</string>
+        <key>StandardOutPath</key>
+        <string>/tmp/$APP_NAME.out</string>
+    </dict>
+</plist>
 EOF
 
-    info_message "Service file created."
+    info_message "Launchd plist file created."
 }
 
-# Function to reload systemd and enable the service
-reload_and_enable_service() {
-    info_message "Reloading systemd daemon..."
-    sudo systemctl daemon-reload
+# macOS: Function to remove launchd service
+remove_mac_service() {
+    info_message "Unloading $APP_NAME service..."
+    launchctl bootout user/$(id -u) "$MAC_SERVICE_FILE"
     
-    info_message "Enabling service to start on boot..."
-    sudo systemctl enable $APP_NAME.service
-
-    info_message "Starting the service..."
-    sudo systemctl start $APP_NAME.service
+    info_message "Deleting $MAC_SERVICE_FILE file..."
+    rm "$MAC_SERVICE_FILE"
 }
 
-grant_display_access() {
-    # Detect the current user's default shell
-    # echo "This is the Home: $HOME and the Shell: $SHELL"
+# macOS: Function to reload and enable the service
+reload_and_enable_mac_service() {
+    info_message "Loading $APP_NAME service with launchd..."
+    launchctl bootout user/$(id -u) "$MAC_SERVICE_FILE" || true
+    launchctl bootstrap user/$(id -u) "$MAC_SERVICE_FILE"
 
-    # # Determine the shell configuration file
-    # case "$SHELL" in
-    #     *bash)
-    #         SH_RC="$HOME/.bashrc"
-    #         ;;
-    #     *zsh)
-    #         SH_RC="$HOME/.zshrc"
-    #         ;;
-    #     *)
-    #         error_message "Unsupported shell: $DEFAULT_SHELL. Please add the command manually."
-    #         return 1
-    #         ;;
-    # esac
-
-    # The command to be added
-    COMMAND="xhost +SI:localuser:$WAZUH_USER"
-
-    # Check if the command already exists in the config file
-    if grep -Fxq "$COMMAND" "$PROFILE_RC"; then
-        info_message "The command is already present in $PROFILE_RC."
-    else
-        # Add the command to the configuration file
-        echo "$COMMAND" >> "$PROFILE_RC"
-        info_message "Added the command to $PROFILE_RC. It will take effect in new GUI sessions."
-    fi
-
-    # Apply the changes for the current session
-    eval "$COMMAND"
-    info_message "Display access granted to user '$WAZUH_USER' for the current session."
+    info_message "Service $APP_NAME has been started. It will now start automatically on boot."
 }
-
 
 # Function to check if the binary exists
 check_binary_exists() {
@@ -191,8 +170,6 @@ case "$ARCH" in
     "arm64"|"aarch64") ARCH="arm64" ;;
     *) error_exit "Unsupported architecture: $ARCH" ;;
 esac
-
-#https://github.com/ADORSYS-GIS/wazuh-agent-status/releases/download/v0.1.2/wazuh-agent-status-darwin-arm64
 
 # Construct binary name and URL for download
 BIN_NAME="$APP_NAME-${OS}-${ARCH}"
@@ -217,10 +194,15 @@ maybe_sudo chmod 111 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executabl
 # Step 3: Run the binary as a service
 print_step 3 "Starting service creation process..."
 grant_display_access
-create_service_file
-reload_and_enable_service
-info_message "Service creation and setup complete."
+if [ "$OS" = "darwin" ]; then
+    create_mac_service_file
+    reload_and_enable_mac_service
+else
+    create_service_file
+    reload_and_enable_service
+fi
 
+info_message "Service creation and setup complete."
 
 success_message "Installation and configuration complete! You can now use '$APP_NAME' from your terminal."
 info_message "Run \n\n\t${GREEN}${BOLD}$APP_NAME ${NORMAL}\n\n to start configuring. If you don't have sudo on your machine, you can run the command without sudo."
