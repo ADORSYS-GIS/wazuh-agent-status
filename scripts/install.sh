@@ -14,9 +14,6 @@ WAZUH_USER=${WAZUH_USER:-"root"}
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$APP_NAME.service"}
 PROFILE_RC=${PROFILE_RC:-"$HOME/.profile"}
 
-# macOS-specific service file location
-MAC_SERVICE_FILE="$HOME/Library/LaunchAgents/$APP_NAME.plist"
-
 # Define text formatting
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -81,89 +78,134 @@ maybe_sudo() {
     fi
 }
 
-# Function to reload systemd and enable the service (Linux-specific)
+# Function to reload systemd and enable the service (Linux)
 remove_service() {
-    info_message "Stopping $APP_NAME service..."
-    sudo systemctl stop $APP_NAME
-    
-    info_message "Deleting $SERVICE_FILE file..."
-    sudo rm $SERVICE_FILE
-    
-    info_message "Reloading systemd daemon..."
-    sudo systemctl daemon-reload
+    if [ "$OS" = "linux" ]; then
+        info_message "Stopping $APP_NAME service..."
+        sudo systemctl stop $APP_NAME
+        
+        info_message "Deleting $SERVICE_FILE file..."
+        sudo rm $SERVICE_FILE
+        
+        info_message "Reloading systemd daemon..."
+        sudo systemctl daemon-reload
+    elif [ "$OS" = "darwin" ]; then
+        local PLIST_FILE="/Library/LaunchDaemons/com.example.$APP_NAME.plist"
+        info_message "Stopping and removing $APP_NAME service..."
+        sudo launchctl unload -w "$PLIST_FILE"
+        sudo rm "$PLIST_FILE"
+    fi
 }
 
-# macOS: Function to create launchd plist file
-create_service_file_mac() {
-    if [ -f "$SERVICE_FILE" ]; then
-        info_message "Service file $SERVICE_FILE already exists. Deleting..."
-        remove_service
-        info_message "Old version of service file deleted successfully"
+# Function to create the systemd service file (Linux)
+create_service_file() {
+    if [ "$OS" = "linux" ]; then
+        if [ -f "$SERVICE_FILE" ]; then
+            info_message "Service file $SERVICE_FILE already exists. Deleting..."
+            remove_service
+            info_message "Old version of service file deleted successfully"
+        fi
+
+        echo "Creating service file at $SERVICE_FILE..."
+
+        sudo bash -c "cat > $SERVICE_FILE" <<EOF
+[Unit]
+Description=Wazuh Agent Systray Icon Application
+After=graphical.target
+
+[Service]
+ExecStart=$BIN_DIR/$APP_NAME
+Restart=always
+User=$WAZUH_USER
+Environment=DISPLAY=:0
+Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_RUNTIME_DIR=/run/user/100
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+        info_message "Service file created."
+    fi
+}
+
+# Function to reload systemd and enable the service (Linux)
+reload_and_enable_service() {
+    if [ "$OS" = "linux" ]; then
+        info_message "Reloading systemd daemon..."
+        sudo systemctl daemon-reload
+        
+        info_message "Enabling service to start on boot..."
+        sudo systemctl enable $APP_NAME.service
+
+        info_message "Starting the service..."
+        sudo systemctl start $APP_NAME.service
+    fi
+}
+
+# Function to create a launchd plist file for macOS
+create_launchd_plist() {
+    local PLIST_FILE="/Library/LaunchDaemons/com.example.$APP_NAME.plist"
+
+    if [ -f "$PLIST_FILE" ]; then
+        info_message "LaunchDaemon plist $PLIST_FILE already exists. Removing..."
+        sudo rm "$PLIST_FILE"
     fi
 
-    # Create the macOS launchd plist file
-    MAC_SERVICE_FILE="/Library/LaunchDaemons/com.adoresys.wazuh-agent-status.plist"
+    info_message "Creating LaunchDaemon plist at $PLIST_FILE..."
 
-    echo "Creating launchd plist at $MAC_SERVICE_FILE..."
-
-    sudo bash -c "cat > $MAC_SERVICE_FILE" <<EOF
+    sudo bash -c "cat > $PLIST_FILE" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-  <dict>
+<dict>
     <key>Label</key>
-    <string>com.adoresys.wazuh-agent-status</string>
+    <string>com.example.$APP_NAME</string>
     <key>ProgramArguments</key>
     <array>
-      <string>$BIN_DIR/$APP_NAME</string>
+        <string>$BIN_DIR/$APP_NAME</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
-    <key>UserName</key>
-    <string>$WAZUH_USER</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-      <key>DISPLAY</key>
-      <string>:0</string>
-      <key>XDG_SESSION_TYPE</key>
-      <string>wayland</string>
-      <key>XDG_RUNTIME_DIR</key>
-      <string>/run/user/100</string>
-    </dict>
-  </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/$APP_NAME.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/$APP_NAME.err</string>
+</dict>
 </plist>
 EOF
 
-    info_message "Launchd plist created."
+    info_message "LaunchDaemon plist created."
 }
 
-# macOS: Function to remove launchd service
-remove_mac_service() {
-    info_message "Unloading $APP_NAME service..."
-    launchctl bootout user/$(id -u) "$MAC_SERVICE_FILE"
-    
-    info_message "Deleting $MAC_SERVICE_FILE file..."
-    rm "$MAC_SERVICE_FILE"
+# Function to load and start the launchd service (macOS)
+load_and_start_launchd_service() {
+    local PLIST_FILE="/Library/LaunchDaemons/com.example.$APP_NAME.plist"
+
+    info_message "Loading and starting LaunchDaemon service..."
+    sudo launchctl load -w "$PLIST_FILE"
 }
 
-reload_and_enable_service_mac() {
-    info_message "Loading the launchd service..."
+grant_display_access() {
+    COMMAND="xhost +SI:localuser:$WAZUH_USER"
 
-    # Load the service (starts automatically at boot/login)
-    sudo launchctl load -w /Library/LaunchDaemons/com.adorsys.wazuh-agent-status.plist
+    if grep -Fxq "$COMMAND" "$PROFILE_RC"; then
+        info_message "The command is already present in $PROFILE_RC."
+    else
+        echo "$COMMAND" >> "$PROFILE_RC"
+        info_message "Added the command to $PROFILE_RC. It will take effect in new GUI sessions."
+    fi
 
-    # Start the service immediately
-    sudo launchctl start com.adorsys.wazuh-agent-status
-
-    info_message "Service loaded and started."
+    eval "$COMMAND"
+    info_message "Display access granted to user '$WAZUH_USER' for the current session."
 }
 
 # Function to check if the binary exists
 check_binary_exists() {
-    if [ ! -f "$BIN_DIR" ]; then
-        warn_message "Binary $BIN_DIR does not exist. Exiting."
+    if [ ! -f "$BIN_DIR/$APP_NAME" ]; then
+        warn_message "Binary $BIN_DIR/$APP_NAME does not exist. Exiting."
         exit 1
     fi
 }
@@ -205,12 +247,13 @@ maybe_sudo chmod 111 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executabl
 # Step 3: Run the binary as a service
 print_step 3 "Starting service creation process..."
 grant_display_access
-if [ "$OS" = "darwin" ]; then
-    create_mac_service_file
-    reload_and_enable_mac_service
-else
+
+if [ "$OS" = "linux" ]; then
     create_service_file
     reload_and_enable_service
+elif [ "$OS" = "darwin" ]; then
+    create_launchd_plist
+    load_and_start_launchd_service
 fi
 
 info_message "Service creation and setup complete."
