@@ -84,12 +84,12 @@ create_launchd_plist() {
 
     if [ -f "$PLIST_FILE" ]; then
         info_message "LaunchDaemon plist $PLIST_FILE already exists. Removing..."
-        maybe_sudo rm "$PLIST_FILE"
+        sudo rm "$PLIST_FILE"
     fi
 
     info_message "Creating LaunchDaemon plist at $PLIST_FILE..."
 
-    maybe_sudo tee "$PLIST_FILE" > /dev/null <<EOF
+    sudo tee "$PLIST_FILE" > /dev/null <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -108,12 +108,11 @@ create_launchd_plist() {
     <string>/tmp/$APP_NAME.log</string>
     <key>StandardErrorPath</key>
     <string>/tmp/$APP_NAME.err</string>
+    <key>UserName</key>
+    <string>$WAZUH_USER</string>
 </dict>
 </plist>
 EOF
-
-    maybe_sudo chown root:wheel "$PLIST_FILE"
-    maybe_sudo chmod 644 "$PLIST_FILE"
 
     info_message "LaunchDaemon plist created."
 }
