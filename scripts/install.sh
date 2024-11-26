@@ -81,6 +81,7 @@ create_desktop_unit_file() {
 
     local DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
     local DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$HOME/.config/autostart/$APP_NAME.desktop"}
+    local COMMAND="$APP_NAME"
     
     # Check if the parent directory exists
     if [ ! -d "$DESKTOP_UNIT_FOLDER" ]; then
@@ -116,6 +117,10 @@ X-GNOME-Autostart-enabled=true
 EOF
 
     info_message "Desktop unit file created."
+    
+    info_message "Launch app $APP_NAME for the current session..."
+    eval "$COMMAND"
+    
 }
 
 # Function to check if the binary exists
@@ -167,7 +172,6 @@ print_step 3 "Starting service creation process..."
 sudo apt install -y ssh-askpass
 sudo apt install -y ssh-askpass-gnome
 create_desktop_unit_file
-info_message "Desktop unit creation and setup complete."
 
 
 success_message "Installation and configuration complete! You can now use '$APP_NAME' from your terminal."
