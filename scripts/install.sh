@@ -87,7 +87,7 @@ create_desktop_unit_file() {
         info_message "Old version of desktop unit file deleted successfully"
     fi
 
-    echo "Creating desktop unit file at $SERVICE_FILE..."
+    echo "Creating desktop unit file at $DESKTOP_UNIT_FILE..."
 
     sudo bash -c "cat > $DESKTOP_UNIT_FILE" <<EOF
 [Desktop Entry]
