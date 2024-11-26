@@ -79,13 +79,26 @@ maybe_sudo() {
 # Function to create the systemd service file
 create_desktop_unit_file() {
 
+    local DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
     local DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$HOME/.config/autostart/$APP_NAME.desktop"}
     
+    # Check if the parent directory exists
+    if [ ! -d "$DESKTOP_UNIT_FOLDER" ]; then
+        info_message "Parent directory does not exist. Creating it now..."
+        mkdir -p "$DESKTOP_UNIT_FOLDER"
+        info_message "Parent directory created."
+    else
+        info_message "Parent directory already exists."
+    fi
+    
+    # Check if the desktop unit file already exists and delete it if it does
     if [ -f "$DESKTOP_UNIT_FILE" ]; then
         info_message "Service file $DESKTOP_UNIT_FILE already exists. Deleting..."
         sudo rm -f "$DESKTOP_UNIT_FILE"
         info_message "Old version of desktop unit file deleted successfully"
     fi
+    
+    
 
     echo "Creating desktop unit file at $DESKTOP_UNIT_FILE..."
 
