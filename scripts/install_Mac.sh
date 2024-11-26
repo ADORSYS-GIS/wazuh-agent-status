@@ -80,16 +80,19 @@ maybe_sudo() {
 
 # Function to create a launchd plist file for macOS
 create_launchd_plist() {
-    local PLIST_FILE="/Library/LaunchDaemons/com.example.$APP_NAME.plist"
+    local PLIST_DIR="$HOME/Library/LaunchAgents"
+    local PLIST_FILE="$PLIST_DIR/com.example.$APP_NAME.plist"
+
+    mkdir -p "$PLIST_DIR"
 
     if [ -f "$PLIST_FILE" ]; then
-        info_message "LaunchDaemon plist $PLIST_FILE already exists. Removing..."
-        sudo rm "$PLIST_FILE"
+        info_message "LaunchAgent plist $PLIST_FILE already exists. Removing..."
+        rm "$PLIST_FILE"
     fi
 
-    info_message "Creating LaunchDaemon plist at $PLIST_FILE..."
+    info_message "Creating LaunchAgent plist at $PLIST_FILE..."
 
-    sudo tee "$PLIST_FILE" > /dev/null <<EOF
+    tee "$PLIST_FILE" > /dev/null <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -105,25 +108,25 @@ create_launchd_plist() {
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/tmp/$APP_NAME.log</string>
+    <string>$HOME/Library/Logs/$APP_NAME.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/$APP_NAME.err</string>
-    <key>UserName</key>
-    <string>$WAZUH_USER</string>
+    <string>$HOME/Library/Logs/$APP_NAME.err</string>
 </dict>
 </plist>
 EOF
 
-    info_message "LaunchDaemon plist created."
+    chmod 644 "$PLIST_FILE"
+
+    info_message "LaunchAgent plist created."
 }
 
 # Function to load and start the launchd service (macOS)
 load_and_start_launchd_service() {
-    local PLIST_FILE="/Library/LaunchDaemons/com.example.$APP_NAME.plist"
+    local PLIST_FILE="$HOME/Library/LaunchAgents/com.example.$APP_NAME.plist"
 
-    info_message "Loading and starting LaunchDaemon service..."
-    sudo launchctl load -w "$PLIST_FILE"
-    sudo launchctl start "com.example.$APP_NAME"
+    info_message "Loading and starting LaunchAgent service..."
+    launchctl unload "$PLIST_FILE" 2>/dev/null || true
+    launchctl load -w "$PLIST_FILE"
 }
 
 # Determine the OS and architecture
