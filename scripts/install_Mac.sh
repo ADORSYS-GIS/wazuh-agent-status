@@ -154,6 +154,12 @@ echo "Download URL: $URL"
 # Create a temporary directory and ensure it is cleaned up
 TEMP_DIR=$(mktemp -d) || error_exit "Failed to create temporary directory"
 
+trap 'rm -rf "$TEMP_DIR"' EXIT
+
+# Step 1: Download the binary file
+print_step 1 "Downloading $BIN_NAME from $URL..."
+curl -SL --progress-bar -o "$TEMP_DIR/$BIN_NAME" "$URL" || error_exit "Failed to download $BIN_NAME"
+
 # Step 2: Install the binary
 print_step 2 "Installing binary to $BIN_DIR..."
 maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$BIN_DIR/$APP_NAME" || error_exit "Failed to move binary to $BIN_DIR"
