@@ -118,9 +118,6 @@ EOF
 
     info_message "Desktop unit file created."
     
-    info_message "Launch app $APP_NAME for the current session..."
-    eval "$COMMAND"
-    
 }
 
 # Function to check if the binary exists
@@ -174,5 +171,5 @@ sudo apt install -y ssh-askpass-gnome
 create_desktop_unit_file
 
 
-success_message "Installation and configuration complete! You can now use '$APP_NAME' from your terminal."
-info_message "Run \n\n\t${GREEN}${BOLD}$APP_NAME ${NORMAL}\n\n to start configuring. If you don't have sudo on your machine, you can run the command without sudo."
+success_message "Installation and configuration complete! You can now use '$APP_NAME' on your host"
+info_message "You need to reboot your computer for changes to take effect"
