@@ -11,8 +11,6 @@ fi
 APP_NAME=${APP_NAME:-"wazuh-agent-status"}
 WOPS_VERSION=${WOPS_VERSION:-"0.1.2"}
 WAZUH_USER=${WAZUH_USER:-"root"}
-SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$APP_NAME.service"}
-PROFILE_RC=${PROFILE_RC:-"$HOME/.profile"}
 
 # Define text formatting
 RED='\033[0;31m'
@@ -78,97 +76,61 @@ maybe_sudo() {
     fi
 }
 
-# Function to reload systemd and enable the service
-remove_service() {
-    info_message "Stopping $APP_NAME service..."
-    sudo systemctl stop $APP_NAME
-    
-    info_message "Deleting $SERVICE_FILE file..."
-    sudo rm $SERVICE_FILE
-    
-    info_message "Reloading systemd daemon..."
-    sudo systemctl daemon-reload
-}
-
 # Function to create the systemd service file
-create_service_file() {
+create_desktop_unit_file() {
+
+    local DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
+    local DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$HOME/.config/autostart/$APP_NAME.desktop"}
+    local COMMAND="$APP_NAME"
     
-    if [ -f "$SERVICE_FILE" ]; then
-        info_message "Service file $SERVICE_FILE already exists. Deleting..."
-        remove_service
-        info_message "Old version of service file deleted successfully"
+    # Check if the parent directory exists
+    if [ ! -d "$DESKTOP_UNIT_FOLDER" ]; then
+        info_message "Parent directory does not exist. Creating it now..."
+        mkdir -p "$DESKTOP_UNIT_FOLDER"
+        info_message "Parent directory created."
+    else
+        info_message "Parent directory already exists."
     fi
+    
+    # Check if the desktop unit file already exists and delete it if it does
+    if [ -f "$DESKTOP_UNIT_FILE" ]; then
+        info_message "Service file $DESKTOP_UNIT_FILE already exists. Deleting..."
+        sudo rm -f "$DESKTOP_UNIT_FILE"
+        info_message "Old version of desktop unit file deleted successfully"
+    fi
+    
+    
 
-    echo "Creating service file at $SERVICE_FILE..."
+    echo "Creating desktop unit file at $DESKTOP_UNIT_FILE..."
 
-    sudo bash -c "cat > $SERVICE_FILE" <<EOF
-[Unit]
-Description=Wazuh Agent Systray Icon Application
-After=graphical.target
+    sudo bash -c "cat > $DESKTOP_UNIT_FILE" <<EOF
+[Desktop Entry]
+Name=Wazuh Agent Monitoring Tray Icon App
+GenericName=A script that runs at Gnome startup
+Comment=Runs the script in Exec path
+Exec=sh -c "SUDO_ASKPASS=/usr/bin/ssh-askpass sudo -A $BIN_DIR/$APP_NAME >> $HOME/.wazuh-agent-status.log 2>&1"
+Terminal=false
+Type=Application
+X-GNOME-Autostart-enabled=true
 
-[Service]
-ExecStart=$BIN_DIR/$APP_NAME
-Restart=always
-User=$WAZUH_USER
-Environment=DISPLAY=:0
-Environment=XDG_SESSION_TYPE=wayland
-Environment=XDG_RUNTIME_DIR=/run/user/100
-
-[Install]
-WantedBy=multi-user.target
 
 EOF
 
-    info_message "Service file created."
-}
-
-# Function to reload systemd and enable the service
-reload_and_enable_service() {
-    info_message "Reloading systemd daemon..."
-    sudo systemctl daemon-reload
+    info_message "Desktop unit file created."
     
-    info_message "Enabling service to start on boot..."
-    sudo systemctl enable $APP_NAME.service
-
-    info_message "Starting the service..."
-    sudo systemctl start $APP_NAME.service
 }
 
-grant_display_access() {
-    # Detect the current user's default shell
-    # echo "This is the Home: $HOME and the Shell: $SHELL"
+make_app_launch_at_startup() {
 
-    # # Determine the shell configuration file
-    # case "$SHELL" in
-    #     *bash)
-    #         SH_RC="$HOME/.bashrc"
-    #         ;;
-    #     *zsh)
-    #         SH_RC="$HOME/.zshrc"
-    #         ;;
-    #     *)
-    #         error_message "Unsupported shell: $DEFAULT_SHELL. Please add the command manually."
-    #         return 1
-    #         ;;
-    # esac
-
-    # The command to be added
-    COMMAND="xhost +SI:localuser:$WAZUH_USER"
-
-    # Check if the command already exists in the config file
-    if grep -Fxq "$COMMAND" "$PROFILE_RC"; then
-        info_message "The command is already present in $PROFILE_RC."
-    else
-        # Add the command to the configuration file
-        echo "$COMMAND" >> "$PROFILE_RC"
-        info_message "Added the command to $PROFILE_RC. It will take effect in new GUI sessions."
+    if [[ "$(uname)" == "Linux"* ]]; then
+        print_step 3 "Starting service creation process..."
+        sudo apt install -y ssh-askpass
+        sudo apt install -y ssh-askpass-gnome
+        create_desktop_unit_file
+        warn_message "You need to reboot your computer for changes to take effect"
     fi
 
-    # Apply the changes for the current session
-    eval "$COMMAND"
-    info_message "Display access granted to user '$WAZUH_USER' for the current session."
 }
-
 
 # Function to check if the binary exists
 check_binary_exists() {
@@ -215,12 +177,6 @@ maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$BIN_DIR/$APP_NAME" || error_exit "Failed t
 maybe_sudo chmod 111 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
 
 # Step 3: Run the binary as a service
-print_step 3 "Starting service creation process..."
-grant_display_access
-create_service_file
-reload_and_enable_service
-info_message "Service creation and setup complete."
+make_app_launch_at_startup
 
-
-success_message "Installation and configuration complete! You can now use '$APP_NAME' from your terminal."
-info_message "Run \n\n\t${GREEN}${BOLD}$APP_NAME ${NORMAL}\n\n to start configuring. If you don't have sudo on your machine, you can run the command without sudo."
+success_message "Installation and configuration complete! You can now use '$APP_NAME' on your host"
