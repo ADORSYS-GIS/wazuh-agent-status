@@ -17,7 +17,7 @@ func getIconPath() string {
 // checkServiceStatus checks the status of Wazuh agent and its connection on Linux
 func checkServiceStatus() (string, string) {
 	// Command to check agent status
-	cmd := exec.Command("sh", "-c", "sudo /var/ossec/bin/wazuh-control status")
+	cmd := exec.Command("sh", "-c", "/var/ossec/bin/wazuh-control status")
 	output, err := cmd.Output()
 	if err != nil {
 		return "Inactive", "Disconnected"
@@ -29,7 +29,7 @@ func checkServiceStatus() (string, string) {
 	}
 
 	// Check connection status
-	connCmd := exec.Command("sh", "-c", "sudo grep ^status /var/ossec/var/run/wazuh-agentd.state")
+	connCmd := exec.Command("sh", "-c", "grep ^status /var/ossec/var/run/wazuh-agentd.state")
 	connOutput, connErr := connCmd.Output()
 	connection := "Disconnected"
 	if connErr == nil && strings.Contains(string(connOutput), "status='connected'") {
@@ -42,7 +42,7 @@ func checkServiceStatus() (string, string) {
 // pauseAgent pauses the Wazuh agent on Linux
 func pauseAgent() {
 	log.Printf("[%s] Pausing Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("sudo", "/var/ossec/bin/wazuh-control", "stop").Run()
+	err := exec.Command("/var/ossec/bin/wazuh-control", "stop").Run()
 	if err != nil {
 		log.Printf("[%s] Failed to pause Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
 	} else {
@@ -53,7 +53,7 @@ func pauseAgent() {
 // restartAgent restarts the Wazuh agent on Linux
 func restartAgent() {
 	log.Printf("[%s] Restarting Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("sudo", "/var/ossec/bin/wazuh-control", "restart").Run()
+	err := exec.Command("/var/ossec/bin/wazuh-control", "restart").Run()
 	if err != nil {
 		log.Printf("[%s] Failed to restart Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
 	} else {
