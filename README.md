@@ -3,10 +3,24 @@
 
 **Wazuh Agent Status** is an application designed to monitor the state of Wazuh agents. This tool provides real-time insights into the operational status of agents, ensuring they are functioning correctly and efficiently.
 
-## Features
+## Key Features
 
-- **Real-time Monitoring**: Continuously checks the status of Wazuh agents.
-- **Multi-platform Support**: Works on **Linux** and **macOS**.
+- **Real-time Status Monitoring:** Constantly monitors each Wazuh agent, updating statuses directly within your system tray.
+
+- **Status and Connection Indicators:** Uses color-coded icons to show agent activity (Active/Inactive) and connection status (Connected/Disconnected).
+
+- **Control Options:** Easily manage agents through the tray menu with options to pause, restart, or quit the agent.
+
+- **Cross-Platform Compatibility:** Compatible with Linux, macOS, and Windows.
+
+- **Embedded Icons:** Custom, embedded icons ensure immediate visual recognition for easy status assessment.
+
+## Core Functionalities
+
+- **Instant Agent Status Updates:** The system tray displays live updates on each agent’s operational state, ensuring administrators can act promptly if issues arise.
+
+- **Connection Health Validation:** Regular checks confirm each agent’s connection integrity, with clear indications for connection loss or re-establishment.
+
 
 ## Installation from code
 
@@ -43,23 +57,22 @@ You can build binaries for different systems using this command:
 
 > **Note**: Ensure you have a suitable C compiler installed on your system for this to work.
 
-## Usage
+## Quick Start
+After building or installing the binary, you can start the application as follows:
 
-Run the application with the following command:
+Run the application with:
 ```bash
 ./dist/wazuh-agent-status
 ```
 
-## Alternative Installation
+### Alternative Installation
 
 To install the agent companion, run the script that will download and install it for you:
 ```bash
 curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | bash
 ```
 
-## Usage
-
-After installation, you can run the application with:
+After installation, launch the application with:
 ```bash
 wazuh-agent-status
 ```
