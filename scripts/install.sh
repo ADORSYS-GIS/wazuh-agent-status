@@ -120,6 +120,18 @@ EOF
     
 }
 
+make_app_launch_at_startup() {
+
+    if [[ "$(uname)" == "Linux"* ]]; then
+        print_step 3 "Starting service creation process..."
+        sudo apt install -y ssh-askpass
+        sudo apt install -y ssh-askpass-gnome
+        create_desktop_unit_file
+        warn_message "You need to reboot your computer for changes to take effect"
+    fi
+
+}
+
 # Function to check if the binary exists
 check_binary_exists() {
     if [ ! -f "$BIN_DIR" ]; then
@@ -165,11 +177,6 @@ maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$BIN_DIR/$APP_NAME" || error_exit "Failed t
 maybe_sudo chmod 111 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
 
 # Step 3: Run the binary as a service
-print_step 3 "Starting service creation process..."
-sudo apt install -y ssh-askpass
-sudo apt install -y ssh-askpass-gnome
-create_desktop_unit_file
-
+make_app_launch_at_startup
 
 success_message "Installation and configuration complete! You can now use '$APP_NAME' on your host"
-info_message "You need to reboot your computer for changes to take effect"
