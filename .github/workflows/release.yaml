@@ -51,12 +51,19 @@ jobs:
         run: |
           GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o ./dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
-      - name: Upload Linux binaries
-        if: ${{ !env.ACT }}
+      - name: Upload Linux client binaries
+        if: ${{ !env.ACT }} 
         uses: actions/upload-artifact@v4
         with:
-          name: linux-binaries-${{ matrix.arch }}
-          path: ./dist/
+          name: ${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+          path: ${{ env.CLIENT_APP_NAME }}/dist/
+          
+      - name: Upload Linux server binaries
+        if: ${{ !env.ACT }} 
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+          path: ${{ env.SERVER_APP_NAME }}/dist/
           
   build-macos:
     name: Build for macOS ARM64
@@ -86,11 +93,17 @@ jobs:
         run: |
           GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o ./dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
-      - name: Upload macOS binaries
+      - name: Upload MacOS client binaries
         uses: actions/upload-artifact@v4
         with:
-          name: macos-binaries-${{ matrix.arch }}
-          path: ./dist/
+          name: ${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+          path: ${{ env.CLIENT_APP_NAME }}/dist/
+          
+      - name: Upload MacOS server binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+          path: ${{ env.SERVER_APP_NAME }}/dist/
           
   release:
     name: Release
