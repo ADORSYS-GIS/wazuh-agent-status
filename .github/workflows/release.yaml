@@ -5,13 +5,14 @@ on:
     branches:
       - main
       - develop
+      - fix/*
     tags:
       - 'v*'
-  pull_request:
 
 env:
   GO_VERSION: 1.22
-  APP_NAME: wazuh-agent-status
+  CLIENT_APP_NAME: wazuh-agent-status-client
+  SERVER_APP_NAME: wazuh-agent-status
 
 jobs:
   build-linux:
@@ -19,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [amd64]
+        arch: [amd64, arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,16 +43,20 @@ jobs:
             libgdk-pixbuf2.0-dev \
             libatk1.0-dev
 
-      - name: Build binary
+      - name: Build client binary
         run: |
-          GOOS=linux GOARCH=${{ matrix.arch }} go build -o dist/${{ env.APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -o $PWD/dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
 
-      - name: Upload Linux binary
+      - name: Build server binary
+        run: |
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o $PWD/dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+
+      - name: Upload Linux binaries
         if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APP_NAME }}-linux-${{ matrix.arch }}
-          path: ./dist/
+          name: linux-binaries-${{ matrix.arch }}
+          path: $PWD/dist/
           
   build-macos:
     name: Build for macOS ARM64
@@ -73,45 +78,19 @@ jobs:
         run: |
           brew install gtk+3
 
-      - name: Build binary for macOS Silicon (ARM64)
+      - name: Build client binary for macOS Silicon (ARM64)
         run: |
-          GOOS=darwin GOARCH=${{ matrix.arch }} go build -o dist/${{ env.APP_NAME }}-darwin-${{ matrix.arch }}
+          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -o $PWD/dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
 
-      - name: Upload macOS binary
+      - name: Build server binary for macOS Silicon (ARM64)
+        run: |
+          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o $PWD/dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+
+      - name: Upload macOS binaries
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APP_NAME }}-darwin-${{ matrix.arch }}
-          path: ./dist/
-          
-  build-windows:
-    name: Build for Windows AMD64
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        arch: [amd64]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Install Dependencies
-        run: |
-          go mod tidy
-
-      - name: Build binary for Windows
-        run: |
-          go build -o dist/${{ env.APP_NAME }}-windows-${{ matrix.arch }}.exe
-
-      - name: Upload Windows binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.APP_NAME }}-windows-${{ matrix.arch }}
-          path: ./dist/
+          name: macos-binaries-${{ matrix.arch }}
+          path: $PWD/dist/
           
   release:
     name: Release
@@ -119,7 +98,6 @@ jobs:
     needs:
       - build-linux
       - build-macos
-      - build-windows
     runs-on: ubuntu-latest
     steps:
       - name: Get the version
@@ -141,7 +119,7 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./dist
+          path: $PWD/dist
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v1

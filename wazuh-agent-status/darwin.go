@@ -1,5 +1,5 @@
-//go:build linux
-// +build linux
+//go:build darwin
+// +build darwin
 
 package main
 
@@ -10,14 +10,9 @@ import (
 	"time"
 )
 
-func getIconPath() string {
-    return "assets/wazuh-logo.png" // Path to the PNG icon for Linux
-}
-
-// checkServiceStatus checks the status of Wazuh agent and its connection on Linux
+// checkServiceStatus checks the status of Wazuh agent and its connection on macOS
 func checkServiceStatus() (string, string) {
-	// Command to check agent status
-	cmd := exec.Command("sh", "-c", "/var/ossec/bin/wazuh-control status")
+	cmd := exec.Command("sh", "-c", "sudo /Library/Ossec/bin/wazuh-control status")
 	output, err := cmd.Output()
 	if err != nil {
 		return "Inactive", "Disconnected"
@@ -29,7 +24,7 @@ func checkServiceStatus() (string, string) {
 	}
 
 	// Check connection status
-	connCmd := exec.Command("sh", "-c", "grep ^status /var/ossec/var/run/wazuh-agentd.state")
+	connCmd := exec.Command("sh", "-c", "sudo grep ^status /Library/Ossec/var/run/wazuh-agentd.state")
 	connOutput, connErr := connCmd.Output()
 	connection := "Disconnected"
 	if connErr == nil && strings.Contains(string(connOutput), "status='connected'") {
@@ -39,10 +34,10 @@ func checkServiceStatus() (string, string) {
 	return status, connection
 }
 
-// pauseAgent pauses the Wazuh agent on Linux
+// pauseAgent pauses the Wazuh agent on macOS
 func pauseAgent() {
 	log.Printf("[%s] Pausing Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("/var/ossec/bin/wazuh-control", "stop").Run()
+	err := exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "stop").Run()
 	if err != nil {
 		log.Printf("[%s] Failed to pause Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
 	} else {
@@ -50,10 +45,10 @@ func pauseAgent() {
 	}
 }
 
-// restartAgent restarts the Wazuh agent on Linux
+// restartAgent restarts the Wazuh agent on macOS
 func restartAgent() {
 	log.Printf("[%s] Restarting Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("/var/ossec/bin/wazuh-control", "restart").Run()
+	err := exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "restart").Run()
 	if err != nil {
 		log.Printf("[%s] Failed to restart Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
 	} else {
