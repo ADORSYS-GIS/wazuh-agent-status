@@ -45,18 +45,18 @@ jobs:
 
       - name: Build client binary
         run: |
-          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -o $PWD/dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -o ./dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Build server binary
         run: |
-          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o $PWD/dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o ./dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Upload Linux binaries
         if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v4
         with:
           name: linux-binaries-${{ matrix.arch }}
-          path: $PWD/dist/
+          path: ./dist/
           
   build-macos:
     name: Build for macOS ARM64
@@ -80,17 +80,17 @@ jobs:
 
       - name: Build client binary for macOS Silicon (ARM64)
         run: |
-          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -o $PWD/dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -o ./dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Build server binary for macOS Silicon (ARM64)
         run: |
-          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o $PWD/dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o ./dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Upload macOS binaries
         uses: actions/upload-artifact@v4
         with:
           name: macos-binaries-${{ matrix.arch }}
-          path: $PWD/dist/
+          path: ./dist/
           
   release:
     name: Release
