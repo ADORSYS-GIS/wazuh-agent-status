@@ -175,7 +175,7 @@ EOF
 
 make_app_launch_at_startup() {
 
-    if [ "$(uname)" == "Linux" ]; then
+    if [ "$(uname)" = "Linux" ]; then
         info_message "Creating tray icon automatic launch agent..."
         create_desktop_unit_file
         info_message "Tray icon automatic launch agent created"
