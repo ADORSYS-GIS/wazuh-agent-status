@@ -56,14 +56,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
-          path: ${{ env.CLIENT_APP_NAME }}/dist/
+          path: |
+            ${{ env.CLIENT_APP_NAME }}/dist/
           
       - name: Upload Linux server binaries
         if: ${{ !env.ACT }} 
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
-          path: ${{ env.SERVER_APP_NAME }}/dist/
+          path: | 
+            ${{ env.SERVER_APP_NAME }}/dist/
           
   build-macos:
     name: Build for macOS ARM64
