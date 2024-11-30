@@ -98,14 +98,14 @@ jobs:
       - name: Upload MacOS client binaries
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+          name: ${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
           path: |
             ${{ env.CLIENT_APP_NAME }}/dist/
           
       - name: Upload MacOS server binaries
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+          name: ${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
           path: |
             ${{ env.SERVER_APP_NAME }}/dist/
           
