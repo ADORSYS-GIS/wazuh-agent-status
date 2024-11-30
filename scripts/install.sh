@@ -8,9 +8,11 @@ else
 fi
 
 # Default log level and application details
-APP_NAME=${APP_NAME:-"wazuh-agent-status"}
-WOPS_VERSION=${WOPS_VERSION:-"0.1.2"}
+SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
+CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
+WOPS_VERSION=${WOPS_VERSION:-"0.2.1"}
 WAZUH_USER=${WAZUH_USER:-"root"}
+SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
 
 # Define text formatting
 RED='\033[0;31m'
@@ -76,12 +78,63 @@ maybe_sudo() {
     fi
 }
 
+# Function to reload systemd and enable the service
+remove_service() {
+    info_message "Stopping $SERVER_NAME service..."
+    sudo systemctl stop $SERVER_NAME
+    
+    info_message "Deleting $SERVICE_FILE file..."
+    sudo rm $SERVICE_FILE
+    
+    info_message "Reloading systemd daemon..."
+    sudo systemctl daemon-reload
+}
+# Function to create the systemd service file
+create_service_file() {
+
+    if [ -f "$SERVICE_FILE" ]; then
+        info_message "Service file $SERVICE_FILE already exists. Deleting..."
+        remove_service
+        info_message "Old version of service file deleted successfully"
+    fi
+
+    echo "Creating service file at $SERVICE_FILE..."
+
+    sudo bash -c "cat > $SERVICE_FILE" <<EOF
+[Unit]
+Description=Wazuh Agent Status daemon
+After=network.target
+
+[Service]
+ExecStart=$BIN_DIR/$SERVER_NAME
+Restart=always
+User=$WAZUH_USER
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    info_message "Service file created."
+}
+
+# Function to reload systemd and enable the service
+reload_and_enable_service() {
+    info_message "Reloading systemd daemon..."
+    sudo systemctl daemon-reload
+
+    info_message "Enabling service to start on boot..."
+    sudo systemctl enable $SERVER_NAME.service
+
+    info_message "Starting the service..."
+    sudo systemctl start $SERVER_NAME.service
+}
+
 # Function to create the systemd service file
 create_desktop_unit_file() {
 
     local DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
-    local DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$HOME/.config/autostart/$APP_NAME.desktop"}
-    local COMMAND="$APP_NAME"
+    local DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$HOME/.config/autostart/$CLIENT_NAME.desktop"}
+    local COMMAND="$CLIENT_NAME"
     
     # Check if the parent directory exists
     if [ ! -d "$DESKTOP_UNIT_FOLDER" ]; then
@@ -108,7 +161,7 @@ create_desktop_unit_file() {
 Name=Wazuh Agent Monitoring Tray Icon App
 GenericName=A script that runs at Gnome startup
 Comment=Runs the script in Exec path
-Exec=sh -c "SUDO_ASKPASS=/usr/bin/ssh-askpass sudo -A $BIN_DIR/$APP_NAME >> $HOME/.wazuh-agent-status.log 2>&1"
+Exec=$BIN_DIR/$CLIENT_NAME
 Terminal=false
 Type=Application
 X-GNOME-Autostart-enabled=true
@@ -123,11 +176,7 @@ EOF
 make_app_launch_at_startup() {
 
     if [[ "$(uname)" == "Linux"* ]]; then
-        print_step 3 "Starting service creation process..."
-        sudo apt install -y ssh-askpass
-        sudo apt install -y ssh-askpass-gnome
         create_desktop_unit_file
-        warn_message "You need to reboot your computer for changes to take effect"
     fi
 
 }
@@ -156,27 +205,47 @@ esac
 
 #https://github.com/ADORSYS-GIS/wazuh-agent-status/releases/download/v0.1.2/wazuh-agent-status-darwin-arm64
 
-# Construct binary name and URL for download
-BIN_NAME="$APP_NAME-${OS}-${ARCH}"
-BASE_URL="https://github.com/ADORSYS-GIS/$APP_NAME/releases/download/v$WOPS_VERSION"
-URL="$BASE_URL/$BIN_NAME"
+# Construct the server binary name and URL for download
+SERVER_BIN_NAME="$SERVER_NAME-${OS}-${ARCH}"
+SERVER_BASE_URL="https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WOPS_VERSION"
+SERVER_URL="$SERVER_BASE_URL/$SERVER_BIN_NAME"
 
-echo $URL
+# Construct the client binary name and URL for download
+CLIENT_BIN_NAME="$CLIENT_NAME-${OS}-${ARCH}"
+CLIENT_BASE_URL="https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WOPS_VERSION"
+CLIENT_URL="$CLIENT_BASE_URL/$CLIENT_BIN_NAME"
+
+echo $CLIENT_URL
+echo $SERVER_URL
 
 # Create a temporary directory and ensure it is cleaned up
 TEMP_DIR=$(mktemp -d) || error_exit "Failed to create temporary directory"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Step 1: Download the binary file
-print_step 1 "Downloading $BIN_NAME from $URL..."
-curl -SL --progress-bar -o "$TEMP_DIR/$BIN_NAME" "$URL" || error_exit "Failed to download $BIN_NAME"
+# Step 1: Download the binaries
+print_step 1 "Downloading binaries..."
+info_message "Downloading $SERVER_BIN_NAME from $SERVER_URL..."
+curl -SL --progress-bar -o "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
+info_message "Downloading $CLIENT_BIN_NAME from $CLIENT_URL..."
+curl -SL --progress-bar -o "$TEMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_URL" || error_exit "Failed to download $CLIENT_BIN_NAME"
 
-# Step 2: Install the binary
-print_step 2 "Installing binary to $BIN_DIR..."
-maybe_sudo mv "$TEMP_DIR/$BIN_NAME" "$BIN_DIR/$APP_NAME" || error_exit "Failed to move binary to $BIN_DIR"
-maybe_sudo chmod 111 "$BIN_DIR/$APP_NAME" || error_exit "Failed to set executable permissions on the binary"
+# Step 2: Install the binaries
+print_step 2 "Installing binaries to $BIN_DIR..."
+maybe_sudo mv "$TEMP_DIR/$SERVER_BIN_NAME" "$BIN_DIR/$SERVER_NAME" || error_exit "Failed to move binary to $BIN_DIR"
+maybe_sudo chmod 111 "$BIN_DIR/$SERVER_NAME" || error_exit "Failed to set executable permissions on the binary"
+
+maybe_sudo mv "$TEMP_DIR/$CLIENT_BIN_NAME" "$BIN_DIR/$CLIENT_NAME" || error_exit "Failed to move binary to $BIN_DIR"
+maybe_sudo chmod 111 "$BIN_DIR/$CLIENT_NAME" || error_exit "Failed to set executable permissions on the binary"
 
 # Step 3: Run the binary as a service
+print_step 3 "Starting service creation..."
+create_service_file
+reload_and_enable_service
+info_message "Service creation and setup complete."
+
+# Step 4: Run the binary as a service
+print_step 4 "Starting desktop unit creation..."
 make_app_launch_at_startup
 
-success_message "Installation and configuration complete! You can now use '$APP_NAME' on your host"
+success_message "Installation and configuration complete! You can now use '$SERVER_NAME' on your host"
+warn_message "You need to reboot your for the changes to take effect"
