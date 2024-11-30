@@ -1,4 +1,4 @@
-name: Build and Release Binaries for Linux (amd64, arm64), MacOS (Silicon arm64) and Windows (amd64)
+name: Build and Release Binaries for Linux (amd64), MacOS (Silicon arm64)
 
 on:
   push:
@@ -99,13 +99,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
-          path: ${{ env.CLIENT_APP_NAME }}/dist/
+          path: |
+            ${{ env.CLIENT_APP_NAME }}/dist/
           
       - name: Upload MacOS server binaries
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
-          path: ${{ env.SERVER_APP_NAME }}/dist/
+          path: |
+            ${{ env.SERVER_APP_NAME }}/dist/
           
   release:
     name: Release
@@ -131,10 +133,15 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Download Artifacts
+      - name: Download Client Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: $PWD/dist
+          path: ${{ env.CLIENT_APP_NAME }}/dist/
+          
+      - name: Download Server Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ env.SERVER_APP_NAME }}/dist/
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v1
