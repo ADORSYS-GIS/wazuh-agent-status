@@ -133,15 +133,10 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Download Client Artifacts
+      - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ${{ env.CLIENT_APP_NAME }}/dist/
-          
-      - name: Download Server Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ${{ env.SERVER_APP_NAME }}/dist/
+          path: ./dist/
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v1
