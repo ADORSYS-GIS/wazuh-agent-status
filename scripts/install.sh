@@ -217,7 +217,7 @@ create_startup_file() {
     local FILE=$2
 
     if [ -f "$FILE" ]; then
-        remove_launch_agent "$NAME" "$FILE"
+        remove_startup_file "$NAME" "$FILE"
     fi
 
     info_message "Creating startup file at $FILE..."
