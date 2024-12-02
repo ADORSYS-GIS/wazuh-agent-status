@@ -47,7 +47,7 @@ info_message() { log "${BLUE}${BOLD}[INFO]${NORMAL}" "$*"; }
 warn_message() { log "${YELLOW}${BOLD}[WARNING]${NORMAL}" "$*"; }
 error_message() { log "${RED}${BOLD}[ERROR]${NORMAL}" "$*"; }
 success_message() { log "${GREEN}${BOLD}[SUCCESS]${NORMAL}" "$*"; }
-print_step() { log "${BLUE}${BOLD}[STEP]${NORMAL}" "$1: $2"; }
+print_step_header() { echo -e "\n${BOLD}===== STEP $1: $2 =====${NORMAL}\n"; }
 
 # Error Handler
 error_exit() {
@@ -87,7 +87,10 @@ remove_file() {
 
 # Service Management
 create_service_file() {
+    info_message "Removing old service file if it exists..."
     remove_file "$SERVICE_FILE"
+    
+    info_message "Creating a new systemd service file..."
     create_file "$SERVICE_FILE" "
 [Unit]
 Description=Wazuh Agent Status daemon
@@ -101,19 +104,28 @@ User=$WAZUH_USER
 [Install]
 WantedBy=multi-user.target
 "
-    info_message "Service file created: $SERVICE_FILE"
+    success_message "Systemd service file created: $SERVICE_FILE"
 }
 
 reload_and_enable_service() {
-    info_message "Reloading systemd daemon and enabling service..."
+    info_message "Reloading systemd daemon..."
     maybe_sudo systemctl daemon-reload
+    
+    info_message "Enabling service to start at boot..."
     maybe_sudo systemctl enable "$SERVER_NAME"
+    
+    info_message "Starting the service..."
     maybe_sudo systemctl start "$SERVER_NAME"
+    
+    success_message "Systemd service enabled and started."
 }
 
 # Desktop Unit File Creation
 create_desktop_unit_file() {
+    info_message "Creating desktop unit directory if it doesn't exist..."
     mkdir -p "$DESKTOP_UNIT_FOLDER"
+    
+    info_message "Creating desktop unit file for autostart..."
     create_file "$DESKTOP_UNIT_FILE" "
 [Desktop Entry]
 Name=Wazuh Agent Monitoring Tray Icon App
@@ -124,12 +136,15 @@ Terminal=false
 Type=Application
 X-GNOME-Autostart-enabled=true
 "
+    success_message "Desktop autostart file created: $DESKTOP_UNIT_FILE"
 }
 
 # macOS Launchd Plist File
 create_launchd_plist_file() {
     local name="$1"
     local filepath="$2"
+    
+    info_message "Creating plist file for $name..."
     create_file "$filepath" "
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
@@ -148,8 +163,13 @@ create_launchd_plist_file() {
 </dict>
 </plist>
 "
+    info_message "Unloading previous plist file (if any)..."
     maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
+    
+    info_message "Loading new plist file..."
     maybe_sudo launchctl load -w "$filepath"
+    
+    success_message "macOS Launchd plist file created and loaded: $filepath"
 }
 
 # Startup Configurations
@@ -177,18 +197,26 @@ BASE_URL="https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WOPS_V
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
 
-info_message "Downloading binaries..."
+print_step_header 1 "Binaries Download"
+info_message "Downloading server binary..."
 curl -SL -o "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
+info_message "Downloading client binary..."
 curl -SL -o "$TEMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_URL" || error_exit "Failed to download $CLIENT_BIN_NAME"
+success_message "Binaries downloaded successfully."
 
-print_step 1 "Installing binaries to $BIN_DIR..."
+print_step_header 2 "Binaries Installation"
+info_message "Installing server binary to $BIN_DIR..."
 maybe_sudo mv "$TEMP_DIR/$SERVER_BIN_NAME" "$BIN_DIR/$SERVER_NAME"
 maybe_sudo chmod +x "$BIN_DIR/$SERVER_NAME"
+info_message "Installing client binary to $BIN_DIR..."
 maybe_sudo mv "$TEMP_DIR/$CLIENT_BIN_NAME" "$BIN_DIR/$CLIENT_NAME"
 maybe_sudo chmod +x "$BIN_DIR/$CLIENT_NAME"
+success_message "Binaries installed successfully."
 
-print_step 2 "Setting up services..."
+print_step_header 3 "Server Service Configuration"
 make_server_launch_at_startup
+
+print_step_header 4 "Client Service Configuration"
 make_client_launch_at_startup
 
 success_message "Installation complete! Restart your system to apply changes."
