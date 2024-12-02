@@ -12,7 +12,25 @@ SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 WOPS_VERSION=${WOPS_VERSION:-"0.2.1"}
 WAZUH_USER=${WAZUH_USER:-"root"}
+
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
+
+SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
+CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
+
+# Determine the OS and architecture
+case "$(uname)" in
+    "Linux") OS="linux"; BIN_DIR="/usr/local/bin" ;;
+    "Darwin") OS="darwin"; BIN_DIR="/usr/local/bin" ;;
+    *) error_exit "Unsupported operating system: $(uname)" ;;
+esac
+
+ARCH=$(uname -m)
+case "$ARCH" in
+    "x86_64") ARCH="amd64" ;;
+    "arm64"|"aarch64") ARCH="arm64" ;;
+    *) error_exit "Unsupported architecture: $ARCH" ;;
+esac
 
 # Define text formatting
 RED='\033[0;31m'
@@ -173,11 +191,90 @@ EOF
     
 }
 
-make_app_launch_at_startup() {
+remove_startup_file() {
+    local NAME=$1
+    local FILE=$2 
+
+    info_message "Unloading $NAME launch agent..."
+    launchctl unload "$FILE" 2>/dev/null || true
+    info_message "Startup unit $NAME unloaded."
+    
+    info_message "Deleting $FILE file..."
+    rm -f "$FILE"
+    info_message "Startup file $FILE deleted."
+}
+
+load_startup_unit() {
+    local FILE=$1
+    local NAME=$2
+    info_message "Loading startup for $NAME..."
+    maybe_sudo launchctl load -w "$FILE"
+    info_message "Startup unit loaded for $NAME."
+}
+
+create_startup_file() {
+    local NAME=$1
+    local FILE=$2
+
+    if [ -f "$FILE" ]; then
+        remove_launch_agent "$NAME" "$FILE"
+    fi
+
+    info_message "Creating startup file at $FILE..."
+
+    cat > "$FILE" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.adorsys.$NAME</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$$BIN_DIR/$NAME</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>
+EOF
+
+    info_message "Startup file created for $NAME."
+    
+    info_message "Loading startup file $FILE..."
+    load_startup_unit "$FILE" "$NAME"
+    info_message "Startup file loaded for $NAME."
+}
+
+# Make the server launch at startup
+make_server_launch_at_startup() {
+
+    if [ "$(uname)" = "Linux" ]; then
+        create_service_file
+        reload_and_enable_service
+        info_message "Service creation and setup complete."
+    fi
+    if [ "$(uname)" = "Darwin" ]; then
+        info_message "Creating wazuh agent status server automatic launch unit..."
+        create_startup_file "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE"
+        info_message "Server automatic launch unit created"
+    fi
+
+}
+
+# Make the client launch at startup
+make_client_launch_at_startup() {
 
     if [ "$(uname)" = "Linux" ]; then
         info_message "Creating tray icon automatic launch agent..."
         create_desktop_unit_file
+        info_message "Tray icon automatic launch agent created"
+    fi
+    if [ "$(uname)" = "Darwin" ]; then
+        info_message "Creating tray icon automatic launch agent..."
+        create_startup_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE"
         info_message "Tray icon automatic launch agent created"
     fi
 
@@ -190,20 +287,6 @@ check_binary_exists() {
         exit 1
     fi
 }
-
-# Determine the OS and architecture
-case "$(uname)" in
-    "Linux") OS="linux"; BIN_DIR="/usr/local/bin" ;;
-    "Darwin") OS="darwin"; BIN_DIR="/usr/local/bin" ;;
-    *) error_exit "Unsupported operating system: $(uname)" ;;
-esac
-
-ARCH=$(uname -m)
-case "$ARCH" in
-    "x86_64") ARCH="amd64" ;;
-    "arm64"|"aarch64") ARCH="arm64" ;;
-    *) error_exit "Unsupported architecture: $ARCH" ;;
-esac
 
 #https://github.com/ADORSYS-GIS/wazuh-agent-status/releases/download/v0.1.2/wazuh-agent-status-darwin-arm64
 
@@ -241,13 +324,11 @@ maybe_sudo chmod 111 "$BIN_DIR/$CLIENT_NAME" || error_exit "Failed to set execut
 
 # Step 3: Run the binary as a service
 print_step 3 "Starting service creation..."
-create_service_file
-reload_and_enable_service
-info_message "Service creation and setup complete."
+make_server_launch_at_startup
 
 # Step 4: Run the binary as a service
 print_step 4 "Starting desktop unit creation..."
-make_app_launch_at_startup
+make_client_launch_at_startup
 
 success_message "Installation and configuration complete! You can now use '$SERVER_NAME' on your host"
 warn_message "You need to reboot your for the changes to take effect"
