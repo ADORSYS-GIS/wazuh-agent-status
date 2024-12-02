@@ -89,11 +89,11 @@ jobs:
 
       - name: Build client binary for macOS Silicon (ARM64)
         run: |
-          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -o ./dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -o ./dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Build server binary for macOS Silicon (ARM64)
         run: |
-          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o ./dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o ./dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Upload MacOS client binaries
         uses: actions/upload-artifact@v4
