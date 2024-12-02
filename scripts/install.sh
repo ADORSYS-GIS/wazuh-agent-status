@@ -231,7 +231,7 @@ create_startup_file() {
     <string>com.adorsys.$NAME</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$$BIN_DIR/$NAME</string>
+        <string>$BIN_DIR/$NAME</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
