@@ -196,11 +196,11 @@ remove_startup_file() {
     local FILE=$2 
 
     info_message "Unloading $NAME launch agent..."
-    launchctl unload "$FILE" 2>/dev/null || true
+    maybe_sudo launchctl unload "$FILE" 2>/dev/null || true
     info_message "Startup unit $NAME unloaded."
     
     info_message "Deleting $FILE file..."
-    rm -f "$FILE"
+    maybe_sudo rm -f "$FILE"
     info_message "Startup file $FILE deleted."
 }
 
