@@ -16,7 +16,7 @@ env:
 
 jobs:
   build-linux:
-    name: Build for Linux amd64
+    name: Build for Linux AMD64
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -68,11 +68,15 @@ jobs:
             ${{ env.SERVER_APP_NAME }}/dist/
           
   build-macos:
-    name: Build for macOS ARM64
-    runs-on: macos-latest
+    name: Build for macOS (AMD64, ARM64)
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        arch: [arm64]
+        include:
+          - os: macos-13
+            arch: amd64
+          - os: macos-latest
+            arch: arm64
 
     steps:
       - name: Checkout code
