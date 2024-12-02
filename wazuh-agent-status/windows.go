@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-func getIconPath() string {
-    return "assets/wazuh-logo.ico" // Path to the PNG icon for Linux
-}
-
 // checkServiceStatus checks the status of Wazuh agent and its connection on Windows
 func checkServiceStatus() (string, string) {
 	cmd := exec.Command("cmd", "/C", `C:\Program Files (x86)\ossec\bin\wazuh-control status`)
