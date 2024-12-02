@@ -69,10 +69,14 @@ jobs:
           
   build-macos:
     name: Build for macOS ARM64
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        arch: [arm64]
+        include:
+          - os: macos-13
+            arch: amd64
+          - os: macos-latest
+            arch: arm64
 
     steps:
       - name: Checkout code
