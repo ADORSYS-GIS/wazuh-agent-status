@@ -174,7 +174,7 @@ create_desktop_unit_file() {
 
     echo "Creating desktop unit file at $DESKTOP_UNIT_FILE..."
 
-    sudo bash -c "cat > $DESKTOP_UNIT_FILE" <<EOF
+    maybe_sudo bash -c "cat > $DESKTOP_UNIT_FILE" <<EOF
 [Desktop Entry]
 Name=Wazuh Agent Monitoring Tray Icon App
 GenericName=A script that runs at Gnome startup
@@ -222,7 +222,7 @@ create_startup_file() {
 
     info_message "Creating startup file at $FILE..."
 
-    cat > "$FILE" <<EOF
+    maybe_sudo bash -c "cat > $FILE" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
