@@ -77,6 +77,11 @@ jobs:
             arch: amd64
           - os: macos-latest
             arch: arm64
+        include:
+          - os: macos-13
+            arch: amd64
+          - os: macos-latest
+            arch: arm64
 
     steps:
       - name: Checkout code
