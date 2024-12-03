@@ -22,7 +22,7 @@ PROFILE=${PROFILE:-"user"}
 APP_VERSION=${APP_VERSION:-"0.2.1"}
 
 # Assign app version based on profile
-case "$(PROFILE)" in
+case "$PROFILE" in
     "admin") WAS_VERSION="$APP_VERSION" ;;
     *) WAS_VERSION="$APP_VERSION-user" ;;
 esac
@@ -205,6 +205,9 @@ CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
 BASE_URL="https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
+
+echo "$PROFILE"
+echo "$BASE_URL"
 
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary..."
