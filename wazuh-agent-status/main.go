@@ -9,7 +9,7 @@ import (
 
 func main() {
 	log.Println("Starting wazuh-agent-status server...")
-	listener, err := net.Listen("tcp", ":50605")
+	listener, err := net.Listen("tcp", ":50505")
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
