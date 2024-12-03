@@ -17,7 +17,7 @@ import (
 var embeddedFiles embed.FS
 
 var (
-	statusItem, connectionItem, pauseItem, restartItem *systray.MenuItem
+	statusItem, connectionItem *systray.MenuItem
 	statusIconConnected, statusIconDisconnected       []byte
 	connectionIconConnected, connectionIconDisconnected []byte
 )
@@ -47,16 +47,9 @@ func onReady() {
 	// Create menu items
 	statusItem = systray.AddMenuItem("Agent: Unknown", "Wazuh Agent Status")
 	connectionItem = systray.AddMenuItem("Connection: Unknown", "Wazuh Agent Connection")
-	systray.AddSeparator()
-	pauseItem = systray.AddMenuItem("Pause", "Pause the Wazuh Agent")
-	restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
-	quitItem := systray.AddMenuItem("Quit", "Quit the application")
 
 	// Start background status update
 	go monitorStatus()
-
-	// Handle menu item clicks
-	go handleMenuActions(quitItem)
 }
 
 // monitorStatus continuously fetches and updates the agent status
@@ -83,23 +76,6 @@ func monitorStatus() {
 		}
 
 		time.Sleep(5 * time.Second)
-	}
-}
-
-// handleMenuActions listens for menu item clicks and performs actions
-func handleMenuActions(quitItem *systray.MenuItem) {
-	for {
-		select {
-		case <-pauseItem.ClickedCh:
-			log.Println("Pause clicked")
-			sendCommand("pause")
-		case <-restartItem.ClickedCh:
-			log.Println("Restart clicked")
-			sendCommand("restart")
-		case <-quitItem.ClickedCh:
-			log.Println("Quit clicked")
-			systray.Quit()
-		}
 	}
 }
 
@@ -136,20 +112,6 @@ func fetchStatus() (string, string) {
     connection := strings.Split(parts[1], ": ")[1]
 	
 	return status, connection
-}
-
-
-// sendCommand sends a command (e.g., pause or restart) to the backend
-func sendCommand(command string) {
-	conn, err := net.Dial("tcp", "localhost:50505") // Update the port if needed
-	if err != nil {
-		log.Printf("Failed to connect to backend: %v", err)
-		return
-	}
-	defer conn.Close()
-
-	// Send command
-	fmt.Fprintln(conn, command)
 }
 
 // getEmbeddedFile reads a file from the embedded file system

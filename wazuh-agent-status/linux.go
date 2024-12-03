@@ -4,10 +4,8 @@
 package main
 
 import (
-	"log"
 	"os/exec"
 	"strings"
-	"time"
 )
 
 // checkServiceStatus checks the status of Wazuh agent and its connection on Linux
@@ -33,26 +31,4 @@ func checkServiceStatus() (string, string) {
 	}
 
 	return status, connection
-}
-
-// pauseAgent pauses the Wazuh agent on Linux
-func pauseAgent() {
-	log.Printf("[%s] Pausing Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("sudo", "/var/ossec/bin/wazuh-control", "stop").Run()
-	if err != nil {
-		log.Printf("[%s] Failed to pause Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
-	} else {
-		log.Printf("[%s] Wazuh agent paused successfully\n", time.Now().Format(time.RFC3339))
-	}
-}
-
-// restartAgent restarts the Wazuh agent on Linux
-func restartAgent() {
-	log.Printf("[%s] Restarting Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("sudo", "/var/ossec/bin/wazuh-control", "restart").Run()
-	if err != nil {
-		log.Printf("[%s] Failed to restart Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
-	} else {
-		log.Printf("[%s] Wazuh agent restarted successfully\n", time.Now().Format(time.RFC3339))
-	}
 }

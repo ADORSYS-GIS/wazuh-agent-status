@@ -9,7 +9,7 @@ import (
 
 func main() {
 	log.Println("Starting wazuh-agent-status server...")
-	listener, err := net.Listen("tcp", ":50505")
+	listener, err := net.Listen("tcp", ":50605")
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
@@ -42,12 +42,6 @@ func handleConnection(conn net.Conn) {
 		case "status":
 			status, connection := checkServiceStatus()
 			conn.Write([]byte(fmt.Sprintf("Status: %s, Connection: %s\n", status, connection)))
-		case "pause":
-			pauseAgent()
-			conn.Write([]byte("Paused the Wazuh Agent\n"))
-		case "restart":
-			restartAgent()
-			conn.Write([]byte("Restarted the Wazuh Agent\n"))
 		default:
 			conn.Write([]byte("Unknown command\n"))
 		}
