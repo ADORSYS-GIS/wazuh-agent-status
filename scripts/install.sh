@@ -10,7 +10,6 @@ fi
 # Environment Variables with Defaults
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
-WOPS_VERSION=${WOPS_VERSION:-"0.2.1"}
 WAZUH_USER=${WAZUH_USER:-"root"}
 
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
@@ -18,6 +17,16 @@ SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com
 CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
 DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
+
+PROFILE=${PROFILE:-"user"}
+APP_VERSION=${APP_VERSION:-"0.2.1"}
+
+# Assign app version based on profile
+case "$PROFILE" in
+    "admin") WAS_VERSION="$APP_VERSION" ;;
+    *) WAS_VERSION="$APP_VERSION-user" ;;
+esac
+
 
 # OS and Architecture Detection
 case "$(uname)" in
@@ -182,8 +191,8 @@ make_server_launch_at_startup() {
 
 make_client_launch_at_startup() {
     case "$OS" in
-        linux) create_desktop_unit_file ;;
-        darwin) create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE" ;;
+        linux) create_desktop_unit_file; success_message "Installation complete! Restart your system to apply changes for the wazuh agent status." ;;
+        darwin) create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE"; success_message "Installation complete!" ;;
     esac
 }
 
@@ -193,9 +202,12 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 
 SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
 CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
-BASE_URL="https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WOPS_VERSION"
+BASE_URL="https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
+
+echo "$PROFILE"
+echo "$BASE_URL"
 
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary..."
@@ -218,5 +230,3 @@ make_server_launch_at_startup
 
 print_step_header 4 "Client Service Configuration"
 make_client_launch_at_startup
-
-success_message "Installation complete! Restart your system to apply changes."
