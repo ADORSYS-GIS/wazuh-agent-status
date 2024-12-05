@@ -1,4 +1,4 @@
-name: Build and Release Binaries for Linux (amd64), MacOS (Silicon arm64)
+name: Build and Release Binaries for Linux (amd64), macOS (AMD64, ARM64)
 
 on:
   push:

@@ -67,10 +67,19 @@ Run the application with:
 
 ### Alternative Installation
 
-To install the agent companion, run the script that will download and install it for you:
-```bash
-curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | bash
-```
+Run the following commands to install the app
+
+- ### Ubuntu and macOS
+   1. #### Admin app
+   ```bash
+   curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | PROFILE=admin sh
+   ```
+   
+   2. #### Simple users app
+   ```bash
+   curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | sh
+   ```
+
 
 After installation, launch the application with:
 ```bash
