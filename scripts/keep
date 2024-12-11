@@ -1,0 +1,12 @@
+<!-- Registration load balancer for authd -->
+<server>
+<address>master.dev.wazuh.adorsys.team</address>
+<port>1515</port>
+<protocol>tcp</protocol>
+</server>
+   <!-- Worker communication load balancer -->
+<server>
+<address>worker.dev.wazuh.adorsys.team</address>
+<port>1514</port> <!-- Agent reporting port -->
+<protocol>tcp</protocol>
+</server>
