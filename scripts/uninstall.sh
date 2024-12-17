@@ -29,12 +29,26 @@ warn_message() { echo "[WARNING] $*"; }
 error_message() { echo "[ERROR] $*"; }
 success_message() { echo "[SUCCESS] $*"; }
 
+# Ensure root privileges, either directly or through sudo
+maybe_sudo() {
+    if [ "$(id -u)" -ne 0 ]; then
+        if command_exists sudo; then
+            sudo "$@"
+        else
+            error_message "This script requires root privileges. Please run with sudo or as root."
+            exit 1
+        fi
+    else
+        "$@"
+    fi
+}
+
 # Remove file if it exists
 remove_file() {
     local filepath="$1"
     if [ -f "$filepath" ]; then
         info_message "Removing file: $filepath"
-        rm -f "$filepath"
+        maybe_sudo rm -f "$filepath"
     else
         warn_message "File not found: $filepath"
     fi
@@ -51,10 +65,10 @@ remove_binaries() {
 remove_systemd_service() {
     if [ "$OS" = "linux" ] && [ -f "$SERVICE_FILE" ]; then
         info_message "Disabling and removing systemd service..."
-        systemctl stop "$SERVER_NAME" || true
-        systemctl disable "$SERVER_NAME" || true
+        maybe_sudo systemctl stop "$SERVER_NAME" || true
+        maybe_sudo systemctl disable "$SERVER_NAME" || true
         remove_file "$SERVICE_FILE"
-        systemctl daemon-reload
+        maybe_sudo systemctl daemon-reload
     fi
 }
 
@@ -64,7 +78,7 @@ remove_launchd_service() {
     local filepath="$2"
     if [ "$OS" = "darwin" ] && [ -f "$filepath" ]; then
         info_message "Unloading and removing Launchd plist for $name..."
-        launchctl unload "$filepath" 2>/dev/null || true
+        maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
         remove_file "$filepath"
     fi
 }
