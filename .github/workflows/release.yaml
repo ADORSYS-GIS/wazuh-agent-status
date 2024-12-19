@@ -131,7 +131,7 @@ jobs:
           
       - name: Build client binary for windows
         run: |
-          go build -C ./${{ env.CLIENT_APP_NAME }} -o ./dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
+          go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags -H=windowsgui -o ./dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
       - name: Build server binary for windows
         run: |
