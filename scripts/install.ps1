@@ -5,16 +5,30 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 }
 
 # Default Variables
-$SERVER_NAME = $env:SERVER_NAME -or "wazuh-agent-status"
-$CLIENT_NAME = $env:CLIENT_NAME -or "wazuh-agent-status-client"
-$WAZUH_USER = $env:WAZUH_USER -or "NT AUTHORITY\SYSTEM"
-$PROFILE = $env:PROFILE -or "user"
-$APP_VERSION = $env:APP_VERSION -or "0.2.1"
+$SERVER_NAME = if ($env:SERVER_NAME -ne $null) { $env:SERVER_NAME } else { "wazuh-agent-status" }
+$CLIENT_NAME = if ($env:CLIENT_NAME -ne $null) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
+$WAZUH_USER = if ($env:WAZUH_USER -ne $null) { $env:WAZUH_USER } else { "NT AUTHORITY\SYSTEM" }
+$PROFILE = if ($env:PROFILE -ne $null) { $env:PROFILE } else { "user" }
+$APP_VERSION = if ($env:APP_VERSION -ne $null) { $env:APP_VERSION } else { "0.2.2" }
 
 if ($PROFILE -eq "admin") {
     $WAS_VERSION = $APP_VERSION
 } else {
     $WAS_VERSION = "$APP_VERSION-user"
+}
+
+# Determine architecture and operating system
+$OS = if ($PSVersionTable.PSEdition -eq "Core") { "linux" } else { "windows" }
+$ARCH = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "amd32" }
+
+if ($OS -ne "windows") {
+    Write-Error "Unsupported operating system: $OS"
+    exit 1
+}
+
+if ($ARCH -ne "amd64" -and $ARCH -ne "amd32") {
+    Write-Error "Unsupported architecture: $ARCH"
+    exit 1
 }
 
 $BIN_DIR = "C:\Program Files\$SERVER_NAME"
@@ -37,33 +51,11 @@ function Log {
 }
 
 # Logging helpers
-function InfoMessage {
-    param ([string]$Message)
-    Log "[INFO]" $Message
-}
-
-function WarnMessage {
-    param ([string]$Message)
-    Log "[WARNING]" $Message
-}
-
-function ErrorMessage {
-    param ([string]$Message)
-    Log "[ERROR]" $Message
-}
-
-function SuccessMessage {
-    param ([string]$Message)
-    Log "[SUCCESS]" $Message
-}
-
-function PrintStep {
-    param (
-        [int]$StepNumber,
-        [string]$Message
-    )
-    Log "[STEP]" "Step ${StepNumber}: $Message"
-}
+function InfoMessage { param ([string]$Message) Log "[INFO]" $Message }
+function WarnMessage { param ([string]$Message) Log "[WARNING]" $Message }
+function ErrorMessage { param ([string]$Message) Log "[ERROR]" $Message }
+function SuccessMessage { param ([string]$Message) Log "[SUCCESS]" $Message }
+function PrintStep { param ([int]$StepNumber, [string]$Message) Log "[STEP]" "Step ${StepNumber}: $Message" }
 
 # Exit script with an error message
 function ErrorExit {
@@ -72,25 +64,16 @@ function ErrorExit {
     exit 1
 }
 
-# # Utility Functions
-# function InfoMessage {
-#     param(
-#         [string]$Message,
-#         [string]$Level = "INFO"
-#     )
-#     Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message"
-# }
-
 function Download-File {
     param(
         [string]$Url,
         [string]$OutputPath
     )
     try {
-        Invoke-WebRequest -Uri $Url -OutFile $OutputPath
+        Invoke-WebRequest -Uri $Url -OutFile $OutputPath -ErrorAction Stop
         InfoMessage "Downloaded $OutputPath from $Url."
     } catch {
-        ErrorExit "Failed to download $Url." "ERROR"
+        ErrorExit "Failed to download $Url."
     }
 }
 
@@ -118,18 +101,21 @@ function Create-StartupShortcut {
         [string]$ShortcutName,
         [string]$ExecutablePath
     )
-    $ShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
-    $WshShell = New-Object -ComObject WScript.Shell
-    $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-    $Shortcut.TargetPath = $ExecutablePath
-    $Shortcut.Save()
-    InfoMessage "Startup shortcut created: $ShortcutPath."
+    $StartupScriptPath = "$env:APPDATA\$ShortcutName-Startup.ps1"
+    $ShortcutScriptContent = @"
+Start-Process -FilePath "`"$ExecutablePath`"" -WindowStyle Hidden
+"@
+    $ShortcutScriptContent | Set-Content -Path $StartupScriptPath
+
+    InfoMessage "Startup script created: $StartupScriptPath"
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name $ShortcutName -Value "powershell -ExecutionPolicy Bypass -File `"$StartupScriptPath`""
+    InfoMessage "Startup shortcut registered: $ShortcutName."
 }
 
 # Download binaries
 $BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
-$ServerURL = "$BaseURL/$SERVER_NAME-windows-amd64.exe"
-$ClientURL = "$BaseURL/$CLIENT_NAME-windows-amd64.exe"
+$ServerURL = "$BaseURL/$SERVER_NAME-$OS-$ARCH.exe"
+$ClientURL = "$BaseURL/$CLIENT_NAME-$OS-$ARCH.exe"
 
 PrintStep 1 "Downloading binaries..."
 Download-File -Url $ServerURL -OutputPath "$BIN_DIR\$SERVER_NAME.exe"
@@ -143,4 +129,4 @@ Create-Service -ServiceName $SERVER_NAME -ExecutablePath $SERVER_EXE -DisplayNam
 PrintStep 3 "Configuring client startup..."
 Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
 
-SuccessMessage "Installation completed successfully." "SUCCESS"
+SuccessMessage "Installation completed successfully."
