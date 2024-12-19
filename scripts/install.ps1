@@ -7,7 +7,6 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 # Default Variables
 $SERVER_NAME = if ($env:SERVER_NAME -ne $null) { $env:SERVER_NAME } else { "wazuh-agent-status" }
 $CLIENT_NAME = if ($env:CLIENT_NAME -ne $null) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
-$WAZUH_USER = if ($env:WAZUH_USER -ne $null) { $env:WAZUH_USER } else { "NT AUTHORITY\SYSTEM" }
 $PROFILE = if ($env:PROFILE -ne $null) { $env:PROFILE } else { "user" }
 $APP_VERSION = if ($env:APP_VERSION -ne $null) { $env:APP_VERSION } else { "0.2.2" }
 
@@ -18,19 +17,7 @@ if ($PROFILE -eq "admin") {
 }
 
 # Determine architecture and operating system
-$OS = if ($PSVersionTable.PSEdition -eq "Core") { "linux" } else { "windows" }
 $ARCH = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "amd32" }
-
-if ($OS -ne "windows") {
-    Write-Error "Unsupported operating system: $OS"
-    exit 1
-}
-
-if ($ARCH -ne "amd64" -and $ARCH -ne "amd32") {
-    Write-Error "Unsupported architecture: $ARCH"
-    exit 1
-}
-
 $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
@@ -84,14 +71,18 @@ function Create-Service {
         [string]$DisplayName = $null,
         [string]$Description = $null
     )
-    if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
+    $ServiceExists = Get-WmiObject -Class Win32_Service -Filter "Name='$ServiceName'" -ErrorAction SilentlyContinue
+
+    if ($ServiceExists) {
         InfoMessage "Service $ServiceName already exists. Updating..."
         Stop-Service -Name $ServiceName -Force
-        Remove-Service -Name $ServiceName
+        sc.exe delete $ServiceName
+        Start-Sleep -Seconds 3
     }
 
     InfoMessage "Creating service $ServiceName..."
-    New-Service -Name $ServiceName -BinaryPathName "`"$ExecutablePath`"" -StartupType Automatic -Description $Description -DisplayName $DisplayName
+    sc.exe create $ServiceName binPath= "`"$ExecutablePath`"" start= auto DisplayName= "`"$DisplayName`"" obj= "LocalSystem"
+    sc.exe description $ServiceName "$Description"
     Start-Service -Name $ServiceName
     InfoMessage "Service $ServiceName created and started."
 }
@@ -101,21 +92,19 @@ function Create-StartupShortcut {
         [string]$ShortcutName,
         [string]$ExecutablePath
     )
-    $StartupScriptPath = "$env:APPDATA\$ShortcutName-Startup.ps1"
-    $ShortcutScriptContent = @"
-Start-Process -FilePath "`"$ExecutablePath`"" -WindowStyle Hidden
-"@
-    $ShortcutScriptContent | Set-Content -Path $StartupScriptPath
-
-    InfoMessage "Startup script created: $StartupScriptPath"
-    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name $ShortcutName -Value "powershell -ExecutionPolicy Bypass -File `"$StartupScriptPath`""
-    InfoMessage "Startup shortcut registered: $ShortcutName."
+    $ShortcutPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\$ShortcutName.lnk"
+    $WshShell = New-Object -ComObject WScript.Shell
+    $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
+    $Shortcut.TargetPath = $ExecutablePath
+    $Shortcut.Arguments = "-WindowStyle Hidden"
+    $Shortcut.Save()
+    InfoMessage "Startup shortcut created: $ShortcutPath."
 }
 
 # Download binaries
 $BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
-$ServerURL = "$BaseURL/$SERVER_NAME-$OS-$ARCH.exe"
-$ClientURL = "$BaseURL/$CLIENT_NAME-$OS-$ARCH.exe"
+$ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
+$ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 
 PrintStep 1 "Downloading binaries..."
 Download-File -Url $ServerURL -OutputPath "$BIN_DIR\$SERVER_NAME.exe"
