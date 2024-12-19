@@ -128,10 +128,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
-      - name: Install Dependencies
-        run: |
-          go mod tidy
           
       - name: Build client binary for windows
         run: |
@@ -161,6 +157,7 @@ jobs:
     needs:
       - build-linux
       - build-macos
+      - build-windows
     runs-on: ubuntu-latest
     steps:
       - name: Get the version
