@@ -12,14 +12,14 @@ import (
 
 // checkServiceStatus checks the status of Wazuh agent and its connection on Windows
 func checkServiceStatus() (string, string) {
-	cmd := exec.Command("cmd", "/C", `C:\Program Files (x86)\ossec\bin\wazuh-control status`)
+	cmd := exec.Command("cmd", "/C", `powershell -Command "Get-Service -Name WazuhSvc"`)
 	output, err := cmd.Output()
 	if err != nil {
 		return "Inactive", "Disconnected"
 	}
 
 	status := "Inactive"
-	if strings.Contains(string(output), "wazuh-agentd is running") {
+	if strings.Contains(string(output), "Running") {
 		status = "Active"
 	}
 

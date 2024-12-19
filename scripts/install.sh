@@ -113,7 +113,7 @@ User=$WAZUH_USER
 [Install]
 WantedBy=multi-user.target
 "
-    success_message "Systemd service file created: $SERVICE_FILE"
+    info_message "Systemd service file created: $SERVICE_FILE"
 }
 
 reload_and_enable_service() {
@@ -126,7 +126,7 @@ reload_and_enable_service() {
     info_message "Starting the service..."
     maybe_sudo systemctl start "$SERVER_NAME"
     
-    success_message "Systemd service enabled and started."
+    info_message "Systemd service enabled and started."
 }
 
 # Desktop Unit File Creation
@@ -145,7 +145,7 @@ Terminal=false
 Type=Application
 X-GNOME-Autostart-enabled=true
 "
-    success_message "Desktop autostart file created: $DESKTOP_UNIT_FILE"
+    info_message "Desktop autostart file created: $DESKTOP_UNIT_FILE"
 }
 
 # macOS Launchd Plist File
@@ -178,7 +178,7 @@ create_launchd_plist_file() {
     info_message "Loading new plist file..."
     maybe_sudo launchctl load -w "$filepath"
     
-    success_message "macOS Launchd plist file created and loaded: $filepath"
+    info_message "macOS Launchd plist file created and loaded: $filepath"
 }
 
 # Startup Configurations
@@ -191,8 +191,60 @@ make_server_launch_at_startup() {
 
 make_client_launch_at_startup() {
     case "$OS" in
-        linux) create_desktop_unit_file; success_message "Installation complete! Restart your system to apply changes for the wazuh agent status." ;;
-        darwin) create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE"; success_message "Installation complete!" ;;
+        linux) create_desktop_unit_file ;;
+        darwin) create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE" ;;
+    esac
+}
+
+validate_installation() {
+    # Validate binaries
+    if [ -x "$BIN_DIR/$SERVER_NAME" ]; then
+        success_message "Server binary exists and is executable: $BIN_DIR/$SERVER_NAME."
+    else
+        error_exit "Server binary is missing or not executable: $BIN_DIR/$SERVER_NAME."
+    fi
+
+    if [ -x "$BIN_DIR/$CLIENT_NAME" ]; then
+        success_message "Client binary exists and is executable: $BIN_DIR/$CLIENT_NAME."
+    else
+        error_exit "Client binary is missing or not executable: $BIN_DIR/$CLIENT_NAME."
+    fi
+
+    # Validate service files
+    if [ "$OS" = "linux" ]; then
+        if [ -f "$SERVICE_FILE" ]; then
+            success_message "Systemd service file exists: $SERVICE_FILE."
+        else
+            error_exit "Systemd service file is missing: $SERVICE_FILE."
+        fi
+
+        systemctl is-enabled "$SERVER_NAME" >/dev/null 2>&1 && \
+            success_message "Systemd service is enabled: $SERVER_NAME." || \
+            error_exit "Systemd service is not enabled: $SERVER_NAME."
+            
+        if [ -f "$DESKTOP_UNIT_FILE" ]; then
+            success_message "Desktop autostart file exists: $DESKTOP_UNIT_FILE."
+        else
+            error_exit "Desktop autostart file is missing: $DESKTOP_UNIT_FILE."
+        fi
+        
+    elif [ "$OS" = "darwin" ]; then
+        if [ -f "$SERVER_LAUNCH_AGENT_FILE" ]; then
+            success_message "macOS Launchd server plist exists: $SERVER_LAUNCH_AGENT_FILE."
+        else
+            error_exit "macOS Launchd server plist is missing: $SERVER_LAUNCH_AGENT_FILE."
+        fi
+
+        if [ -f "$CLIENT_LAUNCH_AGENT_FILE" ]; then
+            success_message "macOS Launchd client plist exists: $CLIENT_LAUNCH_AGENT_FILE."
+        else
+            error_exit "macOS Launchd client plist is missing: $CLIENT_LAUNCH_AGENT_FILE."
+        fi
+    fi
+
+    case "$OS" in
+        linux) success_message "Installation complete! Restart your system to apply changes for the wazuh agent status." ;;
+        darwin) success_message "Installation complete!" ;;
     esac
 }
 
@@ -230,3 +282,6 @@ make_server_launch_at_startup
 
 print_step_header 4 "Client Service Configuration"
 make_client_launch_at_startup
+
+print_step_header 5 "Validating installation and configuration..."
+validate_installation
