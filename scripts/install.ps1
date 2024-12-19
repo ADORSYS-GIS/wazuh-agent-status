@@ -83,8 +83,18 @@ function Create-Service {
     InfoMessage "Creating service $ServiceName..."
     sc.exe create $ServiceName binPath= "`"$ExecutablePath`"" start= auto DisplayName= "`"$DisplayName`"" obj= "LocalSystem"
     sc.exe description $ServiceName "$Description"
-    Start-Service -Name $ServiceName
-    InfoMessage "Service $ServiceName created and started."
+
+    # Grant necessary permissions to the executable
+    icacls $ExecutablePath /grant "NT AUTHORITY\SYSTEM:(RX)" /T /C
+    icacls $ExecutablePath /grant "Administrators:(RX)" /T /C
+
+    # Start the service
+    try {
+        Start-Service -Name $ServiceName
+        InfoMessage "Service $ServiceName created and started successfully."
+    } catch {
+        ErrorMessage "Failed to start service $ServiceName. Check service logs for more information."
+    }
 }
 
 function Create-StartupShortcut {
