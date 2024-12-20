@@ -84,10 +84,6 @@ function Create-Service {
     sc.exe create $ServiceName binPath= "`"$ExecutablePath`"" start= auto DisplayName= "`"$DisplayName`"" obj= "LocalSystem"
     sc.exe description $ServiceName "$Description"
 
-    # Grant necessary permissions to the executable
-    icacls $ExecutablePath /grant "NT AUTHORITY\SYSTEM:(RX)" /T /C
-    icacls $ExecutablePath /grant "Administrators:(RX)" /T /C
-
     # Start the service
     try {
         Start-Service -Name $ServiceName
@@ -102,11 +98,10 @@ function Create-StartupShortcut {
         [string]$ShortcutName,
         [string]$ExecutablePath
     )
-    $ShortcutPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\$ShortcutName.lnk"
+    $ShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
     $Shortcut.TargetPath = $ExecutablePath
-    $Shortcut.Arguments = "-WindowStyle Hidden"
     $Shortcut.Save()
     InfoMessage "Startup shortcut created: $ShortcutPath."
 }
