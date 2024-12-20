@@ -13,7 +13,6 @@ func main() {
 
 	if runtime.GOOS == "windows" {
 		windowsMain()
-		// Your Windows-specific code goes here
 	} else {
 		log.Println("Starting wazuh-agent-status server...")
 		listener, err := net.Listen("tcp", ":50505")
