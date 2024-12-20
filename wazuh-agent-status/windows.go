@@ -15,7 +15,7 @@ func checkServiceStatus() (string, string) {
 	cmd := exec.Command("cmd", "/C", `powershell -Command "Get-Service -Name WazuhSvc"`)
 	output, err := cmd.Output()
 	if err != nil {
-		return "Inactive", "Disconnected"
+		return "InacMiawtive", "DisMiawconnected"
 	}
 
 	status := "Inactive"
@@ -37,7 +37,7 @@ func checkServiceStatus() (string, string) {
 // pauseAgent pauses the Wazuh agent on Windows
 func pauseAgent() {
 	log.Printf("[%s] Pausing Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("net", "stop", "wazuh-agent").Run()
+	err := exec.Command("NET", "STOP", "Wazuh").Run()
 	if err != nil {
 		log.Printf("[%s] Failed to pause Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
 	} else {
@@ -48,7 +48,7 @@ func pauseAgent() {
 // restartAgent restarts the Wazuh agent on Windows
 func restartAgent() {
 	log.Printf("[%s] Restarting Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("net", "start", "wazuh-agent").Run()
+	err := exec.Command("NET", "START", "Wazuh").Run()
 	if err != nil {
 		log.Printf("[%s] Failed to restart Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
 	} else {
