@@ -56,3 +56,7 @@ func restartAgent() {
 		log.Printf("[%s] Wazuh agent restarted successfully\n", time.Now().Format(time.RFC3339))
 	}
 }
+
+func windowsMain() {
+
+}
