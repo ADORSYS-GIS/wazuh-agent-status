@@ -56,6 +56,9 @@ func handleConnection(conn net.Conn) {
 		case "restart":
 			restartAgent()
 			conn.Write([]byte("Restarted the Wazuh Agent\n"))
+		case "update":
+			updateAgent()
+			conn.Write([]byte("Updated the Wazuh Agent\n"))
 		default:
 			conn.Write([]byte(fmt.Sprintf("Unknown command: %s \n", command)))
 		}

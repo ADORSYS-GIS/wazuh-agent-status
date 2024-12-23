@@ -17,7 +17,7 @@ import (
 var embeddedFiles embed.FS
 
 var (
-	statusItem, connectionItem, pauseItem, restartItem *systray.MenuItem
+	statusItem, connectionItem, pauseItem, updateItem, restartItem *systray.MenuItem
 	statusIconConnected, statusIconDisconnected       []byte
 	connectionIconConnected, connectionIconDisconnected []byte
 )
@@ -50,6 +50,7 @@ func onReady() {
 	systray.AddSeparator()
 	pauseItem = systray.AddMenuItem("Pause", "Pause the Wazuh Agent")
 	restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
+	updateItem = systray.AddMenuItem("Update", "Update the Wazuh Agent")
 	quitItem := systray.AddMenuItem("Quit", "Quit the application")
 
 	// Start background status update
@@ -96,6 +97,9 @@ func handleMenuActions(quitItem *systray.MenuItem) {
 		case <-restartItem.ClickedCh:
 			log.Println("Restart clicked")
 			sendCommand("restart")
+		case <-updateItem.ClickedCh:
+			log.Println("Update clicked")
+			sendCommand("update")
 		case <-quitItem.ClickedCh:
 			log.Println("Quit clicked")
 			systray.Quit()

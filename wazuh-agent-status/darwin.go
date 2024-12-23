@@ -56,6 +56,17 @@ func restartAgent() {
 	}
 }
 
+// updateAgent updates the Wazuh agent on macOS
+func updateAgent() {
+	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
+	err := exec.Command("sudo", "/Library/Ossec/active-response/bin/adorsys-update.sh").Run()
+	if err != nil {
+		log.Printf("[%s] Failed to update the Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
+	} else {
+		log.Printf("[%s] Wazuh agent updated successfully\n", time.Now().Format(time.RFC3339))
+	}
+}
+
 func windowsMain() {
 
 }
