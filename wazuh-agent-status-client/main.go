@@ -49,13 +49,12 @@ func onReady() {
 	connectionItem = systray.AddMenuItem("Connection: Unknown", "Wazuh Agent Connection")
 	systray.AddSeparator()
 	updateItem = systray.AddMenuItem("Update", "Update the Wazuh Agent")
-	quitItem := systray.AddMenuItem("Quit", "Quit the application")
 
 	// Start background status update
 	go monitorStatus()
 	
 	// Handle menu item clicks
-	go handleMenuActions(quitItem)
+	go handleMenuActions()
 }
 
 // monitorStatus continuously fetches and updates the agent status
@@ -86,15 +85,12 @@ func monitorStatus() {
 }
 
 // handleMenuActions listens for menu item clicks and performs actions
-func handleMenuActions(quitItem *systray.MenuItem) {
+func handleMenuActions() {
 	for {
 		select {
-		case <-updateItem.ClickedCh:
-			log.Println("Update clicked")
-			sendCommand("update")
-		case <-quitItem.ClickedCh:
-			log.Println("Quit clicked")
-			systray.Quit()
+			case <-updateItem.ClickedCh:
+				log.Println("Update clicked")
+				sendCommand("update")
 		}
 	}
 }
