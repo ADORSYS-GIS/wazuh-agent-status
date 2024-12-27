@@ -6,6 +6,8 @@ package main
 import (
 	"os/exec"
 	"strings"
+	"log"
+	"time"
 )
 
 // checkServiceStatus checks the status of Wazuh agent and its connection on Linux
@@ -31,4 +33,19 @@ func checkServiceStatus() (string, string) {
 	}
 
 	return status, connection
+}
+
+// updateAgent updates the Wazuh agent on Linux
+func updateAgent() {
+	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
+	err := exec.Command("sudo", "/var/ossec/active-response/bin/adorsys-update.sh").Run()
+	if err != nil {
+		log.Printf("[%s] Failed to update the Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
+	} else {
+		log.Printf("[%s] Wazuh agent updated successfully\n", time.Now().Format(time.RFC3339))
+	}
+}
+
+func windowsMain() {
+
 }

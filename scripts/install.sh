@@ -10,7 +10,6 @@ fi
 # Environment Variables with Defaults
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
-WOPS_VERSION=${WOPS_VERSION:-"0.2.1"}
 WAZUH_USER=${WAZUH_USER:-"root"}
 
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
@@ -18,6 +17,16 @@ SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com
 CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
 DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
+
+PROFILE=${PROFILE:-"user"}
+APP_VERSION=${APP_VERSION:-"0.2.3"}
+
+# Assign app version based on profile
+case "$PROFILE" in
+    "admin") WAS_VERSION="$APP_VERSION" ;;
+    *) WAS_VERSION="$APP_VERSION-user" ;;
+esac
+
 
 # OS and Architecture Detection
 case "$(uname)" in
@@ -104,7 +113,7 @@ User=$WAZUH_USER
 [Install]
 WantedBy=multi-user.target
 "
-    success_message "Systemd service file created: $SERVICE_FILE"
+    info_message "Systemd service file created: $SERVICE_FILE"
 }
 
 reload_and_enable_service() {
@@ -117,7 +126,7 @@ reload_and_enable_service() {
     info_message "Starting the service..."
     maybe_sudo systemctl start "$SERVER_NAME"
     
-    success_message "Systemd service enabled and started."
+    info_message "Systemd service enabled and started."
 }
 
 # Desktop Unit File Creation
@@ -136,7 +145,7 @@ Terminal=false
 Type=Application
 X-GNOME-Autostart-enabled=true
 "
-    success_message "Desktop autostart file created: $DESKTOP_UNIT_FILE"
+    info_message "Desktop autostart file created: $DESKTOP_UNIT_FILE"
 }
 
 # macOS Launchd Plist File
@@ -169,7 +178,7 @@ create_launchd_plist_file() {
     info_message "Loading new plist file..."
     maybe_sudo launchctl load -w "$filepath"
     
-    success_message "macOS Launchd plist file created and loaded: $filepath"
+    info_message "macOS Launchd plist file created and loaded: $filepath"
 }
 
 # Startup Configurations
@@ -187,20 +196,75 @@ make_client_launch_at_startup() {
     esac
 }
 
+validate_installation() {
+    # Validate binaries
+    if [ -x "$BIN_DIR/$SERVER_NAME" ]; then
+        success_message "Server binary exists and is executable: $BIN_DIR/$SERVER_NAME."
+    else
+        error_exit "Server binary is missing or not executable: $BIN_DIR/$SERVER_NAME."
+    fi
+
+    if [ -x "$BIN_DIR/$CLIENT_NAME" ]; then
+        success_message "Client binary exists and is executable: $BIN_DIR/$CLIENT_NAME."
+    else
+        error_exit "Client binary is missing or not executable: $BIN_DIR/$CLIENT_NAME."
+    fi
+
+    # Validate service files
+    if [ "$OS" = "linux" ]; then
+        if [ -f "$SERVICE_FILE" ]; then
+            success_message "Systemd service file exists: $SERVICE_FILE."
+        else
+            error_exit "Systemd service file is missing: $SERVICE_FILE."
+        fi
+
+        systemctl is-enabled "$SERVER_NAME" >/dev/null 2>&1 && \
+            success_message "Systemd service is enabled: $SERVER_NAME." || \
+            error_exit "Systemd service is not enabled: $SERVER_NAME."
+            
+        if [ -f "$DESKTOP_UNIT_FILE" ]; then
+            success_message "Desktop autostart file exists: $DESKTOP_UNIT_FILE."
+        else
+            error_exit "Desktop autostart file is missing: $DESKTOP_UNIT_FILE."
+        fi
+        
+    elif [ "$OS" = "darwin" ]; then
+        if [ -f "$SERVER_LAUNCH_AGENT_FILE" ]; then
+            success_message "macOS Launchd server plist exists: $SERVER_LAUNCH_AGENT_FILE."
+        else
+            error_exit "macOS Launchd server plist is missing: $SERVER_LAUNCH_AGENT_FILE."
+        fi
+
+        if [ -f "$CLIENT_LAUNCH_AGENT_FILE" ]; then
+            success_message "macOS Launchd client plist exists: $CLIENT_LAUNCH_AGENT_FILE."
+        else
+            error_exit "macOS Launchd client plist is missing: $CLIENT_LAUNCH_AGENT_FILE."
+        fi
+    fi
+
+    case "$OS" in
+        linux) success_message "Installation complete! Restart your system to apply changes for the wazuh agent status." ;;
+        darwin) success_message "Installation complete!" ;;
+    esac
+}
+
 # Installation Process
 TEMP_DIR=$(mktemp -d) || error_exit "Failed to create temporary directory"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
 SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
 CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
-BASE_URL="https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WOPS_VERSION"
+BASE_URL="https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/tag/v$WAS_VERSION"
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
 
+echo "$PROFILE"
+echo "$BASE_URL"
+
 print_step_header 1 "Binaries Download"
-info_message "Downloading server binary..."
+info_message "Downloading server binary from $SERVER_URL..."
 curl -SL -o "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
-info_message "Downloading client binary..."
+info_message "Downloading client binary $CLIENT_URL..."
 curl -SL -o "$TEMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_URL" || error_exit "Failed to download $CLIENT_BIN_NAME"
 success_message "Binaries downloaded successfully."
 
@@ -219,4 +283,5 @@ make_server_launch_at_startup
 print_step_header 4 "Client Service Configuration"
 make_client_launch_at_startup
 
-success_message "Installation complete! Restart your system to apply changes."
+print_step_header 5 "Validating installation and configuration..."
+validate_installation
