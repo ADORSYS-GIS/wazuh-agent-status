@@ -262,9 +262,9 @@ echo "$PROFILE"
 echo "$BASE_URL"
 
 print_step_header 1 "Binaries Download"
-info_message "Downloading server binary..."
+info_message "Downloading server binary from $SERVER_URL..."
 curl -SL -o "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
-info_message "Downloading client binary..."
+info_message "Downloading client binary $CLIENT_URL..."
 curl -SL -o "$TEMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_URL" || error_exit "Failed to download $CLIENT_BIN_NAME"
 success_message "Binaries downloaded successfully."
 
