@@ -19,7 +19,7 @@ DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
 
 PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.2.1"}
+APP_VERSION=${APP_VERSION:-"0.2.3"}
 
 # Assign app version based on profile
 case "$PROFILE" in
@@ -262,13 +262,15 @@ echo "$PROFILE"
 echo "$BASE_URL"
 
 print_step_header 1 "Binaries Download"
-info_message "Downloading server binary..."
-curl -SL -o "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
-info_message "Downloading client binary..."
-curl -SL -o "$TEMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_URL" || error_exit "Failed to download $CLIENT_BIN_NAME"
+info_message "Downloading server binary from $SERVER_URL..."
+curl -SL --progress-bar -o "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
+info_message "Downloading client binary $CLIENT_URL..."
+curl -SL --progress-bar -o "$TEMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_URL" || error_exit "Failed to download $CLIENT_BIN_NAME"
 success_message "Binaries downloaded successfully."
 
 print_step_header 2 "Binaries Installation"
+info_message "Create Binary directory $BIN_DIR if it doesn't exist"
+maybe_sudo mkdir -p "$BIN_DIR" || error_exit "Failed to create directory $BIN_DIR"
 info_message "Installing server binary to $BIN_DIR..."
 maybe_sudo mv "$TEMP_DIR/$SERVER_BIN_NAME" "$BIN_DIR/$SERVER_NAME"
 maybe_sudo chmod +x "$BIN_DIR/$SERVER_NAME"

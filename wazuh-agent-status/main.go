@@ -51,11 +51,17 @@ func handleConnection(conn net.Conn) {
 			status, connection := checkServiceStatus()
 			conn.Write([]byte(fmt.Sprintf("Status: %s, Connection: %s\n", status, connection)))
 		case "pause":
+			conn.Write([]byte("Pausing the Wazuh Agent...\n"))
 			pauseAgent()
 			conn.Write([]byte("Paused the Wazuh Agent\n"))
 		case "restart":
+			conn.Write([]byte("Restarting the Wazuh Agent...\n"))
 			restartAgent()
 			conn.Write([]byte("Restarted the Wazuh Agent\n"))
+		case "update":
+			conn.Write([]byte("Updating the Wazuh Agent...\n"))
+			updateAgent()
+			conn.Write([]byte("Updated the Wazuh Agent\n"))
 		default:
 			conn.Write([]byte(fmt.Sprintf("Unknown command: %s \n", command)))
 		}
