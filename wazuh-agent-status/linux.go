@@ -46,6 +46,34 @@ func updateAgent() {
 	}
 }
 
+// restartAgent restarts the Wazuh agent on Linux
+func restartAgent() {
+	log.Printf("[%s] Restarting Wazuh agent...\n", time.Now().Format(time.RFC3339))
+	err := exec.Command("sudo", "/var/ossec/bin/wazuh-control", "restart").Run()
+	if err != nil {
+		log.Printf("[%s] Failed to restart Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
+	} else {
+		log.Printf("[%s] Wazuh agent restarted successfully\n", time.Now().Format(time.RFC3339))
+	}
+}
+
+// updateAgent updates the Wazuh agent on Linux
+func syncAgent() {
+	log.Printf("[%s] Syncing Wazuh agent with manager...\n", time.Now().Format(time.RFC3339))
+	
+	log.Printf("[%s] Deleting client.keys file...\n", time.Now().Format(time.RFC3339))
+	err := exec.Command("sudo", "rm", "/var/ossec/etc/client.keys").Run()
+	if err != nil {
+		log.Printf("[%s] Failed to delete the client.keys file: %v\n", time.Now().Format(time.RFC3339), err)
+	} else {
+		log.Printf("[%s] client.keys file deleted successfully\n", time.Now().Format(time.RFC3339))
+	}
+	
+	restartAgent()
+	
+	log.Printf("[%s] Wazuh agent synced successfully\n", time.Now().Format(time.RFC3339))
+}
+
 func windowsMain() {
 
 }

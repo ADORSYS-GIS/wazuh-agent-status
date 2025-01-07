@@ -54,6 +54,10 @@ func handleConnection(conn net.Conn) {
 			conn.Write([]byte("Updating the Wazuh Agent...\n"))
 			updateAgent()
 			conn.Write([]byte("Updated the Wazuh Agent\n"))
+		case "sync":
+			conn.Write([]byte("Syncing the Wazuh Agent...\n"))
+			syncAgent()
+			conn.Write([]byte("Synced the Wazuh Agent\n"))
 		default:
 			conn.Write([]byte(fmt.Sprintf("Unknown command: %s \n", command)))
 		}
