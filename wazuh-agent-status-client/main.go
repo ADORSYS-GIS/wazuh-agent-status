@@ -17,7 +17,7 @@ import (
 var embeddedFiles embed.FS
 
 var (
-	statusItem, connectionItem, updateItem *systray.MenuItem
+	statusItem, connectionItem, updateItem, syncItem *systray.MenuItem
 	statusIconConnected, statusIconDisconnected       []byte
 	connectionIconConnected, connectionIconDisconnected []byte
 )
@@ -49,6 +49,7 @@ func onReady() {
 	connectionItem = systray.AddMenuItem("Connection: Unknown", "Wazuh Agent Connection")
 	systray.AddSeparator()
 	updateItem = systray.AddMenuItem("Update", "Update the Wazuh Agent")
+	syncItem = systray.AddMenuItem("Sync", "Sync the Wazuh Agent")
 
 	// Start background status update
 	go monitorStatus()
@@ -91,6 +92,9 @@ func handleMenuActions() {
 			case <-updateItem.ClickedCh:
 				log.Println("Update clicked")
 				sendCommand("update")
+			case <-syncItem.ClickedCh:
+				log.Println("Sync clicked")
+				sendCommand("sync")
 		}
 	}
 }
