@@ -145,4 +145,4 @@ case "$OS" in
     *) echo "Unsupported operating system: $(uname)" >&2; exit 1 ;;
 esac
 
-success_message "Uninstallation of wazuh-agent-status completed successfully."
+success_message "Wazuh agent status uninstalled completed successfully."
