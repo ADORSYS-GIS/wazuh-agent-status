@@ -79,11 +79,11 @@ maybe_sudo() {
 # Remove file if it exists
 remove_file() {
     local filepath="$1"
-    if [ -f "$filepath" ]; then
+    if maybe_sudo [ -f "$filepath" ]; then
         info_message "Removing file: $filepath"
         maybe_sudo rm -f "$filepath"
     else
-        warn_message "File not found: $filepath"
+        warn_message "File not found: $filepath. Skipping."
     fi
 }
 
@@ -102,6 +102,8 @@ remove_systemd_service() {
         maybe_sudo systemctl disable "$SERVER_NAME" || true
         remove_file "$SERVICE_FILE"
         maybe_sudo systemctl daemon-reload
+    else
+        warn_message "Systemd service not found or not running. Skipping."
     fi
 }
 
@@ -113,6 +115,8 @@ remove_launchd_service() {
         info_message "Unloading and removing Launchd plist for $name..."
         maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
         remove_file "$filepath"
+    else
+        warn_message "Launchd service for $name not found. Skipping."
     fi
 }
 
@@ -121,19 +125,18 @@ remove_desktop_unit() {
     if [ -f "$DESKTOP_UNIT_FILE" ]; then
         info_message "Removing desktop unit file for autostart..."
         remove_file "$DESKTOP_UNIT_FILE"
+    else
+        warn_message "Desktop unit file not found. Skipping."
     fi
 }
 
 # Uninstallation Process
-info_message "Step 1: Removing binaries..."
 remove_binaries
 
-info_message "Step 2: Removing services..."
 remove_systemd_service
 remove_launchd_service "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE"
 remove_launchd_service "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE"
 
-info_message "Step 3: Removing autostart configuration..."
 remove_desktop_unit
 
 success_message "Uninstallation of wazuh-agent-status completed successfully."
