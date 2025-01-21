@@ -133,10 +133,16 @@ remove_desktop_unit() {
 # Uninstallation Process
 remove_binaries
 
-remove_systemd_service
-remove_launchd_service "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE"
-remove_launchd_service "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE"
-
-remove_desktop_unit
+case "$OS" in
+    linux)
+        remove_systemd_service
+        remove_desktop_unit
+        ;;
+    darwin) 
+        remove_launchd_service "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE"
+        remove_launchd_service "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE"
+        ;;
+    *) echo "Unsupported operating system: $(uname)" >&2; exit 1 ;;
+esac
 
 success_message "Uninstallation of wazuh-agent-status completed successfully."
