@@ -148,25 +148,11 @@ func updateAgent() {
 	} else {
 		log.Printf("[%s] Wazuh agent updated successfully\n", time.Now().Format(time.RFC3339))
 	}
-}
-
-// syncAgent reconnects the Wazuh agent to the manager on Linux
-func syncAgent() {
-	log.Printf("[%s] Syncing Wazuh agent with manager...\n", time.Now().Format(time.RFC3339))
-	
-	log.Printf("[%s] Deleting client.keys file...\n", time.Now().Format(time.RFC3339))
-	cmd := exec.Command("powershell", "-Command", " Remove-Item -Path 'C:\\Program Files (x86)\\ossec-agent\\client.keys'")
-	err := cmd.Run()
-	if err != nil {
-		log.Printf("[%s] Failed to delete the client.keys file: %v\n", time.Now().Format(time.RFC3339), err)
-	} else {
-		log.Printf("[%s] client.keys file deleted successfully\n", time.Now().Format(time.RFC3339))
-	}
 	
 	restartAgent()
 	
-	log.Printf("[%s] Wazuh agent synced successfully\n", time.Now().Format(time.RFC3339))
 }
+
 
 // Main function that sets up the service
 func windowsMain() {
