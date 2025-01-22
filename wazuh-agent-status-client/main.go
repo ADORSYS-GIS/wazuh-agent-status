@@ -117,9 +117,6 @@ func fetchStatus() (string, string) {
 	
 	response = strings.TrimSuffix(response, "\n")
 	
-	// Log the raw response for debugging
-	log.Printf("Raw response: %s", response)
-	
 	// Split the string by comma
     parts := strings.Split(response, ", ")
 
