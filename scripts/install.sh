@@ -148,38 +148,42 @@ X-GNOME-Autostart-enabled=true
     info_message "Desktop autostart file created: $DESKTOP_UNIT_FILE"
 }
 
-# macOS Launchd Plist File
-create_launchd_plist_file() {
-    local name="$1"
-    local filepath="$2"
-    
-    info_message "Creating plist file for $name..."
-    create_file "$filepath" "
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
-<plist version=\"1.0\">
-<dict>
-    <key>Label</key>
-    <string>com.adorsys.$name</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$BIN_DIR/$name</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-</dict>
-</plist>
-"
-    # info_message "Unloading previous plist file (if any)..."
-    # maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
-    
-    info_message "Loading new plist file..."
-    maybe_sudo launchctl load -w "$filepath"
-    
-    info_message "macOS Launchd plist file created and loaded: $filepath"
-}
+    # macOS Launchd Plist File
+    create_launchd_plist_file() {
+        local name="$1"
+        local filepath="$2"
+        
+        info_message "Creating plist file for $name..."
+        create_file "$filepath" "
+    <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+    <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+    <plist version=\"1.0\">
+    <dict>
+        <key>Label</key>
+        <string>com.adorsys.$name</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>$BIN_DIR/$name</string>
+        </array>
+        <key>RunAtLoad</key>
+        <true/>
+        <key>KeepAlive</key>
+        <true/>
+    </dict>
+    </plist>
+    "
+
+        info_message "Loading new plist file..."
+        if maybe_sudo [ "$filepath" == *"/Library/LaunchDaemons/"* ]; then
+            info_message "Loading LaunchDaemon (system-wide)..."
+            maybe_sudo launchctl bootstrap system "$filepath"
+        else
+            info_message "Loading LaunchAgent (all users)..."
+            maybe_sudo launchctl bootstrap gui/0 "$filepath"
+        fi
+        
+        info_message "macOS Launchd plist file created and loaded: $filepath"
+    }
 
 # Startup Configurations
 make_server_launch_at_startup() {
