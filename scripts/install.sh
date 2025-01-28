@@ -178,8 +178,11 @@ create_launchd_plist_file() {
 </plist>
 "
     info_message "Loading new plist file..."
-    maybe_sudo launchctl load -w "$filepath" 2>/dev/null || true
-
+    if [ "$name" = "$SERVER_NAME" ]; then
+        maybe_sudo launchctl bootstrap "system $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
+    else
+        launchctl bootstrap "gui/$(id) $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
+    fi
     info_message "macOS Launchd plist file created and loaded: $filepath"
 }
 
@@ -188,16 +191,11 @@ unload_plist_file() {
 
     if [ -f "$filepath" ]; then
         info_message "Unloading previous plist file (if any)..."
-        maybe_sudo launchctl unload -w "$filepath" 2>/dev/null || warn_message "Unloading previous plist file failed: $filepath"
+        maybe_sudo launchctl bootout "gui/$(id) $filepath" 2>/dev/null || warn_message "Unloading previous plist file failed: $filepath"
         info_message "Previous plist file unloaded: $filepath"
     else
         warn_message "Plist file: $filepath does not exist. Skipping."
     fi
-
-    info_message "Unloading previous plist file (if any)..."
-    maybe_sudo launchctl unload -w "$filepath" 2>/dev/null || warn_message "Unloading previous plist file failed: $filepath"
-
-    info_message "Previous plist file unloaded: $filepath"
 }
 
 # Startup Configurations
