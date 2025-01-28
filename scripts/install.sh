@@ -172,8 +172,10 @@ create_launchd_plist_file() {
 </dict>
 </plist>
 "
-    # info_message "Unloading previous plist file (if any)..."
-    # maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
+    if [ "$name" = "$CLIENT_NAME" ]; then
+        info_message "Unloading previous plist file (if any)..."
+        maybe_sudo launchctl unload "$filepath" 2>/dev/null || true  
+    fi
     
     info_message "Loading new plist file..."
     maybe_sudo launchctl load -w "$filepath" 2>/dev/null || true
