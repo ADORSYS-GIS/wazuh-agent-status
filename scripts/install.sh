@@ -177,10 +177,12 @@ create_launchd_plist_file() {
 </dict>
 </plist>
 "
-    info_message "Loading new plist file..."
+    
     if [ "$name" = "$SERVER_NAME" ]; then
+        info_message "Loading new daemon plist file..."
         maybe_sudo launchctl bootstrap "system $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
     else
+        info_message "Loading new agent plist file..."
         launchctl bootstrap "gui/$(id) $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
     fi
     info_message "macOS Launchd plist file created and loaded: $filepath"
