@@ -62,7 +62,7 @@ function Remove-File {
     try {
         if (Test-Path -Path $FilePath) {
             Remove-Item -Path $FilePath -Force -ErrorAction Stop
-            InfoMessage "File '$FilePath' has been successfully removed." -ForegroundColor Green
+            InfoMessage "File '$FilePath' has been successfully removed." 
         } else {
             Write-Warning "File '$FilePath' does not exist."
         }
@@ -79,7 +79,7 @@ function Remove-Service {
     )
 
     # Check if the service exists
-    $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+    $service = Get-WmiObject -Class Win32_Service -Filter "Name='$ServiceName'" -ErrorAction SilentlyContinue
 
     if ($service) {
         # Stop the service if it's running
@@ -127,10 +127,10 @@ function Uninstall-WazuhAgentStatus {
         Remove-StartupShortcut -ShortcutName $CLIENT_NAME
         Remove-Service -ServiceName $SERVER_NAME
         Remove-Binaries
-        SuccessMessage "Snort and components uninstalled successfully"
+        SuccessMessage "Wazuh Agent Status uninstalled successfully"
     }
     catch {
-        ErrorMessage "Snort Uninstall Failed: $($_.Exception.Message)"
+        ErrorMessage "Wazuh Agent Status Uninstall Failed: $($_.Exception.Message)"
     }
 }
 
