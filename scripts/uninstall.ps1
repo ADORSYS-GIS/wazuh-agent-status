@@ -109,12 +109,12 @@ function Remove-StartupShortcut {
     $process = Get-Process -Name $ShortcutName -ErrorAction SilentlyContinue
 
     if ($process) {
-        InfoMessage "Process '$ProcessName' is running. Stopping it..."
-        Stop-Process -Name $ProcessName -Force
-        InfoMessage "Process '$ProcessName' has been stopped."
+        InfoMessage "Process '$ShortcutName' is running. Stopping it..."
+        Stop-Process -Name $ShortcutName -Force
+        InfoMessage "Process '$ShortcutName' has been stopped."
     }
     else {
-        WarnMessage "Process '$ProcessName' is not running. Skipping..."
+        WarnMessage "Process '$ShortcutName' is not running. Skipping..."
     }
     # Define full path of the shortcut
 
