@@ -64,10 +64,10 @@ function Remove-File {
             Remove-Item -Path $FilePath -Force -ErrorAction Stop
             InfoMessage "File '$FilePath' has been successfully removed." 
         } else {
-            Write-Warning "File '$FilePath' does not exist."
+            WarnMessage "File '$FilePath' does not exist."
         }
     } catch {
-        Write-Error "An error occurred while trying to remove the file: $_"
+        ErrorMessage "An error occurred while trying to remove the file: $_"
     }
 }
 
@@ -79,7 +79,7 @@ function Remove-Service {
     )
 
     # Check if the service exists
-    $service = Get-WmiObject -Class Win32_Service -Filter "Name='$ServiceName'" -ErrorAction SilentlyContinue
+    $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 
     if ($service) {
         # Stop the service if it's running
@@ -90,9 +90,9 @@ function Remove-Service {
         # Remove the service using sc.exe
         sc.exe delete $ServiceName | Out-Null
 
-        Write-Host "Service '$ServiceName' has been removed successfully."
+        InfoMessage "Service '$ServiceName' has been removed successfully."
     } else {
-        Write-Host "Service '$ServiceName' not found."
+        WarnMessage "Service '$ServiceName' not found."
     }
 }
 
@@ -109,9 +109,9 @@ function Remove-StartupShortcut {
     # Check if the shortcut exists and remove it
     if (Test-Path $ShortcutPath) {
         Remove-Item -Path $ShortcutPath -Force
-        Write-Host "Shortcut '$ShortcutName' removed from Startup."
+        InfoMessage "Shortcut '$ShortcutName' removed from Startup."
     } else {
-        Write-Host "Shortcut '$ShortcutName' not found in Startup."
+        WarnMessage "Shortcut '$ShortcutName' not found in Startup."
     }
 }
 
