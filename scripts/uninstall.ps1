@@ -84,7 +84,8 @@ function Remove-Service {
     if ($service) {
         # Stop the service if it's running
         if ($service.Status -eq 'Running') {
-            Stop-Service -Name $ServiceName -Force
+            
+            Stop-Service -Name $ServiceName -Force -Wait
         }
 
         # Remove the service using sc.exe
@@ -105,7 +106,7 @@ function Remove-StartupShortcut {
 
     # Define full path of the shortcut
     $ShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
-
+    Stop-Process -Name $ShorcutName
     # Check if the shortcut exists and remove it
     if (Test-Path $ShortcutPath) {
         Remove-Item -Path $ShortcutPath -Force
