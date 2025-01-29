@@ -106,7 +106,7 @@ function Remove-StartupShortcut {
 
     # Define full path of the shortcut
     $ShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
-    Stop-Process -Name $ShorcutName
+    Stop-Process -Name $ShorcutName -Force
     # Check if the shortcut exists and remove it
     if (Test-Path $ShortcutPath) {
         Remove-Item -Path $ShortcutPath -Force
