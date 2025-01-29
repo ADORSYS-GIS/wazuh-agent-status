@@ -85,7 +85,7 @@ function Remove-Service {
         # Stop the service if it's running
         if ($service.Status -eq 'Running') {
             
-            Stop-Service -Name $ServiceName -Force -Wait
+            Stop-Service -Name $ServiceName -Force
         }
 
         # Remove the service using sc.exe
@@ -104,9 +104,23 @@ function Remove-StartupShortcut {
         [string]$ShortcutName
     )
 
+
+    # Check if the process is running
+    $process = Get-Process -Name $ShortcutName -ErrorAction SilentlyContinue
+
+    if ($process) {
+        InfoMessage "Process '$ProcessName' is running. Stopping it..."
+        Stop-Process -Name $ProcessName -Force
+        InfoMessage "Process '$ProcessName' has been stopped."
+    }
+    else {
+        WarnMessage "Process '$ProcessName' is not running. Skipping..."
+    }
     # Define full path of the shortcut
+
+    InfoMessage "Removing Shortcut '$ShortcutName' from Startup..."
     $ShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
-    Stop-Process -Name $ShorcutName -Force
+    
     # Check if the shortcut exists and remove it
     if (Test-Path $ShortcutPath) {
         Remove-Item -Path $ShortcutPath -Force
@@ -125,8 +139,10 @@ function Remove-Binaries {
 # Function to uninstall application and clean up
 function Uninstall-WazuhAgentStatus {
     try {
+
         Remove-StartupShortcut -ShortcutName $CLIENT_NAME
         Remove-Service -ServiceName $SERVER_NAME
+
         Remove-Binaries
         SuccessMessage "Wazuh Agent Status uninstalled successfully"
     }
