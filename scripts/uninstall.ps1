@@ -6,6 +6,7 @@ $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
 
 
+
 function Log {
     param (
         [string]$Level,
@@ -134,6 +135,7 @@ function Remove-StartupShortcut {
 function Remove-Binaries {
     Remove-File $SERVER_EXE
     Remove-File $CLIENT_EXE
+    Remove-File $BIN_DIR
 }
 
 # Function to uninstall application and clean up
