@@ -141,7 +141,7 @@ func restartAgent() {
 func updateAgent() {
 	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
 
-	cmd := exec.Command("powershell", "-Command", "C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1")
+	cmd := exec.Command("powershell", "-Command", "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'")
 	err := cmd.Run()
 	if err != nil {
 		log.Printf("[%s] Failed to update Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
