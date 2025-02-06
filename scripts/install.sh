@@ -23,23 +23,28 @@ APP_VERSION=${APP_VERSION:-"0.2.5"}
 
 # Assign app version based on profile
 case "$PROFILE" in
-    "admin") WAS_VERSION="$APP_VERSION" ;;
-    *) WAS_VERSION="$APP_VERSION-user" ;;
+"admin") WAS_VERSION="$APP_VERSION" ;;
+*) WAS_VERSION="$APP_VERSION-user" ;;
 esac
-
 
 # OS and Architecture Detection
 case "$(uname)" in
-    Linux) OS="linux"; BIN_DIR="/usr/local/bin" ;;
-    Darwin) OS="darwin"; BIN_DIR="/usr/local/bin" ;;
-    *) error_exit "Unsupported operating system: $(uname)" ;;
+Linux)
+    OS="linux"
+    BIN_DIR="/usr/local/bin"
+    ;;
+Darwin)
+    OS="darwin"
+    BIN_DIR="/usr/local/bin"
+    ;;
+*) error_exit "Unsupported operating system: $(uname)" ;;
 esac
 
 ARCH=$(uname -m)
 case "$ARCH" in
-    x86_64) ARCH="amd64" ;;
-    arm64|aarch64) ARCH="arm64" ;;
-    *) error_exit "Unsupported architecture: $ARCH" ;;
+x86_64) ARCH="amd64" ;;
+arm64 | aarch64) ARCH="arm64" ;;
+*) error_exit "Unsupported architecture: $ARCH" ;;
 esac
 
 # Text Formatting
@@ -98,7 +103,7 @@ remove_file() {
 create_service_file() {
     info_message "Removing old service file if it exists..."
     remove_file "$SERVICE_FILE"
-    
+
     info_message "Creating a new systemd service file..."
     create_file "$SERVICE_FILE" "
 [Unit]
@@ -119,13 +124,13 @@ WantedBy=multi-user.target
 reload_and_enable_service() {
     info_message "Reloading systemd daemon..."
     maybe_sudo systemctl daemon-reload
-    
+
     info_message "Enabling service to start at boot..."
     maybe_sudo systemctl enable "$SERVER_NAME"
-    
+
     info_message "Starting the service..."
     maybe_sudo systemctl start "$SERVER_NAME"
-    
+
     info_message "Systemd service enabled and started."
 }
 
@@ -133,7 +138,7 @@ reload_and_enable_service() {
 create_desktop_unit_file() {
     info_message "Creating desktop unit directory if it doesn't exist..."
     mkdir -p "$DESKTOP_UNIT_FOLDER"
-    
+
     info_message "Creating desktop unit file for autostart..."
     create_file "$DESKTOP_UNIT_FILE" "
 [Desktop Entry]
@@ -152,7 +157,7 @@ X-GNOME-Autostart-enabled=true
 create_launchd_plist_file() {
     local name="$1"
     local filepath="$2"
-    
+
     info_message "Creating plist file for $name..."
     create_file "$filepath" "
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -172,27 +177,41 @@ create_launchd_plist_file() {
 </dict>
 </plist>
 "
-    # info_message "Unloading previous plist file (if any)..."
-    # maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
     
-    info_message "Loading new plist file..."
-    maybe_sudo launchctl load -w "$filepath" 2>/dev/null || true
-    
+    if [ "$name" = "$SERVER_NAME" ]; then
+        info_message "Loading new daemon plist file..."
+        maybe_sudo launchctl bootstrap "system $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
+    else
+        info_message "Loading new agent plist file..."
+        launchctl bootstrap "gui/$(id) $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
+    fi
     info_message "macOS Launchd plist file created and loaded: $filepath"
+}
+
+unload_plist_file() {
+    local filepath="$1"
+
+    if [ -f "$filepath" ]; then
+        info_message "Unloading previous plist file (if any)..."
+        maybe_sudo launchctl bootout "gui/$(id) $filepath" 2>/dev/null || warn_message "Unloading previous plist file failed: $filepath"
+        info_message "Previous plist file unloaded: $filepath"
+    else
+        warn_message "Plist file: $filepath does not exist. Skipping."
+    fi
 }
 
 # Startup Configurations
 make_server_launch_at_startup() {
     case "$OS" in
-        linux) create_service_file && reload_and_enable_service ;;
-        darwin) create_launchd_plist_file "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE" ;;
+    linux) create_service_file && reload_and_enable_service ;;
+    darwin) create_launchd_plist_file "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE" ;;
     esac
 }
 
 make_client_launch_at_startup() {
     case "$OS" in
-        linux) create_desktop_unit_file ;;
-        darwin) create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE" ;;
+    linux) create_desktop_unit_file ;;
+    darwin) create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE" ;;
     esac
 }
 
@@ -218,16 +237,16 @@ validate_installation() {
             error_exit "Systemd service file is missing: $SERVICE_FILE."
         fi
 
-        systemctl is-enabled "$SERVER_NAME" >/dev/null 2>&1 && \
-            success_message "Systemd service is enabled: $SERVER_NAME." || \
+        systemctl is-enabled "$SERVER_NAME" >/dev/null 2>&1 &&
+            success_message "Systemd service is enabled: $SERVER_NAME." ||
             error_exit "Systemd service is not enabled: $SERVER_NAME."
-            
+
         if [ -f "$DESKTOP_UNIT_FILE" ]; then
             success_message "Desktop autostart file exists: $DESKTOP_UNIT_FILE."
         else
             error_exit "Desktop autostart file is missing: $DESKTOP_UNIT_FILE."
         fi
-        
+
     elif [ "$OS" = "darwin" ]; then
         if [ -f "$SERVER_LAUNCH_AGENT_FILE" ]; then
             success_message "macOS Launchd server plist exists: $SERVER_LAUNCH_AGENT_FILE."
@@ -243,8 +262,8 @@ validate_installation() {
     fi
 
     case "$OS" in
-        linux) success_message "Installation complete! Restart your system to apply changes for the wazuh agent status." ;;
-        darwin) success_message "Installation complete!" ;;
+    linux) success_message "Installation complete! Restart your system to apply changes for the wazuh agent status." ;;
+    darwin) success_message "Installation complete!" ;;
     esac
 }
 
@@ -283,6 +302,9 @@ print_step_header 3 "Server Service Configuration"
 make_server_launch_at_startup
 
 print_step_header 4 "Client Service Configuration"
+if [ "$OS" = "darwin" ]; then
+    unload_plist_file "$CLIENT_LAUNCH_AGENT_FILE"
+fi
 make_client_launch_at_startup
 
 print_step_header 5 "Validating installation and configuration..."
