@@ -8,7 +8,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 $SERVER_NAME = if ($env:SERVER_NAME -ne $null) { $env:SERVER_NAME } else { "wazuh-agent-status" }
 $CLIENT_NAME = if ($env:CLIENT_NAME -ne $null) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
 $PROFILE = if ($env:PROFILE -ne $null) { $env:PROFILE } else { "user" }
-$APP_VERSION = if ($env:APP_VERSION -ne $null) { $env:APP_VERSION } else { "0.2.2" }
+$APP_VERSION = if ($env:APP_VERSION -ne $null) { $env:APP_VERSION } else { "0.2.7" }
 
 if ($PROFILE -eq "admin") {
     $WAS_VERSION = $APP_VERSION
@@ -107,7 +107,7 @@ function Create-StartupShortcut {
 }
 
 # Download binaries
-$BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/tag/v$WAS_VERSION"
+$BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 
