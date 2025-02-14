@@ -9,6 +9,7 @@ import (
 	"strings"
 	"bufio"
 	"runtime"
+	"sync"
 
 	"github.com/getlantern/systray"
 )
@@ -20,6 +21,9 @@ var (
 	statusItem, connectionItem, pauseItem, updateItem, restartItem *systray.MenuItem
 	statusIconConnected, statusIconDisconnected       []byte
 	connectionIconConnected, connectionIconDisconnected []byte
+	updateIconConnected, updateIconDisconnected []byte
+	isMonitoringUpdate bool // Flag to track if we should be monitoring the update status
+	updateMutex sync.Mutex // Mutex to prevent concurrent access to the update monitor
 )
 
 // Main entry point
@@ -43,6 +47,8 @@ func onReady() {
 	statusIconDisconnected, _ = getEmbeddedFile("assets/gray-dot.png")
 	connectionIconConnected, _ = getEmbeddedFile("assets/green-dot.png")
 	connectionIconDisconnected, _ = getEmbeddedFile("assets/gray-dot.png")
+	updateIconConnected, _ = getEmbeddedFile("assets/green-dot.png")
+	updateIconDisconnected, _ = getEmbeddedFile("assets/gray-dot.png")
 
 	// Create menu items
 	statusItem = systray.AddMenuItem("Agent: Unknown", "Wazuh Agent Status")
@@ -87,6 +93,45 @@ func monitorStatus() {
 	}
 }
 
+// startUpdateMonitor starts the update status monitoring if not already active
+func startUpdateMonitor() {
+	// Only start monitoring if it's not already active
+	if isMonitoringUpdate {
+		log.Println("Update monitoring is already running.")
+		return
+	}
+
+	isMonitoringUpdate = true
+	sendCommand("update")
+	go monitorUpdateStatus()
+}
+
+// monitorUpdateStatus continuously fetches and updates the update status
+func monitorUpdateStatus() {
+	for isMonitoringUpdate {
+		updateStatus := fetchUpdateStatus()
+
+		// If the update status is "Disable", stop monitoring
+		if updateStatus == "Disable" {
+			log.Println("Update status is disabled. Stopping monitoring.")
+			isMonitoringUpdate = false
+			updateItem.SetTitle("Update")
+			updateItem.Enable()
+		} else {
+			log.Printf("Current update status: %v", updateStatus)
+			// Update the icon or text based on the update status
+			updateItem.SetTitle("Updating...")
+			updateItem.Disable()
+		}
+
+		// Sleep for a short period before checking again
+		time.Sleep(5 * time.Second)
+	}
+
+	// Reset the flag after monitoring is done
+	isMonitoringUpdate = false
+}
+
 // handleMenuActions listens for menu item clicks and performs actions
 func handleMenuActions(quitItem *systray.MenuItem) {
 	for {
@@ -99,7 +144,8 @@ func handleMenuActions(quitItem *systray.MenuItem) {
 			sendCommand("restart")
 		case <-updateItem.ClickedCh:
 			log.Println("Update clicked")
-			sendCommand("update")
+			/// Start monitoring the update status only when the update button is clicked
+			startUpdateMonitor()
 		case <-quitItem.ClickedCh:
 			log.Println("Quit clicked")
 			systray.Quit()
@@ -139,6 +185,34 @@ func fetchStatus() (string, string) {
 	return status, connection
 }
 
+
+// fetchUpdateStatus retrieves the update status from the backend
+func fetchUpdateStatus() string {
+	conn, err := net.Dial("tcp", "localhost:50505") // Update the port if needed
+	if err != nil {
+		log.Printf("Failed to connect to backend: %v", err)
+		return "Unknown"
+	}
+	defer conn.Close()
+
+	// Send "update" command to the server
+	fmt.Fprintln(conn, "update-status")
+
+	// Use bufio.Reader to read the response (including newline characters)
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n') // Read until newline character
+	if err != nil {
+		log.Printf("Failed to read response: %v", err)
+		return "Unknown"
+	}
+
+	// Trim the newline character
+	response = strings.TrimSuffix(response, "\n")
+
+	// Extract the value of the update status
+	status := strings.Split(response, ": ")[1]
+	return status
+}
 
 // sendCommand sends a command (e.g., pause or restart) to the backend
 func sendCommand(command string) {

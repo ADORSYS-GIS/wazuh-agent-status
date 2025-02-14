@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+var isUpdateInProgress bool // Flag to track if the update is in progress
+
 func main() {
 
 	if runtime.GOOS == "windows" {
@@ -59,9 +61,17 @@ func handleConnection(conn net.Conn) {
 			restartAgent()
 			conn.Write([]byte("Restarted the Wazuh Agent\n"))
 		case "update":
-			conn.Write([]byte("Updating the Wazuh Agent...\n"))
+			log.Println("Received update command...")
+			isUpdateInProgress = true
 			updateAgent()
-			conn.Write([]byte("Updated the Wazuh Agent\n"))
+			isUpdateInProgress = false
+			log.Println("Update finished")
+		case "update-status":
+			if isUpdateInProgress {
+				conn.Write([]byte("Update: Progressing\n"))
+			} else {
+				conn.Write([]byte("Update: Disable\n"))
+			}
 		default:
 			conn.Write([]byte(fmt.Sprintf("Unknown command: %s \n", command)))
 		}

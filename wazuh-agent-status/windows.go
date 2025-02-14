@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"time"
 	"strings"
+	"fmt"
 
 	"github.com/kardianos/service"
 )
@@ -137,20 +138,25 @@ func restartAgent() {
 	time.Sleep(5 * time.Second)
 }
 
-// updategent updates the Wazuh agent on macOS
-func updateAgent() {
-	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
+func notifyUser(title, message string) {
+	exec.Command("powershell", "-Command", fmt.Sprintf("[System.Windows.Forms.MessageBox]::Show('%s', '%s')", message, title)).Run()
+}
 
+// updategent updates the Wazuh agent on windows
+func updateAgent() {
+	logFilePath := "C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1"
+	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
 	cmd := exec.Command("powershell", "-Command", "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'")
 	err := cmd.Run()
 	if err != nil {
-		log.Printf("[%s] Failed to update Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
+		errorMessage := fmt.Sprintf("Update failed: %v. Check logs: %s", err, logFilePath)
+		log.Printf("[%s] %s\n", time.Now().Format(time.RFC3339), errorMessage)
+		notifyUser("Wazuh Agent Update", errorMessage)
 	} else {
+		restartAgent()
 		log.Printf("[%s] Wazuh agent updated successfully\n", time.Now().Format(time.RFC3339))
+		notifyUser("Wazuh Agent Update", "Update successful!")
 	}
-	
-	restartAgent()
-	
 }
 
 
