@@ -58,7 +58,7 @@ func restartAgent() {
 }
 
 func notifyUser(title, message string) {
-	exec.Command("osascript", "-e", fmt.Sprintf("display dialog \"%s\" with title \"%s\"}", message, title)).Run()
+	exec.Command("osascript", "-e", fmt.Sprintf(`display dialog "%s" with title "%s" buttons {"Dismiss"} default button "Dismiss"`, message, title)).Run()
 }
 
 // updateAgent updates the Wazuh agent on macOS

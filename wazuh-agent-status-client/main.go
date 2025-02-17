@@ -14,11 +14,13 @@ import (
 	"github.com/getlantern/systray"
 )
 
+const versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/ota-update/version.txt"
+
 //go:embed assets/*
 var embeddedFiles embed.FS
 
 var (
-	statusItem, connectionItem, pauseItem, updateItem, restartItem *systray.MenuItem
+	statusItem, connectionItem, pauseItem, updateItem, restartItem, versionItem *systray.MenuItem
 	statusIconConnected, statusIconDisconnected       []byte
 	connectionIconConnected, connectionIconDisconnected []byte
 	updateIconConnected, updateIconDisconnected []byte
@@ -54,43 +56,95 @@ func onReady() {
 	statusItem = systray.AddMenuItem("Agent: Unknown", "Wazuh Agent Status")
 	connectionItem = systray.AddMenuItem("Connection: Unknown", "Wazuh Agent Connection")
 	systray.AddSeparator()
-	pauseItem = systray.AddMenuItem("Pause", "Pause the Wazuh Agent")
-	restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
+	//pauseItem = systray.AddMenuItem("Pause", "Pause the Wazuh Agent")
+	//restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
 	updateItem = systray.AddMenuItem("Update", "Update the Wazuh Agent")
-	quitItem := systray.AddMenuItem("Quit", "Quit the application")
+	//quitItem := systray.AddMenuItem("Quit", "Quit the application")
+	systray.AddSeparator()
+	versionItem = systray.AddMenuItem("Up to date", "The version state of the wazuhbsetup")
 
 	// Start background status update
 	go monitorStatus()
 
 	// Handle menu item clicks
-	go handleMenuActions(quitItem)
+	go handleMenuActions()
 }
 
 // monitorStatus continuously fetches and updates the agent status
 func monitorStatus() {
-	for {
-		status, connection := fetchStatus()
+	// Routine executing every 5 seconds
+	go func() {
+		for {
+			status, connection := fetchStatus()
 
-		// Update status menu item
-		if status == "Active" {
-			statusItem.SetTitle("Agent: Active")
-			statusItem.SetIcon(statusIconConnected)
-		} else {
-			statusItem.SetTitle("Agent: Inactive")
-			statusItem.SetIcon(statusIconDisconnected)
+			// Update status menu item
+			if status == "Active" {
+				statusItem.SetTitle("Agent: Active")
+				statusItem.SetIcon(statusIconConnected)
+			} else {
+				statusItem.SetTitle("Agent: Inactive")
+				statusItem.SetIcon(statusIconDisconnected)
+			}
+
+			// Update connection menu item
+			if connection == "Connected" {
+				connectionItem.SetTitle("Connection: Connected")
+				connectionItem.SetIcon(connectionIconConnected)
+			} else {
+				connectionItem.SetTitle("Connection: Disconnected")
+				connectionItem.SetIcon(connectionIconDisconnected)
+			}
+
+			time.Sleep(5 * time.Second)
 		}
+	}()
 
-		// Update connection menu item
-		if connection == "Connected" {
-			connectionItem.SetTitle("Connection: Connected")
-			connectionItem.SetIcon(connectionIconConnected)
-		} else {
-			connectionItem.SetTitle("Connection: Disconnected")
-			connectionItem.SetIcon(connectionIconDisconnected)
+	// Routine executing every 12 hours
+	go func() {
+		for {
+			versionStatus := fetchVersionStatus()
+	
+			if strings.HasPrefix(versionStatus, "Up to date") {
+				versionItem.SetTitle(versionStatus)
+				versionItem.Disable()
+				updateItem.Disable()
+			} else if strings.HasPrefix(versionStatus, "Outdated") {
+				versionItem.SetTitle(versionStatus)
+				versionItem.Disable()
+				updateItem.Enable()
+			} else {
+				versionItem.SetTitle("Version: Unknown")
+				versionItem.Disable()
+				updateItem.Disable()
+			}
+	
+			time.Sleep(10 * time.Second) // Check every 12 hours
 		}
+	}()
+}
 
-		time.Sleep(5 * time.Second)
+func fetchVersionStatus() string {
+	conn, err := net.Dial("tcp", "localhost:50505")
+	if err != nil {
+		log.Printf("Failed to connect to backend: %v", err)
+		return "Unknown"
 	}
+	defer conn.Close()
+
+	fmt.Fprintln(conn, "check-version")
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		log.Printf("Failed to read response: %v", err)
+		return "Unknown"
+	}
+
+	response = strings.TrimSuffix(response, "\n")
+	parts := strings.Split(response, ": ")
+	if len(parts) < 2 {
+		return "Unknown"
+	}
+	return parts[1]
 }
 
 // startUpdateMonitor starts the update status monitoring if not already active
@@ -133,22 +187,22 @@ func monitorUpdateStatus() {
 }
 
 // handleMenuActions listens for menu item clicks and performs actions
-func handleMenuActions(quitItem *systray.MenuItem) {
+func handleMenuActions() {
 	for {
 		select {
-		case <-pauseItem.ClickedCh:
-			log.Println("Pause clicked")
-			sendCommand("pause")
-		case <-restartItem.ClickedCh:
-			log.Println("Restart clicked")
-			sendCommand("restart")
+		// case <-pauseItem.ClickedCh:
+		// 	log.Println("Pause clicked")
+		// 	sendCommand("pause")
+		// case <-restartItem.ClickedCh:
+		// 	log.Println("Restart clicked")
+		// 	sendCommand("restart")
 		case <-updateItem.ClickedCh:
 			log.Println("Update clicked")
 			/// Start monitoring the update status only when the update button is clicked
 			startUpdateMonitor()
-		case <-quitItem.ClickedCh:
-			log.Println("Quit clicked")
-			systray.Quit()
+		// case <-quitItem.ClickedCh:
+		// 	log.Println("Quit clicked")
+		// 	systray.Quit()
 		}
 	}
 }
