@@ -118,7 +118,7 @@ if ($existingService -and $existingService.Status -eq 'Running') {
 
 # ***********************************************
 # NEW: Check if the client process is running and stop it
-# Note: We assume the client process name matches $CLIENT_NAME (without the .exe extension).
+# (Assuming the process name is the same as $CLIENT_NAME without the .exe extension)
 $clientProcess = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
 if ($clientProcess) {
     InfoMessage "Client process $CLIENT_NAME is currently running. Stopping it to allow binary replacement..."
@@ -143,5 +143,14 @@ Create-Service -ServiceName $SERVER_NAME -ExecutablePath $SERVER_EXE -DisplayNam
 # Add client to Windows startup
 PrintStep 3 "Configuring client startup..."
 Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
+
+# NEW: Start the client process immediately
+PrintStep 4 "Starting client process..."
+try {
+    Start-Process -FilePath $CLIENT_EXE
+    InfoMessage "Client process started successfully."
+} catch {
+    ErrorMessage "Failed to start the client process."
+}
 
 SuccessMessage "Installation completed successfully."
