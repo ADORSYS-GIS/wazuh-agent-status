@@ -144,7 +144,7 @@ Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
 # NEW: Start the client process immediately
 PrintStep 4 "Starting client process..."
 try {
-    Start-Process -FilePath $CLIENT_NAME
+    Start-Process -FilePath $CLIENT_EXE
     InfoMessage "Client process started successfully."
 } catch {
     ErrorMessage "Failed to start the client process."
