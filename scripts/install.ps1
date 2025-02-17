@@ -116,6 +116,17 @@ if ($existingService -and $existingService.Status -eq 'Running') {
 }
 # ***********************************************
 
+# ***********************************************
+# NEW: Check if the client process is running and stop it
+# Note: We assume the client process name matches $CLIENT_NAME (without the .exe extension).
+$clientProcess = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
+if ($clientProcess) {
+    InfoMessage "Client process $CLIENT_NAME is currently running. Stopping it to allow binary replacement..."
+    $clientProcess | Stop-Process -Force
+    Start-Sleep -Seconds 5
+}
+# ***********************************************
+
 # Download binaries
 $BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
