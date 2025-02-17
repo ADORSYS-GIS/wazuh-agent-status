@@ -106,6 +106,16 @@ function Create-StartupShortcut {
     InfoMessage "Startup shortcut created: $ShortcutPath."
 }
 
+# ***********************************************
+# NEW: Check if the server service is running and stop it
+$existingService = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
+if ($existingService -and $existingService.Status -eq 'Running') {
+    InfoMessage "Service $SERVER_NAME is currently running. Stopping it to allow binary replacement..."
+    Stop-Service -Name $SERVER_NAME -Force
+    Start-Sleep -Seconds 5
+}
+# ***********************************************
+
 # Download binaries
 $BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
