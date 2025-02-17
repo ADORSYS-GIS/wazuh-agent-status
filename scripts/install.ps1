@@ -106,26 +106,23 @@ function Create-StartupShortcut {
     InfoMessage "Startup shortcut created: $ShortcutPath."
 }
 
-# ***********************************************
-# NEW: Check if the server service is running and stop it
+
+# Check if the server service is running and stop it
 $existingService = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
 if ($existingService -and $existingService.Status -eq 'Running') {
     InfoMessage "Service $SERVER_NAME is currently running. Stopping it to allow binary replacement..."
     Stop-Service -Name $SERVER_NAME -Force
     Start-Sleep -Seconds 5
 }
-# ***********************************************
 
-# ***********************************************
-# NEW: Check if the client process is running and stop it
-# (Assuming the process name is the same as $CLIENT_NAME without the .exe extension)
+
+# Check if the client process is running and stop it
 $clientProcess = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
 if ($clientProcess) {
     InfoMessage "Client process $CLIENT_NAME is currently running. Stopping it to allow binary replacement..."
     $clientProcess | Stop-Process -Force
     Start-Sleep -Seconds 5
 }
-# ***********************************************
 
 # Download binaries
 $BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
@@ -147,7 +144,7 @@ Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
 # NEW: Start the client process immediately
 PrintStep 4 "Starting client process..."
 try {
-    Start-Process -FilePath $CLIENT_EXE
+    Start-Process -FilePath $CLIENT_NAME
     InfoMessage "Client process started successfully."
 } catch {
     ErrorMessage "Failed to start the client process."
