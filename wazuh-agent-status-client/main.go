@@ -17,9 +17,11 @@ import (
 var embeddedFiles embed.FS
 
 var (
-	statusItem, connectionItem, pauseItem, updateItem, restartItem *systray.MenuItem
+	statusItem, connectionItem, pauseItem, updateItem, restartItem, versionItem *systray.MenuItem
 	statusIconConnected, statusIconDisconnected       []byte
 	connectionIconConnected, connectionIconDisconnected []byte
+	updateIconConnected, updateIconDisconnected []byte
+	isMonitoringUpdate bool
 )
 
 // Main entry point
@@ -43,6 +45,8 @@ func onReady() {
 	statusIconDisconnected, _ = getEmbeddedFile("assets/gray-dot.png")
 	connectionIconConnected, _ = getEmbeddedFile("assets/green-dot.png")
 	connectionIconDisconnected, _ = getEmbeddedFile("assets/gray-dot.png")
+	updateIconConnected, _ = getEmbeddedFile("assets/green-dot.png")
+	updateIconDisconnected, _ = getEmbeddedFile("assets/gray-dot.png")
 
 	// Create menu items
 	statusItem = systray.AddMenuItem("Agent: Unknown", "Wazuh Agent Status")
@@ -52,6 +56,8 @@ func onReady() {
 	restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
 	updateItem = systray.AddMenuItem("Update", "Update the Wazuh Agent")
 	quitItem := systray.AddMenuItem("Quit", "Quit the application")
+	systray.AddSeparator()
+	versionItem = systray.AddMenuItem("Up to date", "The version state of the wazuhbsetup")
 
 	// Start background status update
 	go monitorStatus()
@@ -62,29 +68,117 @@ func onReady() {
 
 // monitorStatus continuously fetches and updates the agent status
 func monitorStatus() {
-	for {
-		status, connection := fetchStatus()
+	// Routine executing every 5 seconds
+	go func() {
+		for {
+			status, connection := fetchStatus()
 
-		// Update status menu item
-		if status == "Active" {
-			statusItem.SetTitle("Agent: Active")
-			statusItem.SetIcon(statusIconConnected)
+			// Update status menu item
+			if status == "Active" {
+				statusItem.SetTitle("Agent: Active")
+				statusItem.SetIcon(statusIconConnected)
+			} else {
+				statusItem.SetTitle("Agent: Inactive")
+				statusItem.SetIcon(statusIconDisconnected)
+			}
+
+			// Update connection menu item
+			if connection == "Connected" {
+				connectionItem.SetTitle("Connection: Connected")
+				connectionItem.SetIcon(connectionIconConnected)
+			} else {
+				connectionItem.SetTitle("Connection: Disconnected")
+				connectionItem.SetIcon(connectionIconDisconnected)
+			}
+
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
+	// Routine executing every 12 hours
+	go func() {
+		for {
+			versionStatus := fetchVersionStatus()
+	
+			if strings.HasPrefix(versionStatus, "Up to date") {
+				versionItem.SetTitle(versionStatus)
+				versionItem.Disable()
+				updateItem.Disable()
+			} else if strings.HasPrefix(versionStatus, "Outdated") {
+				versionItem.SetTitle(versionStatus)
+				versionItem.Disable()
+				updateItem.Enable()
+			} else {
+				versionItem.SetTitle("Version: Unknown")
+				versionItem.Disable()
+				updateItem.Disable()
+			}
+	
+			time.Sleep(10 * time.Second) // Check every 12 hours
+		}
+	}()
+}
+
+func fetchVersionStatus() string {
+	conn, err := net.Dial("tcp", "localhost:50505")
+	if err != nil {
+		log.Printf("Failed to connect to backend: %v", err)
+		return "Unknown"
+	}
+	defer conn.Close()
+
+	fmt.Fprintln(conn, "check-version")
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		log.Printf("Failed to read response: %v", err)
+		return "Unknown"
+	}
+
+	response = strings.TrimSuffix(response, "\n")
+	parts := strings.Split(response, ": ")
+	if len(parts) < 2 {
+		return "Unknown"
+	}
+	return parts[1]
+}
+
+// startUpdateMonitor starts the update status monitoring if not already active
+func startUpdateMonitor() {
+	// Only start monitoring if it's not already active
+	if isMonitoringUpdate {
+		log.Println("Update monitoring is already running.")
+		return
+	}
+
+	isMonitoringUpdate = true
+	sendCommand("update")
+	go monitorUpdateStatus()
+}
+
+// monitorUpdateStatus continuously fetches and updates the update status
+func monitorUpdateStatus() {
+	for isMonitoringUpdate {
+		updateStatus := fetchUpdateStatus()
+
+		// If the update status is "Disable", stop monitoring
+		if updateStatus == "Disable" {
+			log.Println("Update status is disabled. Stopping monitoring.")
+			isMonitoringUpdate = false
+			updateItem.SetTitle("Update")
 		} else {
-			statusItem.SetTitle("Agent: Inactive")
-			statusItem.SetIcon(statusIconDisconnected)
+			log.Printf("Current update status: %v", updateStatus)
+			// Update the icon or text based on the update status
+			updateItem.SetTitle("Updating...")
+			updateItem.Disable()
 		}
 
-		// Update connection menu item
-		if connection == "Connected" {
-			connectionItem.SetTitle("Connection: Connected")
-			connectionItem.SetIcon(connectionIconConnected)
-		} else {
-			connectionItem.SetTitle("Connection: Disconnected")
-			connectionItem.SetIcon(connectionIconDisconnected)
-		}
-
+		// Sleep for a short period before checking again
 		time.Sleep(5 * time.Second)
 	}
+
+	// Reset the flag after monitoring is done
+	isMonitoringUpdate = false
 }
 
 // handleMenuActions listens for menu item clicks and performs actions
@@ -99,10 +193,10 @@ func handleMenuActions(quitItem *systray.MenuItem) {
 			sendCommand("restart")
 		case <-updateItem.ClickedCh:
 			log.Println("Update clicked")
-			sendCommand("update")
+			startUpdateMonitor()
 		case <-quitItem.ClickedCh:
-			log.Println("Quit clicked")
-			systray.Quit()
+		 	log.Println("Quit clicked")
+		 	systray.Quit()
 		}
 	}
 }
@@ -139,6 +233,36 @@ func fetchStatus() (string, string) {
 	return status, connection
 }
 
+
+// fetchUpdateStatus retrieves the update status from the backend
+func fetchUpdateStatus() string {
+	conn, err := net.Dial("tcp", "localhost:50505") // Update the port if needed
+	if err != nil {
+		log.Printf("Failed to connect to backend: %v", err)
+		return "Unknown"
+	}
+	defer conn.Close()
+
+	// Send "update" command to the server
+	fmt.Fprintln(conn, "update-status")
+
+	// Use bufio.Reader to read the response (including newline characters)
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n') // Read until newline character
+	if err != nil {
+		log.Printf("Failed to read response: %v", err)
+		return "Unknown"
+	}
+
+	// Trim the newline character
+	response = strings.TrimSuffix(response, "\n")
+
+	log.Printf("Update: %v", response)
+
+	// Extract the value of the update status
+	status := strings.Split(response, ": ")[1]
+	return status
+}
 
 // sendCommand sends a command (e.g., pause or restart) to the backend
 func sendCommand(command string) {
