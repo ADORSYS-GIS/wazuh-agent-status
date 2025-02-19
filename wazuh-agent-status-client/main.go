@@ -9,12 +9,9 @@ import (
 	"strings"
 	"bufio"
 	"runtime"
-	"sync"
 
 	"github.com/getlantern/systray"
 )
-
-const versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/ota-update/version.txt"
 
 //go:embed assets/*
 var embeddedFiles embed.FS
@@ -24,8 +21,7 @@ var (
 	statusIconConnected, statusIconDisconnected       []byte
 	connectionIconConnected, connectionIconDisconnected []byte
 	updateIconConnected, updateIconDisconnected []byte
-	isMonitoringUpdate bool // Flag to track if we should be monitoring the update status
-	updateMutex sync.Mutex // Mutex to prevent concurrent access to the update monitor
+	isMonitoringUpdate bool
 )
 
 // Main entry point
@@ -56,10 +52,10 @@ func onReady() {
 	statusItem = systray.AddMenuItem("Agent: Unknown", "Wazuh Agent Status")
 	connectionItem = systray.AddMenuItem("Connection: Unknown", "Wazuh Agent Connection")
 	systray.AddSeparator()
-	//pauseItem = systray.AddMenuItem("Pause", "Pause the Wazuh Agent")
-	//restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
+	pauseItem = systray.AddMenuItem("Pause", "Pause the Wazuh Agent")
+	restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
 	updateItem = systray.AddMenuItem("Update", "Update the Wazuh Agent")
-	//quitItem := systray.AddMenuItem("Quit", "Quit the application")
+	quitItem := systray.AddMenuItem("Quit", "Quit the application")
 	systray.AddSeparator()
 	versionItem = systray.AddMenuItem("Up to date", "The version state of the wazuhbsetup")
 
@@ -67,7 +63,7 @@ func onReady() {
 	go monitorStatus()
 
 	// Handle menu item clicks
-	go handleMenuActions()
+	go handleMenuActions(quitItem)
 }
 
 // monitorStatus continuously fetches and updates the agent status
@@ -187,22 +183,21 @@ func monitorUpdateStatus() {
 }
 
 // handleMenuActions listens for menu item clicks and performs actions
-func handleMenuActions() {
+func handleMenuActions(quitItem *systray.MenuItem) {
 	for {
 		select {
-		// case <-pauseItem.ClickedCh:
-		// 	log.Println("Pause clicked")
-		// 	sendCommand("pause")
-		// case <-restartItem.ClickedCh:
-		// 	log.Println("Restart clicked")
-		// 	sendCommand("restart")
+		case <-pauseItem.ClickedCh:
+			log.Println("Pause clicked")
+			sendCommand("pause")
+		case <-restartItem.ClickedCh:
+			log.Println("Restart clicked")
+			sendCommand("restart")
 		case <-updateItem.ClickedCh:
 			log.Println("Update clicked")
-			/// Start monitoring the update status only when the update button is clicked
 			startUpdateMonitor()
-		// case <-quitItem.ClickedCh:
-		// 	log.Println("Quit clicked")
-		// 	systray.Quit()
+		case <-quitItem.ClickedCh:
+		 	log.Println("Quit clicked")
+		 	systray.Quit()
 		}
 	}
 }
@@ -262,6 +257,8 @@ func fetchUpdateStatus() string {
 
 	// Trim the newline character
 	response = strings.TrimSuffix(response, "\n")
+
+	log.Printf("Update: %v", response)
 
 	// Extract the value of the update status
 	status := strings.Split(response, ": ")[1]

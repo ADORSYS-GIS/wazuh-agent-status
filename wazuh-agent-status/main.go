@@ -9,6 +9,7 @@ import (
 	"strings"
 	"net/http"
 	"io"
+	"os"
 	"os/exec"
 	"embed"
 )
@@ -102,17 +103,25 @@ func runAsRoot(command string, args ...string) (string, error) {
 	return string(output), err
 }
 
-// Read local version from embedded file, running as root
+// Read local version from embedded file
 func getLocalVersion() string {
-	// Use sudo to run the read command with root permissions
-	output, err := runAsRoot("cat", getVersionFilePath())
-	if err != nil {
-		log.Printf("Failed to read local version: %v", err)
-		return "Unknown"
+	if runtime.GOOS == "windows" {
+		output, err := os.ReadFile(getVersionFilePath())
+		if err != nil {
+			log.Printf("Failed to read local version on Windows: %v", err)
+			return "Unknown"
+		}
+		log.Printf("Local version (Windows): %s", strings.TrimSpace(string(output)))
+		return strings.TrimSpace(string(output))
+	} else {
+		output, err := runAsRoot("cat", getVersionFilePath())
+		if err != nil {
+			log.Printf("Failed to read local version on Linux/macOS: %v", err)
+			return "Unknown"
+		}
+		log.Printf("Local version (Linux/macOS): %s", output)
+		return output
 	}
-
-	log.Printf("Local version: %v", output)
-	return output
 }
 
 // Fetch the latest version from the server

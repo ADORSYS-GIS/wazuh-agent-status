@@ -4,12 +4,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"os/exec"
-	"time"
 	"strings"
-	"fmt"
+	"time"
 
 	"github.com/kardianos/service"
 )
@@ -60,7 +60,6 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
-
 // checkServiceStatus checks the status of Wazuh agent and its connection on Windows
 func checkServiceStatus() (string, string) {
 	// Check if the Wazuh service is running
@@ -71,9 +70,6 @@ func checkServiceStatus() (string, string) {
 		log.Printf("[%s] Service command error output:\n%s\n", time.Now().Format(time.RFC3339), string(output))
 		return "Inactive", "Disconnected"
 	}
-
-	// Debugging the service output
-	log.Printf("[%s] Service status output:\n%s\n", time.Now().Format(time.RFC3339), string(output))
 
 	// Check if the service is running
 	status := "Inactive"
@@ -89,9 +85,6 @@ func checkServiceStatus() (string, string) {
 		log.Printf("[%s] Connection command error output:\n%s\n", time.Now().Format(time.RFC3339), string(connOutput))
 		return status, "Disconnected"
 	}
-
-	// Debugging the connection status output
-	log.Printf("[%s] Connection status output:\n%s\n", time.Now().Format(time.RFC3339), string(connOutput))
 
 	// Clean the output and check if the status indicates "connected"
 	connection := "Disconnected"
@@ -139,17 +132,22 @@ func restartAgent() {
 }
 
 func notifyUser(title, message string) {
-	exec.Command("powershell", "-Command", fmt.Sprintf("[System.Windows.Forms.MessageBox]::Show('%s', '%s')", message, title)).Run()
+	appIconPath := "C:\\ProgramData\\ossec-agent\\wazuh-logo.png" // Change to your actual icon path
+	psScript := fmt.Sprintf(`New-BurntToastNotification -AppLogo "%s" -Text "%s", "%s"`, appIconPath, title, message)
+	cmd := exec.Command("powershell", "-Command", psScript)
+	err := cmd.Run()
+	if err != nil {
+        log.Printf("Notification failed: %v\n", err)
+    }
 }
 
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
-	logFilePath := "C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1"
 	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	cmd := exec.Command("powershell", "-Command", "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'")
-	err := cmd.Run()
+	err := exec.Command("powershell", "-Command", "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'").Run()
 	if err != nil {
-		errorMessage := fmt.Sprintf("Update failed: %v. Check logs: %s", err, logFilePath)
+		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
+		errorMessage := fmt.Sprintf("Update failed: For details check logs at %s", logFilePath)
 		log.Printf("[%s] %s\n", time.Now().Format(time.RFC3339), errorMessage)
 		notifyUser("Wazuh Agent Update", errorMessage)
 	} else {
@@ -158,7 +156,6 @@ func updateAgent() {
 		notifyUser("Wazuh Agent Update", "Update successful!")
 	}
 }
-
 
 // Main function that sets up the service
 func windowsMain() {
