@@ -166,7 +166,6 @@ func monitorUpdateStatus() {
 			log.Println("Update status is disabled. Stopping monitoring.")
 			isMonitoringUpdate = false
 			updateItem.SetTitle("Update")
-			updateItem.Enable()
 		} else {
 			log.Printf("Current update status: %v", updateStatus)
 			// Update the icon or text based on the update status
