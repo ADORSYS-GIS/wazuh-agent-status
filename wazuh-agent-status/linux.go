@@ -5,6 +5,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -58,17 +59,28 @@ func restartAgent() {
 	}
 }
 
+// Function to check if a path exists
+func pathExists(path string) bool {
+    _, err := os.Stat(path)
+    return !os.IsNotExist(err)
+}
+
 func notifyUser(title, message string) {
-	exec.Command("notify-send", title, message).Run()
+	iconPath := "/usr/share/pixmaps/wazuh-logo.png"
+	if pathExists(iconPath) {
+		exec.Command("notify-send", "--app-name=Wazuh", "-u", "critical", title, message, "-i", iconPath).Run()
+	} else {
+		exec.Command("notify-send", "--app-name=Wazuh", "-u", "critical", title, message).Run()
+	}
 }
 
 // updateAgent updates the Wazuh agent on Linux
 func updateAgent() {
-	logFilePath := "/var/ossec/logs/active-responses.log"
 	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("sudo", "/var/ossec/active-response/bin/adorsys-update.sh").Run()
+	err := exec.Command("sudo", "bash", "/var/ossec/active-response/bin/dorsys-update.sh").Run()
 	if err != nil {
-		errorMessage := fmt.Sprintf("Update failed: %v. Check logs: %s", err, logFilePath)
+		logFilePath := "/var/ossec/logs/active-responses.log"
+		errorMessage := fmt.Sprintf("Update failed: Check logs for details at %s", logFilePath)
 		log.Printf("[%s] %s\n", time.Now().Format(time.RFC3339), errorMessage)
 		notifyUser("Wazuh Agent Update", errorMessage)
 	} else {
