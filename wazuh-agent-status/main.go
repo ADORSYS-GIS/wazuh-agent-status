@@ -14,7 +14,7 @@ import (
 	"embed"
 )
 
-const versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/ota-update/version.txt"
+const versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt"
 var isUpdateInProgress bool // Flag to track if the update is in progress
 var embeddedFiles embed.FS
 

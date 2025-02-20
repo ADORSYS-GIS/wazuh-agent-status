@@ -77,7 +77,7 @@ func notifyUser(title, message string) {
 // updateAgent updates the Wazuh agent on Linux
 func updateAgent() {
 	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("sudo", "bash", "/var/ossec/active-response/bin/dorsys-update.sh").Run()
+	err := exec.Command("sudo", "bash", "/var/ossec/active-response/bin/adorsys-update.sh").Run()
 	if err != nil {
 		logFilePath := "/var/ossec/logs/active-responses.log"
 		errorMessage := fmt.Sprintf("Update failed: Check logs for details at %s", logFilePath)
