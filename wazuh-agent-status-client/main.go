@@ -1,14 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"embed"
 	"fmt"
 	"log"
 	"net"
-	"time"
-	"strings"
-	"bufio"
 	"runtime"
+	"strings"
+	"time"
 
 	"github.com/getlantern/systray"
 )
@@ -18,10 +18,8 @@ var embeddedFiles embed.FS
 
 var (
 	statusItem, connectionItem, pauseItem, updateItem, restartItem, versionItem *systray.MenuItem
-	statusIconConnected, statusIconDisconnected       []byte
-	connectionIconConnected, connectionIconDisconnected []byte
-	updateIconConnected, updateIconDisconnected []byte
-	isMonitoringUpdate bool
+	enabledIcon, disabledIcon                                                   []byte
+	isMonitoringUpdate                                                          bool
 )
 
 // Main entry point
@@ -41,12 +39,8 @@ func onReady() {
 	systray.SetTooltip("Wazuh Agent Status")
 
 	// Load icons for status and connection
-	statusIconConnected, _ = getEmbeddedFile("assets/green-dot.png")
-	statusIconDisconnected, _ = getEmbeddedFile("assets/gray-dot.png")
-	connectionIconConnected, _ = getEmbeddedFile("assets/green-dot.png")
-	connectionIconDisconnected, _ = getEmbeddedFile("assets/gray-dot.png")
-	updateIconConnected, _ = getEmbeddedFile("assets/green-dot.png")
-	updateIconDisconnected, _ = getEmbeddedFile("assets/gray-dot.png")
+	enabledIcon, _ = getEmbeddedFile("assets/green-dot.png")
+	disabledIcon, _ = getEmbeddedFile("assets/gray-dot.png")
 
 	// Create menu items
 	statusItem = systray.AddMenuItem("Agent: Unknown", "Wazuh Agent Status")
@@ -68,7 +62,6 @@ func onReady() {
 
 // monitorStatus continuously fetches and updates the agent status
 func monitorStatus() {
-	// Routine executing every 5 seconds
 	go func() {
 		for {
 			status, connection := fetchStatus()
@@ -76,54 +69,59 @@ func monitorStatus() {
 			// Update status menu item
 			if status == "Active" {
 				statusItem.SetTitle("Agent: Active")
-				statusItem.SetIcon(statusIconConnected)
+				statusItem.SetIcon(enabledIcon)
 			} else {
 				statusItem.SetTitle("Agent: Inactive")
-				statusItem.SetIcon(statusIconDisconnected)
+				statusItem.SetIcon(disabledIcon)
 			}
 
 			// Update connection menu item
 			if connection == "Connected" {
 				connectionItem.SetTitle("Connection: Connected")
-				connectionItem.SetIcon(connectionIconConnected)
+				connectionItem.SetIcon(enabledIcon)
 			} else {
 				connectionItem.SetTitle("Connection: Disconnected")
-				connectionItem.SetIcon(connectionIconDisconnected)
+				connectionItem.SetIcon(disabledIcon)
 			}
 
 			time.Sleep(5 * time.Second)
 		}
 	}()
 
-	// Routine executing every 12 hours
 	go func() {
 		for {
-			versionStatus := fetchVersionStatus()
-	
-			if strings.HasPrefix(versionStatus, "Up to date") {
-				versionItem.SetTitle(versionStatus)
-				versionItem.Disable()
-				updateItem.Disable()
-			} else if strings.HasPrefix(versionStatus, "Outdated") {
-				versionItem.SetTitle(versionStatus)
-				versionItem.Disable()
-				updateItem.Enable()
-			} else {
-				versionItem.SetTitle("Version: Unknown")
-				versionItem.Disable()
-				updateItem.Disable()
-			}
-	
-			time.Sleep(10 * time.Second) // Check every 12 hours
+			checkVersion()
+
+			time.Sleep(1 * time.Hour)
 		}
 	}()
 }
 
-func fetchVersionStatus() string {
+func checkVersion() {
+	versionStatus, version := fetchVersionStatus()
+
+	if strings.HasPrefix(versionStatus, "Up to date") {
+		versionItem.SetTitle(version)
+		versionItem.Disable()
+		updateItem.SetTitle("Up to date")
+		updateItem.Disable()
+	} else if strings.HasPrefix(versionStatus, "Outdated") {
+		versionItem.SetTitle(version)
+		versionItem.Disable()
+		updateItem.SetTitle("Update")
+		updateItem.Enable()
+	} else {
+		versionItem.SetTitle("Version: Unknown")
+		versionItem.Disable()
+		updateItem.Disable()
+	}
+}
+
+func fetchVersionStatus() (string, string) {
 	conn, err := net.Dial("tcp", "localhost:50505")
 	if err != nil {
 		log.Printf("Failed to connect to backend: %v", err)
-		return "Unknown"
+		return "Unknown", "Unknown"
 	}
 	defer conn.Close()
 
@@ -132,15 +130,17 @@ func fetchVersionStatus() string {
 	response, err := reader.ReadString('\n')
 	if err != nil {
 		log.Printf("Failed to read response: %v", err)
-		return "Unknown"
+		return "Unknown", "Unknown"
 	}
 
 	response = strings.TrimSuffix(response, "\n")
 	parts := strings.Split(response, ": ")
 	if len(parts) < 2 {
-		return "Unknown"
+		return "Unknown", "Unknown"
 	}
-	return parts[1]
+
+	parts = strings.Split(parts[1], ", ")
+	return parts[0], parts[1]
 }
 
 // startUpdateMonitor starts the update status monitoring if not already active
@@ -165,7 +165,7 @@ func monitorUpdateStatus() {
 		if updateStatus == "Disable" {
 			log.Println("Update status is disabled. Stopping monitoring.")
 			isMonitoringUpdate = false
-			updateItem.SetTitle("Update")
+			checkVersion()
 		} else {
 			log.Printf("Current update status: %v", updateStatus)
 			// Update the icon or text based on the update status
@@ -195,8 +195,8 @@ func handleMenuActions(quitItem *systray.MenuItem) {
 			log.Println("Update clicked")
 			startUpdateMonitor()
 		case <-quitItem.ClickedCh:
-		 	log.Println("Quit clicked")
-		 	systray.Quit()
+			log.Println("Quit clicked")
+			systray.Quit()
 		}
 	}
 }
@@ -220,19 +220,18 @@ func fetchStatus() (string, string) {
 		log.Printf("Failed to read response: %v", err)
 		return "Unknown", "Unknown"
 	}
-	
-	response = strings.TrimSuffix(response, "\n")
-	
-	// Split the string by comma
-    parts := strings.Split(response, ", ")
 
-    // Extract the values
-    status := strings.Split(parts[0], ": ")[1]
-    connection := strings.Split(parts[1], ": ")[1]
-	
+	response = strings.TrimSuffix(response, "\n")
+
+	// Split the string by comma
+	parts := strings.Split(response, ", ")
+
+	// Extract the values
+	status := strings.Split(parts[0], ": ")[1]
+	connection := strings.Split(parts[1], ": ")[1]
+
 	return status, connection
 }
-
 
 // fetchUpdateStatus retrieves the update status from the backend
 func fetchUpdateStatus() string {
@@ -284,12 +283,12 @@ func getEmbeddedFile(path string) ([]byte, error) {
 
 // getIconPath returns iconpath based on the OS
 func getIconPath() string {
-    switch os := runtime.GOOS; os {
-    case "windows":
-        return "assets/wazuh-logo.ico" // Path to the ICO icon for Windows
-    default:
-        return "assets/wazuh-logo.png" // Default icon path
-    }
+	switch os := runtime.GOOS; os {
+	case "windows":
+		return "assets/wazuh-logo.ico" // Path to the ICO icon for Windows
+	default:
+		return "assets/wazuh-logo.png" // Default icon path
+	}
 }
 
 // onExit is called when the application is terminated

@@ -86,9 +86,9 @@ func handleConnection(conn net.Conn) {
 			if localVersion == "" || onlineVersion == "" {
 				conn.Write([]byte("VersionCheck: Unknown\n"))
 			} else if localVersion != onlineVersion {
-				conn.Write([]byte(fmt.Sprintf("VersionCheck: Outdated (v%s -> v%s)\n", localVersion, onlineVersion)))
+				conn.Write([]byte(fmt.Sprintf("VersionCheck: Outdated, v%s\n", localVersion)))
 			} else {
-				conn.Write([]byte(fmt.Sprintf("VersionCheck: Up to date -> v%s\n", localVersion)))
+				conn.Write([]byte(fmt.Sprintf("VersionCheck: Up to date, v%s\n", localVersion)))
 			}
 		default:
 			conn.Write([]byte(fmt.Sprintf("Unknown command: %s \n", command)))
