@@ -50,7 +50,6 @@ function ErrorExit {
     ErrorMessage $Message
     exit 1
 }
-
 function Download-File {
     [CmdletBinding()]
     param(
@@ -72,27 +71,35 @@ function Download-File {
         $tempFilePath = Join-Path -Path $env:TEMP -ChildPath $fileName
 
         # Download the file to the temporary location.
-        InfoMessage "Downloading file from '$Url' to temporary location '$tempFilePath'..."
+        Write-Output "Downloading file from '$Url' to temporary location '$tempFilePath'..."
         Invoke-WebRequest -Uri $Url -OutFile $tempFilePath -ErrorAction Stop
-        SuccessMessage "Successfully downloaded to temporary location."
+        Write-Output "Download successful."
 
         # Ensure the target directory exists.
         $targetDir = Split-Path -Path $OutputPath -Parent
         if (-not (Test-Path -Path $targetDir)) {
-            WarnMessage "Target directory '$targetDir' does not exist. Creating directory..."
+            Write-Output "Target directory '$targetDir' does not exist. Creating directory..."
             New-Item -ItemType Directory -Path $targetDir -Force -ErrorAction Stop | Out-Null
-            InfoMessage "Directory '$targetDir' created successfully."
+            Write-Output "Directory '$targetDir' created successfully."
         }
 
-        # Move the file from the temporary location to the required output path.
-        InfoMessage "Moving file to final destination: '$OutputPath'..."
+        # Remove the destination file if it already exists.
+        if (Test-Path -Path $OutputPath) {
+            Write-Output "File already exists at destination. Removing existing file..."
+            Remove-Item -Path $OutputPath -Force -ErrorAction Stop
+            Write-Output "Existing file removed."
+        }
+
+        # Move the file from the temporary location to the final destination.
+        Write-Output "Moving file to final destination: '$OutputPath'..."
         Move-Item -Path $tempFilePath -Destination $OutputPath -Force -ErrorAction Stop
-        SuccessMessage "File successfully moved to '$OutputPath'."
+        Write-Output "File successfully moved to '$OutputPath'."
     }
     catch {
-        ErrorMessage "An error occurred during the download or move process: $_"
+        Write-Error "An error occurred during the download or move process: $_"
     }
 }
+
 
 
 function Create-Service {
