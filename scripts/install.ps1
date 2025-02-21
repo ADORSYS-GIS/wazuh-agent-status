@@ -50,57 +50,20 @@ function ErrorExit {
     ErrorMessage $Message
     exit 1
 }
+
 function Download-File {
-    [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
         [string]$Url,
-        
-        [Parameter(Mandatory=$true)]
         [string]$OutputPath
     )
-
     try {
-        # Determine the file name from the output path.
-        $fileName = [System.IO.Path]::GetFileName($OutputPath)
-        if (-not $fileName) {
-            throw "Could not determine a valid file name from the provided OutputPath: '$OutputPath'."
-        }
-        
-        # Create a temporary file path in the system temp directory.
-        $tempFilePath = Join-Path -Path $env:TEMP -ChildPath $fileName
-
-        # Download the file to the temporary location.
-        Write-Output "Downloading file from '$Url' to temporary location '$tempFilePath'..."
-        Invoke-WebRequest -Uri $Url -OutFile $tempFilePath -ErrorAction Stop
-        Write-Output "Download successful."
-
-        # Ensure the target directory exists.
-        $targetDir = Split-Path -Path $OutputPath -Parent
-        if (-not (Test-Path -Path $targetDir)) {
-            Write-Output "Target directory '$targetDir' does not exist. Creating directory..."
-            New-Item -ItemType Directory -Path $targetDir -Force -ErrorAction Stop | Out-Null
-            Write-Output "Directory '$targetDir' created successfully."
-        }
-
-        # Remove the destination file if it already exists.
-        if (Test-Path -Path $OutputPath) {
-            Write-Output "File already exists at destination. Removing existing file..."
-            Remove-Item -Path $OutputPath -Force -ErrorAction Stop
-            Write-Output "Existing file removed."
-        }
-
-        # Move the file from the temporary location to the final destination.
-        Write-Output "Moving file to final destination: '$OutputPath'..."
-        Move-Item -Path $tempFilePath -Destination $OutputPath -Force -ErrorAction Stop
-        Write-Output "File successfully moved to '$OutputPath'."
-    }
-    catch {
-        Write-Error "An error occurred during the download or move process: $_"
+        #Download to Temp and then copy to OutputPath
+        Invoke-WebRequest -Uri $Url -OutFile $OutputPath -ErrorAction Stop
+        InfoMessage "Downloaded $OutputPath from $Url."
+    } catch {
+        ErrorExit "Failed to download $Url."
     }
 }
-
-
 
 function Create-Service {
     param(
@@ -146,21 +109,21 @@ function Create-StartupShortcut {
 
 
 # Check if the server service is running and stop it
-# $existingService = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
-# if ($existingService -and $existingService.Status -eq 'Running') {
-#     InfoMessage "Service $SERVER_NAME is currently running. Stopping it to allow binary replacement..."
-#     Stop-Service -Name $SERVER_NAME -Force
-#     Start-Sleep -Seconds 5
-# }
+$existingService = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
+if ($existingService -and $existingService.Status -eq 'Running') {
+    InfoMessage "Service $SERVER_NAME is currently running. Stopping it to allow binary replacement..."
+    Stop-Service -Name $SERVER_NAME -Force
+    Start-Sleep -Seconds 5
+}
 
 
 # Check if the client process is running and stop it
-# $clientProcess = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
-# if ($clientProcess) {
-#     InfoMessage "Client process $CLIENT_NAME is currently running. Stopping it to allow binary replacement..."
-#     $clientProcess | Stop-Process -Force
-#     Start-Sleep -Seconds 5
-# }
+$clientProcess = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
+if ($clientProcess) {
+    InfoMessage "Client process $CLIENT_NAME is currently running. Stopping it to allow binary replacement..."
+    $clientProcess | Stop-Process -Force
+    Start-Sleep -Seconds 5
+}
 
 # Download binaries
 $BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
