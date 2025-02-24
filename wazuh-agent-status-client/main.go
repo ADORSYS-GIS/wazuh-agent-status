@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
-	"os"
-	"path/filepath"
 
 	"github.com/getlantern/systray"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -21,27 +21,44 @@ var embeddedFiles embed.FS
 
 var (
 	statusItem, connectionItem, updateItem, versionItem *systray.MenuItem
-	enabledIcon, disabledIcon                                                   []byte
-	isMonitoringUpdate                                                          bool
+	enabledIcon, disabledIcon                           []byte
+	isMonitoringUpdate                                  bool
 )
 
-// Set up log rotation using lumberjack.func init() {
-	func init() {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			log.Fatalf("failed to get home directory: %v", err)
-		}
-	
-		logFilePath := filepath.Join(homeDir, ".wazuh-agent-status-client.log")
-	
-		log.SetOutput(&lumberjack.Logger{
-			Filename:   logFilePath,
-			MaxSize:    10,          
-			MaxBackups: 3,           
-			MaxAge:     28,          
-			Compress:   true,       
-		})
+func getUserLogFilePath() string {
+	var logDir string
+
+	switch runtime.GOOS {
+	case "linux":
+		logDir = filepath.Join(os.Getenv("HOME"), ".wazuh")
+	case "darwin":
+		logDir = filepath.Join(os.Getenv("HOME"), "Library", "Logs", "wazuh")
+	case "windows":
+		logDir = filepath.Join(os.Getenv("APPDATA"), "wazuh", "logs")
+	default:
+		logDir = "./logs" // Fallback
 	}
+
+	// Ensure the directory exists
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		log.Fatalf("failed to create log directory: %v", err)
+	}
+
+	return filepath.Join(logDir, "wazuh-agent-status-client.log")
+}
+
+// Set up log rotation using lumberjack.func init() {
+func init() {
+	logFilePath := getUserLogFilePath()
+
+	log.SetOutput(&lumberjack.Logger{
+		Filename:   logFilePath,
+		MaxSize:    10,
+		MaxBackups: 3,
+		MaxAge:     30,
+		Compress:   true,
+	})
+}
 
 // Main entry point
 func main() {
