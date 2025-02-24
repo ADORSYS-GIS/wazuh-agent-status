@@ -9,8 +9,11 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"os"
+	"path/filepath"
 
 	"github.com/getlantern/systray"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 //go:embed assets/*
@@ -21,6 +24,24 @@ var (
 	enabledIcon, disabledIcon                                                   []byte
 	isMonitoringUpdate                                                          bool
 )
+
+// Set up log rotation using lumberjack.func init() {
+	func init() {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("failed to get home directory: %v", err)
+		}
+	
+		logFilePath := filepath.Join(homeDir, ".wazuh-agent-status-client.log")
+	
+		log.SetOutput(&lumberjack.Logger{
+			Filename:   logFilePath,
+			MaxSize:    10,          
+			MaxBackups: 3,           
+			MaxAge:     28,          
+			Compress:   true,       
+		})
+	}
 
 // Main entry point
 func main() {
@@ -38,9 +59,15 @@ func onReady() {
 	systray.SetIcon(mainIcon)
 	systray.SetTooltip("Wazuh Agent Status")
 
-	// Load icons for status and connection
-	enabledIcon, _ = getEmbeddedFile("assets/green-dot.png")
-	disabledIcon, _ = getEmbeddedFile("assets/gray-dot.png")
+	// Load status icons.
+	enabledIcon, err = getEmbeddedFile("assets/green-dot.png")
+	if err != nil {
+		log.Printf("Failed to load enabled icon: %v", err)
+	}
+	disabledIcon, err = getEmbeddedFile("assets/gray-dot.png")
+	if err != nil {
+		log.Printf("Failed to load disabled icon: %v", err)
+	}
 
 	// Create menu items
 	statusItem = systray.AddMenuItem("Agent: Unknown", "Wazuh Agent Status")

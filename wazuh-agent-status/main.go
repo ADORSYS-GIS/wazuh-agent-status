@@ -11,12 +11,30 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"embed"
+	
+	"path/filepath"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 const versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt"
 var isUpdateInProgress bool // Flag to track if the update is in progress
-var embeddedFiles embed.FS
+
+func init() {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("failed to get home directory: %v", err)
+	}
+
+	logFilePath := filepath.Join(homeDir, "wazuh-agent-status.log")
+
+	log.SetOutput(&lumberjack.Logger{
+		Filename:   logFilePath, 
+		MaxSize:    10,          
+		MaxBackups: 3,           
+		MaxAge:     28,          
+		Compress:   true,        
+	})
+}
 
 func main() {
 
