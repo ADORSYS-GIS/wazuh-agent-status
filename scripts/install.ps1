@@ -8,7 +8,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 $SERVER_NAME = if ($env:SERVER_NAME -ne $null) { $env:SERVER_NAME } else { "wazuh-agent-status" }
 $CLIENT_NAME = if ($env:CLIENT_NAME -ne $null) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
 $PROFILE = if ($env:PROFILE -ne $null) { $env:PROFILE } else { "user" }
-$APP_VERSION = if ($env:APP_VERSION -ne $null) { $env:APP_VERSION } else { "0.2.7" }
+$APP_VERSION = if ($env:APP_VERSION -ne $null) { $env:APP_VERSION } else { "0.3.0" }
 
 if ($PROFILE -eq "admin") {
     $WAS_VERSION = $APP_VERSION
