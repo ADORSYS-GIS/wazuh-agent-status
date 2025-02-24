@@ -19,21 +19,40 @@ import (
 const versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt"
 var isUpdateInProgress bool // Flag to track if the update is in progress
 
-func init() {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("failed to get home directory: %v", err)
+func getSystemLogFilePath() string {
+	var logDir string
+
+	switch runtime.GOOS {
+	case "linux", "darwin":
+		logDir = "/var/log"
+	case "windows":
+		logDir = "C:\\ProgramData\\wazuh\\logs"
+	default:
+		logDir = "./logs"
 	}
 
-	logFilePath := filepath.Join(homeDir, "wazuh-agent-status.log")
+	// Ensure the directory exists (Windows only, since /var/log usually exists)
+	if runtime.GOOS == "windows" {
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			log.Fatalf("failed to create log directory: %v", err)
+		}
+	}
+
+	return filepath.Join(logDir, "wazuh-agent-status.log")
+}
+
+func init() {
+	logFilePath := getSystemLogFilePath()
 
 	log.SetOutput(&lumberjack.Logger{
-		Filename:   logFilePath, 
-		MaxSize:    10,          
-		MaxBackups: 3,           
-		MaxAge:     28,          
-		Compress:   true,        
+		Filename:   logFilePath,
+		MaxSize:    10,  // MB
+		MaxBackups: 3,
+		MaxAge:     28,  // days
+		Compress:   true,
 	})
+
+	log.Printf("Logging to: %s", logFilePath) // Debugging info
 }
 
 func main() {
