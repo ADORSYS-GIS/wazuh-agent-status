@@ -151,18 +151,18 @@ func updateAgent() {
 
 	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
 
-	// Run the update script
 	cmd := exec.Command("powershell", "-Command", "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'")
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		log.Printf("[%s] Failed to update Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
 	} else {
 		log.Printf("[%s] Wazuh agent updated successfully\n", time.Now().Format(time.RFC3339))
 	}
-
-	// Restart the agent after updating
+	
 	restartAgent()
+	
 }
+
 
 // Main function that sets up the service
 func windowsMain() {
