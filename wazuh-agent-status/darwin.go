@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+	"fmt"
 )
 
 // checkServiceStatus checks the status of Wazuh agent and its connection on macOS
@@ -56,18 +57,24 @@ func restartAgent() {
 	}
 }
 
+func notifyUser(title, message string) {
+	exec.Command("osascript", "-e", fmt.Sprintf(`display dialog "%s" with title "%s" buttons {"Dismiss"} default button "Dismiss"`, message, title)).Run()
+}
+
 // updateAgent updates the Wazuh agent on macOS
 func updateAgent() {
+	logFilePath := "/Library/Ossec/logs/active-responses.log"
 	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
 	err := exec.Command("sudo", "/Library/Ossec/active-response/bin/adorsys-update.sh").Run()
 	if err != nil {
-		log.Printf("[%s] Failed to update the Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
+		errorMessage := fmt.Sprintf("Update failed: %v. Check logs: %s", err, logFilePath)
+		log.Printf("[%s] %s\n", time.Now().Format(time.RFC3339), errorMessage)
+		notifyUser("Wazuh Agent Update", errorMessage)
 	} else {
+		restartAgent()
 		log.Printf("[%s] Wazuh agent updated successfully\n", time.Now().Format(time.RFC3339))
+		notifyUser("Wazuh Agent Update", "Update successful!")
 	}
-	
-	restartAgent()
-	
 }
 
 func windowsMain() {

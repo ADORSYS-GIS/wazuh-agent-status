@@ -2,7 +2,10 @@ module wazuh-agent-status-client
 
 go 1.22.5
 
-require github.com/getlantern/systray v1.2.2
+require (
+	github.com/getlantern/systray v1.2.2
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
+)
 
 require (
 	github.com/getlantern/context v0.0.0-20220418194847-3d5e7a086201 // indirect
