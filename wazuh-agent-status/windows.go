@@ -63,7 +63,7 @@ func (p *program) Stop(s service.Service) error {
 // checkServiceStatus checks the status of Wazuh agent and its connection on Windows
 func checkServiceStatus() (string, string) {
 	// Check if the Wazuh service is running
-	cmd := exec.Command("powershell", "-Command", "Get-Service -Name WazuhSvc")
+	cmd := exec.Command("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command", "Get-Service -Name WazuhSvc")
 	output, err := cmd.CombinedOutput() // Use CombinedOutput to capture both stdout and stderr
 	if err != nil {
 		log.Printf("[%s] Error checking service status: %v\n", time.Now().Format(time.RFC3339), err)
@@ -78,7 +78,7 @@ func checkServiceStatus() (string, string) {
 	}
 
 	// Check connection status by reading the wazuh-agent.state file
-	connCmd := exec.Command("powershell", "-Command", "Select-String -Path 'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state' -Pattern '^status'")
+	connCmd := exec.Command("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command", "Select-String -Path 'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state' -Pattern '^status'")
 	connOutput, connErr := connCmd.CombinedOutput()
 	if connErr != nil {
 		log.Printf("[%s] Error checking connection status: %v\n", time.Now().Format(time.RFC3339), connErr)
@@ -100,7 +100,7 @@ func pauseAgent() {
 	log.Printf("[%s] Pausing Wazuh agent...\n", time.Now().Format(time.RFC3339))
 
 	// Stop the service using sc stop command
-	cmd := exec.Command("powershell", "-Command", "Stop-Service -Name WazuhSvc")
+	cmd := exec.Command("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command", "Stop-Service -Name WazuhSvc")
 	err := cmd.Run()
 	if err != nil {
 		log.Printf("[%s] Failed to pause Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
@@ -119,7 +119,7 @@ func restartAgent() {
 
 	log.Printf("[%s] Restarting Wazuh agent...\n", time.Now().Format(time.RFC3339))
 
-	cmd := exec.Command("powershell", "-Command", "Start-Service -Name WazuhSvc")
+	cmd := exec.Command("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command", "Start-Service -Name WazuhSvc")
 	err := cmd.Run()
 	if err != nil {
 		log.Printf("[%s] Failed to restart Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
@@ -134,7 +134,7 @@ func restartAgent() {
 func notifyUser(title, message string) {
 	appIconPath := "C:\\ProgramData\\ossec-agent\\wazuh-logo.png" // Change to your actual icon path
 	psScript := fmt.Sprintf(`New-BurntToastNotification -AppLogo "%s" -Text "%s", "%s"`, appIconPath, title, message)
-	cmd := exec.Command("powershell", "-Command", psScript)
+	cmd := exec.Command("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command", psScript)
 	err := cmd.Run()
 	if err != nil {
         log.Printf("Notification failed: %v\n", err)
@@ -146,7 +146,7 @@ func updateAgent() {
 	log.Printf("[%s] Setting PowerShell Execution Policy...\n", time.Now().Format(time.RFC3339))
 
 	// Set the execution policy to RemoteSigned for the current user
-	setPolicyCmd := exec.Command("powershell", "-Command", "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force")
+	setPolicyCmd := exec.Command("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command", "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force")
 	err := setPolicyCmd.Run()
 	if err != nil {
 		log.Printf("[%s] Failed to set execution policy: %v\n", time.Now().Format(time.RFC3339), err)
@@ -154,7 +154,7 @@ func updateAgent() {
 	}
 
 	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	setPolicyCmd = exec.Command("powershell", "-Command", "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'")
+	setPolicyCmd = exec.Command("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command", "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'")
 	err = setPolicyCmd.Run()
 	if err != nil {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
