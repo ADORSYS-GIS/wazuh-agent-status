@@ -143,8 +143,19 @@ func notifyUser(title, message string) {
 
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
+	log.Printf("[%s] Setting PowerShell Execution Policy...\n", time.Now().Format(time.RFC3339))
+
+	// Set the execution policy to RemoteSigned for the current user
+	setPolicyCmd := exec.Command("powershell", "-Command", "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force")
+	err := setPolicyCmd.Run()
+	if err != nil {
+		log.Printf("[%s] Failed to set execution policy: %v\n", time.Now().Format(time.RFC3339), err)
+		return
+	}
+
 	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("powershell", "-Command", "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'").Run()
+	setPolicyCmd = exec.Command("powershell", "-Command", "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'")
+	err = setPolicyCmd.Run()
 	if err != nil {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
 		errorMessage := fmt.Sprintf("Update failed: For details check logs at %s", logFilePath)
