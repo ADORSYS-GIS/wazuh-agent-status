@@ -5,14 +5,19 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
+	"path/filepath"
 
 	"github.com/kardianos/service"
 )
+
+
 
 // Define constants for commonly used literals
 const (
@@ -137,15 +142,108 @@ func restartAgent() {
 	time.Sleep(5 * time.Second)
 }
 
+// notifyUser sends a Windows toast notification using BurntToast,
+// scheduling it to run in the logged-in user’s session.
 func notifyUser(title, message string) {
-	appIconPath := "C:\\ProgramData\\ossec-agent\\wazuh-logo.png" // Change to your actual icon path
-	psScript := fmt.Sprintf(`New-BurntToastNotification -AppLogo "%s" -Text "%s", "%s"`, appIconPath, title, message)
-	cmd := exec.Command(powershellExe, cmdFlag, psScript)
-	err := cmd.Run()
+	// Step 1: Retrieve session ID and username of the explorer process.
+	getSessionCmd := exec.Command("powershell", "-Command", `(Get-Process -IncludeUserName -Name explorer | Select-Object -First 1).SessionId`)
+	sessionOut, err := getSessionCmd.Output()
 	if err != nil {
-        log.Printf("Notification failed: %v\n", err)
-    }
+		log.Printf("Error getting session ID: %v", err)
+		return
+	}
+	sessionID := strings.TrimSpace(string(sessionOut))
+
+	getUserCmd := exec.Command("powershell", "-Command", `(Get-Process -IncludeUserName -Name explorer | Select-Object -First 1).UserName`)
+	userOut, err := getUserCmd.Output()
+	if err != nil {
+		log.Printf("Error getting username: %v", err)
+		return
+	}
+	username := strings.TrimSpace(string(userOut))
+
+	if sessionID == "" {
+		log.Println("No logged-in user session found. Aborting notification.")
+		return
+	}
+
+	// Step 2: Build paths and script contents.
+	tempDir := os.TempDir()
+	psScriptPath := filepath.Join(tempDir, "send_notification.ps1")
+	vbScriptPath := filepath.Join(tempDir, "run_hidden.vbs")
+	iconPath := `C:\ProgramData\ossec-agent\wazuh-logo.png` // Update if necessary
+
+	// Create the PowerShell script that sends the notification.
+	psScriptContent := fmt.Sprintf(`Import-Module BurntToast;
+if (Test-Path '%s') {
+    New-BurntToastNotification -Text '%s', '%s' -AppLogo '%s';
+} else {
+    New-BurntToastNotification -Text '%s', '%s';
+}`, iconPath, title, message, iconPath, title, message)
+	if err := ioutil.WriteFile(psScriptPath, []byte(psScriptContent), 0644); err != nil {
+		log.Printf("Error writing PowerShell script: %v", err)
+		return
+	}
+
+	// Create a VBScript to hide the PowerShell window.
+	// Note: The inner double quotes need to be escaped.
+	vbScriptContent := fmt.Sprintf(`Set objShell = CreateObject("WScript.Shell")
+objShell.Run "powershell.exe -ExecutionPolicy Bypass -File \"%s\"", 0, True`, psScriptPath)
+	if err := ioutil.WriteFile(vbScriptPath, []byte(vbScriptContent), 0644); err != nil {
+		log.Printf("Error writing VBScript file: %v", err)
+		return
+	}
+
+	// Step 3: Create a scheduled task that will run the VBScript in the logged-in user's session.
+	taskName := "WazuhNotificationTask"
+	createTaskCmd := exec.Command("schtasks",
+		"/create",
+		"/tn", taskName,
+		"/sc", "once",
+		"/st", "00:00", // dummy time – we run it manually right after creation
+		"/ru", username,
+		"/rl", "highest",
+		"/tr", fmt.Sprintf("wscript.exe \"%s\"", vbScriptPath),
+		"/f", // force create
+		"/IT", // run only if user is logged in
+	)
+	if err := createTaskCmd.Run(); err != nil {
+		log.Printf("Error creating scheduled task: %v", err)
+		return
+	}
+
+	// Step 4: Run the scheduled task immediately.
+	runTaskCmd := exec.Command("schtasks", "/run", "/tn", taskName)
+	if err := runTaskCmd.Run(); err != nil {
+		log.Printf("Error running scheduled task: %v", err)
+		return
+	}
+
+	// Step 5: Delete the scheduled task now that it has run.
+	deleteTaskCmd := exec.Command("schtasks", "/delete", "/tn", taskName, "/f")
+	if err := deleteTaskCmd.Run(); err != nil {
+		log.Printf("Error deleting scheduled task: %v", err)
+		// Continue even if deletion fails.
+	}
+
+	// Optional: Log the notification event.
+	logFilePath := filepath.Join(tempDir, "wazuh_notifications.log")
+	f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err == nil {
+		defer f.Close()
+		if _, err := f.WriteString(fmt.Sprintf("Notification sent via BurntToast: %s\n", message)); err != nil {
+			log.Printf("Error writing to log file: %v", err)
+		}
+	} else {
+		log.Printf("Error opening log file: %v", err)
+	}
+
+	// Optional: Clean up temporary files.
+	// Uncomment these lines if you want to remove the temporary scripts.
+	// os.Remove(psScriptPath)
+	// os.Remove(vbScriptPath)
 }
+
 
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
