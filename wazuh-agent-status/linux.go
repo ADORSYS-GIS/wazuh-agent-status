@@ -54,15 +54,6 @@ func pathExists(path string) bool {
     return !os.IsNotExist(err)
 }
 
-func notifyUser(title, message string) {
-	iconPath := "/usr/share/pixmaps/wazuh-logo.png"
-	if pathExists(iconPath) {
-		exec.Command("notify-send", "--app-name=Wazuh", "-u", "critical", title, message, "-i", iconPath).Run()
-	} else {
-		exec.Command("notify-send", "--app-name=Wazuh", "-u", "critical", title, message).Run()
-	}
-}
-
 // updateAgent updates the Wazuh agent on Linux
 func updateAgent() {
 	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
@@ -71,11 +62,9 @@ func updateAgent() {
 		logFilePath := "/var/ossec/logs/active-responses.log"
 		errorMessage := fmt.Sprintf("Update failed: Check logs for details at %s", logFilePath)
 		log.Printf("[%s] %s\n", time.Now().Format(time.RFC3339), errorMessage)
-		notifyUser("Wazuh Agent Update", errorMessage)
 	} else {
 		restartAgent()
 		log.Printf("[%s] Wazuh agent updated successfully\n", time.Now().Format(time.RFC3339))
-		notifyUser("Wazuh Agent Update", "Update successful!")
 	}
 }
 

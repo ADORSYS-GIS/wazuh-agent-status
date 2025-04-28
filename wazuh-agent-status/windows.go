@@ -137,16 +137,6 @@ func restartAgent() {
 	time.Sleep(5 * time.Second)
 }
 
-func notifyUser(title, message string) {
-	appIconPath := "C:\\ProgramData\\ossec-agent\\wazuh-logo.png" // Change to your actual icon path
-	psScript := fmt.Sprintf(`New-BurntToastNotification -AppLogo "%s" -Text "%s", "%s"`, appIconPath, title, message)
-	cmd := exec.Command(powershellExe, cmdFlag, psScript)
-	err := cmd.Run()
-	if err != nil {
-        log.Printf("Notification failed: %v\n", err)
-    }
-}
-
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
 	log.Printf("[%s] Setting PowerShell Execution Policy...\n", time.Now().Format(time.RFC3339))
@@ -166,11 +156,9 @@ func updateAgent() {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
 		errorMessage := fmt.Sprintf("Update failed: For details check logs at %s", logFilePath)
 		log.Printf("[%s] %s\n", time.Now().Format(time.RFC3339), errorMessage)
-		notifyUser("Wazuh Agent Update", errorMessage)
 	} else {
 		restartAgent()
 		log.Printf("[%s] Wazuh agent updated successfully\n", time.Now().Format(time.RFC3339))
-		notifyUser("Wazuh Agent Update", "Update successful!")
 	}
 }
 
