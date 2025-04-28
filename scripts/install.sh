@@ -19,7 +19,7 @@ DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
 
 PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.3.1"}
+APP_VERSION=${APP_VERSION:-"0.3.2"}
 
 # Assign app version based on profile
 case "$PROFILE" in
