@@ -5,7 +5,6 @@ package main
 
 import (
 	"log"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -46,12 +45,6 @@ func restartAgent() {
 	} else {
 		log.Printf("[%s] Wazuh agent restarted successfully\n", time.Now().Format(time.RFC3339))
 	}
-}
-
-// Function to check if a path exists
-func pathExists(path string) bool {
-    _, err := os.Stat(path)
-    return !os.IsNotExist(err)
 }
 
 // updateAgent updates the Wazuh agent on Linux
