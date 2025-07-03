@@ -168,7 +168,7 @@ func checkVersion() {
 	case strings.HasPrefix(versionStatus, versionUpToDate):
 		versionItem.SetTitle(version)
 		versionItem.Disable()
-		updateItem.SetTitle("Up to date")
+		updateItem.SetTitle(versionUpToDate)
 		updateItem.Disable()
 	case strings.HasPrefix(versionStatus, versionOutdated):
 		versionItem.SetTitle(version)
@@ -190,7 +190,7 @@ func checkVersionAfterUpdate() {
 	case strings.HasPrefix(versionStatus, versionUpToDate):
 		versionItem.SetTitle(version)
 		versionItem.Disable()
-		updateItem.SetTitle("Up to date")
+		updateItem.SetTitle(versionUpToDate)
 		updateItem.Disable()
 	case strings.HasPrefix(versionStatus, versionOutdated):
 		versionItem.SetTitle(version)

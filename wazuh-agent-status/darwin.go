@@ -61,5 +61,5 @@ func updateAgent() {
 }
 
 func windowsMain() {
-
+	// This function is intentionally left empty for macOS builds.
 }

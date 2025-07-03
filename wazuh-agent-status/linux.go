@@ -62,5 +62,5 @@ func updateAgent() {
 }
 
 func windowsMain() {
-
+	// This function is intentionally left empty for Linux builds.
 }
