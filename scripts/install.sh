@@ -10,6 +10,7 @@ fi
 # Environment Variables with Defaults
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
+WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
 WAZUH_USER=${WAZUH_USER:-"root"}
 
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
@@ -32,10 +33,12 @@ case "$(uname)" in
 Linux)
     OS="linux"
     BIN_DIR="/usr/local/bin"
+    WAZUH_ACTIVE_RESPONSE_BIN_DIR="/var/ossec/active-response/bin"
     ;;
 Darwin)
     OS="darwin"
     BIN_DIR="/usr/local/bin"
+    WAZUH_ACTIVE_RESPONSE_BIN_DIR="/Library/Ossec/active-response/bin"
     ;;
 *) error_exit "Unsupported operating system: $(uname)" ;;
 esac
@@ -277,9 +280,6 @@ BASE_URL="https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VE
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
 
-echo "$PROFILE"
-echo "$BASE_URL"
-
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary from $SERVER_URL..."
 curl -SL --progress-bar -o "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
@@ -307,5 +307,26 @@ if [ "$OS" = "darwin" ]; then
 fi
 make_client_launch_at_startup
 
-print_step_header 5 "Validating installation and configuration..."
+# Step: Download adorsys-update.sh and update WAZUH_MANAGER
+print_step_header 5 "Download and configure adorsys-update.sh"
+ADORSYS_UPDATE_SCRIPT_URL="$BASE_URL/scripts/adorsys-update.sh"
+UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
+
+info_message "Downloading adorsys-update.sh..."
+if [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
+    maybe_sudo curl -SL --progress-bar -o "$UPDATE_SCRIPT_PATH" "$ADORSYS_UPDATE_SCRIPT_URL" || warn_message "Failed to download adorsys-update.sh"
+    maybe_sudo chmod 750 "$UPDATE_SCRIPT_PATH"
+    
+    # Update WAZUH_MANAGER value in adorsys-update.sh
+    if [ -n "${WAZUH_MANAGER:-}" ]; then
+        info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
+        maybe_sudo sed -i "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
+    else
+        warn_message "WAZUH_MANAGER variable not set. Skipping update in adorsys-update.sh."
+    fi
+else
+    warn_message "$WAZUH_ACTIVE_RESPONSE_BIN_DIR does not exist, skipping."
+fi
+
+print_step_header 6 "Validating installation and configuration..."
 validate_installation
