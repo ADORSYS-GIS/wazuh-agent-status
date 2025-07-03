@@ -276,7 +276,7 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 
 SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
 CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
-BASE_URL="https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
+BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"}
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
 
@@ -309,7 +309,7 @@ make_client_launch_at_startup
 
 # Step: Download adorsys-update.sh and update WAZUH_MANAGER
 print_step_header 5 "Download and configure adorsys-update.sh"
-ADORSYS_UPDATE_SCRIPT_URL="$BASE_URL/scripts/adorsys-update.sh"
+ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"$BASE_URL/scripts/adorsys-update.sh"}
 UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
 info_message "Downloading adorsys-update.sh..."
