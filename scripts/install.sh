@@ -7,20 +7,8 @@ else
     set -eu
 fi
 
-# Environment Variables with Defaults
-SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
-CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
-WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
-WAZUH_USER=${WAZUH_USER:-"root"}
-
-SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
-SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
-CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
-DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
-DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
-
 PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.3.1"}
+APP_VERSION=${APP_VERSION:-"0.3.2"}
 
 # Assign app version based on profile
 case "$PROFILE" in
@@ -49,6 +37,27 @@ x86_64) ARCH="amd64" ;;
 arm64 | aarch64) ARCH="arm64" ;;
 *) error_exit "Unsupported architecture: $ARCH" ;;
 esac
+
+# Environment Variables with Defaults
+SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
+CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
+WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
+WAZUH_USER=${WAZUH_USER:-"root"}
+
+SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
+SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
+CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
+DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
+DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
+
+SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
+CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
+BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"}
+SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
+CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
+
+ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"$BASE_URL/scripts/adorsys-update.sh"}
+UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
 # Text Formatting
 RED='\033[0;31m'
@@ -263,6 +272,13 @@ validate_installation() {
             error_exit "macOS Launchd client plist is missing: $CLIENT_LAUNCH_AGENT_FILE."
         fi
     fi
+    
+    # Validate adorsys-update.sh script
+    if maybe_sudo [ -f "$UPDATE_SCRIPT_PATH" ]; then
+        success_message "adorsys-update.sh script exists: $UPDATE_SCRIPT_PATH."
+    else
+        error_exit "adorsys-update.sh script is missing: $UPDATE_SCRIPT_PATH."
+    fi
 
     case "$OS" in
     linux) success_message "Installation complete! Restart your system to apply changes for the wazuh agent status." ;;
@@ -273,12 +289,6 @@ validate_installation() {
 # Installation Process
 TEMP_DIR=$(mktemp -d) || error_exit "Failed to create temporary directory"
 trap 'rm -rf "$TEMP_DIR"' EXIT
-
-SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
-CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
-BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"}
-SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
-CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
 
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary from $SERVER_URL..."
@@ -309,11 +319,8 @@ make_client_launch_at_startup
 
 # Step: Download adorsys-update.sh and update WAZUH_MANAGER
 print_step_header 5 "Download and configure adorsys-update.sh"
-ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"$BASE_URL/scripts/adorsys-update.sh"}
-UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
-
 info_message "Downloading adorsys-update.sh..."
-if [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
+if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     maybe_sudo curl -SL --progress-bar -o "$UPDATE_SCRIPT_PATH" "$ADORSYS_UPDATE_SCRIPT_URL" || warn_message "Failed to download adorsys-update.sh"
     maybe_sudo chmod 750 "$UPDATE_SCRIPT_PATH"
     
