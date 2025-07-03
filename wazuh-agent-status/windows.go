@@ -170,7 +170,7 @@ func windowsMain() {
 		DisplayName: "Go Wazuh Service",
 		Description: "A Go application to manage Wazuh service.",
 	}
-
+	
 	// Create the program object
 	prg := &program{}
 
