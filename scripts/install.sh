@@ -8,7 +8,7 @@ else
 fi
 
 PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.3.2"}
+APP_VERSION=${APP_VERSION:-"0.3.3"}
 
 # Assign app version based on profile
 case "$PROFILE" in
