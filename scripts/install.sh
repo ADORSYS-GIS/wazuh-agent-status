@@ -317,7 +317,6 @@ if [ "$OS" = "darwin" ]; then
 fi
 make_client_launch_at_startup
 
-# Step: Download adorsys-update.sh and update WAZUH_MANAGER
 print_step_header 5 "Download and configure adorsys-update.sh"
 info_message "Downloading adorsys-update.sh..."
 if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
