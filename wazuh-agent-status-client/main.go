@@ -29,6 +29,9 @@ const (
 	updateDisable = "Disable"
 	versionUpToDate = "Up to date"
 	versionOutdated = "Outdated"
+
+	errConnectBackend = "Failed to connect to backend: %v"
+	errReadResponse   = "Failed to read response: %v"
 )
 
 var (
@@ -207,7 +210,7 @@ func checkVersionAfterUpdate() {
 func fetchVersionStatus() (string, string) {
 	conn, err := net.Dial("tcp", backendAddr)
 	if err != nil {
-		log.Printf("Failed to connect to backend: %v", err)
+		log.Printf(errConnectBackend, err)
 		return "Unknown", "Unknown"
 	}
 	defer conn.Close()
@@ -216,7 +219,7 @@ func fetchVersionStatus() (string, string) {
 	reader := bufio.NewReader(conn)
 	response, err := reader.ReadString('\n')
 	if err != nil {
-		log.Printf("Failed to read response: %v", err)
+		log.Printf(errReadResponse, err)
 		return "Unknown", "Unknown"
 	}
 
@@ -276,7 +279,7 @@ func handleMenuActions() {
 func fetchStatus() (string, string) {
 	conn, err := net.Dial("tcp", backendAddr)
 	if err != nil {
-		log.Printf("Failed to connect to backend: %v", err)
+		log.Printf(errConnectBackend, err)
 		return "Unknown", "Unknown"
 	}
 	defer conn.Close()
@@ -285,7 +288,7 @@ func fetchStatus() (string, string) {
 	reader := bufio.NewReader(conn)
 	response, err := reader.ReadString('\n')
 	if err != nil {
-		log.Printf("Failed to read response: %v", err)
+		log.Printf(errReadResponse, err)
 		return "Unknown", "Unknown"
 	}
 	response = strings.TrimSuffix(response, "\n")
@@ -305,7 +308,7 @@ func fetchStatus() (string, string) {
 func fetchUpdateStatus() string {
 	conn, err := net.Dial("tcp", backendAddr)
 	if err != nil {
-		log.Printf("Failed to connect to backend: %v", err)
+		log.Printf(errConnectBackend, err)
 		return "Unknown"
 	}
 	defer conn.Close()
@@ -314,7 +317,7 @@ func fetchUpdateStatus() string {
 	reader := bufio.NewReader(conn)
 	response, err := reader.ReadString('\n')
 	if err != nil {
-		log.Printf("Failed to read response: %v", err)
+		log.Printf(errReadResponse, err)
 		return "Unknown"
 	}
 	response = strings.TrimSuffix(response, "\n")
@@ -330,7 +333,7 @@ func fetchUpdateStatus() string {
 func sendCommand(command string) {
 	conn, err := net.Dial("tcp", backendAddr)
 	if err != nil {
-		log.Printf("Failed to connect to backend: %v", err)
+		log.Printf(errConnectBackend, err)
 		return
 	}
 	defer conn.Close()
