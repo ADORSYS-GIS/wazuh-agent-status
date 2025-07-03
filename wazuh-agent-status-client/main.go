@@ -107,14 +107,66 @@ func onReady() {
 	systray.AddSeparator()
 	versionItem = systray.AddMenuItem("v---", "The version state of the wazuh setup")
 
-	statusItem.Disable()
-	connectionItem.Disable()
-	updateItem.Disable()
+	disableMenuItems(statusItem, connectionItem, updateItem)
 
 	// Start background status update
 	go monitorStatus()
 	// Handle menu item clicks
 	go handleMenuActions()
+}
+
+// Helper to disable multiple menu items
+func disableMenuItems(items ...*systray.MenuItem) {
+	for _, item := range items {
+		item.Disable()
+	}
+}
+
+// Helper to set menu item title and icon
+func setMenuItem(item *systray.MenuItem, title string, isActive bool) {
+	item.SetTitle(title)
+	if isActive {
+		item.SetIcon(enabledIcon)
+	} else {
+		item.SetIcon(disabledIcon)
+	}
+}
+
+// Helper to update version menu
+func updateVersionMenu(versionStatus, version string) {
+	switch {
+	case strings.HasPrefix(versionStatus, versionUpToDate):
+		versionItem.SetTitle(version)
+		versionItem.Disable()
+		updateItem.SetTitle(versionUpToDate)
+		updateItem.Disable()
+	case strings.HasPrefix(versionStatus, versionOutdated):
+		versionItem.SetTitle(version)
+		versionItem.Disable()
+		updateItem.SetTitle("Update")
+		updateItem.Enable()
+	default:
+		versionItem.SetTitle("Version: Unknown")
+		versionItem.Disable()
+		updateItem.Disable()
+	}
+}
+
+// Helper for backend requests
+func backendRequest(command string) (string, error) {
+	conn, err := net.Dial("tcp", backendAddr)
+	if err != nil {
+		return "", fmt.Errorf(errConnectBackend, err)
+	}
+	defer conn.Close()
+
+	fmt.Fprintln(conn, command)
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf(errReadResponse, err)
+	}
+	return strings.TrimSuffix(response, "\n"), nil
 }
 
 // monitorStatus continuously fetches and updates the agent status
@@ -146,89 +198,37 @@ func monitorStatus() {
 }
 
 func setStatusMenu(status string) {
-	if status == statusActive {
-		statusItem.SetTitle("Agent: Active")
-		statusItem.SetIcon(enabledIcon)
-	} else {
-		statusItem.SetTitle("Agent: Inactive")
-		statusItem.SetIcon(disabledIcon)
-	}
+	setMenuItem(statusItem, "Agent: "+status, status == statusActive)
 }
 
 func setConnectionMenu(connection string) {
-	if connection == connectionConnected {
-		connectionItem.SetTitle("Connection: Connected")
-		connectionItem.SetIcon(enabledIcon)
-	} else {
-		connectionItem.SetTitle("Connection: Disconnected")
-		connectionItem.SetIcon(disabledIcon)
-	}
+	setMenuItem(connectionItem, "Connection: "+connection, connection == connectionConnected)
 }
 
 func checkVersion() {
 	versionStatus, version := fetchVersionStatus()
-	switch {
-	case strings.HasPrefix(versionStatus, versionUpToDate):
-		versionItem.SetTitle(version)
-		versionItem.Disable()
-		updateItem.SetTitle(versionUpToDate)
-		updateItem.Disable()
-	case strings.HasPrefix(versionStatus, versionOutdated):
-		versionItem.SetTitle(version)
-		versionItem.Disable()
-		updateItem.SetTitle("Update")
-		updateItem.Enable()
+	updateVersionMenu(versionStatus, version)
+	if strings.HasPrefix(versionStatus, versionOutdated) {
 		log.Println("Update launched")
 		startUpdateMonitor()
-	default:
-		versionItem.SetTitle("Version: Unknown")
-		versionItem.Disable()
-		updateItem.Disable()
 	}
 }
 
 func checkVersionAfterUpdate() {
 	versionStatus, version := fetchVersionStatus()
-	switch {
-	case strings.HasPrefix(versionStatus, versionUpToDate):
-		versionItem.SetTitle(version)
-		versionItem.Disable()
-		updateItem.SetTitle(versionUpToDate)
-		updateItem.Disable()
-	case strings.HasPrefix(versionStatus, versionOutdated):
-		versionItem.SetTitle(version)
-		versionItem.Disable()
-		updateItem.SetTitle("Update")
-		updateItem.Enable()
-	default:
-		versionItem.SetTitle("Version: Unknown")
-		versionItem.Disable()
-		updateItem.Disable()
-	}
+	updateVersionMenu(versionStatus, version)
 }
 
 func fetchVersionStatus() (string, string) {
-	conn, err := net.Dial("tcp", backendAddr)
+	response, err := backendRequest("check-version")
 	if err != nil {
-		log.Printf(errConnectBackend, err)
+		log.Print(err)
 		return "Unknown", "Unknown"
 	}
-	defer conn.Close()
-
-	fmt.Fprintln(conn, "check-version")
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	if err != nil {
-		log.Printf(errReadResponse, err)
-		return "Unknown", "Unknown"
-	}
-
-	response = strings.TrimSuffix(response, "\n")
 	parts := strings.Split(response, ": ")
 	if len(parts) < 2 {
 		return "Unknown", "Unknown"
 	}
-
 	parts = strings.Split(parts[1], ", ")
 	if len(parts) < 2 {
 		return "Unknown", "Unknown"
@@ -277,21 +277,11 @@ func handleMenuActions() {
 
 // fetchStatus retrieves the agent status and connection state from the backend
 func fetchStatus() (string, string) {
-	conn, err := net.Dial("tcp", backendAddr)
+	response, err := backendRequest("status")
 	if err != nil {
-		log.Printf(errConnectBackend, err)
+		log.Print(err)
 		return "Unknown", "Unknown"
 	}
-	defer conn.Close()
-
-	fmt.Fprintln(conn, "status")
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	if err != nil {
-		log.Printf(errReadResponse, err)
-		return "Unknown", "Unknown"
-	}
-	response = strings.TrimSuffix(response, "\n")
 	parts := strings.Split(response, ", ")
 	if len(parts) < 2 {
 		return "Unknown", "Unknown"
@@ -306,21 +296,11 @@ func fetchStatus() (string, string) {
 
 // fetchUpdateStatus retrieves the update status from the backend
 func fetchUpdateStatus() string {
-	conn, err := net.Dial("tcp", backendAddr)
+	response, err := backendRequest("update-status")
 	if err != nil {
-		log.Printf(errConnectBackend, err)
+		log.Print(err)
 		return "Unknown"
 	}
-	defer conn.Close()
-
-	fmt.Fprintln(conn, "update-status")
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	if err != nil {
-		log.Printf(errReadResponse, err)
-		return "Unknown"
-	}
-	response = strings.TrimSuffix(response, "\n")
 	log.Printf("Update: %v", response)
 	parts := strings.SplitN(response, ": ", 2)
 	if len(parts) < 2 {
@@ -331,13 +311,10 @@ func fetchUpdateStatus() string {
 
 // sendCommand sends a command (e.g., update) to the backend
 func sendCommand(command string) {
-	conn, err := net.Dial("tcp", backendAddr)
+	_, err := backendRequest(command)
 	if err != nil {
-		log.Printf(errConnectBackend, err)
-		return
+		log.Print(err)
 	}
-	defer conn.Close()
-	fmt.Fprintln(conn, command)
 }
 // recoverGoroutine logs panics in goroutines for easier debugging
 func recoverGoroutine(context string) {
