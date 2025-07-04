@@ -42,13 +42,9 @@ func checkServiceStatus() (string, string) {
 // restartAgent restarts the Wazuh agent on Linux
 func restartAgent() {
 	log.Printf("[%s] Restarting Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	cmd := exec.Command("sudo", "/var/ossec/bin/wazuh-control", "restart")
-	err := cmd.Run()
+	err := exec.Command("sudo", "/var/ossec/bin/wazuh-control", "restart").Run()
 	if err != nil {
 		log.Printf("[%s] Failed to restart Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
-		if cmd.ProcessState != nil {
-			log.Printf("[%s] Process state: %v\n", time.Now().Format(time.RFC3339), cmd.ProcessState)
-		}
 	} else {
 		log.Printf("[%s] Wazuh agent restarted successfully\n", time.Now().Format(time.RFC3339))
 	}
@@ -57,15 +53,11 @@ func restartAgent() {
 // updateAgent updates the Wazuh agent on Linux
 func updateAgent() {
 	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	cmd := exec.Command("sudo", "bash", "/var/ossec/active-response/bin/adorsys-update.sh")
-	output, err := cmd.CombinedOutput()
+	err := exec.Command("sudo", "bash", "/var/ossec/active-response/bin/adorsys-update.sh").Run()
 	if err != nil {
 		logFilePath := "/var/ossec/logs/active-responses.log"
-		errorMessage := fmt.Sprintf("Update failed: %v. Output: %s. Check logs for details at %s", err, string(output), logFilePath)
+		errorMessage := fmt.Sprintf("Update failed: %v. Check logs for details at %s", err, logFilePath)
 		log.Printf("[%s] %s\n", time.Now().Format(time.RFC3339), errorMessage)
-		if cmd.ProcessState != nil {
-			log.Printf("[%s] Process state: %v\n", time.Now().Format(time.RFC3339), cmd.ProcessState)
-		}
 	} else {
 		restartAgent()
 		log.Printf("[%s] Wazuh agent updated successfully\n", time.Now().Format(time.RFC3339))
