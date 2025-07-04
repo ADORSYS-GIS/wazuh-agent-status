@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Upgrade script from ADORSYS.
 # Copyright (C) 2025, ADORSYS GmbH & CO KG.
 
