@@ -77,10 +77,6 @@ info_message() {
     log "[INFO]" "$*"
 }
 
-debug_message() {
-    log "[DEBUG]" "$*"
-}
-
 warning_message() {
     log "[WARNING]" "$*"
 }
@@ -100,14 +96,12 @@ trap cleanup EXIT
 if [ "$OS_TYPE" = "Darwin" ]; then
     if [ -f "$ICON_PATH" ]; then
         ICON_ARG="with icon POSIX file \"$ICON_PATH\""
-        debug_message "macOS icon path exists: $ICON_PATH"
     else
         warn_message "macOS icon file not found at '$ICON_PATH'. Sending notification without icon."
     fi
 else
     if [ -f "$ICON_PATH" ]; then
         ICON_ARG="-i $ICON_PATH"
-        debug_message "Linux icon path exists: $ICON_PATH"
     else
         warn_message "Linux icon file not found at '$ICON_PATH'. Sending notification without icon."
     fi
