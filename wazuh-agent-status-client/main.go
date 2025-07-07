@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
-	"os"
-	"path/filepath"
 
 	"github.com/getlantern/systray"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -20,19 +20,20 @@ import (
 var embeddedFiles embed.FS
 
 var (
-	statusItem, connectionItem, pauseItem, updateItem, restartItem, versionItem *systray.MenuItem
-	enabledIcon, disabledIcon                                                   []byte
-	isMonitoringUpdate                                                          bool
+	statusItem, connectionItem, updateItem, versionItem *systray.MenuItem
+	enabledIcon, disabledIcon                           []byte
+	isMonitoringUpdate                                  bool
 )
+
+// Version is set at build time via ldflags
+var Version = "dev"
 
 func getUserLogFilePath() string {
 	var logDir string
 
 	switch runtime.GOOS {
-	case "linux":
+	case "linux", "darwin":
 		logDir = filepath.Join(os.Getenv("HOME"), ".wazuh")
-	case "darwin":
-		logDir = filepath.Join(os.Getenv("HOME"), "Library", "Logs", "wazuh")
 	case "windows":
 		logDir = filepath.Join(os.Getenv("APPDATA"), "wazuh", "logs")
 	default:
@@ -62,7 +63,13 @@ func init() {
 
 // Main entry point
 func main() {
-	log.Println("Starting frontend...")
+	for _, arg := range os.Args[1:] {
+		if arg == "--version" || arg == "-v" {
+			fmt.Println(Version)
+			return
+		}
+	}
+	log.Printf("Starting frontend... (version: %s)", Version)
 	systray.Run(onReady, onExit)
 }
 
@@ -210,7 +217,6 @@ func fetchVersionStatus() (string, string) {
 
 // startUpdateMonitor starts the update status monitoring if not already active
 func startUpdateMonitor() {
-	// Only start monitoring if it's not already active
 	if isMonitoringUpdate {
 		log.Println("Update monitoring is already running.")
 		return

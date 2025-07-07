@@ -5,7 +5,6 @@ on:
     branches:
       - main
       - develop
-      - fix/*
     tags:
       - 'v*'
 
@@ -24,6 +23,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set version
+        id: set_version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -45,11 +53,11 @@ jobs:
 
       - name: Build client binary
         run: |
-          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -o ./dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Build server binary
         run: |
-          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o ./dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Upload Linux client binaries
         if: ${{ !env.ACT }} 
@@ -82,6 +90,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set version
+        id: set_version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -93,11 +110,11 @@ jobs:
 
       - name: Build client binary for macOS (${{ matrix.arch }})
         run: |
-          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -o ./dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
+          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Build server binary for macOS (${{ matrix.arch }})
         run: |
-          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -o ./dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
+          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Upload MacOS client binaries
         uses: actions/upload-artifact@v4
@@ -124,6 +141,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set version
+        id: set_version
+        shell: bash
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -131,11 +158,11 @@ jobs:
           
       - name: Build client binary for windows
         run: |
-          go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags -H=windowsgui -o ./dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
+          go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}' -H=windowsgui" -o ./dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
       - name: Build server binary for windows
         run: |
-          go build -C ./${{ env.SERVER_APP_NAME }} -o ./dist/${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
+          go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
           
       - name: Upload windows client binaries
         uses: actions/upload-artifact@v4

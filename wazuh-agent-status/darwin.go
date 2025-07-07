@@ -7,14 +7,13 @@ import (
 	"log"
 	"os/exec"
 	"strings"
-	"time"
 	"fmt"
 )
 
 // checkServiceStatus checks the status of Wazuh agent and its connection on macOS
 func checkServiceStatus() (string, string) {
 	cmd := exec.Command("sh", "-c", "sudo /Library/Ossec/bin/wazuh-control status")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "Inactive", "Disconnected"
 	}
@@ -26,7 +25,7 @@ func checkServiceStatus() (string, string) {
 
 	// Check connection status
 	connCmd := exec.Command("sh", "-c", "sudo grep ^status /Library/Ossec/var/run/wazuh-agentd.state")
-	connOutput, connErr := connCmd.Output()
+	connOutput, connErr := connCmd.CombinedOutput()
 	connection := "Disconnected"
 	if connErr == nil && strings.Contains(string(connOutput), "status='connected'") {
 		connection = "Connected"
@@ -37,26 +36,28 @@ func checkServiceStatus() (string, string) {
 
 // restartAgent restarts the Wazuh agent on macOS
 func restartAgent() {
-	log.Printf("[%s] Restarting Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "restart").Run()
+	log.Printf("Restarting Wazuh agent...\n")
+	cmd := exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "restart")
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("[%s] Failed to restart Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
+		log.Printf("Failed to restart Wazuh agent: %v\n", string(output))
 	} else {
-		log.Printf("[%s] Wazuh agent restarted successfully\n", time.Now().Format(time.RFC3339))
+		log.Printf("Wazuh agent restarted successfully\n")
 	}
 }
 
 // updateAgent updates the Wazuh agent on macOS
 func updateAgent() {
 	logFilePath := "/Library/Ossec/logs/active-responses.log"
-	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("sudo", "/Library/Ossec/active-response/bin/adorsys-update.sh").Run()
+	log.Printf("Updating Wazuh agent...\n")
+	cmd := exec.Command("sudo", "/Library/Ossec/active-response/bin/adorsys-update.sh")
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		errorMessage := fmt.Sprintf("Update failed: %v. Check logs: %s", err, logFilePath)
-		log.Printf("[%s] %s\n", time.Now().Format(time.RFC3339), errorMessage)
+		errorMessage := fmt.Sprintf("Update failed: %v. Check logs: %s", string(output), logFilePath)
+		log.Printf("%s\n", errorMessage)
 	} else {
 		restartAgent()
-		log.Printf("[%s] Wazuh agent updated successfully\n", time.Now().Format(time.RFC3339))
+		log.Printf("Wazuh agent updated successfully\n")
 	}
 }
 

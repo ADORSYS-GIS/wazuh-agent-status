@@ -43,11 +43,7 @@ TMP_FOLDER=$(mktemp -d)
 
 # Get the currently logged-in user
 get_logged_in_user() {
-    if command -v logname >/dev/null 2>&1; then
-        logname
-    else
-        who | awk '{print $1}' | head -n 1
-    fi
+    who | awk '{print $1}' | head -n 1
 }
 
 if [ "$OS_TYPE" = "Linux" ]; then
