@@ -10,10 +10,15 @@ import (
 	"strings"
 )
 
+const (
+	sudoCommand = "/bin/sudo"
+)
+
+
 // checkServiceStatus checks the status of Wazuh agent and its connection on Linux
 func checkServiceStatus() (string, string) {
 	// Command to check agent status
-	cmd := exec.Command("sh", "-c", "sudo /var/ossec/bin/wazuh-control status")
+	cmd := exec.Command(sudoCommand, "/var/ossec/bin/wazuh-control", "status")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Error checking Wazuh agent status: %v\nOutput: %s", err, string(output))
@@ -26,7 +31,7 @@ func checkServiceStatus() (string, string) {
 	}
 
 	// Check connection status
-	connCmd := exec.Command("sh", "-c", "sudo grep ^status /var/ossec/var/run/wazuh-agentd.state")
+	connCmd := exec.Command(sudoCommand, "grep ^status /var/ossec/var/run/wazuh-agentd.state")
 	connOutput, connErr := connCmd.CombinedOutput()
 	connection := "Disconnected"
 	if connErr != nil {
@@ -41,7 +46,7 @@ func checkServiceStatus() (string, string) {
 // restartAgent restarts the Wazuh agent on Linux
 func restartAgent() {
 	log.Printf("Restarting Wazuh agent...\n")
-	cmd := exec.Command("sudo", "/var/ossec/bin/wazuh-control", "restart")
+	cmd := exec.Command(sudoCommand, "/var/ossec/bin/wazuh-control", "restart")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Failed to restart Wazuh agent: %v", string(output))
@@ -53,7 +58,7 @@ func restartAgent() {
 // updateAgent updates the Wazuh agent on Linux
 func updateAgent() {
 	log.Printf("Updating Wazuh agent...\n")
-	cmd := exec.Command("sudo", "bash", "/var/ossec/active-response/bin/adorsys-update.sh")
+	cmd := exec.Command(sudoCommand, "/var/ossec/active-response/bin/adorsys-update.sh")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		logFilePath := "/var/ossec/logs/active-responses.log"

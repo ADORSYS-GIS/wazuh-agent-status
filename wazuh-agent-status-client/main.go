@@ -16,7 +16,6 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-//go:embed assets/*
 var embeddedFiles embed.FS
 
 var (
@@ -37,7 +36,7 @@ func getUserLogFilePath() string {
 	case "windows":
 		logDir = filepath.Join(os.Getenv("APPDATA"), "wazuh", "logs")
 	default:
-		logDir = "./logs" // Fallback
+		logDir = "./logs"
 	}
 
 	// Ensure the directory exists
@@ -95,13 +94,16 @@ func onReady() {
 
 	// Create menu items
 	statusItem = systray.AddMenuItem("Agent: Unknown", "Wazuh Agent Status")
+	statusItem.Disable()
 	connectionItem = systray.AddMenuItem("Connection: Unknown", "Wazuh Agent Connection")
+	connectionItem.Disable()
 	systray.AddSeparator()
 	updateItem = systray.AddMenuItem("---", "Update the Wazuh Agent")
 	updateItem.Disable() // Initially disabled
 	systray.AddSeparator()
 	versionItem = systray.AddMenuItem("v---", "The version state of the wazuhbsetup")
 	versionItem.Disable() // Initially disabled
+	
 
 	// Start background status update
 	go monitorStatus()
