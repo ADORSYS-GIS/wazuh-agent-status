@@ -16,6 +16,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+//go:embed assets/*
 var embeddedFiles embed.FS
 
 var (
