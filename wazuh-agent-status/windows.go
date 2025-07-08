@@ -9,7 +9,6 @@ import (
 	"net"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/kardianos/service"
 )
@@ -101,41 +100,6 @@ func checkServiceStatus() (string, string) {
 	return status, connection
 }
 
-// pauseAgent pauses the Wazuh agent on Windows
-func pauseAgent() {
-	log.Printf("Pausing Wazuh agent...\n")
-
-	// Stop the service using sc stop command
-	cmd := exec.Command(powershellExe, cmdFlag, "Stop-Service -Name WazuhSvc")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("Failed to pause Wazuh agent: %v\n", string(output))
-		return
-	}
-	log.Printf("Wazuh agent paused successfully\n")
-
-	// Wait for a few seconds to allow the service to fully stop
-	time.Sleep(5 * time.Second)
-}
-
-// restartAgent restarts the Wazuh agent on Windows
-func restartAgent() {
-
-	pauseAgent()
-
-	log.Printf("Restarting Wazuh agent...\n")
-
-	cmd := exec.Command(powershellExe, cmdFlag, "Start-Service -Name WazuhSvc")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("Failed to restart Wazuh agent: %v\n", string(output))
-	} else {
-		log.Printf("Wazuh agent restarted successfully\n")
-	}
-
-	// Wait for a few seconds to allow the service to fully stop
-	time.Sleep(5 * time.Second)
-}
 
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
@@ -157,7 +121,6 @@ func updateAgent() {
 		errorMessage := fmt.Sprintf("Update failed: For details check logs at %s", logFilePath)
 		log.Printf("%s\n", errorMessage)
 	} else {
-		restartAgent()
 		log.Printf("Wazuh agent updated successfully\n")
 	}
 }

@@ -43,18 +43,6 @@ func checkServiceStatus() (string, string) {
 	return status, connection
 }
 
-// restartAgent restarts the Wazuh agent on Linux
-func restartAgent() {
-	log.Printf("Restarting Wazuh agent...\n")
-	cmd := exec.Command(sudoCommand, "/var/ossec/bin/wazuh-control", "restart")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("Failed to restart Wazuh agent: %v", string(output))
-	} else {
-		log.Printf("Wazuh agent restarted successfully\n")
-	}
-}
-
 // updateAgent updates the Wazuh agent on Linux
 func updateAgent() {
 	log.Printf("Updating Wazuh agent...\n")
@@ -65,7 +53,6 @@ func updateAgent() {
 		errorMessage := fmt.Sprintf("Update failed: %v. Check logs for details at %s", string(output), logFilePath)
 		log.Printf("%s\n", errorMessage)
 	} else {
-		restartAgent()
 		log.Printf("Wazuh agent updated successfully\n")
 	}
 }
