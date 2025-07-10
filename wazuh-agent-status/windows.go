@@ -114,7 +114,7 @@ func updateAgent() {
 	}
 
 	log.Printf("Updating Wazuh agent...\n")
-	setPolicyCmd = exec.Command(powershellExe, cmdFlag, "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'")
+	setPolicyCmd = exec.Command(powershellExe, cmdFlag, "& 'C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\adorsys-update.ps1'")
 	err = setPolicyCmd.Run()
 	if err != nil {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
