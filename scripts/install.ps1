@@ -5,13 +5,14 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 }
 
 # Default Variables
-$SERVER_NAME = if ($env:SERVER_NAME -ne $null) { $env:SERVER_NAME } else { "wazuh-agent-status" }
-$CLIENT_NAME = if ($env:CLIENT_NAME -ne $null) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
-$PROFILE = if ($env:PROFILE -ne $null) { $env:PROFILE } else { "user" }
+$WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
+$SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
+$CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
+$INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
 
-$APP_VERSION = if ($env:APP_VERSION -ne $null) { $env:APP_VERSION } else { "0.3.2" }
+$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.3.2" }
 
-if ($PROFILE -eq "admin") {
+if ($INSTALL_PROFILE -eq "admin") {
     $WAS_VERSION = $APP_VERSION
 } else {
     $WAS_VERSION = "$APP_VERSION-user"
@@ -22,6 +23,9 @@ $ARCH = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "amd32" }
 $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
+
+$UPDATE_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/scripts/adorsys-update.ps1"
+$UPDATE_SCRIPT_PATH = "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.ps1"
 
 # Create necessary directories
 if (-not (Test-Path $BIN_DIR)) {
@@ -123,5 +127,15 @@ Create-Service -ServiceName $SERVER_NAME -ExecutablePath $SERVER_EXE -DisplayNam
 # Add client to Windows startup
 PrintStep 3 "Configuring client startup..."
 Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
+
+# Download adorsys-update.ps1
+PrintStep 4 "Downloading adorsys-update.ps1..."
+Download-File -Url $UPDATE_SCRIPT_URL -OutputPath $UPDATE_SCRIPT_PATH
+
+# Update WazuhManager default value in the downloaded adorsys-update.ps1
+PrintStep 5 "Configuring WAZUH_MANAGER in adorsys-update.ps1..."
+$UPDATE_SCRIPT_CONTENT = Get-Content $UPDATE_SCRIPT_PATH
+$UPDATE_SCRIPT_CONTENT = $UPDATE_SCRIPT_CONTENT -replace '(\[string\]\$WazuhManager = ")[^"]*(")', "`$1$WAZUH_MANAGER`$2"
+Set-Content -Path $UPDATE_SCRIPT_PATH -Value $UPDATE_SCRIPT_CONTENT
 
 SuccessMessage "Installation completed successfully."
