@@ -137,6 +137,10 @@ func monitorStatus() {
 				connectionItem.SetIcon(disabledIcon)
 			}
 
+			if versionItem.String() == "v---" || versionItem.String() == "Version: Unknown" || versionItem.String() == "vUnknown" {
+				checkVersionAfterUpdate()
+			}
+
 			time.Sleep(5 * time.Second)
 		}
 	}()
