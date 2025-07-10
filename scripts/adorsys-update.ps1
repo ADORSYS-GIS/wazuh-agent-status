@@ -116,4 +116,8 @@ switch ($UserAction) {
         InfoMessage "Update postponed. Exiting."
         exit 0
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> b425b865d30b5a1473acfa4d56894748c9022cbb

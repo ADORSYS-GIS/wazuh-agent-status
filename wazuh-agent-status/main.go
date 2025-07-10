@@ -101,7 +101,7 @@ func handleConnection(conn net.Conn) {
 			return
 		}
 
-		command := message //[:len(message)-1] // Remove newline character
+		command := message//[:len(message)-1] // Remove newline character
 		command = strings.TrimSpace(command)
 		switch command {
 		case "status":

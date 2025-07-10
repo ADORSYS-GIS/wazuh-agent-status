@@ -100,7 +100,6 @@ func checkServiceStatus() (string, string) {
 	return status, connection
 }
 
-
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
 	log.Printf("Setting PowerShell Execution Policy...\n")

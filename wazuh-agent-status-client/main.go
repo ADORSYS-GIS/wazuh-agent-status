@@ -20,9 +20,9 @@ import (
 var embeddedFiles embed.FS
 
 var (
-	statusItem, connectionItem, updateItem, versionItem *systray.MenuItem
-	enabledIcon, disabledIcon                           []byte
-	isMonitoringUpdate                                  bool
+	statusItem, connectionItem, updateItem, versionItem         *systray.MenuItem
+	enabledIcon, disabledIcon                                   []byte
+	isMonitoringUpdate                                          bool
 )
 
 // Version is set at build time via ldflags
