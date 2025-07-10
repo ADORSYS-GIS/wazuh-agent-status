@@ -3,21 +3,25 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"net"
-	"runtime"
-	"strings"
 	"net/http"
-	"io"
 	"os"
 	"os/exec"
-	
 	"path/filepath"
+	"runtime"
+	"strings"
+
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 const versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt"
+
 var isUpdateInProgress bool // Flag to track if the update is in progress
+
+// Version is set at build time via ldflags
+var Version = "dev"
 
 func getSystemLogFilePath() string {
 	var logDir string
@@ -46,9 +50,9 @@ func init() {
 
 	log.SetOutput(&lumberjack.Logger{
 		Filename:   logFilePath,
-		MaxSize:    10,  // MB
+		MaxSize:    10, // MB
 		MaxBackups: 3,
-		MaxAge:     28,  // days
+		MaxAge:     28, // days
 		Compress:   true,
 	})
 
@@ -56,6 +60,13 @@ func init() {
 }
 
 func main() {
+	for _, arg := range os.Args[1:] {
+		if arg == "--version" || arg == "-v" {
+			fmt.Println(Version)
+			return
+		}
+	}
+	fmt.Printf("Starting server... (version: %s)\n", Version)
 
 	if runtime.GOOS == "windows" {
 		windowsMain()
@@ -76,7 +87,7 @@ func main() {
 			}
 			go handleConnection(conn)
 		}
-	}	
+	}
 }
 
 func handleConnection(conn net.Conn) {
@@ -90,20 +101,12 @@ func handleConnection(conn net.Conn) {
 			return
 		}
 
-		command := message//[:len(message)-1] // Remove newline character
+		command := message //[:len(message)-1] // Remove newline character
 		command = strings.TrimSpace(command)
 		switch command {
 		case "status":
 			status, connection := checkServiceStatus()
 			conn.Write([]byte(fmt.Sprintf("Status: %s, Connection: %s\n", status, connection)))
-		case "pause":
-			conn.Write([]byte("Pausing the Wazuh Agent...\n"))
-			pauseAgent()
-			conn.Write([]byte("Paused the Wazuh Agent\n"))
-		case "restart":
-			conn.Write([]byte("Restarting the Wazuh Agent...\n"))
-			restartAgent()
-			conn.Write([]byte("Restarted the Wazuh Agent\n"))
 		case "update":
 			log.Println("Received update command...")
 			isUpdateInProgress = true
@@ -181,14 +184,14 @@ func fetchOnlineVersion() string {
 
 // getVersionPath returns version file path based on the OS
 func getVersionFilePath() string {
-    switch os := runtime.GOOS; os {
-    case "linux":
-        return "/var/ossec/etc/version.txt"
+	switch os := runtime.GOOS; os {
+	case "linux":
+		return "/var/ossec/etc/version.txt"
 	case "darwin":
 		return "/Library/Ossec/etc/version.txt"
 	case "windows":
 		return "C:\\Program Files (x86)\\ossec-agent\\version.txt"
-    default:
-        return "/var/ossec/etc/version.txt"
-    }
+	default:
+		return "/var/ossec/etc/version.txt"
+	}
 }
