@@ -101,12 +101,20 @@ func handleConnection(conn net.Conn) {
 			return
 		}
 
-		command := message //[:len(message)-1] // Remove newline character
+		command := message//[:len(message)-1] // Remove newline character
 		command = strings.TrimSpace(command)
 		switch command {
 		case "status":
 			status, connection := checkServiceStatus()
 			conn.Write([]byte(fmt.Sprintf("Status: %s, Connection: %s\n", status, connection)))
+		case "pause":
+			conn.Write([]byte("Pausing the Wazuh Agent...\n"))
+			pauseAgent()
+			conn.Write([]byte("Paused the Wazuh Agent\n"))
+		case "restart":
+			conn.Write([]byte("Restarting the Wazuh Agent...\n"))
+			restartAgent()
+			conn.Write([]byte("Restarted the Wazuh Agent\n"))
 		case "update":
 			log.Println("Received update command...")
 			isUpdateInProgress = true

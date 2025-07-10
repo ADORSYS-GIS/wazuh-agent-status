@@ -20,9 +20,9 @@ import (
 var embeddedFiles embed.FS
 
 var (
-	statusItem, connectionItem, updateItem, versionItem *systray.MenuItem
-	enabledIcon, disabledIcon                           []byte
-	isMonitoringUpdate                                  bool
+	statusItem, connectionItem, pauseItem, updateItem, restartItem, versionItem *systray.MenuItem
+	enabledIcon, disabledIcon                                                   []byte
+	isMonitoringUpdate                                                          bool
 )
 
 // Version is set at build time via ldflags
@@ -101,6 +101,9 @@ func onReady() {
 	systray.AddSeparator()
 	updateItem = systray.AddMenuItem("---", "Update the Wazuh Agent")
 	updateItem.Disable() // Initially disabled
+	pauseItem = systray.AddMenuItem("Pause", "Pause the Wazuh Agent")
+	restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
+	quitItem := systray.AddMenuItem("Quit", "Quit the application")
 	systray.AddSeparator()
 	versionItem = systray.AddMenuItem("v---", "The version state of the wazuhbsetup")
 	versionItem.Disable() // Initially disabled
@@ -110,7 +113,7 @@ func onReady() {
 	go monitorStatus()
 
 	// Handle menu item clicks
-	go handleMenuActions()
+	go handleMenuActions(quitItem)
 }
 
 // monitorStatus continuously fetches and updates the agent status
@@ -260,10 +263,22 @@ func monitorUpdateStatus() {
 }
 
 // handleMenuActions listens for menu item clicks and performs actions
-func handleMenuActions() {
-	for range updateItem.ClickedCh {
-		log.Println("Update clicked")
-		startUpdateMonitor()
+func handleMenuActions(quitItem *systray.MenuItem) {
+	for {
+		select {
+		case <-pauseItem.ClickedCh:
+			log.Println("Pause clicked")
+			sendCommand("pause")
+		case <-restartItem.ClickedCh:
+			log.Println("Restart clicked")
+			sendCommand("restart")
+		case <-updateItem.ClickedCh:
+			log.Println("Update clicked")
+			startUpdateMonitor()
+		case <-quitItem.ClickedCh:
+			log.Println("Quit clicked")
+			systray.Quit()
+		}
 	}
 }
 
