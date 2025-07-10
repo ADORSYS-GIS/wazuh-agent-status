@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
-	"os"
-	"path/filepath"
 
 	"github.com/getlantern/systray"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -25,18 +25,19 @@ var (
 	isMonitoringUpdate                                                          bool
 )
 
+// Version is set at build time via ldflags
+var Version = "dev"
+
 func getUserLogFilePath() string {
 	var logDir string
 
 	switch runtime.GOOS {
-	case "linux":
+	case "linux", "darwin":
 		logDir = filepath.Join(os.Getenv("HOME"), ".wazuh")
-	case "darwin":
-		logDir = filepath.Join(os.Getenv("HOME"), "Library", "Logs", "wazuh")
 	case "windows":
 		logDir = filepath.Join(os.Getenv("APPDATA"), "wazuh", "logs")
 	default:
-		logDir = "./logs" // Fallback
+		logDir = "./logs"
 	}
 
 	// Ensure the directory exists
@@ -62,7 +63,13 @@ func init() {
 
 // Main entry point
 func main() {
-	log.Println("Starting frontend...")
+	for _, arg := range os.Args[1:] {
+		if arg == "--version" || arg == "-v" {
+			fmt.Println(Version)
+			return
+		}
+	}
+	log.Printf("Starting frontend... (version: %s)", Version)
 	systray.Run(onReady, onExit)
 }
 
@@ -88,14 +95,19 @@ func onReady() {
 
 	// Create menu items
 	statusItem = systray.AddMenuItem("Agent: Unknown", "Wazuh Agent Status")
+	statusItem.Disable()
 	connectionItem = systray.AddMenuItem("Connection: Unknown", "Wazuh Agent Connection")
+	connectionItem.Disable()
 	systray.AddSeparator()
+	updateItem = systray.AddMenuItem("---", "Update the Wazuh Agent")
+	updateItem.Disable() // Initially disabled
 	pauseItem = systray.AddMenuItem("Pause", "Pause the Wazuh Agent")
 	restartItem = systray.AddMenuItem("Restart", "Restart the Wazuh Agent")
-	updateItem = systray.AddMenuItem("Update", "Update the Wazuh Agent")
 	quitItem := systray.AddMenuItem("Quit", "Quit the application")
 	systray.AddSeparator()
-	versionItem = systray.AddMenuItem("Up to date", "The version state of the wazuhbsetup")
+	versionItem = systray.AddMenuItem("v---", "The version state of the wazuhbsetup")
+	versionItem.Disable() // Initially disabled
+	
 
 	// Start background status update
 	go monitorStatus()
@@ -128,6 +140,10 @@ func monitorStatus() {
 				connectionItem.SetIcon(disabledIcon)
 			}
 
+			if versionItem.String() == "v---" || versionItem.String() == "Version: Unknown" || versionItem.String() == "vUnknown" {
+				checkVersionAfterUpdate()
+			}
+
 			time.Sleep(5 * time.Second)
 		}
 	}()
@@ -136,12 +152,34 @@ func monitorStatus() {
 		for {
 			checkVersion()
 
-			time.Sleep(1 * time.Hour)
+			time.Sleep(4 * time.Hour)
 		}
 	}()
 }
 
 func checkVersion() {
+	versionStatus, version := fetchVersionStatus()
+
+	if strings.HasPrefix(versionStatus, "Up to date") {
+		versionItem.SetTitle(version)
+		versionItem.Disable()
+		updateItem.SetTitle("Up to date")
+		updateItem.Disable()
+	} else if strings.HasPrefix(versionStatus, "Outdated") {
+		versionItem.SetTitle(version)
+		versionItem.Disable()
+		updateItem.SetTitle("Update")
+		updateItem.Enable()
+		log.Println("Version is outdated, starting update monitor...")
+		startUpdateMonitor()
+	} else {
+		versionItem.SetTitle("Version: Unknown")
+		versionItem.Disable()
+		updateItem.Disable()
+	}
+}
+
+func checkVersionAfterUpdate() {
 	versionStatus, version := fetchVersionStatus()
 
 	if strings.HasPrefix(versionStatus, "Up to date") {
@@ -189,7 +227,6 @@ func fetchVersionStatus() (string, string) {
 
 // startUpdateMonitor starts the update status monitoring if not already active
 func startUpdateMonitor() {
-	// Only start monitoring if it's not already active
 	if isMonitoringUpdate {
 		log.Println("Update monitoring is already running.")
 		return
@@ -209,7 +246,7 @@ func monitorUpdateStatus() {
 		if updateStatus == "Disable" {
 			log.Println("Update status is disabled. Stopping monitoring.")
 			isMonitoringUpdate = false
-			checkVersion()
+			checkVersionAfterUpdate()
 		} else {
 			log.Printf("Current update status: %v", updateStatus)
 			// Update the icon or text based on the update status

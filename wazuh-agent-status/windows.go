@@ -72,8 +72,8 @@ func checkServiceStatus() (string, string) {
 	cmd := exec.Command(powershellExe, cmdFlag, "Get-Service -Name WazuhSvc")
 	output, err := cmd.CombinedOutput() // Use CombinedOutput to capture both stdout and stderr
 	if err != nil {
-		log.Printf("[%s] Error checking service status: %v\n", time.Now().Format(time.RFC3339), err)
-		log.Printf("[%s] Service command error output:\n%s\n", time.Now().Format(time.RFC3339), string(output))
+		log.Printf("Error checking service status: %v\n", err)
+		log.Printf("Service command error output:\n%s\n", string(output))
 		return "Inactive", "Disconnected"
 	}
 
@@ -87,8 +87,8 @@ func checkServiceStatus() (string, string) {
 	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String -Path 'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state' -Pattern '^status'")
 	connOutput, connErr := connCmd.CombinedOutput()
 	if connErr != nil {
-		log.Printf("[%s] Error checking connection status: %v\n", time.Now().Format(time.RFC3339), connErr)
-		log.Printf("[%s] Connection command error output:\n%s\n", time.Now().Format(time.RFC3339), string(connOutput))
+		log.Printf("Error checking connection status: %v\n", connErr)
+		log.Printf("Connection command error output:\n%s\n", string(connOutput))
 		return status, "Disconnected"
 	}
 
@@ -139,26 +139,25 @@ func restartAgent() {
 
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
-	log.Printf("[%s] Setting PowerShell Execution Policy...\n", time.Now().Format(time.RFC3339))
+	log.Printf("Setting PowerShell Execution Policy...\n")
 
 	// Set the execution policy to RemoteSigned for the current user
 	setPolicyCmd := exec.Command(powershellExe, cmdFlag, "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force")
-	err := setPolicyCmd.Run()
+	output, err := setPolicyCmd.CombinedOutput()
 	if err != nil {
-		log.Printf("[%s] Failed to set execution policy: %v\n", time.Now().Format(time.RFC3339), err)
+		log.Printf("Failed to set execution policy: %v\n", string(output))
 		return
 	}
 
-	log.Printf("[%s] Updating Wazuh agent...\n", time.Now().Format(time.RFC3339))
+	log.Printf("Updating Wazuh agent...\n")
 	setPolicyCmd = exec.Command(powershellExe, cmdFlag, "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'")
 	err = setPolicyCmd.Run()
 	if err != nil {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
 		errorMessage := fmt.Sprintf("Update failed: For details check logs at %s", logFilePath)
-		log.Printf("[%s] %s\n", time.Now().Format(time.RFC3339), errorMessage)
+		log.Printf("%s\n", errorMessage)
 	} else {
-		restartAgent()
-		log.Printf("[%s] Wazuh agent updated successfully\n", time.Now().Format(time.RFC3339))
+		log.Printf("Wazuh agent updated successfully\n")
 	}
 }
 

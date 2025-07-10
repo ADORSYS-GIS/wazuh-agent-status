@@ -18,8 +18,8 @@ BIN_DIR="/usr/local/bin"
 
 # OS Detection
 case "$(uname)" in
-    Linux) OS="linux" ;;
-    Darwin) OS="darwin" ;;
+    Linux) OS="linux"; UPGRADE_SCRIPT_PATH="/var/ossec/active-response/bin/adorsys-update.sh" ;;
+    Darwin) OS="darwin"; UPGRADE_SCRIPT_PATH="/Library/Ossec/active-response/bin/adorsys-update.sh" ;;
     *) echo "Unsupported operating system: $(uname)" >&2; exit 1 ;;
 esac
 
@@ -132,7 +132,7 @@ remove_desktop_unit() {
 
 # Uninstallation Process
 remove_binaries
-
+remove_file "$UPGRADE_SCRIPT_PATH"
 case "$OS" in
     linux)
         remove_systemd_service
