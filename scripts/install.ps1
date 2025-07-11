@@ -24,7 +24,7 @@ $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
 
-$UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/scripts/adorsys-update.ps1" }
+$UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v$WAS_VERSION/scripts/adorsys-update.ps1" }
 $UPDATE_SCRIPT_PATH = if ($null -ne $env:UPDATE_SCRIPT_PATH) { $env:UPDATE_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.ps1" }
 
 # Create necessary directories
