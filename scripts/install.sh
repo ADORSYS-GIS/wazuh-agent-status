@@ -56,7 +56,7 @@ BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/refs/tags/v$WA
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
 
-ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"$BASE_URL/scripts/adorsys-update.sh"}
+ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/refs/tags/v$WAS_VERSION/scripts/adorsys-update.sh"}
 UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
 # Text Formatting
@@ -318,7 +318,7 @@ fi
 make_client_launch_at_startup
 
 print_step_header 5 "Download and configure adorsys-update.sh"
-info_message "Downloading adorsys-update.sh..."
+info_message "Downloading adorsys-update.sh from $ADORSYS_UPDATE_SCRIPT_URL -> $UPDATE_SCRIPT_PATH..."
 if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     maybe_sudo curl -SL --progress-bar -o "$UPDATE_SCRIPT_PATH" "$ADORSYS_UPDATE_SCRIPT_URL" || warn_message "Failed to download adorsys-update.sh"
     maybe_sudo chmod 750 "$UPDATE_SCRIPT_PATH"
