@@ -12,12 +12,13 @@ import (
 )
 
 const (
-	sudoCommand = "/bin/sudo"
+	sudoCommand      = "sudo"
+	wazuhControlPath = "/Library/Ossec/bin/wazuh-control"
 )
 
 // checkServiceStatus checks the status of Wazuh agent and its connection on macOS
 func checkServiceStatus() (string, string) {
-	cmd := exec.Command(sudoCommand, "/Library/Ossec/bin/wazuh-control", "status")
+	cmd := exec.Command(sudoCommand, wazuhControlPath, "status")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "Inactive", "Disconnected"
@@ -42,7 +43,7 @@ func checkServiceStatus() (string, string) {
 // pauseAgent pauses the Wazuh agent on macOS
 func pauseAgent() {
 	log.Printf("[%s] Pausing Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "stop").Run()
+	err := exec.Command(sudoCommand, wazuhControlPath, "stop").Run()
 	if err != nil {
 		log.Printf("[%s] Failed to pause Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
 	} else {
@@ -53,7 +54,7 @@ func pauseAgent() {
 // restartAgent restarts the Wazuh agent on macOS
 func restartAgent() {
 	log.Printf("[%s] Restarting Wazuh agent...\n", time.Now().Format(time.RFC3339))
-	err := exec.Command("sudo", "/Library/Ossec/bin/wazuh-control", "restart").Run()
+	err := exec.Command(sudoCommand, wazuhControlPath, "restart").Run()
 	if err != nil {
 		log.Printf("[%s] Failed to restart Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
 	} else {
