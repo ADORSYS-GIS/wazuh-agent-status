@@ -73,7 +73,7 @@ info_message() {
     log "[INFO]" "$*"
 }
 
-warning_message() {
+warn_message() {
     log "[WARNING]" "$*"
 }
 
