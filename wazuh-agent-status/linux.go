@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	sudoCommand = "/bin/sudo"
+	sudoCommand = "sudo"
 )
 
 

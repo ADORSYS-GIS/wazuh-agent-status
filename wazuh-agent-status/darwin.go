@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	sudoCommand = "/bin/sudo"
+	sudoCommand = "sudo"
 )
 
 // checkServiceStatus checks the status of Wazuh agent and its connection on macOS
