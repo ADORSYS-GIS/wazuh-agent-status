@@ -93,6 +93,14 @@ maybe_sudo() {
     fi
 }
 
+sed_alternative() {
+    if command_exists gsed; then
+        gsed "$@"
+    else
+        sed "$@"
+    fi
+}
+
 # General Utility Functions
 create_file() {
     local filepath="$1"
@@ -326,7 +334,7 @@ if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     # Update WAZUH_MANAGER value in adorsys-update.sh
     if [ -n "${WAZUH_MANAGER:-}" ]; then
         info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
-        maybe_sudo sed -i "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
+        maybe_sudo sed_alternative -i "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
     else
         warn_message "WAZUH_MANAGER variable not set. Skipping update in adorsys-update.sh."
     fi
