@@ -20,7 +20,7 @@ DBUS_PATH=""
 ICON_ARG=""
 
 if [ "$OS_TYPE" = "Darwin" ]; then
-    ICON_PATH='/Library/Ossec/etc/wazuh-logo.png'
+    ICON_PATH='/Library/Application Support/Ossec/wazuh-logo.png'
     LOG_FILE='/Library/Ossec/logs/active-responses.log'
     UPGRADE_SCRIPT_PATH='/Library/Ossec/active-response/bin/adorsys-update.sh'
     ARCH=$(uname -m)
@@ -73,7 +73,7 @@ info_message() {
     log "[INFO]" "$*"
 }
 
-warning_message() {
+warn_message() {
     log "[WARNING]" "$*"
 }
 
