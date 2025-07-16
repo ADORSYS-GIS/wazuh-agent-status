@@ -69,7 +69,7 @@ func (p *program) Stop(s service.Service) error {
 // checkServiceStatus checks the status of Wazuh agent and its connection on Windows
 func checkServiceStatus() (string, string) {
 	// Check if the Wazuh service is running
-	cmd := exec.Command(powershellExe, cmdFlag, "Get-Service -Name WazuhSvc")
+	cmd := exec.Command(powershellExe, cmdFlag, "Get-Service", "-Name", "WazuhSvc")
 	output, err := cmd.CombinedOutput() // Use CombinedOutput to capture both stdout and stderr
 	if err != nil {
 		log.Printf("Error checking service status: %v\n", err)
@@ -84,7 +84,7 @@ func checkServiceStatus() (string, string) {
 	}
 
 	// Check connection status by reading the wazuh-agent.state file
-	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String -Path 'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state' -Pattern '^status'")
+	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String", "-Path", "C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state", "-Pattern", "^status")
 	connOutput, connErr := connCmd.CombinedOutput()
 	if connErr != nil {
 		log.Printf("Error checking connection status: %v\n", connErr)
@@ -106,7 +106,7 @@ func pauseAgent() {
 	log.Printf("[%s] Pausing Wazuh agent...\n", time.Now().Format(time.RFC3339))
 
 	// Stop the service using sc stop command
-	cmd := exec.Command(powershellExe, cmdFlag, "Stop-Service -Name WazuhSvc")
+	cmd := exec.Command(powershellExe, cmdFlag, "Stop-Service", "-Name", "WazuhSvc")
 	err := cmd.Run()
 	if err != nil {
 		log.Printf("[%s] Failed to pause Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
@@ -125,7 +125,7 @@ func restartAgent() {
 
 	log.Printf("[%s] Restarting Wazuh agent...\n", time.Now().Format(time.RFC3339))
 
-	cmd := exec.Command(powershellExe, cmdFlag, "Start-Service -Name WazuhSvc")
+	cmd := exec.Command(powershellExe, cmdFlag, "Start-Service", "-Name", "WazuhSvc")
 	err := cmd.Run()
 	if err != nil {
 		log.Printf("[%s] Failed to restart Wazuh agent: %v\n", time.Now().Format(time.RFC3339), err)
@@ -142,7 +142,7 @@ func updateAgent() {
 	log.Printf("Setting PowerShell Execution Policy...\n")
 
 	// Set the execution policy to RemoteSigned for the current user
-	setPolicyCmd := exec.Command(powershellExe, cmdFlag, "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force")
+	setPolicyCmd := exec.Command(powershellExe, cmdFlag, "Set-ExecutionPolicy", "-Scope", "CurrentUser", "-ExecutionPolicy", "RemoteSigned", "-Force")
 	output, err := setPolicyCmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Failed to set execution policy: %v\n", string(output))
@@ -150,7 +150,7 @@ func updateAgent() {
 	}
 
 	log.Printf("Updating Wazuh agent...\n")
-	setPolicyCmd = exec.Command(powershellExe, cmdFlag, "& 'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'")
+	setPolicyCmd = exec.Command(powershellExe, cmdFlag, "&", "'C:\\Program Files (x86)\\ossec-agent\\adorsys-update.ps1'")
 	err = setPolicyCmd.Run()
 	if err != nil {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"

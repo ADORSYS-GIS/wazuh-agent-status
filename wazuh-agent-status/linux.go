@@ -33,7 +33,7 @@ func checkServiceStatus() (string, string) {
 	}
 
 	// Check connection status
-	connCmd := exec.Command(sudoCommand, "grep ^status /var/ossec/var/run/wazuh-agentd.state")
+	connCmd := exec.Command(sudoCommand, "grep", "^status", "/var/ossec/var/run/wazuh-agentd.state")
 	connOutput, connErr := connCmd.CombinedOutput()
 	connection := "Disconnected"
 	if connErr != nil {
