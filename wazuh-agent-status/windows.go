@@ -83,7 +83,7 @@ func checkServiceStatus() (string, string) {
 	}
 
 	// Check connection status by reading the wazuh-agent.state file
-	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String", "-Path", "C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state", "-Pattern", "^status")
+	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String", "-Path", "'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state'", "-Pattern", "^status")
 	connOutput, connErr := connCmd.CombinedOutput()
 	if connErr != nil {
 		log.Printf("Error checking connection status: %v\n", connErr)
