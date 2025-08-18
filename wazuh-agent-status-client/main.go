@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/http"
-	_ "net/http/pprof" // For memory profiling
 	"os"
 	"path/filepath"
 	"runtime"
@@ -84,12 +82,6 @@ func init() {
 }
 
 func main() {
-	// Optional: Enable profiling on localhost:6060
-	go func() {
-		log.Println("pprof enabled on http://localhost:6060/debug/pprof/")
-		_ = http.ListenAndServe("localhost:6060", nil)
-	}()
-
 	for _, arg := range os.Args[1:] {
 		if arg == "--version" || arg == "-v" {
 			fmt.Println(Version)
