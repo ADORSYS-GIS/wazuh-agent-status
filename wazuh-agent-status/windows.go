@@ -7,12 +7,9 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"os/exec"
 	"strings"
-	"syscall"
-
-	"golang.org/x/sys/windows"
+	"time"
 
 	"github.com/kardianos/service"
 )
@@ -105,44 +102,35 @@ func checkServiceStatus() (string, string) {
 
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
-	log.Printf("Setting PowerShell Execution Policy...\n")
+	log.Printf("Scheduling Wazuh agent update via Task Scheduler (runs in 1 minute)...\n")
 
-	// Set the execution policy to RemoteSigned for the current user
-	setPolicyCmd := exec.Command(powershellExe, cmdFlag, "Set-ExecutionPolicy", "-Scope", "CurrentUser", "-ExecutionPolicy", "RemoteSigned", "-Force")
-	output, err := setPolicyCmd.CombinedOutput()
-	if err != nil {
-		log.Printf("Failed to set execution policy: %v\n", string(output))
+	// Compute start time one minute from now in HH:MM 24-hour format
+	startTime := time.Now().Add(1 * time.Minute).Format("15:04")
+
+	// Define task name and the command to run (PowerShell update script)
+	taskName := "WazuhAgentUpdate"
+	psScriptPath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\adorsys-update.ps1"
+	taskAction := fmt.Sprintf("%s %s -NoProfile -ExecutionPolicy Bypass -File \"%s\"", powershellExe, cmdFlag, psScriptPath)
+
+	// Create or overwrite the task to run once at the specified time with highest privileges as SYSTEM
+	createCmd := exec.Command(
+		"schtasks",
+		"/Create",
+		"/TN", taskName,
+		"/TR", taskAction,
+		"/SC", "ONCE",
+		"/ST", startTime,
+		"/RL", "HIGHEST",
+		"/F",
+		"/RU", "SYSTEM",
+	)
+
+	if output, err := createCmd.CombinedOutput(); err != nil {
+		log.Printf("Failed to create scheduled task: %v\nOutput: %s", err, string(output))
 		return
 	}
 
-	log.Printf("Updating Wazuh agent...\n")
-	// Start the update script in the background and return immediately (do not wait)
-	bgCmd := exec.Command(powershellExe, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\adorsys-update.ps1")
-
-	// Ensure the child process is fully detached from the current service process
-	bgCmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS | windows.CREATE_NO_WINDOW,
-	}
-
-	// Detach stdio by redirecting to NUL so no handles are inherited/held
-	nullFile, _ := os.OpenFile("NUL", os.O_RDWR, 0)
-	defer func() {
-		if nullFile != nil {
-			_ = nullFile.Close()
-		}
-	}()
-	bgCmd.Stdin = nullFile
-	bgCmd.Stdout = nullFile
-	bgCmd.Stderr = nullFile
-
-	if err = bgCmd.Start(); err != nil {
-		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
-		errorMessage := fmt.Sprintf("Failed to trigger background update: %v. For details check logs at %s", err, logFilePath)
-		log.Printf("%s\n", errorMessage)
-		return
-	}
-	// Do not wait for completion; the process runs independently
-	log.Printf("Wazuh agent update triggered in background\n")
+	log.Printf("Scheduled task '%s' created to run at %s.\n", taskName, startTime)
 }
 
 // Main function that sets up the service
