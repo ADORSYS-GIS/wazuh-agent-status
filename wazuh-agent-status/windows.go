@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
+	"syscall"
+	"golang.org/x/sys/windows"
 
 	"github.com/kardianos/service"
 )
@@ -113,15 +116,33 @@ func updateAgent() {
 	}
 
 	log.Printf("Updating Wazuh agent...\n")
-	setPolicyCmd = exec.Command(powershellExe, cmdFlag, "&", "'C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\adorsys-update.ps1'")
-	err = setPolicyCmd.Run()
-	if err != nil {
-		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
-		errorMessage := fmt.Sprintf("Update failed: For details check logs at %s", logFilePath)
-		log.Printf("%s\n", errorMessage)
-	} else {
-		log.Printf("Wazuh agent updated successfully\n")
+	// Start the update script in the background and return immediately (do not wait)
+	bgCmd := exec.Command(powershellExe, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\adorsys-update.ps1")
+
+	// Ensure the child process is fully detached from the current service process
+	bgCmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS | windows.CREATE_NO_WINDOW,
 	}
+
+	// Detach stdio by redirecting to NUL so no handles are inherited/held
+	nullFile, _ := os.OpenFile("NUL", os.O_RDWR, 0)
+	defer func() {
+		if nullFile != nil {
+			_ = nullFile.Close()
+		}
+	}()
+	bgCmd.Stdin = nullFile
+	bgCmd.Stdout = nullFile
+	bgCmd.Stderr = nullFile
+
+	if err = bgCmd.Start(); err != nil {
+		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
+		errorMessage := fmt.Sprintf("Failed to trigger background update: %v. For details check logs at %s", err, logFilePath)
+		log.Printf("%s\n", errorMessage)
+		return
+	}
+	// Do not wait for completion; the process runs independently
+	log.Printf("Wazuh agent update triggered in background\n")
 }
 
 // Main function that sets up the service

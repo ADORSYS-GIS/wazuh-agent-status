@@ -64,6 +64,8 @@ $UserAction = [System.Windows.Forms.MessageBox]::Show($PrepareMsg, "Wazuh Update
 function Run-Upgrade {
     InfoMessage "Starting Wazuh agent upgrade..."
     InfoMessage "Using temporary directory: $TmpFolder"
+    $ServerServiceName = "wazuh-agent-status"
+    $ClientServiceName = "wazuh-agent-status-client"
 
     # Check for required dependencies
     if (-not (Get-Command "Invoke-WebRequest" -ErrorAction SilentlyContinue)) {
@@ -83,6 +85,28 @@ function Run-Upgrade {
         Invoke-WebRequest -Uri $ScriptUrl -OutFile $SetupScript -UseBasicParsing
     } catch {
         ErrorMessage "Failed to download setup-agent.ps1"
+        Send-Notification "Update failed: For more details go to file $LogFile"
+        exit 1
+    }
+
+    InfoMessage "Stopping services..."
+    try {
+        InfoMessage "Stopping $ServerServiceName service..."
+        Stop-Service -Name $ServerServiceName
+    } catch {
+        ErrorMessage "Failed to stop $ServerServiceName service"
+        Send-Notification "Update failed: For more details go to file $LogFile"
+        exit 1
+    }
+
+    try {
+        InfoMessage "Stopping $ClientServiceName service..."
+        $ClientServicePid = Get-Process -Name $ClientServiceName -ErrorAction SilentlyContinue
+        if ($ClientServicePid) {
+            Stop-Process -Id $ClientServicePid.Id -Force
+        }
+    } catch {
+        ErrorMessage "Failed to stop $ClientServiceName service"
         Send-Notification "Update failed: For more details go to file $LogFile"
         exit 1
     }
