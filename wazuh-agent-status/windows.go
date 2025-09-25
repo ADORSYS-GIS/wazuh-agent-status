@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
+
 	"golang.org/x/sys/windows"
 
 	"github.com/kardianos/service"
@@ -99,7 +100,6 @@ func checkServiceStatus() (string, string) {
 	if strings.Contains(string(connOutput), "status='connected'") {
 		connection = "Connected"
 	}
-
 	return status, connection
 }
 
@@ -153,7 +153,7 @@ func windowsMain() {
 		DisplayName: "Go Wazuh Service",
 		Description: "A Go application to manage Wazuh service.",
 	}
-	
+
 	// Create the program object
 	prg := &program{}
 
