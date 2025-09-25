@@ -111,14 +111,8 @@ func handleConnection(conn net.Conn) {
 			log.Println("Received update command...")
 			isUpdateInProgress = true
 			updateAgent()
-			if runtime.GOOS != "windows" {
-				isUpdateInProgress = false
-				log.Println("Update finished")
-			} else {
-				// On Windows, the updater stops/replaces this service.
-				// Keep the flag true; the service will be stopped shortly by the updater.
-				log.Println("Update triggered in background on Windows; service will stop shortly")
-			}
+			isUpdateInProgress = false
+			log.Println("Update finished")
 		case "update-status":
 			if isUpdateInProgress {
 				conn.Write([]byte("Update: Progressing\n"))
