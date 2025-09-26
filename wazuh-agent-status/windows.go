@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -107,7 +108,8 @@ func checkServiceStatus() (string, string) {
 func updateAgent() {
 	log.Printf("Updating Wazuh agent...\n")
 	// Start the update script in the background and return immediately (do not wait)
-	psInvoke := `& "$env:ProgramFiles(x86)\ossec-agent\active-response\bin\ardsys-update.ps1"`
+	scriptPath := filepath.Join(os.Getenv("ProgramFiles(x86)"), "ossec-agent", "active-response", "bin", "ardsys-update.ps1")
+	psInvoke := fmt.Sprintf(`& "%s"`, scriptPath)
 	bgCmd := exec.Command(powershellExe, cmdFlag, psInvoke)
 
 	// Ensure the child process is fully detached from the current service process
