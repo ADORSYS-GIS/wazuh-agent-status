@@ -36,30 +36,12 @@ function Send-Notification {
         [string]$Message,
         [string]$Title = "Wazuh Update"
     )
-    try {
-        # Use BurntToast for notifications
-        if (-not (Get-Module -ListAvailable -Name BurntToast)) {
-            Install-Module -Name BurntToast -Force -Scope CurrentUser -AllowClobber
-        }
-        Import-Module BurntToast -Force
-        if (Test-Path $IconPath) {
-            New-BurntToastNotification -Text $Title, $Message -AppLogo $IconPath
-        } else {
-            New-BurntToastNotification -Text $Title, $Message
-        }
-        InfoMessage "Notification sent: $Message"
-    } catch {
-        # Fallback to message box
-        [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
-        InfoMessage "Notification sent (fallback): $Message"
-    }
+    # Non-interactive environment: log only, no GUI/toast
+    InfoMessage "$Title: $Message"
 }
 
-Add-Type -AssemblyName System.Windows.Forms
-
-# === Notify User with Action Dialog ===
-$PrepareMsg = "A new version of Wazuh is available. Would you like to upgrade?"
-$UserAction = [System.Windows.Forms.MessageBox]::Show($PrepareMsg, "Wazuh Update", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+# Non-interactive mode: default user action to Yes
+$UserAction = 'Yes'
 
 function Run-Upgrade {
     InfoMessage "Starting Wazuh agent upgrade..."
