@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -88,7 +87,8 @@ func checkServiceStatus() (string, string) {
 	}
 
 	// Check connection status by reading the wazuh-agent.state file
-	statePath := filepath.Join(os.Getenv("ProgramFiles(x86)"), "ossec-agent", "wazuh-agent.state")
+	statePath := `"C:\Program Files (x86)\ossec-agent\wazuh-agent.state"`
+	statePath = strings.ReplaceAll(statePath, `\`, `\\`)
 	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String", "-Path", statePath, "-Pattern", "^status")
 	connOutput, connErr := connCmd.CombinedOutput()
 	if connErr != nil {
@@ -109,7 +109,8 @@ func checkServiceStatus() (string, string) {
 func updateAgent() {
 	log.Printf("Updating Wazuh agent...\n")
 	// Start the update script in the background and return immediately (do not wait)
-	scriptPath := filepath.Join(os.Getenv("ProgramFiles(x86)"), "ossec-agent", "active-response", "bin", "ardsys-update.ps1")
+	scriptPath := `"C:\Program Files (x86)\ossec-agent\active-response\bin\ardsys-update.ps1"`
+	scriptPath = strings.ReplaceAll(scriptPath, `\`, `\\`)
 	bgCmd := exec.Command(powershellExe, "-File", scriptPath)
 
 	// Ensure the child process is fully detached from the current service process
