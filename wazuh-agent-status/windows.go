@@ -4,11 +4,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -107,33 +107,32 @@ func checkServiceStatus() (string, string) {
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
 	log.Printf("Updating Wazuh agent...\n")
-	// Start the update script in the background and return immediately (do not wait)
-	scriptPath := `"C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\ardsys-update.ps1"`
+	programFiles := os.Getenv("ProgramFiles(x86)")
+	scriptPath := filepath.Join(programFiles, "ossec-agent", "active-response", "bin", "ardsys-update.ps1")
+	logFilePath := filepath.Join(programFiles, "ossec-agent", "active-response", "active-responses.log")
+
 	bgCmd := exec.Command(powershellExe, "-File", scriptPath)
 
-	// Ensure the child process is fully detached from the current service process
+	// Ensure detached process
 	bgCmd.SysProcAttr = &syscall.SysProcAttr{
 		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS | windows.CREATE_NO_WINDOW,
 	}
 
-	// Detach stdio by redirecting to NUL so no handles are inherited/held
-	nullFile, _ := os.OpenFile("NUL", os.O_RDWR, 0)
-	defer func() {
-		if nullFile != nil {
-			_ = nullFile.Close()
-		}
-	}()
-	bgCmd.Stdin = nullFile
-	bgCmd.Stdout = nullFile
-	bgCmd.Stderr = nullFile
-
-	if err := bgCmd.Start(); err != nil {
-		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
-		errorMessage := fmt.Sprintf("Failed to trigger background update: %v. For details check logs at %s", err, logFilePath)
-		log.Printf("%s\n", errorMessage)
+	// Open the log file for child process
+	logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		log.Printf("Failed to open log file: %v", err)
 		return
 	}
-	// Do not wait for completion; the process runs independently
+	bgCmd.Stdout = logFile
+	bgCmd.Stderr = logFile
+
+	if err := bgCmd.Start(); err != nil {
+		log.Printf("Failed to trigger background update: %v. See %s", err, logFilePath)
+		return
+	}
+
+	// Don’t wait for completion; process runs independently
 	log.Printf("Wazuh agent update triggered in background\n")
 }
 
