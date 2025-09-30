@@ -37,7 +37,7 @@ function Send-Notification {
         [string]$Title = "Wazuh Update"
     )
     # Non-interactive environment: log only, no GUI/toast
-    InfoMessage "$Title: $Message"
+    InfoMessage "${Title}: $Message"
 }
 
 # Non-interactive mode: default user action to Yes
