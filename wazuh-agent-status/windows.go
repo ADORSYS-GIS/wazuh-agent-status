@@ -108,7 +108,7 @@ func checkServiceStatus() (string, string) {
 func updateAgent() {
 	log.Printf("Updating Wazuh agent...\n")
 	programFiles := os.Getenv("ProgramFiles(x86)")
-	scriptPath := filepath.Join(programFiles, "ossec-agent", "active-response", "bin", "ardsys-update.ps1")
+	scriptPath := filepath.Join(programFiles, "ossec-agent", "active-response", "bin", "adorsys-update.ps1")
 	logFilePath := filepath.Join(programFiles, "ossec-agent", "active-response", "active-responses.log")
 
 	bgCmd := exec.Command(powershellExe, "-File", scriptPath)
