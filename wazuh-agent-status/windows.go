@@ -10,6 +10,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
+
+	"golang.org/x/sys/windows"
 
 	"github.com/kardianos/service"
 )
@@ -103,25 +106,35 @@ func checkServiceStatus() (string, string) {
 
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
-    log.Printf("Updating Wazuh agent...\n")
-    
-    programFiles := os.Getenv("ProgramFiles(x86)")
-    scriptPath := filepath.Join(programFiles, "ossec-agent", "active-response", "bin", "adorsys-update.ps1")
-    
-    // Verify script exists
-    if _, err := os.Stat(scriptPath); err != nil {
-        log.Printf("Script file not found: %v", err)
-        return
-    }
-    
-    bgCmd := exec.Command(powershellExe, "-ExecutionPolicy", "Bypass", "-File", scriptPath)
-    
-    if err := bgCmd.Start(); err != nil {
-        log.Printf("Failed to trigger background update: %v", err)
-        return
-    }
-    
-    log.Printf("Wazuh agent update triggered in background (PID: %d)\n", bgCmd.Process.Pid)
+	log.Printf("Updating Wazuh agent...\n")
+	programFiles := os.Getenv("ProgramFiles(x86)")
+	scriptPath := filepath.Join(programFiles, "ossec-agent", "active-response", "bin", "adorsys-update.ps1")
+
+	if _, err := os.Stat(scriptPath); err != nil {
+		log.Printf("Script file not found: %v", err)
+		return
+	}
+
+	bgCmd := exec.Command(powershellExe, "-ExecutionPolicy", "RemoteSigned", "-File", scriptPath)
+
+	bgCmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_NO_WINDOW,
+	}
+
+	// Ensure no inherited handles that could tie it to the parent
+	bgCmd.Stdin = nil
+	bgCmd.Stdout = nil
+	bgCmd.Stderr = nil
+
+	if err := bgCmd.Start(); err != nil {
+		log.Printf("Failed to trigger background update: %v", err)
+		return
+	}
+
+	// Release immediately
+	bgCmd.Process.Release()
+
+	log.Printf("Wazuh agent update triggered in background (PID: %d)\n", bgCmd.Process.Pid)
 }
 
 // Main function that sets up the service
