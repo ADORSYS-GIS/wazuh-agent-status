@@ -10,9 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
-
-	"golang.org/x/sys/windows"
 
 	"github.com/kardianos/service"
 )
@@ -106,34 +103,25 @@ func checkServiceStatus() (string, string) {
 
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
-	log.Printf("Updating Wazuh agent...\n")
-	programFiles := os.Getenv("ProgramFiles(x86)")
-	scriptPath := filepath.Join(programFiles, "ossec-agent", "active-response", "bin", "adorsys-update.ps1")
-	logFilePath := filepath.Join(programFiles, "ossec-agent", "active-response", "active-responses.log")
-
-	bgCmd := exec.Command(powershellExe, "-File", scriptPath)
-
-	// Ensure detached process
-	bgCmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS | windows.CREATE_NO_WINDOW,
-	}
-
-	// Open the log file for child process
-	logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		log.Printf("Failed to open log file: %v", err)
-		return
-	}
-	bgCmd.Stdout = logFile
-	bgCmd.Stderr = logFile
-
-	if err := bgCmd.Start(); err != nil {
-		log.Printf("Failed to trigger background update: %v. See %s", err, logFilePath)
-		return
-	}
-
-	// Don’t wait for completion; process runs independently
-	log.Printf("Wazuh agent update triggered in background\n")
+    log.Printf("Updating Wazuh agent...\n")
+    
+    programFiles := os.Getenv("ProgramFiles(x86)")
+    scriptPath := filepath.Join(programFiles, "ossec-agent", "active-response", "bin", "adorsys-update.ps1")
+    
+    // Verify script exists
+    if _, err := os.Stat(scriptPath); err != nil {
+        log.Printf("Script file not found: %v", err)
+        return
+    }
+    
+    bgCmd := exec.Command(powershellExe, "-ExecutionPolicy", "Bypass", "-File", scriptPath)
+    
+    if err := bgCmd.Start(); err != nil {
+        log.Printf("Failed to trigger background update: %v", err)
+        return
+    }
+    
+    log.Printf("Wazuh agent update triggered in background (PID: %d)\n", bgCmd.Process.Pid)
 }
 
 // Main function that sets up the service
