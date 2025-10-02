@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/getlantern/systray"
@@ -20,13 +22,18 @@ import (
 var embeddedFiles embed.FS
 
 var (
-	statusItem, connectionItem, updateItem, versionItem         *systray.MenuItem
-	enabledIcon, disabledIcon                                   []byte
-	isMonitoringUpdate                                          bool
+	statusItem, connectionItem, updateItem, versionItem *systray.MenuItem
+	enabledIcon, disabledIcon                           []byte
+
+	// isMonitoringUpdate is an atomic flag (0/1) to indicate a running update monitor
+	isMonitoringUpdate int32
+
+	// monitorOnce ensures we only start monitorStatus once
+	monitorOnce sync.Once
 )
 
 // Version is set at build time via ldflags
-var Version = "dev"
+var Version = "v0.3.4-user-rc1"
 
 func getUserLogFilePath() string {
 	var logDir string
@@ -48,7 +55,6 @@ func getUserLogFilePath() string {
 	return filepath.Join(logDir, "wazuh-agent-status-client.log")
 }
 
-// Set up log rotation using lumberjack.func init() {
 func init() {
 	logFilePath := getUserLogFilePath()
 
@@ -104,17 +110,30 @@ func onReady() {
 	systray.AddSeparator()
 	versionItem = systray.AddMenuItem("v---", "The version state of the wazuhbsetup")
 	versionItem.Disable() // Initially disabled
-	
 
-	// Start background status update
-	go monitorStatus()
+	// Start background status update (guarded to run only once)
+	monitorOnce.Do(func() {
+		go monitorStatus()
+		// optional goroutine counter for debug
+		go goroutineCounter()
+	})
 
 	// Handle menu item clicks
 	go handleMenuActions()
 }
 
+// goroutineCounter logs goroutine count periodically to help detect leaks.
+// You can remove this if it's too noisy.
+func goroutineCounter() {
+	for {
+		time.Sleep(1 * time.Minute)
+		log.Printf("Debug: goroutines=%d", runtime.NumGoroutine())
+	}
+}
+
 // monitorStatus continuously fetches and updates the agent status
 func monitorStatus() {
+	// Status polling loop
 	go func() {
 		for {
 			status, connection := fetchStatus()
@@ -137,7 +156,9 @@ func monitorStatus() {
 				connectionItem.SetIcon(disabledIcon)
 			}
 
-			if versionItem.String() == "v---" || versionItem.String() == "Version: Unknown" || versionItem.String() == "vUnknown" {
+			// If version hasn't been set yet, ensure it's checked
+			v := versionItem.String()
+			if v == "v---" || v == "Version: Unknown" || v == "vUnknown" {
 				checkVersionAfterUpdate()
 			}
 
@@ -145,10 +166,10 @@ func monitorStatus() {
 		}
 	}()
 
+	// Long interval version check
 	go func() {
 		for {
 			checkVersion()
-
 			time.Sleep(4 * time.Hour)
 		}
 	}()
@@ -196,54 +217,92 @@ func checkVersionAfterUpdate() {
 	}
 }
 
+// fetchVersionStatus performs a single request/response and closes the connection immediately.
 func fetchVersionStatus() (string, string) {
-	conn, err := net.Dial("tcp", "localhost:50505")
+	conn, err := net.DialTimeout("tcp", "localhost:50505", 3*time.Second)
 	if err != nil {
 		log.Printf("Failed to connect to backend: %v", err)
 		return "Unknown", "Unknown"
 	}
-	defer conn.Close()
 
-	fmt.Fprintln(conn, "check-version")
+	// Ensure we always close the conn explicitly in this function.
+	// do not use defer in functions that may be called in tight loops if you expect the function to return quickly -
+	// but here it's fine because we close before returning in all branches.
+	// however prefer explicit close at the end of the operation:
+	// set a read deadline so ReadString doesn't block forever
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+
+	_, err = fmt.Fprintln(conn, "check-version")
+	if err != nil {
+		log.Printf("Failed to send check-version: %v", err)
+		conn.Close()
+		return "Unknown", "Unknown"
+	}
+
 	reader := bufio.NewReader(conn)
 	response, err := reader.ReadString('\n')
+	// close as soon as read completes or fails
+	conn.Close()
 	if err != nil {
 		log.Printf("Failed to read response: %v", err)
 		return "Unknown", "Unknown"
 	}
 
-	response = strings.TrimSuffix(response, "\n")
-	parts := strings.Split(response, ": ")
+	response = strings.TrimSpace(response)
+	// defensive parsing
+	parts := strings.SplitN(response, ": ", 2)
 	if len(parts) < 2 {
 		return "Unknown", "Unknown"
 	}
 
-	parts = strings.Split(parts[1], ", ")
-	return parts[0], parts[1]
+	after := parts[1]
+	parts2 := strings.SplitN(after, ", ", 2)
+	if len(parts2) < 2 {
+		// malformed but return what we have
+		if len(parts2) == 1 {
+			return parts2[0], "Unknown"
+		}
+		return "Unknown", "Unknown"
+	}
+	return parts2[0], parts2[1]
 }
 
 // startUpdateMonitor starts the update status monitoring if not already active
 func startUpdateMonitor() {
-	if isMonitoringUpdate {
+	// Atomically set from 0 -> 1, return if already 1
+	if !atomic.CompareAndSwapInt32(&isMonitoringUpdate, 0, 1) {
 		log.Println("Update monitoring is already running.")
 		return
 	}
 
-	isMonitoringUpdate = true
-	sendCommand("update")
+	// send update command once
+	if err := sendCommandAndClose("update"); err != nil {
+		log.Printf("Failed to send update command: %v", err)
+		atomic.StoreInt32(&isMonitoringUpdate, 0)
+		return
+	}
+
+	// run monitor in background
 	go monitorUpdateStatus()
 }
 
 // monitorUpdateStatus continuously fetches and updates the update status
 func monitorUpdateStatus() {
-	for isMonitoringUpdate {
+	defer atomic.StoreInt32(&isMonitoringUpdate, 0)
+
+	for atomic.LoadInt32(&isMonitoringUpdate) == 1 {
 		updateStatus := fetchUpdateStatus()
 
 		// If the update status is "Disable", stop monitoring
-		if updateStatus == "Disable" {
+		if strings.EqualFold(updateStatus, "Disable") {
 			log.Println("Update status is disabled. Stopping monitoring.")
-			isMonitoringUpdate = false
+			atomic.StoreInt32(&isMonitoringUpdate, 0)
 			checkVersionAfterUpdate()
+			break
+		} else if updateStatus == "Unknown" {
+			// keep the monitoring alive but show updating state
+			updateItem.SetTitle("Updating... (unknown)")
+			updateItem.Disable()
 		} else {
 			log.Printf("Current update status: %v", updateStatus)
 			// Update the icon or text based on the update status
@@ -254,9 +313,6 @@ func monitorUpdateStatus() {
 		// Sleep for a short period before checking again
 		time.Sleep(5 * time.Second)
 	}
-
-	// Reset the flag after monitoring is done
-	isMonitoringUpdate = false
 }
 
 // handleMenuActions listens for menu item clicks and performs actions
@@ -269,77 +325,108 @@ func handleMenuActions() {
 
 // fetchStatus retrieves the agent status and connection state from the backend
 func fetchStatus() (string, string) {
-	conn, err := net.Dial("tcp", "localhost:50505") // Update the port if needed
+	conn, err := net.DialTimeout("tcp", "localhost:50505", 3*time.Second)
 	if err != nil {
 		log.Printf("Failed to connect to backend: %v", err)
 		return "Unknown", "Unknown"
 	}
-	defer conn.Close()
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
-	// Request status
-	fmt.Fprintln(conn, "status")
+	_, err = fmt.Fprintln(conn, "status")
+	if err != nil {
+		log.Printf("Failed to send status request: %v", err)
+		conn.Close()
+		return "Unknown", "Unknown"
+	}
 
-	// Use bufio.Reader to read the response (including newline characters)
 	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n') // Read until newline character
+	response, err := reader.ReadString('\n')
+	// close immediately after ReadString
+	conn.Close()
 	if err != nil {
 		log.Printf("Failed to read response: %v", err)
 		return "Unknown", "Unknown"
 	}
 
-	response = strings.TrimSuffix(response, "\n")
-
-	// Split the string by comma
+	response = strings.TrimSpace(response)
+	// defensive splitting
 	parts := strings.Split(response, ", ")
+	if len(parts) < 2 {
+		return "Unknown", "Unknown"
+	}
 
-	// Extract the values
-	status := strings.Split(parts[0], ": ")[1]
-	connection := strings.Split(parts[1], ": ")[1]
+	// Extract the values safely
+	var statusVal, connVal string
+	if len(parts) >= 1 {
+		p := strings.SplitN(parts[0], ": ", 2)
+		if len(p) == 2 {
+			statusVal = p[1]
+		}
+	}
+	if len(parts) >= 2 {
+		p := strings.SplitN(parts[1], ": ", 2)
+		if len(p) == 2 {
+			connVal = p[1]
+		}
+	}
 
-	return status, connection
+	if statusVal == "" {
+		statusVal = "Unknown"
+	}
+	if connVal == "" {
+		connVal = "Unknown"
+	}
+
+	return statusVal, connVal
 }
 
 // fetchUpdateStatus retrieves the update status from the backend
 func fetchUpdateStatus() string {
-	conn, err := net.Dial("tcp", "localhost:50505") // Update the port if needed
+	conn, err := net.DialTimeout("tcp", "localhost:50505", 3*time.Second)
 	if err != nil {
 		log.Printf("Failed to connect to backend: %v", err)
 		return "Unknown"
 	}
-	defer conn.Close()
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
-	// Send "update" command to the server
-	fmt.Fprintln(conn, "update-status")
+	_, err = fmt.Fprintln(conn, "update-status")
+	if err != nil {
+		log.Printf("Failed to send update-status: %v", err)
+		conn.Close()
+		return "Unknown"
+	}
 
-	// Use bufio.Reader to read the response (including newline characters)
 	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n') // Read until newline character
+	response, err := reader.ReadString('\n')
+	// close immediately after read
+	conn.Close()
 	if err != nil {
 		log.Printf("Failed to read response: %v", err)
 		return "Unknown"
 	}
 
-	// Trim the newline character
-	response = strings.TrimSuffix(response, "\n")
-
+	response = strings.TrimSpace(response)
 	log.Printf("Update: %v", response)
 
-	// Extract the value of the update status
-	status := strings.Split(response, ": ")[1]
-	return status
+	parts := strings.SplitN(response, ": ", 2)
+	if len(parts) < 2 {
+		return "Unknown"
+	}
+	return parts[1]
 }
 
-// sendCommand sends a command (e.g., pause or restart) to the backend
-func sendCommand(command string) {
-	conn, err := net.Dial("tcp", "localhost:50505") // Update the port if needed
+// sendCommandAndClose sends a command and closes the connection explicitly.
+func sendCommandAndClose(command string) error {
+	conn, err := net.DialTimeout("tcp", "localhost:50505", 3*time.Second)
 	if err != nil {
-		log.Printf("Failed to connect to backend: %v", err)
-		return
+		return err
 	}
-	defer conn.Close()
-
-	// Send command
-	fmt.Fprintln(conn, command)
+	// set a short write deadline to avoid hanging
+	_ = conn.SetWriteDeadline(time.Now().Add(3 * time.Second))
+	_, err = fmt.Fprintln(conn, command)
+	// close immediately after send
+	_ = conn.Close()
+	return err
 }
 
 // getEmbeddedFile reads a file from the embedded file system
@@ -351,6 +438,7 @@ func getEmbeddedFile(path string) ([]byte, error) {
 func getIconPath() string {
 	switch os := runtime.GOOS; os {
 	case "windows":
+		_ = os // silence unused variable in switch
 		return "assets/wazuh-logo.ico" // Path to the ICO icon for Windows
 	default:
 		return "assets/wazuh-logo.png" // Default icon path
