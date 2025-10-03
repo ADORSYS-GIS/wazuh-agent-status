@@ -103,31 +103,15 @@ function Create-StartupShortcut {
         [string]$ShortcutName,
         [string]$ExecutablePath
     )
-
-    # Dynamically retrieve the loaded interactive user profile path
-    $UserProfiles = Get-WmiObject -Class Win32_UserProfile | Where-Object { -not $_.Special -and $_.Loaded }
-    if ($UserProfiles.Count -eq 0) {
-        # No loaded user profile found; log error and exit
-        Write-Error "No loaded interactive user profile found."
-        return
-    }
-
-    # Use the first (typically the only) loaded non-special profile
-    $UserProfilePath = $UserProfiles[0].LocalPath
-    $UserAppData = Join-Path $UserProfilePath "AppData\Roaming"
-    $StartupFolder = Join-Path $UserAppData "Microsoft\Windows\Start Menu\Programs\Startup"
-    $ShortcutPath = Join-Path $StartupFolder "$ShortcutName.lnk"
-
-    # Create the shortcut
+    
     try {
-        $WshShell = New-Object -ComObject WScript.Shell
-        $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-        $Shortcut.TargetPath = $ExecutablePath
-        $Shortcut.Save()
-        Write-Output "Startup shortcut created: $ShortcutPath."
+        # Add to registry for all users
+        $RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+        Set-ItemProperty -Path $RegistryPath -Name $ShortcutName -Value "`"$ExecutablePath`"" -Type String
+        InfoMessage "Startup entry created in registry: $ShortcutName"
     }
     catch {
-        Write-Error "Failed to create shortcut: $($_.Exception.Message)"
+        ErrorMessage "Failed to create registry startup entry: $($_.Exception.Message)"
     }
 }
 
