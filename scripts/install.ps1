@@ -106,7 +106,7 @@ function Create-StartupShortcut {
     
     try {
         # Add to registry for all users
-        $RegistryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+        $RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
         Set-ItemProperty -Path $RegistryPath -Name $ShortcutName -Value "`"$ExecutablePath`"" -Type String
         InfoMessage "Startup entry created in registry: $ShortcutName"
     }
