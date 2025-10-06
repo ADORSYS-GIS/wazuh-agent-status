@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	sudoCommand = "sudo"
+	sudoCommand = "/usr/bin/sudo"
 )
 
 // checkServiceStatus checks the status of Wazuh agent and its connection on Linux
@@ -30,7 +30,7 @@ func checkServiceStatus() (string, string) {
 	}
 
 	// Check connection status - FIXED: split grep command into separate arguments
-	connCmd := exec.Command(sudoCommand, "grep", "^status", "/var/ossec/var/run/wazuh-agentd.state")
+	connCmd := exec.Command(sudoCommand, "/usr/bin/grep", "^status", "/var/ossec/var/run/wazuh-agentd.state")
 	connOutput, connErr := connCmd.CombinedOutput()
 	connection := "Disconnected"
 	if connErr != nil {
