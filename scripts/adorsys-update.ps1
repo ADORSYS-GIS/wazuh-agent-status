@@ -99,84 +99,65 @@ function Show-UserNotification {
             return $false
         }
 
-        # Create notification script with logging
-        # Use a path that's writable by the scheduled task
-        $NotificationLog = Join-Path $LogFile.Replace("active-responses.log", "") "$TaskName.log"
+        # Create notification script - simplified and robust
+        # Use TEMP folder which is always writable
+        $UserTempPath = "C:\Users\$ActiveUser\AppData\Local\Temp"
+        $NotificationLog = Join-Path $UserTempPath "$TaskName.log"
+
         $ScriptContent = @"
 # Notification script for Wazuh Update
-`$ErrorActionPreference = 'Continue'
-`$LogFile = '$($NotificationLog -replace "'", "''") -replace '\\', '\\')'
+`$LogFile = '$($NotificationLog -replace "\\", "\\")'
 
-# Log function - use try/catch to handle permission issues
-function LogNotif(`$msg) {
-    try {
-        `$Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-        "`$Timestamp - `$msg" | Out-File -FilePath `$LogFile -Append -Encoding UTF8 -Force
-    } catch {
-        # Silently fail if can't write to log
-    }
-}
-
-LogNotif "Notification script started for user: $ActiveUser"
-LogNotif "Current user: `$([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)"
-LogNotif "Execution policy: `$(Get-ExecutionPolicy)"
-
+# Simple logging
 try {
-    # Try BurntToast first (modern Windows 10/11)
-    `$hasBurntToast = Get-Module -ListAvailable -Name BurntToast
-    LogNotif "BurntToast available: `$(`$hasBurntToast -ne `$null)"
+    `$timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    "`$timestamp - Script started" | Out-File -FilePath `$LogFile -Force
+    "`$timestamp - User: `$env:USERNAME" | Out-File -FilePath `$LogFile -Append
+} catch { }
 
-    if (`$hasBurntToast) {
-        LogNotif "BurntToast module found, importing..."
-        Import-Module BurntToast -ErrorAction Stop
-        `$params = @{
-            Text = '$($Title -replace "'", "''")', '$($Message -replace "'", "''")'
-            Sound = $(if ($IsError) { "'Alarm'" } else { "'Default'" })
+# Show notification using msg.exe (most reliable method)
+try {
+    `$currentUser = `$env:USERNAME
+    `$sessionId = `$null
+
+    # Get current user's session ID
+    `$sessions = query user 2>&1
+    foreach (`$line in `$sessions) {
+        if (`$line -match "(`$currentUser).*console.*\s+(\d+)\s+Active") {
+            `$sessionId = `$matches[2]
+            break
         }
-        LogNotif "Sending BurntToast notification..."
-        New-BurntToastNotification @params
-        LogNotif "BurntToast notification sent successfully"
+    }
+
+    "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Session ID: `$sessionId" | Out-File -FilePath `$LogFile -Append
+
+    if (`$sessionId) {
+        "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Sending to session `$sessionId" | Out-File -FilePath `$LogFile -Append
+        msg.exe `$sessionId /TIME:30 "$Title`n`n$Message"
+        "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - msg.exe completed" | Out-File -FilePath `$LogFile -Append
     } else {
-        LogNotif "BurntToast module not found, using msg.exe fallback"
-        # Fallback to msg.exe for older systems
-        # Find user session ID
-        `$sessions = query user 2>&1 | Out-String
-        LogNotif "Query user output: `$sessions"
-
-        `$sessionId = `$null
-        query user 2>&1 | Select-Object -Skip 1 | ForEach-Object {
-            if (`$_ -match '$ActiveUser.*\s+(\d+)\s+Active') {
-                `$sessionId = `$matches[1]
-            }
-        }
-        LogNotif "Detected session ID: `$sessionId"
-
-        if (`$sessionId) {
-            LogNotif "Found session ID: `$sessionId, sending msg.exe..."
-            `$msgResult = msg.exe `$sessionId /TIME:30 "$Title - $Message" 2>&1 | Out-String
-            LogNotif "msg.exe output: `$msgResult"
-        } else {
-            LogNotif "ERROR: Could not find active session for user $ActiveUser"
-            # Try sending to all active sessions as last resort
-            LogNotif "Attempting to send to all active sessions..."
-            msg.exe * /TIME:30 "$Title - $Message" 2>&1 | Out-String | ForEach-Object { LogNotif "Broadcast msg.exe: `$_" }
-        }
+        "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - No session found, broadcasting" | Out-File -FilePath `$LogFile -Append
+        msg.exe * /TIME:30 "$Title`n`n$Message"
     }
 } catch {
-    LogNotif "ERROR: Exception occurred: `$(`$_.Exception.Message)"
-    LogNotif "ERROR: Stack trace: `$(`$_.ScriptStackTrace)"
+    "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - ERROR: `$(`$_.Exception.Message)" | Out-File -FilePath `$LogFile -Append
 }
 
-# Cleanup with delay to ensure notification displays
-LogNotif "Waiting 5 seconds before cleanup..."
-Start-Sleep -Seconds 5
-LogNotif "Starting cleanup..."
+# Wait to ensure message displays
+Start-Sleep -Seconds 3
+
+# Cleanup
 try {
-    Unregister-ScheduledTask -TaskName '$TaskName' -Confirm:`$false -ErrorAction SilentlyContinue
+    "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Starting cleanup" | Out-File -FilePath `$LogFile -Append
+    `$task = Get-ScheduledTask -TaskName '$TaskName' -ErrorAction SilentlyContinue
+    if (`$task) {
+        Unregister-ScheduledTask -TaskName '$TaskName' -Confirm:`$false
+    }
+    Start-Sleep -Seconds 1
     Remove-Item -Path '$TempScript' -Force -ErrorAction SilentlyContinue
-    LogNotif "Cleanup completed"
+    "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Cleanup completed" | Out-File -FilePath `$LogFile -Append
 } catch {
-    LogNotif "Cleanup error: `$(`$_.Exception.Message)"
+    "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Cleanup error: `$(`$_.Exception.Message)" | Out-File -FilePath `$LogFile -Append
 }
 "@
 
@@ -209,7 +190,9 @@ try {
             InfoMessage "Schtasks run output: $runOutput"
         }
 
-        InfoMessage "Notification task created successfully: $TaskName. Check log file: $NotificationLog"
+        InfoMessage "Notification task created and started: $TaskName"
+        InfoMessage "Notification log file will be at: $NotificationLog"
+        InfoMessage "Temp script location: $TempScript"
         return $true
 
     } catch {
