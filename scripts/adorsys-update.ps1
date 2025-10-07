@@ -71,8 +71,11 @@ function Show-UserNotification {
             [System.Windows.Forms.MessageBoxIcon]::Information
         }
 
-        # Show message box
-        [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, $icon) | Out-Null
+        # Use ServiceNotification to show from background/service context
+        $options = [System.Windows.Forms.MessageBoxOptions]::ServiceNotification
+
+        # Show message box with ServiceNotification option
+        [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, $icon, [System.Windows.Forms.MessageBoxDefaultButton]::Button1, $options) | Out-Null
 
         InfoMessage "Notification displayed successfully"
         return $true
