@@ -132,30 +132,15 @@ Remove-Item -Path '$TempScript' -Force -ErrorAction SilentlyContinue
         # Write script to temp file
         $ScriptContent | Out-File -FilePath $TempScript -Encoding UTF8 -Force
 
-        # Create scheduled task components
-        $Action = New-ScheduledTaskAction -Execute "powershell.exe" `
-            -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$TempScript`""
+        # Create scheduled task using schtasks.exe to avoid XML validation issues
+        $StartTime = (Get-Date).AddSeconds(5).ToString("HH:mm")
+        $SchtasksCmd = "schtasks.exe /Create /F /SC ONCE /TN `"$TaskName`" /TR `"powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \`"$TempScript\`"`" /ST $StartTime /RU `"$ActiveUser`""
 
-        $Trigger = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddSeconds(2))
+        Invoke-Expression $SchtasksCmd | Out-Null
 
-        $Principal = New-ScheduledTaskPrincipal -UserId $ActiveUser `
-            -LogonType Interactive -RunLevel Limited
-
-        $Settings = New-ScheduledTaskSettingsSet `
-            -AllowStartIfOnBatteries `
-            -DontStopIfGoingOnBatteries `
-            -StartWhenAvailable `
-            -DeleteExpiredTaskAfter (New-TimeSpan -Minutes 5)
-
-        # Register and start the task
-        Register-ScheduledTask -TaskName $TaskName `
-            -Action $Action `
-            -Trigger $Trigger `
-            -Principal $Principal `
-            -Settings $Settings `
-            -Force | Out-Null
-
-        Start-ScheduledTask -TaskName $TaskName
+        # Wait a moment then start the task immediately
+        Start-Sleep -Milliseconds 500
+        schtasks.exe /Run /TN "$TaskName" | Out-Null
 
         InfoMessage "Notification task created successfully: $TaskName"
         return $true
