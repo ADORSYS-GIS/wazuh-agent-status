@@ -109,9 +109,6 @@ func onReady() {
 	// Start background status update
 	go monitorStatus()
 
-	// Start notification monitoring
-	go monitorNotifications()
-
 	// Handle menu item clicks
 	go handleMenuActions()
 }
@@ -357,71 +354,6 @@ func getIconPath() string {
 		return "assets/wazuh-logo.ico" // Path to the ICO icon for Windows
 	default:
 		return "assets/wazuh-logo.png" // Default icon path
-	}
-}
-
-// monitorNotifications checks for pending notifications from the server
-func monitorNotifications() {
-	for {
-		notification := fetchNotification()
-		if notification != "" && notification != "None" {
-			log.Printf("Received notification: %s", notification)
-			showNotification(notification)
-		}
-		time.Sleep(2 * time.Second) // Check every 2 seconds
-	}
-}
-
-// fetchNotification retrieves pending notifications from the backend
-func fetchNotification() string {
-	conn, err := net.Dial("tcp", "localhost:50505")
-	if err != nil {
-		log.Printf("Failed to connect to backend for notification: %v", err)
-		return ""
-	}
-	defer conn.Close()
-
-	fmt.Fprintln(conn, "get-notification")
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	if err != nil {
-		log.Printf("Failed to read notification response: %v", err)
-		return ""
-	}
-
-	response = strings.TrimSuffix(response, "\n")
-	if strings.HasPrefix(response, "Notification: ") {
-		notification := strings.TrimPrefix(response, "Notification: ")
-		return notification
-	}
-	return ""
-}
-
-// showNotification displays a notification to the user
-func showNotification(data string) {
-	// Parse notification data: "TITLE|MESSAGE|TYPE"
-	parts := strings.Split(data, "|")
-	if len(parts) < 2 {
-		log.Printf("Invalid notification format: %s", data)
-		return
-	}
-
-	title := parts[0]
-	message := parts[1]
-	isError := len(parts) > 2 && parts[2] == "error"
-
-	log.Printf("Showing notification - Title: %s, Message: %s, Error: %v", title, message, isError)
-
-	// Use systray to show notification
-	if isError {
-		systray.SetTooltip(fmt.Sprintf("ERROR: %s", message))
-	}
-
-	// Platform-specific notification display (Windows only)
-	if runtime.GOOS == "windows" {
-		showWindowsNotification(title, message)
-	} else {
-		log.Printf("Notification system only implemented for Windows. Title: %s, Message: %s", title, message)
 	}
 }
 

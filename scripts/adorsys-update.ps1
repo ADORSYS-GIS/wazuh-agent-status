@@ -43,9 +43,9 @@ function ErrorMessage { param($msg, $ex = $null) Log "ERROR" $msg $ex }
 function Show-UserNotification {
     <#
     .SYNOPSIS
-        Shows a notification by sending it to the Wazuh agent status server
+        Shows a notification using Windows.Forms.MessageBox
     .DESCRIPTION
-        Sends notification to the server which forwards it to the client running in user session
+        Displays a native Windows message box with the specified title, message, and icon
     #>
     param (
         [Parameter(Mandatory=$true)]
@@ -59,43 +59,26 @@ function Show-UserNotification {
     )
 
     try {
-        InfoMessage "Sending notification to server: $Title - $Message"
+        InfoMessage "Displaying notification: $Title - $Message"
 
-        # Format notification data: "TITLE|MESSAGE|TYPE"
-        $notificationType = if ($IsError) { "error" } else { "info" }
-        $notificationData = "$Title|$Message|$notificationType"
+        # Load Windows Forms assembly
+        Add-Type -AssemblyName System.Windows.Forms
 
-        # Connect to the server and send notification
-        $client = New-Object System.Net.Sockets.TcpClient
-        $client.Connect("localhost", 50505)
-        $stream = $client.GetStream()
-        $writer = New-Object System.IO.StreamWriter($stream)
-        $reader = New-Object System.IO.StreamReader($stream)
-
-        # Send notification command
-        $writer.WriteLine("notify:$notificationData")
-        $writer.Flush()
-
-        # Read response
-        $response = $reader.ReadLine()
-        if ($response -eq "OK") {
-            InfoMessage "Notification sent successfully"
-            $result = $true
+        # Choose icon based on error flag
+        $icon = if ($IsError) {
+            [System.Windows.Forms.MessageBoxIcon]::Error
         } else {
-            WarningMessage "Unexpected response from server: $response"
-            $result = $false
+            [System.Windows.Forms.MessageBoxIcon]::Information
         }
 
-        # Cleanup
-        $writer.Close()
-        $reader.Close()
-        $stream.Close()
-        $client.Close()
+        # Show message box
+        [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, $icon) | Out-Null
 
-        return $result
+        InfoMessage "Notification displayed successfully"
+        return $true
 
     } catch {
-        WarningMessage "Failed to send notification to server: $($_.Exception.Message)"
+        WarningMessage "Failed to display notification: $($_.Exception.Message)"
         return $false
     }
 }

@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -91,13 +90,6 @@ func main() {
 	}
 }
 
-// Notification storage for client to retrieve
-var (
-	pendingNotification     string
-	hasPendingNotification  bool
-	notificationMutex       sync.Mutex
-)
-
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
@@ -138,29 +130,8 @@ func handleConnection(conn net.Conn) {
 			} else {
 				conn.Write([]byte(fmt.Sprintf("VersionCheck: Up to date, v%s\n", localVersion)))
 			}
-		case "get-notification":
-			notificationMutex.Lock()
-			if hasPendingNotification {
-				conn.Write([]byte(fmt.Sprintf("Notification: %s\n", pendingNotification)))
-				hasPendingNotification = false
-				pendingNotification = ""
-			} else {
-				conn.Write([]byte("Notification: None\n"))
-			}
-			notificationMutex.Unlock()
 		default:
-			// Check if it's a notification command
-			if strings.HasPrefix(command, "notify:") {
-				notificationData := strings.TrimPrefix(command, "notify:")
-				notificationMutex.Lock()
-				pendingNotification = notificationData
-				hasPendingNotification = true
-				notificationMutex.Unlock()
-				conn.Write([]byte("OK\n"))
-				log.Printf("Notification stored: %s", notificationData)
-			} else {
-				conn.Write([]byte(fmt.Sprintf("Unknown command: %s \n", command)))
-			}
+			conn.Write([]byte(fmt.Sprintf("Unknown command: %s \n", command)))
 		}
 	}
 }
