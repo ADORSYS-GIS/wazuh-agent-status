@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"embed"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -11,7 +12,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/getlantern/systray"
@@ -25,15 +25,18 @@ var (
 	statusItem, connectionItem, updateItem, versionItem *systray.MenuItem
 	enabledIcon, disabledIcon                           []byte
 
-	// isMonitoringUpdate is an atomic flag (0/1) to indicate a running update monitor
-	isMonitoringUpdate int32
-
-	// monitorOnce ensures we only start monitorStatus once
+	// monitorOnce ensures we only start the monitoring routines once
 	monitorOnce sync.Once
+
+	// updateMutex prevents concurrent attempts to start the update stream
+	updateMutex sync.Mutex
 )
 
 // Version is set at build time via ldflags
-var Version = "v0.3.4-user-rc1"
+var Version = "v0.3.7-auto-update"
+
+// AUTH_TOKEN must match the server's token
+const AUTH_TOKEN = "SUPER_SECRET_LOCAL_TOKEN"
 
 func getUserLogFilePath() string {
 	var logDir string
@@ -81,7 +84,7 @@ func main() {
 
 // onReady sets up the tray icon
 func onReady() {
-	// Load main icon
+	// Load icons and set up systray
 	mainIcon, err := getEmbeddedFile(getIconPath())
 	if err != nil {
 		log.Fatalf("Failed to load main icon: %v", err)
@@ -89,7 +92,6 @@ func onReady() {
 	systray.SetIcon(mainIcon)
 	systray.SetTooltip("Wazuh Agent Status")
 
-	// Load status icons.
 	enabledIcon, err = getEmbeddedFile("assets/green-dot.png")
 	if err != nil {
 		log.Printf("Failed to load enabled icon: %v", err)
@@ -111,10 +113,10 @@ func onReady() {
 	versionItem = systray.AddMenuItem("v---", "The version state of the wazuhbsetup")
 	versionItem.Disable() // Initially disabled
 
-	// Start background status update (guarded to run only once)
+	// Start background monitoring routines (guarded to run only once)
 	monitorOnce.Do(func() {
-		go monitorStatus()
-		// optional goroutine counter for debug
+		go monitorStatusStream()
+		go monitorVersion() // Handles both startup and periodic checks
 		go goroutineCounter()
 	})
 
@@ -123,7 +125,6 @@ func onReady() {
 }
 
 // goroutineCounter logs goroutine count periodically to help detect leaks.
-// You can remove this if it's too noisy.
 func goroutineCounter() {
 	for {
 		time.Sleep(1 * time.Minute)
@@ -131,302 +132,228 @@ func goroutineCounter() {
 	}
 }
 
-// monitorStatus continuously fetches and updates the agent status
-func monitorStatus() {
-	// Status polling loop
-	go func() {
+// monitorStatusStream establishes a persistent connection to receive status updates.
+func monitorStatusStream() {
+	for {
+		conn, err := net.DialTimeout("tcp", "localhost:50505", 5*time.Second)
+		if err != nil {
+			log.Printf("Failed to connect to backend for status stream: %v. Retrying in 10s...", err)
+			updateStatusItems("Unknown", "Unknown")
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		log.Println("Status stream connected. Sending subscription...")
+		fmt.Fprintln(conn, "auth "+AUTH_TOKEN)
+		fmt.Fprintln(conn, "subscribe-status")
+
+		reader := bufio.NewReader(conn)
+
 		for {
-			status, connection := fetchStatus()
-
-			// Update status menu item
-			if status == "Active" {
-				statusItem.SetTitle("Agent: Active")
-				statusItem.SetIcon(enabledIcon)
-			} else {
-				statusItem.SetTitle("Agent: Inactive")
-				statusItem.SetIcon(disabledIcon)
+			response, err := reader.ReadString('\n')
+			if err != nil {
+				log.Printf("Status stream closed by server or error: %v. Reconnecting...", err)
+				conn.Close()
+				break
 			}
 
-			// Update connection menu item
-			if connection == "Connected" {
-				connectionItem.SetTitle("Connection: Connected")
-				connectionItem.SetIcon(enabledIcon)
-			} else {
-				connectionItem.SetTitle("Connection: Disconnected")
-				connectionItem.SetIcon(disabledIcon)
+			response = strings.TrimSpace(response)
+			if strings.HasPrefix(response, "STATUS_UPDATE:") {
+				parts := strings.Split(response, ": ")
+				if len(parts) > 1 {
+					data := strings.Split(parts[1], ", ")
+					if len(data) == 2 {
+						updateStatusItems(data[0], data[1])
+					}
+				}
+			} else if strings.HasPrefix(response, "ERROR:") {
+				log.Printf("Error from status stream: %s", response)
+				conn.Close()
+				break
 			}
-
-			// If version hasn't been set yet, ensure it's checked
-			v := versionItem.String()
-			if v == "v---" || v == "Version: Unknown" || v == "vUnknown" {
-				checkVersionAfterUpdate()
-			}
-
-			time.Sleep(5 * time.Second)
 		}
-	}()
-
-	// Long interval version check
-	go func() {
-		for {
-			checkVersion()
-			time.Sleep(4 * time.Hour)
-		}
-	}()
-}
-
-func checkVersion() {
-	versionStatus, version := fetchVersionStatus()
-
-	if strings.HasPrefix(versionStatus, "Up to date") {
-		versionItem.SetTitle(version)
-		versionItem.Disable()
-		updateItem.SetTitle("Up to date")
-		updateItem.Disable()
-	} else if strings.HasPrefix(versionStatus, "Outdated") {
-		versionItem.SetTitle(version)
-		versionItem.Disable()
-		updateItem.SetTitle("Update")
-		updateItem.Enable()
-		log.Println("Version is outdated, starting update monitor...")
-		startUpdateMonitor()
-	} else {
-		versionItem.SetTitle("Version: Unknown")
-		versionItem.Disable()
-		updateItem.Disable()
-	}
-}
-
-func checkVersionAfterUpdate() {
-	versionStatus, version := fetchVersionStatus()
-
-	if strings.HasPrefix(versionStatus, "Up to date") {
-		versionItem.SetTitle(version)
-		versionItem.Disable()
-		updateItem.SetTitle("Up to date")
-		updateItem.Disable()
-	} else if strings.HasPrefix(versionStatus, "Outdated") {
-		versionItem.SetTitle(version)
-		versionItem.Disable()
-		updateItem.SetTitle("Update")
-		updateItem.Enable()
-	} else {
-		versionItem.SetTitle("Version: Unknown")
-		versionItem.Disable()
-		updateItem.Disable()
-	}
-}
-
-// fetchVersionStatus performs a single request/response and closes the connection immediately.
-func fetchVersionStatus() (string, string) {
-	conn, err := net.DialTimeout("tcp", "localhost:50505", 3*time.Second)
-	if err != nil {
-		log.Printf("Failed to connect to backend: %v", err)
-		return "Unknown", "Unknown"
-	}
-
-	// Ensure we always close the conn explicitly in this function.
-	// do not use defer in functions that may be called in tight loops if you expect the function to return quickly -
-	// but here it's fine because we close before returning in all branches.
-	// however prefer explicit close at the end of the operation:
-	// set a read deadline so ReadString doesn't block forever
-	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-
-	_, err = fmt.Fprintln(conn, "check-version")
-	if err != nil {
-		log.Printf("Failed to send check-version: %v", err)
-		conn.Close()
-		return "Unknown", "Unknown"
-	}
-
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	// close as soon as read completes or fails
-	conn.Close()
-	if err != nil {
-		log.Printf("Failed to read response: %v", err)
-		return "Unknown", "Unknown"
-	}
-
-	response = strings.TrimSpace(response)
-	// defensive parsing
-	parts := strings.SplitN(response, ": ", 2)
-	if len(parts) < 2 {
-		return "Unknown", "Unknown"
-	}
-
-	after := parts[1]
-	parts2 := strings.SplitN(after, ", ", 2)
-	if len(parts2) < 2 {
-		// malformed but return what we have
-		if len(parts2) == 1 {
-			return parts2[0], "Unknown"
-		}
-		return "Unknown", "Unknown"
-	}
-	return parts2[0], parts2[1]
-}
-
-// startUpdateMonitor starts the update status monitoring if not already active
-func startUpdateMonitor() {
-	// Atomically set from 0 -> 1, return if already 1
-	if !atomic.CompareAndSwapInt32(&isMonitoringUpdate, 0, 1) {
-		log.Println("Update monitoring is already running.")
-		return
-	}
-
-	// send update command once
-	if err := sendCommandAndClose("update"); err != nil {
-		log.Printf("Failed to send update command: %v", err)
-		atomic.StoreInt32(&isMonitoringUpdate, 0)
-		return
-	}
-
-	// run monitor in background
-	go monitorUpdateStatus()
-}
-
-// monitorUpdateStatus continuously fetches and updates the update status
-func monitorUpdateStatus() {
-	defer atomic.StoreInt32(&isMonitoringUpdate, 0)
-
-	for atomic.LoadInt32(&isMonitoringUpdate) == 1 {
-		updateStatus := fetchUpdateStatus()
-
-		// If the update status is "Disable", stop monitoring
-		if strings.EqualFold(updateStatus, "Disable") {
-			log.Println("Update status is disabled. Stopping monitoring.")
-			atomic.StoreInt32(&isMonitoringUpdate, 0)
-			checkVersionAfterUpdate()
-			break
-		} else if updateStatus == "Unknown" {
-			// keep the monitoring alive but show updating state
-			updateItem.SetTitle("Updating... (unknown)")
-			updateItem.Disable()
-		} else {
-			log.Printf("Current update status: %v", updateStatus)
-			// Update the icon or text based on the update status
-			updateItem.SetTitle("Updating...")
-			updateItem.Disable()
-		}
-
-		// Sleep for a short period before checking again
 		time.Sleep(5 * time.Second)
+	}
+}
+
+// updateStatusItems safely updates the systray menu items.
+func updateStatusItems(status, connection string) {
+	if status == "Active" {
+		statusItem.SetTitle("Agent: Active")
+		statusItem.SetIcon(enabledIcon)
+	} else {
+		statusItem.SetTitle("Agent: Inactive")
+		statusItem.SetIcon(disabledIcon)
+	}
+
+	if connection == "Connected" {
+		connectionItem.SetTitle("Connection: Connected")
+		connectionItem.SetIcon(enabledIcon)
+	} else {
+		connectionItem.SetTitle("Connection: Disconnected")
+		connectionItem.SetIcon(disabledIcon)
+	}
+}
+
+// monitorVersion handles the startup check and the periodic check.
+func monitorVersion() {
+	// Initial check on startup (autoStart=true triggers immediate update if needed)
+	handleVersionCheck(true) 
+	
+	// Periodic check every 4 hours
+	for {
+		time.Sleep(4 * time.Hour)
+		handleVersionCheck(true) // autoStart=true ensures automatic update initiation
+	}
+}
+
+// handleVersionCheck communicates with the backend, updates the menu, and conditionally starts an update.
+// The 'autoStart' flag determines if an available update should be automatically triggered.
+func handleVersionCheck(autoStart bool) {
+	response, err := sendCommandAndReceive("get-version")
+	if err != nil {
+		log.Printf("Error fetching version: %v", err)
+		versionItem.SetTitle("Version: Unknown")
+		updateItem.SetTitle("---")
+		updateItem.Disable()
+		return
+	}
+
+	response = strings.TrimPrefix(response, "VERSION_CHECK: ")
+	isOutdated := strings.Contains(response, "Outdated")
+	
+	// --- Update Menu Items ---
+	if isOutdated {
+		// Extract version number part only
+		parts := strings.Split(response, ", ")
+		version := "vUnknown"
+		if len(parts) == 2 {
+			version = parts[1]
+		}
+		versionItem.SetTitle(version)
+		updateItem.SetTitle("Update Available")
+		updateItem.Enable() // Always enable manual trigger
+		
+		if autoStart {
+			log.Println("Automatic update triggered by periodic check.")
+			updateItem.Disable()
+			go startUpdateStream()
+		}
+		
+	} else if strings.Contains(response, "Up to date") {
+		// Extract version number part only
+		parts := strings.Split(response, ", ")
+		version := "vUnknown"
+		if len(parts) == 2 {
+			version = parts[1]
+		}
+		versionItem.SetTitle(version)
+		updateItem.SetTitle("Up to date")
+		updateItem.Disable()
+	} else {
+		versionItem.SetTitle(response)
+		updateItem.SetTitle("---")
+		updateItem.Disable()
 	}
 }
 
 // handleMenuActions listens for menu item clicks and performs actions
 func handleMenuActions() {
 	for range updateItem.ClickedCh {
-		log.Println("Update clicked")
-		startUpdateMonitor()
+		log.Println("Update clicked. Starting stream...")
+		updateItem.SetTitle("Starting Update...")
+		updateItem.Disable()
+		// Manual trigger bypasses the autoStart logic
+		go startUpdateStream() 
 	}
 }
 
-// fetchStatus retrieves the agent status and connection state from the backend
-func fetchStatus() (string, string) {
+// startUpdateStream initiates the update on the server and streams the progress back.
+func startUpdateStream() {
+    // Use mutex to prevent multiple update streams from starting simultaneously
+    if !updateMutex.TryLock() {
+        log.Println("Update already in progress. Skipping.")
+        return
+    }
+    defer updateMutex.Unlock() // This runs LAST
+
+    conn, err := net.DialTimeout("tcp", "localhost:50505", 5*time.Second)
+    if err != nil {
+        log.Printf("Failed to connect to backend for update stream: %v", err)
+        updateItem.SetTitle("Update Failed (Connect)")
+        updateItem.Enable() 
+        return
+    }
+    defer conn.Close()
+
+    fmt.Fprintln(conn, "auth "+AUTH_TOKEN)
+    fmt.Fprintln(conn, "update")
+
+    reader := bufio.NewReader(conn)
+    
+    // Read and process the streaming response from the server
+    for {
+        response, err := reader.ReadString('\n')
+        if err != nil {
+            if err != io.EOF {
+                log.Printf("Update stream error: %v", err)
+                updateItem.SetTitle("Update Failed (Stream)")
+            } else {
+                log.Println("Update stream finished (EOF).")
+                // Keep the temporary status set:
+                updateItem.SetTitle("Checking Version Status...") 
+            }
+            break
+        }
+
+        trimmed := strings.TrimSpace(response)
+        log.Printf("Update Stream: %s", trimmed)
+
+        // Display status on the menu item
+        if strings.HasPrefix(trimmed, "UPDATE_PROGRESS:") {
+            status := strings.TrimPrefix(trimmed, "UPDATE_PROGRESS: ")
+			if status == "Complete" {
+				break 
+			}
+            updateItem.SetTitle(fmt.Sprintf("Updating: %s", status))
+        }
+    }
+    
+    handleVersionCheck(false)
+}
+
+// sendCommandAndReceive is a general utility for single request/response commands.
+func sendCommandAndReceive(command string) (string, error) {
 	conn, err := net.DialTimeout("tcp", "localhost:50505", 3*time.Second)
 	if err != nil {
-		log.Printf("Failed to connect to backend: %v", err)
-		return "Unknown", "Unknown"
+		return "", fmt.Errorf("failed to dial: %w", err)
 	}
+	defer conn.Close()
+
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
-	_, err = fmt.Fprintln(conn, "status")
+	_, err = fmt.Fprintln(conn, "auth "+AUTH_TOKEN)
 	if err != nil {
-		log.Printf("Failed to send status request: %v", err)
-		conn.Close()
-		return "Unknown", "Unknown"
+		return "", fmt.Errorf("failed to authorize: %w", err)
 	}
 
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	// close immediately after ReadString
-	conn.Close()
-	if err != nil {
-		log.Printf("Failed to read response: %v", err)
-		return "Unknown", "Unknown"
-	}
-
-	response = strings.TrimSpace(response)
-	// defensive splitting
-	parts := strings.Split(response, ", ")
-	if len(parts) < 2 {
-		return "Unknown", "Unknown"
-	}
-
-	// Extract the values safely
-	var statusVal, connVal string
-	if len(parts) >= 1 {
-		p := strings.SplitN(parts[0], ": ", 2)
-		if len(p) == 2 {
-			statusVal = p[1]
-		}
-	}
-	if len(parts) >= 2 {
-		p := strings.SplitN(parts[1], ": ", 2)
-		if len(p) == 2 {
-			connVal = p[1]
-		}
-	}
-
-	if statusVal == "" {
-		statusVal = "Unknown"
-	}
-	if connVal == "" {
-		connVal = "Unknown"
-	}
-
-	return statusVal, connVal
-}
-
-// fetchUpdateStatus retrieves the update status from the backend
-func fetchUpdateStatus() string {
-	conn, err := net.DialTimeout("tcp", "localhost:50505", 3*time.Second)
-	if err != nil {
-		log.Printf("Failed to connect to backend: %v", err)
-		return "Unknown"
-	}
-	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-
-	_, err = fmt.Fprintln(conn, "update-status")
-	if err != nil {
-		log.Printf("Failed to send update-status: %v", err)
-		conn.Close()
-		return "Unknown"
-	}
-
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	// close immediately after read
-	conn.Close()
-	if err != nil {
-		log.Printf("Failed to read response: %v", err)
-		return "Unknown"
-	}
-
-	response = strings.TrimSpace(response)
-	log.Printf("Update: %v", response)
-
-	parts := strings.SplitN(response, ": ", 2)
-	if len(parts) < 2 {
-		return "Unknown"
-	}
-	return parts[1]
-}
-
-// sendCommandAndClose sends a command and closes the connection explicitly.
-func sendCommandAndClose(command string) error {
-	conn, err := net.DialTimeout("tcp", "localhost:50505", 3*time.Second)
-	if err != nil {
-		return err
-	}
-	// set a short write deadline to avoid hanging
-	_ = conn.SetWriteDeadline(time.Now().Add(3 * time.Second))
 	_, err = fmt.Fprintln(conn, command)
-	// close immediately after send
-	_ = conn.Close()
-	return err
+	if err != nil {
+		return "", fmt.Errorf("failed to send command: %w", err)
+	}
+
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	trimmed := strings.TrimSpace(response)
+	if strings.HasPrefix(trimmed, "ERROR:") {
+		return "", fmt.Errorf("server error: %s", trimmed)
+	}
+
+	return trimmed, nil
 }
 
 // getEmbeddedFile reads a file from the embedded file system
@@ -438,10 +365,10 @@ func getEmbeddedFile(path string) ([]byte, error) {
 func getIconPath() string {
 	switch os := runtime.GOOS; os {
 	case "windows":
-		_ = os // silence unused variable in switch
-		return "assets/wazuh-logo.ico" // Path to the ICO icon for Windows
+		_ = os 
+		return "assets/wazuh-logo.ico"
 	default:
-		return "assets/wazuh-logo.png" // Default icon path
+		return "assets/wazuh-logo.png"
 	}
 }
 
