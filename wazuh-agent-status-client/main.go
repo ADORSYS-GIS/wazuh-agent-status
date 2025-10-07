@@ -35,8 +35,8 @@ var (
 // Version is set at build time via ldflags
 var Version = "v0.3.7-auto-update"
 
-// AUTH_TOKEN must match the server's token
-const AUTH_TOKEN = "SUPER_SECRET_LOCAL_TOKEN"
+// AUTH_TOKEN is set at build time via ldflags
+var AUTH_TOKEN = "SUPER_SECRET_LOCAL_TOKEN"
 
 func getUserLogFilePath() string {
 	var logDir string

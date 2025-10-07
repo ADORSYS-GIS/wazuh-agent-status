@@ -21,11 +21,14 @@ import (
 const (
 	versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt"
 	// AUTH_TOKEN should be set securely at build time or via config
-	AUTH_TOKEN = "SUPER_SECRET_LOCAL_TOKEN"
+	
 )
 
 // Version is set at build time via ldflags
 var Version = "dev"
+
+// AUTH_TOKEN is set at build time via ldflags
+var AUTH_TOKEN = "SUPER_SECRET_LOCAL_TOKEN"
 
 // Global state and communication channels
 var (
