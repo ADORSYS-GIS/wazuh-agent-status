@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -125,17 +126,25 @@ func updateAgent() {
 		// The notifier will delete the service on completion
 		serviceName := "wazuh-update-notifier"
 		// Ensure any existing service is removed before creating
-		_ = exec.Command("cmd", "/c", "sc.exe stop "+serviceName+" 1>nul 2>nul").Run()
-		_ = exec.Command("cmd", "/c", "sc.exe delete "+serviceName+" 1>nul 2>nul").Run()
+		_ = exec.Command("sc.exe", "stop", serviceName).Run()
+		_ = exec.Command("sc.exe", "delete", serviceName).Run()
 
-		// Build a properly quoted binPath for sc.exe and execute via a single command string
-		// Use escaped quotes (\\") for inner quotes to survive cmd /c parsing
-		binPathValue := "\"" + powershellExe + " -NoProfile -ExecutionPolicy Bypass -File \\\"" + notifierPath + "\\\" -UpdateScriptPath \\\"" + scriptPath + "\\\" -ServiceName \\\"" + serviceName + "\\\"\""
-		createCmdLine := "sc.exe create " + serviceName + " binPath= " + binPathValue + " start= demand DisplayName= \"Wazuh Update Notifier\" obj= LocalSystem"
-		if out, err := exec.Command("cmd", "/c", createCmdLine).CombinedOutput(); err != nil {
+		// Build the binPath value - sc.exe expects the entire path (including arguments)
+		// to be wrapped in quotes when there are spaces
+		binPathValue := fmt.Sprintf("\"%s\" -NoProfile -ExecutionPolicy Bypass -File \"%s\" -UpdateScriptPath \"%s\" -ServiceName \"%s\"",
+			powershellExe, notifierPath, scriptPath, serviceName)
+
+		// Create service using separate arguments (more reliable than cmd /c)
+		createCmd := exec.Command("sc.exe", "create", serviceName,
+			"binPath="+binPathValue,
+			"start=", "demand",
+			"DisplayName=", "Wazuh Update Notifier",
+			"obj=", "LocalSystem")
+
+		if out, err := createCmd.CombinedOutput(); err != nil {
 			log.Printf("Failed to create notifier service: %v, output: %s", err, string(out))
 		} else {
-			if out, err := exec.Command("cmd", "/c", "sc.exe start "+serviceName).CombinedOutput(); err != nil {
+			if out, err := exec.Command("sc.exe", "start", serviceName).CombinedOutput(); err != nil {
 				log.Printf("Failed to start notifier service: %v, output: %s", err, string(out))
 			} else {
 				log.Printf("Started notifier service '%s' to monitor update", serviceName)
