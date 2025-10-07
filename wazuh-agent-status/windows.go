@@ -124,15 +124,17 @@ func updateAgent() {
 		// Create a temporary Windows service to run the notifier which launches and monitors the update
 		// The notifier will delete the service on completion
 		serviceName := "wazuh-update-notifier"
-		// sc.exe create <name> binPath= "powershell -ExecutionPolicy Bypass -File \"notifier\" -UpdateScriptPath \"script\" -ServiceName <name>" type= own start= demand
-		args := "-ExecutionPolicy Bypass -File \"" + notifierPath + "\" -UpdateScriptPath \"" + scriptPath + "\" -ServiceName \"" + serviceName + "\""
-		binPath := "\"" + powershellExe + " " + args + "\""
-		createCmd := exec.Command("sc.exe", "create", serviceName, "binPath=", binPath, "start=", "demand", "DisplayName=", "Wazuh Update Notifier", "obj=", "LocalSystem")
-		if out, err := createCmd.CombinedOutput(); err != nil {
+		// Ensure any existing service is removed before creating
+		_ = exec.Command("cmd", "/c", "sc.exe", "stop", serviceName).Run()
+		_ = exec.Command("cmd", "/c", "sc.exe", "delete", serviceName).Run()
+
+		// Build a properly quoted binPath for sc.exe
+		binPathValue := "\"" + powershellExe + " -NoProfile -ExecutionPolicy Bypass -File \\\"" + notifierPath + "\\\" -UpdateScriptPath \\\"" + scriptPath + "\\\" -ServiceName \\\"" + serviceName + "\\\"\""
+		createArgs := []string{"/c", "sc.exe", "create", serviceName, "binPath=", binPathValue, "start=", "demand", "DisplayName=", "\"Wazuh Update Notifier\"", "obj=", "LocalSystem"}
+		if out, err := exec.Command("cmd", createArgs...).CombinedOutput(); err != nil {
 			log.Printf("Failed to create notifier service: %v, output: %s", err, string(out))
 		} else {
-			startCmd := exec.Command("sc.exe", "start", serviceName)
-			if out, err := startCmd.CombinedOutput(); err != nil {
+			if out, err := exec.Command("cmd", "/c", "sc.exe", "start", serviceName).CombinedOutput(); err != nil {
 				log.Printf("Failed to start notifier service: %v, output: %s", err, string(out))
 			} else {
 				log.Printf("Started notifier service '%s' to monitor update", serviceName)
