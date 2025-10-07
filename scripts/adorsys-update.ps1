@@ -99,34 +99,64 @@ function Show-UserNotification {
             return $false
         }
 
-        # Create notification script
+        # Create notification script with logging
+        $NotificationLog = Join-Path $env:TEMP "$TaskName.log"
         $ScriptContent = @"
 # Notification script for Wazuh Update
+`$LogFile = '$($NotificationLog -replace "'", "''")'
+`$Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+
+# Log function
+function LogNotif(`$msg) {
+    "`$Timestamp - `$msg" | Out-File -FilePath `$LogFile -Append -Encoding UTF8
+}
+
+LogNotif "Notification script started for user: $ActiveUser"
+
 try {
     # Try BurntToast first (modern Windows 10/11)
     if (Get-Module -ListAvailable -Name BurntToast) {
+        LogNotif "BurntToast module found, importing..."
         Import-Module BurntToast -ErrorAction Stop
         `$params = @{
             Text = '$($Title -replace "'", "''")', '$($Message -replace "'", "''")'
             Sound = $(if ($IsError) { "'Alarm'" } else { "'Default'" })
         }
+        LogNotif "Sending BurntToast notification..."
         New-BurntToastNotification @params
+        LogNotif "BurntToast notification sent successfully"
     } else {
+        LogNotif "BurntToast module not found, using msg.exe fallback"
         # Fallback to msg.exe for older systems
         # Find user session ID
-        `$sessionId = (query user | Where-Object { `$_ -match '$ActiveUser' } | ForEach-Object { if (`$_ -match '\s+(\d+)\s+Active') { `$matches[1] } }) | Select-Object -First 1
+        `$sessions = query user 2>&1
+        LogNotif "Query user output: `$sessions"
+        `$sessionId = (`$sessions | Where-Object { `$_ -match '$ActiveUser' } | ForEach-Object {
+            if (`$_ -match '\s+(\d+)\s+Active') {
+                `$matches[1]
+            }
+        }) | Select-Object -First 1
+
         if (`$sessionId) {
-            msg.exe `$sessionId /TIME:30 "$Title - $Message"
+            LogNotif "Found session ID: `$sessionId, sending msg.exe..."
+            msg.exe `$sessionId /TIME:30 "$Title - $Message" 2>&1 | Out-String | ForEach-Object { LogNotif "msg.exe output: `$_" }
+            LogNotif "msg.exe notification sent"
+        } else {
+            LogNotif "ERROR: Could not find active session for user $ActiveUser"
         }
     }
 } catch {
-    # Silently fail - notifications are not critical
+    LogNotif "ERROR: Exception occurred: `$(`$_.Exception.Message)"
+    LogNotif "ERROR: Stack trace: `$(`$_.ScriptStackTrace)"
 }
 
-# Cleanup
-Start-Sleep -Seconds 2
+# Cleanup with delay to ensure notification displays
+LogNotif "Waiting 5 seconds before cleanup..."
+Start-Sleep -Seconds 5
+LogNotif "Starting cleanup..."
 Unregister-ScheduledTask -TaskName '$TaskName' -Confirm:`$false -ErrorAction SilentlyContinue
 Remove-Item -Path '$TempScript' -Force -ErrorAction SilentlyContinue
+LogNotif "Cleanup completed"
 "@
 
         # Write script to temp file
@@ -134,15 +164,18 @@ Remove-Item -Path '$TempScript' -Force -ErrorAction SilentlyContinue
 
         # Create scheduled task using schtasks.exe to avoid XML validation issues
         $StartTime = (Get-Date).AddSeconds(5).ToString("HH:mm")
-        $SchtasksCmd = "schtasks.exe /Create /F /SC ONCE /TN `"$TaskName`" /TR `"powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \`"$TempScript\`"`" /ST $StartTime /RU `"$ActiveUser`""
 
-        Invoke-Expression $SchtasksCmd | Out-Null
+        InfoMessage "Creating scheduled task with schtasks.exe..."
+        $createOutput = schtasks.exe /Create /F /SC ONCE /TN "$TaskName" /TR "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$TempScript`"" /ST $StartTime /RU "$ActiveUser" 2>&1
+        InfoMessage "Schtasks create output: $createOutput"
 
         # Wait a moment then start the task immediately
         Start-Sleep -Milliseconds 500
-        schtasks.exe /Run /TN "$TaskName" | Out-Null
+        InfoMessage "Starting scheduled task immediately..."
+        $runOutput = schtasks.exe /Run /TN "$TaskName" 2>&1
+        InfoMessage "Schtasks run output: $runOutput"
 
-        InfoMessage "Notification task created successfully: $TaskName"
+        InfoMessage "Notification task created successfully: $TaskName. Check log file: $NotificationLog"
         return $true
 
     } catch {
