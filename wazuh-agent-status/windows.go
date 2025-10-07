@@ -129,7 +129,8 @@ func updateAgent() {
 		_ = exec.Command("cmd", "/c", "sc.exe delete "+serviceName+" 1>nul 2>nul").Run()
 
 		// Build a properly quoted binPath for sc.exe and execute via a single command string
-		binPathValue := "\"" + powershellExe + " -NoProfile -ExecutionPolicy Bypass -File \"" + notifierPath + "\" -UpdateScriptPath \"" + scriptPath + "\" -ServiceName \"" + serviceName + "\"\""
+		// Use escaped quotes (\\") for inner quotes to survive cmd /c parsing
+		binPathValue := "\"" + powershellExe + " -NoProfile -ExecutionPolicy Bypass -File \\\"" + notifierPath + "\\\" -UpdateScriptPath \\\"" + scriptPath + "\\\" -ServiceName \\\"" + serviceName + "\\\"\""
 		createCmdLine := "sc.exe create " + serviceName + " binPath= " + binPathValue + " start= demand DisplayName= \"Wazuh Update Notifier\" obj= LocalSystem"
 		if out, err := exec.Command("cmd", "/c", createCmdLine).CombinedOutput(); err != nil {
 			log.Printf("Failed to create notifier service: %v, output: %s", err, string(out))
