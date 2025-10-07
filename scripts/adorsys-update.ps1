@@ -100,22 +100,33 @@ function Show-UserNotification {
         }
 
         # Create notification script with logging
-        $NotificationLog = Join-Path $env:TEMP "$TaskName.log"
+        # Use a path that's writable by the scheduled task
+        $NotificationLog = Join-Path $LogFile.Replace("active-responses.log", "") "$TaskName.log"
         $ScriptContent = @"
 # Notification script for Wazuh Update
-`$LogFile = '$($NotificationLog -replace "'", "''")'
-`$Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+`$ErrorActionPreference = 'Continue'
+`$LogFile = '$($NotificationLog -replace "'", "''") -replace '\\', '\\')'
 
-# Log function
+# Log function - use try/catch to handle permission issues
 function LogNotif(`$msg) {
-    "`$Timestamp - `$msg" | Out-File -FilePath `$LogFile -Append -Encoding UTF8
+    try {
+        `$Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+        "`$Timestamp - `$msg" | Out-File -FilePath `$LogFile -Append -Encoding UTF8 -Force
+    } catch {
+        # Silently fail if can't write to log
+    }
 }
 
 LogNotif "Notification script started for user: $ActiveUser"
+LogNotif "Current user: `$([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+LogNotif "Execution policy: `$(Get-ExecutionPolicy)"
 
 try {
     # Try BurntToast first (modern Windows 10/11)
-    if (Get-Module -ListAvailable -Name BurntToast) {
+    `$hasBurntToast = Get-Module -ListAvailable -Name BurntToast
+    LogNotif "BurntToast available: `$(`$hasBurntToast -ne `$null)"
+
+    if (`$hasBurntToast) {
         LogNotif "BurntToast module found, importing..."
         Import-Module BurntToast -ErrorAction Stop
         `$params = @{
@@ -129,20 +140,26 @@ try {
         LogNotif "BurntToast module not found, using msg.exe fallback"
         # Fallback to msg.exe for older systems
         # Find user session ID
-        `$sessions = query user 2>&1
+        `$sessions = query user 2>&1 | Out-String
         LogNotif "Query user output: `$sessions"
-        `$sessionId = (`$sessions | Where-Object { `$_ -match '$ActiveUser' } | ForEach-Object {
-            if (`$_ -match '\s+(\d+)\s+Active') {
-                `$matches[1]
+
+        `$sessionId = `$null
+        query user 2>&1 | Select-Object -Skip 1 | ForEach-Object {
+            if (`$_ -match '$ActiveUser.*\s+(\d+)\s+Active') {
+                `$sessionId = `$matches[1]
             }
-        }) | Select-Object -First 1
+        }
+        LogNotif "Detected session ID: `$sessionId"
 
         if (`$sessionId) {
             LogNotif "Found session ID: `$sessionId, sending msg.exe..."
-            msg.exe `$sessionId /TIME:30 "$Title - $Message" 2>&1 | Out-String | ForEach-Object { LogNotif "msg.exe output: `$_" }
-            LogNotif "msg.exe notification sent"
+            `$msgResult = msg.exe `$sessionId /TIME:30 "$Title - $Message" 2>&1 | Out-String
+            LogNotif "msg.exe output: `$msgResult"
         } else {
             LogNotif "ERROR: Could not find active session for user $ActiveUser"
+            # Try sending to all active sessions as last resort
+            LogNotif "Attempting to send to all active sessions..."
+            msg.exe * /TIME:30 "$Title - $Message" 2>&1 | Out-String | ForEach-Object { LogNotif "Broadcast msg.exe: `$_" }
         }
     }
 } catch {
@@ -154,9 +171,13 @@ try {
 LogNotif "Waiting 5 seconds before cleanup..."
 Start-Sleep -Seconds 5
 LogNotif "Starting cleanup..."
-Unregister-ScheduledTask -TaskName '$TaskName' -Confirm:`$false -ErrorAction SilentlyContinue
-Remove-Item -Path '$TempScript' -Force -ErrorAction SilentlyContinue
-LogNotif "Cleanup completed"
+try {
+    Unregister-ScheduledTask -TaskName '$TaskName' -Confirm:`$false -ErrorAction SilentlyContinue
+    Remove-Item -Path '$TempScript' -Force -ErrorAction SilentlyContinue
+    LogNotif "Cleanup completed"
+} catch {
+    LogNotif "Cleanup error: `$(`$_.Exception.Message)"
+}
 "@
 
         # Write script to temp file
@@ -167,7 +188,9 @@ LogNotif "Cleanup completed"
         $StartTime = (Get-Date).AddMinutes(2).ToString("HH:mm")
 
         InfoMessage "Creating scheduled task with schtasks.exe..."
-        $createOutput = schtasks.exe /Create /F /SC ONCE /TN "$TaskName" /TR "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$TempScript`"" /ST $StartTime /RU "$ActiveUser" 2>&1 | Out-String
+        # Remove -WindowStyle Hidden to allow the window to appear (for testing)
+        # Add /IT flag to allow task to interact with the desktop
+        $createOutput = schtasks.exe /Create /F /SC ONCE /TN "$TaskName" /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File `"$TempScript`"" /ST $StartTime /RU "$ActiveUser" /IT 2>&1 | Out-String
 
         if ($createOutput -match "ERROR") {
             WarningMessage "Schtasks create had errors: $createOutput"
