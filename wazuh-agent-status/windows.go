@@ -109,9 +109,40 @@ func updateAgent() {
 	log.Printf("Updating Wazuh agent...\n")
 	programFiles := os.Getenv("ProgramFiles(x86)")
 	scriptPath := filepath.Join(programFiles, "ossec-agent", "active-response", "bin", "adorsys-update.ps1")
+	notifierPath := filepath.Join(programFiles, "ossec-agent", "active-response", "bin", "update-notifier.ps1")
 
 	if _, err := os.Stat(scriptPath); err != nil {
 		log.Printf("Script file not found: %v", err)
+		return
+	}
+
+	notifierStarted := false
+	if _, err := os.Stat(notifierPath); err != nil {
+		log.Printf("Notifier script not found: %v", err)
+		// Fallback to running update directly
+	} else {
+		// Create a temporary Windows service to run the notifier which launches and monitors the update
+		// The notifier will delete the service on completion
+		serviceName := "wazuh-update-notifier"
+		// sc.exe create <name> binPath= "powershell -ExecutionPolicy Bypass -File \"notifier\" -UpdateScriptPath \"script\" -ServiceName <name>" type= own start= demand
+		args := "-ExecutionPolicy Bypass -File \"" + notifierPath + "\" -UpdateScriptPath \"" + scriptPath + "\" -ServiceName \"" + serviceName + "\""
+		binPath := "\"" + powershellExe + " " + args + "\""
+		createCmd := exec.Command("sc.exe", "create", serviceName, "binPath=", binPath, "start=", "demand", "DisplayName=", "Wazuh Update Notifier", "obj=", "LocalSystem")
+		if out, err := createCmd.CombinedOutput(); err != nil {
+			log.Printf("Failed to create notifier service: %v, output: %s", err, string(out))
+		} else {
+			startCmd := exec.Command("sc.exe", "start", serviceName)
+			if out, err := startCmd.CombinedOutput(); err != nil {
+				log.Printf("Failed to start notifier service: %v, output: %s", err, string(out))
+			} else {
+				log.Printf("Started notifier service '%s' to monitor update", serviceName)
+				notifierStarted = true
+			}
+		}
+	}
+
+	if notifierStarted {
+		// Notifier launched and will execute the update itself; return.
 		return
 	}
 

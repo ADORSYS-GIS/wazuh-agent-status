@@ -26,6 +26,11 @@ $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
 
 $UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/refs/heads/fix/agent-update-binary/scripts/adorsys-update.ps1" }
 $UPDATE_SCRIPT_PATH = if ($null -ne $env:UPDATE_SCRIPT_PATH) { $env:UPDATE_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.ps1" }
+${null} = New-Item -ItemType Directory -Force -Path (Split-Path -Path $UPDATE_SCRIPT_PATH)
+
+# Notifier script (standalone service that monitors update outcome)
+$NOTIFIER_SCRIPT_URL = if ($null -ne $env:NOTIFIER_SCRIPT_URL) { $env:NOTIFIER_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/refs/heads/fix/agent-update-binary/scripts/update-notifier.ps1" }
+$NOTIFIER_SCRIPT_PATH = if ($null -ne $env:NOTIFIER_SCRIPT_PATH) { $env:NOTIFIER_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\update-notifier.ps1" }
 
 # Create necessary directories
 if (-not (Test-Path $BIN_DIR)) {
@@ -135,6 +140,9 @@ Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
 # Download adorsys-update.ps1
 PrintStep 4 "Downloading adorsys-update.ps1..."
 Download-File -Url $UPDATE_SCRIPT_URL -OutputPath $UPDATE_SCRIPT_PATH
+
+PrintStep 4 "Downloading update-notifier.ps1..."
+Download-File -Url $NOTIFIER_SCRIPT_URL -OutputPath $NOTIFIER_SCRIPT_PATH
 
 # Update WazuhManager default value in the downloaded adorsys-update.ps1
 PrintStep 5 "Configuring WAZUH_MANAGER in adorsys-update.ps1..."
