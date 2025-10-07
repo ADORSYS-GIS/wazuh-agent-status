@@ -125,16 +125,16 @@ func updateAgent() {
 		// The notifier will delete the service on completion
 		serviceName := "wazuh-update-notifier"
 		// Ensure any existing service is removed before creating
-		_ = exec.Command("cmd", "/c", "sc.exe", "stop", serviceName).Run()
-		_ = exec.Command("cmd", "/c", "sc.exe", "delete", serviceName).Run()
+		_ = exec.Command("cmd", "/c", "sc.exe stop "+serviceName+" 1>nul 2>nul").Run()
+		_ = exec.Command("cmd", "/c", "sc.exe delete "+serviceName+" 1>nul 2>nul").Run()
 
-		// Build a properly quoted binPath for sc.exe
-		binPathValue := "\"" + powershellExe + " -NoProfile -ExecutionPolicy Bypass -File \\\"" + notifierPath + "\\\" -UpdateScriptPath \\\"" + scriptPath + "\\\" -ServiceName \\\"" + serviceName + "\\\"\""
-		createArgs := []string{"/c", "sc.exe", "create", serviceName, "binPath=", binPathValue, "start=", "demand", "DisplayName=", "\"Wazuh Update Notifier\"", "obj=", "LocalSystem"}
-		if out, err := exec.Command("cmd", createArgs...).CombinedOutput(); err != nil {
+		// Build a properly quoted binPath for sc.exe and execute via a single command string
+		binPathValue := "\"" + powershellExe + " -NoProfile -ExecutionPolicy Bypass -File \"" + notifierPath + "\" -UpdateScriptPath \"" + scriptPath + "\" -ServiceName \"" + serviceName + "\"\""
+		createCmdLine := "sc.exe create " + serviceName + " binPath= " + binPathValue + " start= demand DisplayName= \"Wazuh Update Notifier\" obj= LocalSystem"
+		if out, err := exec.Command("cmd", "/c", createCmdLine).CombinedOutput(); err != nil {
 			log.Printf("Failed to create notifier service: %v, output: %s", err, string(out))
 		} else {
-			if out, err := exec.Command("cmd", "/c", "sc.exe", "start", serviceName).CombinedOutput(); err != nil {
+			if out, err := exec.Command("cmd", "/c", "sc.exe start "+serviceName).CombinedOutput(); err != nil {
 				log.Printf("Failed to start notifier service: %v, output: %s", err, string(out))
 			} else {
 				log.Printf("Started notifier service '%s' to monitor update", serviceName)
