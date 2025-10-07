@@ -163,17 +163,28 @@ LogNotif "Cleanup completed"
         $ScriptContent | Out-File -FilePath $TempScript -Encoding UTF8 -Force
 
         # Create scheduled task using schtasks.exe to avoid XML validation issues
-        $StartTime = (Get-Date).AddSeconds(5).ToString("HH:mm")
+        # Set start time to 2 minutes in the future to avoid "earlier than current time" warning
+        $StartTime = (Get-Date).AddMinutes(2).ToString("HH:mm")
 
         InfoMessage "Creating scheduled task with schtasks.exe..."
-        $createOutput = schtasks.exe /Create /F /SC ONCE /TN "$TaskName" /TR "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$TempScript`"" /ST $StartTime /RU "$ActiveUser" 2>&1
-        InfoMessage "Schtasks create output: $createOutput"
+        $createOutput = schtasks.exe /Create /F /SC ONCE /TN "$TaskName" /TR "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$TempScript`"" /ST $StartTime /RU "$ActiveUser" 2>&1 | Out-String
 
-        # Wait a moment then start the task immediately
+        if ($createOutput -match "ERROR") {
+            WarningMessage "Schtasks create had errors: $createOutput"
+        } else {
+            InfoMessage "Schtasks create output: $createOutput"
+        }
+
+        # Start the task immediately (bypasses the scheduled time)
         Start-Sleep -Milliseconds 500
         InfoMessage "Starting scheduled task immediately..."
-        $runOutput = schtasks.exe /Run /TN "$TaskName" 2>&1
-        InfoMessage "Schtasks run output: $runOutput"
+        $runOutput = schtasks.exe /Run /TN "$TaskName" 2>&1 | Out-String
+
+        if ($runOutput -match "ERROR") {
+            WarningMessage "Schtasks run had errors: $runOutput"
+        } else {
+            InfoMessage "Schtasks run output: $runOutput"
+        }
 
         InfoMessage "Notification task created successfully: $TaskName. Check log file: $NotificationLog"
         return $true
