@@ -43,10 +43,9 @@ function ErrorMessage { param($msg, $ex = $null) Log "ERROR" $msg $ex }
 function Show-UserNotification {
     <#
     .SYNOPSIS
-        Shows a notification to the active user via scheduled task
+        Shows a notification by sending it to the Wazuh agent status server
     .DESCRIPTION
-        Creates a temporary scheduled task that runs in the logged-in user's session
-        to display a toast notification. Works from background/service contexts.
+        Sends notification to the server which forwards it to the client running in user session
     #>
     param (
         [Parameter(Mandatory=$true)]
@@ -60,143 +59,43 @@ function Show-UserNotification {
     )
 
     try {
-        InfoMessage "Attempting to show notification: $Title - $Message"
+        InfoMessage "Sending notification to server: $Title - $Message"
 
-        # Generate unique task name
-        $TaskName = "WazuhNotification_" + [Guid]::NewGuid().ToString().Substring(0, 8)
-        $TempScript = Join-Path $env:TEMP "$TaskName.ps1"
+        # Format notification data: "TITLE|MESSAGE|TYPE"
+        $notificationType = if ($IsError) { "error" } else { "info" }
+        $notificationData = "$Title|$Message|$notificationType"
 
-        # Get active console user
-        $ActiveUser = $null
-        try {
-            $sessions = query user 2>$null | Select-Object -Skip 1
-            foreach ($session in $sessions) {
-                if ($session -match '^\s*>?(\S+)\s+console\s+(\d+)\s+Active') {
-                    $ActiveUser = $matches[1]
-                    InfoMessage "Found active console user: $ActiveUser"
-                    break
-                }
-            }
-        } catch {
-            WarningMessage "Failed to query user sessions: $($_.Exception.Message)"
-        }
+        # Connect to the server and send notification
+        $client = New-Object System.Net.Sockets.TcpClient
+        $client.Connect("localhost", 50505)
+        $stream = $client.GetStream()
+        $writer = New-Object System.IO.StreamWriter($stream)
+        $reader = New-Object System.IO.StreamReader($stream)
 
-        # Fallback to current user if no active session found
-        if (-not $ActiveUser) {
-            $ActiveUser = [System.Environment]::UserName
-            if (-not $ActiveUser -or $ActiveUser -eq "SYSTEM") {
-                # Try getting from registry
-                $LoggedOnUser = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty LastLoggedOnUser -ErrorAction SilentlyContinue
-                if ($LoggedOnUser -and $LoggedOnUser -match '\\(.+)$') {
-                    $ActiveUser = $matches[1]
-                }
-            }
-            InfoMessage "Using fallback user: $ActiveUser"
-        }
+        # Send notification command
+        $writer.WriteLine("notify:$notificationData")
+        $writer.Flush()
 
-        if (-not $ActiveUser -or $ActiveUser -eq "SYSTEM") {
-            WarningMessage "No active user found, notification cannot be displayed"
-            return $false
-        }
-
-        # Create notification script - simplified and robust
-        # Use TEMP folder which is always writable
-        $UserTempPath = "C:\Users\$ActiveUser\AppData\Local\Temp"
-        $NotificationLog = Join-Path $UserTempPath "$TaskName.log"
-
-        $ScriptContent = @"
-# Notification script for Wazuh Update
-`$LogFile = '$($NotificationLog -replace "\\", "\\")'
-
-# Simple logging
-try {
-    `$timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    "`$timestamp - Script started" | Out-File -FilePath `$LogFile -Force
-    "`$timestamp - User: `$env:USERNAME" | Out-File -FilePath `$LogFile -Append
-} catch { }
-
-# Show notification using msg.exe (most reliable method)
-try {
-    `$currentUser = `$env:USERNAME
-    `$sessionId = `$null
-
-    # Get current user's session ID
-    `$sessions = query user 2>&1
-    foreach (`$line in `$sessions) {
-        if (`$line -match "(`$currentUser).*console.*\s+(\d+)\s+Active") {
-            `$sessionId = `$matches[2]
-            break
-        }
-    }
-
-    "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Session ID: `$sessionId" | Out-File -FilePath `$LogFile -Append
-
-    if (`$sessionId) {
-        "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Sending to session `$sessionId" | Out-File -FilePath `$LogFile -Append
-        msg.exe `$sessionId /TIME:30 "$Title`n`n$Message"
-        "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - msg.exe completed" | Out-File -FilePath `$LogFile -Append
-    } else {
-        "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - No session found, broadcasting" | Out-File -FilePath `$LogFile -Append
-        msg.exe * /TIME:30 "$Title`n`n$Message"
-    }
-} catch {
-    "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - ERROR: `$(`$_.Exception.Message)" | Out-File -FilePath `$LogFile -Append
-}
-
-# Wait to ensure message displays
-Start-Sleep -Seconds 3
-
-# Cleanup
-try {
-    "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Starting cleanup" | Out-File -FilePath `$LogFile -Append
-    `$task = Get-ScheduledTask -TaskName '$TaskName' -ErrorAction SilentlyContinue
-    if (`$task) {
-        Unregister-ScheduledTask -TaskName '$TaskName' -Confirm:`$false
-    }
-    Start-Sleep -Seconds 1
-    Remove-Item -Path '$TempScript' -Force -ErrorAction SilentlyContinue
-    "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Cleanup completed" | Out-File -FilePath `$LogFile -Append
-} catch {
-    "`$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Cleanup error: `$(`$_.Exception.Message)" | Out-File -FilePath `$LogFile -Append
-}
-"@
-
-        # Write script to temp file
-        $ScriptContent | Out-File -FilePath $TempScript -Encoding UTF8 -Force
-
-        # Create scheduled task using schtasks.exe to avoid XML validation issues
-        # Set start time to 2 minutes in the future to avoid "earlier than current time" warning
-        $StartTime = (Get-Date).AddMinutes(2).ToString("HH:mm")
-
-        InfoMessage "Creating scheduled task with schtasks.exe..."
-        # Remove -WindowStyle Hidden to allow the window to appear (for testing)
-        # Add /IT flag to allow task to interact with the desktop
-        $createOutput = schtasks.exe /Create /F /SC ONCE /TN "$TaskName" /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File `"$TempScript`"" /ST $StartTime /RU "$ActiveUser" /IT 2>&1 | Out-String
-
-        if ($createOutput -match "ERROR") {
-            WarningMessage "Schtasks create had errors: $createOutput"
+        # Read response
+        $response = $reader.ReadLine()
+        if ($response -eq "OK") {
+            InfoMessage "Notification sent successfully"
+            $result = $true
         } else {
-            InfoMessage "Schtasks create output: $createOutput"
+            WarningMessage "Unexpected response from server: $response"
+            $result = $false
         }
 
-        # Start the task immediately (bypasses the scheduled time)
-        Start-Sleep -Milliseconds 500
-        InfoMessage "Starting scheduled task immediately..."
-        $runOutput = schtasks.exe /Run /TN "$TaskName" 2>&1 | Out-String
+        # Cleanup
+        $writer.Close()
+        $reader.Close()
+        $stream.Close()
+        $client.Close()
 
-        if ($runOutput -match "ERROR") {
-            WarningMessage "Schtasks run had errors: $runOutput"
-        } else {
-            InfoMessage "Schtasks run output: $runOutput"
-        }
-
-        InfoMessage "Notification task created and started: $TaskName"
-        InfoMessage "Notification log file will be at: $NotificationLog"
-        InfoMessage "Temp script location: $TempScript"
-        return $true
+        return $result
 
     } catch {
-        WarningMessage "Failed to create notification task: $($_.Exception.Message)"
+        WarningMessage "Failed to send notification to server: $($_.Exception.Message)"
         return $false
     }
 }
