@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/kardianos/service"
@@ -28,6 +30,8 @@ type program struct {
 // Start will be called when the service is started
 func (p *program) Start(s service.Service) error {
 	log.Println("Starting wazuh-agent-status server...")
+
+	UpdateManagerAddress(os.Getenv("WAZUH_MANAGER"))
 
 	// Start the listener in a goroutine
 	go p.run()
@@ -132,7 +136,7 @@ func windowsMain() {
 		DisplayName: "Go Wazuh Service",
 		Description: "A Go application to manage Wazuh service.",
 	}
-	
+
 	// Create the program object
 	prg := &program{}
 
@@ -147,4 +151,35 @@ func windowsMain() {
 	if err != nil {
 		log.Fatalf("Failed to run service: %v", err)
 	}
+}
+
+func UpdateManagerAddress(address string) {
+	filepath := "C:\\Program Files (x86)\\ossec-agent\\ossec.conf"
+	log.Printf("Updating manager address to: %v in file: %v\n", address, filepath)
+
+	data, err := os.ReadFile(filepath)
+	if err != nil {
+		log.Println("Error reading file:", err)
+		return
+	}
+
+	content := string(data)
+
+	// Check if the address already exists
+	if strings.Contains(content, "<address>"+address+"</address>") {
+		log.Printf("Address already exists: %v in file: %v\n", address, filepath)
+		return
+	}
+
+	// Replace existing <address>...</address> with the new address
+	re := regexp.MustCompile(`<address>.*?</address>`)
+	content = re.ReplaceAllString(content, "<address>"+address+"</address>")
+
+	err = os.WriteFile(filepath, []byte(content), 0644)
+	if err != nil {
+		log.Println("Error writing file:", err)
+		return
+	}
+
+	log.Printf("Manager address updated successfully to: %v\n", address)
 }
