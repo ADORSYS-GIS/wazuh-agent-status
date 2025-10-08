@@ -193,8 +193,24 @@ func updateStatusItems(status, connection string) {
 
 // monitorVersion handles the startup check and the periodic check. (UNCHANGED)
 func monitorVersion() {
-	handleVersionCheck(true) 
-	
+	// Loop indefinitely. The inner logic handles breaking out into the long poll.
+	for {
+		// Attempt to get the version.
+		handleVersionCheck(true)
+
+		// Check if the version is still in its initial or an error state.
+		// If so, wait 30 seconds and try again.
+		if versionItem.String() == "" || versionItem.String() == "v---" || versionItem.String() == "Version: Unknown" {
+			log.Println("Version is in default/error state, retrying in 5 seconds...")
+			time.Sleep(5 * time.Second)
+		} else {
+			// If a valid version is fetched, break out of the initial retry loop.
+			log.Println("Version check successful. Switching to 4-hour polling interval.")
+			break
+		}
+	}
+
+	// Once the initial version is fetched, switch to long polling.
 	for {
 		time.Sleep(4 * time.Hour)
 		handleVersionCheck(true)
