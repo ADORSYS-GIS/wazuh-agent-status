@@ -9,6 +9,7 @@ $DebugPreference = "Continue"
 
 # Paths
 $LogFile = "${env:ProgramFiles(x86)}\ossec-agent\active-response\active-responses.log"
+$StatusFile = "C:\ProgramData\WazuhAgent\update_status.json"
 $TmpFolder = New-Item -ItemType Directory -Path ([System.IO.Path]::GetTempPath() + [System.Guid]::NewGuid().ToString()) -Force
 
 # Start transcript for full command output logging
@@ -18,6 +19,10 @@ Start-Transcript -Path $TranscriptPath -Append | Out-Null
 function Cleanup {
     if (Test-Path $TmpFolder) {
         Remove-Item -Recurse -Force $TmpFolder
+    }
+    # Clean up status file on exit
+    if (Test-Path $StatusFile) {
+        Remove-Item -Force $StatusFile -ErrorAction SilentlyContinue
     }
 }
 Register-EngineEvent PowerShell.Exiting -Action { Cleanup }
@@ -40,6 +45,44 @@ function InfoMessage { param($msg) Log "INFO" $msg }
 function WarningMessage { param($msg) Log "WARNING" $msg }
 function ErrorMessage { param($msg, $ex = $null) Log "ERROR" $msg $ex }
 
+function Write-UpdateStatus {
+    param(
+        [string]$Status,
+        [string]$Message = ""
+    )
+    $statusObj = @{
+        status = $Status
+        message = $Message
+        timestamp = (Get-Date).ToString("o")
+    }
+    $statusJson = $statusObj | ConvertTo-Json -Compress
+    $statusJson | Out-File -FilePath $StatusFile -Encoding UTF8 -Force
+    InfoMessage "Status updated: $Status"
+}
+
+function Send-Notification {
+    param (
+        [string]$Message,
+        [string]$Title = "Wazuh Update"
+    )
+    try {
+        # Use BurntToast for notifications
+        if (-not (Get-Module -ListAvailable -Name BurntToast)) {
+            Install-Module -Name BurntToast -Force -Scope CurrentUser -AllowClobber
+        }
+        Import-Module BurntToast -Force
+        if (Test-Path $IconPath) {
+            New-BurntToastNotification -Text $Title, $Message -AppLogo $IconPath
+        } else {
+            New-BurntToastNotification -Text $Title, $Message
+        }
+        InfoMessage "Notification sent: $Message"
+    } catch {
+        # Fallback to message box
+        [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+        InfoMessage "Notification sent (fallback): $Message"
+    }
+}
 
 # Non-interactive mode: default user action to Yes
 $UserAction = 'Yes'
@@ -47,8 +90,7 @@ $UserAction = 'Yes'
 function Run-Upgrade {
     InfoMessage "Starting Wazuh agent upgrade..."
     InfoMessage "Using temporary directory: $TmpFolder"
-    $ServerServiceName = "wazuh-agent-status"
-    $ClientServiceName = "wazuh-agent-status-client"
+    Write-UpdateStatus -Status "started"
 
     # Check for required dependencies
     if (-not (Get-Command "Invoke-WebRequest" -ErrorAction SilentlyContinue)) {
@@ -61,38 +103,20 @@ function Run-Upgrade {
     }
 
     InfoMessage "Downloading setup script..."
+    Write-UpdateStatus -Status "downloading"
     $SetupScript = Join-Path $TmpFolder "setup-agent.ps1"
     try {
         Invoke-WebRequest -Uri $ScriptUrl -OutFile $SetupScript -UseBasicParsing -Verbose *>> $LogFile 2>&1
     } catch {
-        ErrorMessage "Failed to download setup-agent.ps1" $_.Exception
-        exit 1
-    }
-
-    InfoMessage "Stopping services..."
-    try {
-        InfoMessage "Stopping $ServerServiceName service..."
-        Stop-Service -Name $ServerServiceName -ErrorAction Stop -Verbose *>> $LogFile 2>&1
-    } catch {
-        ErrorMessage "Failed to stop $ServerServiceName service" $_.Exception
-        exit 1
-    }
-
-    try {
-        InfoMessage "Stopping $ClientServiceName process..."
-        $ClientServiceProc = Get-Process -Name $ClientServiceName -ErrorAction SilentlyContinue
-        if ($ClientServiceProc) {
-            Stop-Process -Id $ClientServiceProc.Id -Force -ErrorAction Stop -Verbose *>> $LogFile 2>&1
-        } else {
-            InfoMessage "Client process not running or already stopped."
-        }
-    } catch {
-        ErrorMessage "Failed to stop $ClientServiceName process" $_.Exception
+        ErrorMessage "Failed to download setup-agent.ps1"
+        Write-UpdateStatus -Status "error" -Message "Failed to download setup script"
+        Send-Notification "Update failed: For more details go to file $LogFile"
         exit 1
     }
 
     try {
         InfoMessage "Running setup-agent.ps1..."
+        Write-UpdateStatus -Status "installing"
         $env:WAZUH_MANAGER = $WazuhManager
 
         # Execute external setup script, redirect all output to log
@@ -104,11 +128,14 @@ function Run-Upgrade {
 
         InfoMessage "setup-agent.ps1 executed successfully."
     } catch {
-        ErrorMessage "Failed to setup wazuh agent" $_.Exception
+        ErrorMessage "Failed to setup wazuh agent"
+        Write-UpdateStatus -Status "error" -Message "Failed to install Wazuh agent"
+        Send-Notification "Update failed: For more details go to file $LogFile"
         exit 1
     }
 
-    InfoMessage "Update completed successfully. Please save your work and reboot your device to complete the update."
+    Write-UpdateStatus -Status "success"
+    Send-Notification "Update completed successfully! Please save your work and reboot your device to complete the update."
 }
 
 InfoMessage "Wazuh agent upgrade script started."

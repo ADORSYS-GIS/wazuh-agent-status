@@ -115,6 +115,14 @@ func updateAgent() {
 		return
 	}
 
+	// Start the notification service to monitor the update
+	log.Printf("Starting notification service...\n")
+	startNotifierCmd := exec.Command("sc.exe", "start", "wazuh-update-notifier")
+	if err := startNotifierCmd.Run(); err != nil {
+		log.Printf("Warning: Failed to start notification service: %v\n", err)
+		// Continue with update even if notification service fails
+	}
+
 	bgCmd := exec.Command(powershellExe, "-ExecutionPolicy", "RemoteSigned", "-File", scriptPath)
 
 	bgCmd.SysProcAttr = &syscall.SysProcAttr{

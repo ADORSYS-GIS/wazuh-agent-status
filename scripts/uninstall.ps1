@@ -1,9 +1,11 @@
 # Define variables used in the uninstallation script
 $SERVER_NAME =  "wazuh-agent-status" 
 $CLIENT_NAME =  "wazuh-agent-status-client"
+$NOTIFIER_NAME = "wazuh-update-notifier"
 $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
+$NOTIFIER_EXE = "$BIN_DIR\$NOTIFIER_NAME.exe"
 
 
 
@@ -135,17 +137,37 @@ function Remove-StartupShortcut {
 function Remove-Binaries {
     Remove-File $SERVER_EXE
     Remove-File $CLIENT_EXE
+    Remove-File $NOTIFIER_EXE
     Remove-File $BIN_DIR
+}
+
+function Remove-StatusDirectory {
+    $StatusDir = "C:\ProgramData\WazuhAgent"
+    if (Test-Path $StatusDir) {
+        InfoMessage "Removing status directory: $StatusDir"
+        Remove-Item -Path $StatusDir -Recurse -Force -ErrorAction SilentlyContinue
+        InfoMessage "Status directory removed."
+    } else {
+        WarnMessage "Status directory not found: $StatusDir"
+    }
 }
 
 # Function to uninstall application and clean up
 function Uninstall-WazuhAgentStatus {
     try {
-
+        PrintStep 1 "Removing client startup shortcut..."
         Remove-StartupShortcut -ShortcutName $CLIENT_NAME
+        
+        PrintStep 2 "Removing services..."
         Remove-Service -ServiceName $SERVER_NAME
-
+        Remove-Service -ServiceName $NOTIFIER_NAME
+        
+        PrintStep 3 "Removing binaries..."
         Remove-Binaries
+        
+        PrintStep 4 "Removing status directory..."
+        Remove-StatusDirectory
+        
         SuccessMessage "Wazuh Agent Status uninstalled successfully"
     }
     catch {
