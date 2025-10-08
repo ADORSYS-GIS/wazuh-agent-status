@@ -116,24 +116,59 @@ $BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 
-PrintStep 1 "Downloading binaries..."
+PrintStep 1 "Stopping existing agent-status service and client processes..."
+try {
+    # Stop the service if it exists
+    $Service = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
+    if ($Service) {
+        if ($Service.Status -eq 'Running') {
+            InfoMessage "Stopping $SERVER_NAME service..."
+            Stop-Service -Name $SERVER_NAME -Force -ErrorAction Stop
+            InfoMessage "Service $SERVER_NAME stopped successfully."
+        } else {
+            InfoMessage "Service $SERVER_NAME is not running."
+        }
+    } else {
+        InfoMessage "Service $SERVER_NAME does not exist."
+    }
+
+    # Stop any running client processes
+    $ClientProcesses = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
+    if ($ClientProcesses) {
+        InfoMessage "Stopping $CLIENT_NAME processes..."
+        $ClientProcesses | ForEach-Object {
+            Stop-Process -Id $_.Id -Force
+        }
+        InfoMessage "All $CLIENT_NAME processes stopped successfully."
+    } else {
+        InfoMessage "No running $CLIENT_NAME processes found."
+    }
+
+    # Wait a moment for processes to fully terminate
+    Start-Sleep -Seconds 2
+} catch {
+    WarnMessage "Error while stopping existing services/processes: $($_.Exception.Message)"
+    WarnMessage "Continuing with installation..."
+}
+
+PrintStep 2 "Downloading binaries..."
 Download-File -Url $ServerURL -OutputPath "$BIN_DIR\$SERVER_NAME.exe"
 Download-File -Url $ClientURL -OutputPath "$BIN_DIR\$CLIENT_NAME.exe"
 
 # Configure server as a Windows service
-PrintStep 2 "Configuring server service..."
+PrintStep 3 "Configuring server service..."
 Create-Service -ServiceName $SERVER_NAME -ExecutablePath $SERVER_EXE -DisplayName "Wazuh Agent Status Server" -Description "Wazuh Agent Status monitoring server."
 
 # Add client to Windows startup
-PrintStep 3 "Configuring client startup..."
+PrintStep 4 "Configuring client startup..."
 Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
 
 # Download adorsys-update.ps1
-PrintStep 4 "Downloading adorsys-update.ps1..."
+PrintStep 5 "Downloading adorsys-update.ps1..."
 Download-File -Url $UPDATE_SCRIPT_URL -OutputPath $UPDATE_SCRIPT_PATH
 
 # Update WazuhManager default value in the downloaded adorsys-update.ps1
-PrintStep 5 "Configuring WAZUH_MANAGER in adorsys-update.ps1..."
+PrintStep 6 "Configuring WAZUH_MANAGER in adorsys-update.ps1..."
 $UPDATE_SCRIPT_CONTENT = Get-Content $UPDATE_SCRIPT_PATH
 $UPDATE_SCRIPT_CONTENT = $UPDATE_SCRIPT_CONTENT -replace '(\[string\]\$WazuhManager = ")[^"]*(")', "`$1$WAZUH_MANAGER`$2"
 Set-Content -Path $UPDATE_SCRIPT_PATH -Value $UPDATE_SCRIPT_CONTENT
