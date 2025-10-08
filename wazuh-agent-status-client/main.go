@@ -14,7 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/getlantern/systray"
+	// --- CHANGE 1: Switched to fyne.io/systray ---
+	"fyne.io/systray" 
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -33,10 +34,10 @@ var (
 )
 
 // Version is set at build time via ldflags
-var Version = "v0.3.7-auto-update"
+var Version = "v0.3.7-fyne-systray"
 
-// AUTH_TOKEN is set at build time via ldflags
-var AUTH_TOKEN = "SUPER_SECRET_LOCAL_TOKEN"
+// AUTH_TOKEN must match the server's token. Must be a var for ldflags injection.
+var AUTH_TOKEN = "SUPER_SECRET_LOCAL_TOKEN_DEFAULT"
 
 func getUserLogFilePath() string {
 	var logDir string
@@ -79,7 +80,8 @@ func main() {
 		}
 	}
 	log.Printf("Starting frontend... (version: %s)", Version)
-	systray.Run(onReady, onExit)
+	// --- CHANGE 2: systray.Run() only takes onReady in fyne.io ---
+	systray.Run(onReady, onExit) 
 }
 
 // onReady sets up the tray icon
@@ -112,11 +114,11 @@ func onReady() {
 	systray.AddSeparator()
 	versionItem = systray.AddMenuItem("v---", "The version state of the wazuhbsetup")
 	versionItem.Disable() // Initially disabled
-
+	
 	// Start background monitoring routines (guarded to run only once)
 	monitorOnce.Do(func() {
 		go monitorStatusStream()
-		go monitorVersion() // Handles both startup and periodic checks
+		go monitorVersion()
 		go goroutineCounter()
 	})
 
@@ -132,7 +134,7 @@ func goroutineCounter() {
 	}
 }
 
-// monitorStatusStream establishes a persistent connection to receive status updates.
+// monitorStatusStream establishes a persistent connection to receive status updates. (UNCHANGED)
 func monitorStatusStream() {
 	for {
 		conn, err := net.DialTimeout("tcp", "localhost:50505", 5*time.Second)
@@ -176,7 +178,7 @@ func monitorStatusStream() {
 	}
 }
 
-// updateStatusItems safely updates the systray menu items.
+// updateStatusItems safely updates the systray menu items. (UNCHANGED)
 func updateStatusItems(status, connection string) {
 	if status == "Active" {
 		statusItem.SetTitle("Agent: Active")
@@ -195,20 +197,17 @@ func updateStatusItems(status, connection string) {
 	}
 }
 
-// monitorVersion handles the startup check and the periodic check.
+// monitorVersion handles the startup check and the periodic check. (UNCHANGED)
 func monitorVersion() {
-	// Initial check on startup (autoStart=true triggers immediate update if needed)
 	handleVersionCheck(true) 
 	
-	// Periodic check every 4 hours
 	for {
 		time.Sleep(4 * time.Hour)
-		handleVersionCheck(true) // autoStart=true ensures automatic update initiation
+		handleVersionCheck(true)
 	}
 }
 
-// handleVersionCheck communicates with the backend, updates the menu, and conditionally starts an update.
-// The 'autoStart' flag determines if an available update should be automatically triggered.
+// handleVersionCheck communicates with the backend, updates the menu, and conditionally starts an update. (UNCHANGED)
 func handleVersionCheck(autoStart bool) {
 	response, err := sendCommandAndReceive("get-version")
 	if err != nil {
@@ -224,7 +223,6 @@ func handleVersionCheck(autoStart bool) {
 	
 	// --- Update Menu Items ---
 	if isOutdated {
-		// Extract version number part only
 		parts := strings.Split(response, ", ")
 		version := "vUnknown"
 		if len(parts) == 2 {
@@ -232,7 +230,7 @@ func handleVersionCheck(autoStart bool) {
 		}
 		versionItem.SetTitle(version)
 		updateItem.SetTitle("Update Available")
-		updateItem.Enable() // Always enable manual trigger
+		updateItem.Enable()
 		
 		if autoStart {
 			log.Println("Automatic update triggered by periodic check.")
@@ -241,7 +239,6 @@ func handleVersionCheck(autoStart bool) {
 		}
 		
 	} else if strings.Contains(response, "Up to date") {
-		// Extract version number part only
 		parts := strings.Split(response, ", ")
 		version := "vUnknown"
 		if len(parts) == 2 {
@@ -263,66 +260,67 @@ func handleMenuActions() {
 		log.Println("Update clicked. Starting stream...")
 		updateItem.SetTitle("Starting Update...")
 		updateItem.Disable()
-		// Manual trigger bypasses the autoStart logic
 		go startUpdateStream() 
 	}
 }
 
-// startUpdateStream initiates the update on the server and streams the progress back.
+// startUpdateStream initiates the update on the server and streams the progress back. (FIXED LOGIC - UNCHANGED)
 func startUpdateStream() {
-    // Use mutex to prevent multiple update streams from starting simultaneously
-    if !updateMutex.TryLock() {
-        log.Println("Update already in progress. Skipping.")
-        return
-    }
-    defer updateMutex.Unlock() // This runs LAST
+	// Use mutex to prevent multiple update streams from starting simultaneously
+	if !updateMutex.TryLock() {
+		log.Println("Update already in progress. Skipping.")
+		return
+	}
+	defer updateMutex.Unlock()
 
-    conn, err := net.DialTimeout("tcp", "localhost:50505", 5*time.Second)
-    if err != nil {
-        log.Printf("Failed to connect to backend for update stream: %v", err)
-        updateItem.SetTitle("Update Failed (Connect)")
-        updateItem.Enable() 
-        return
-    }
-    defer conn.Close()
+	conn, err := net.DialTimeout("tcp", "localhost:50505", 5*time.Second)
+	if err != nil {
+		log.Printf("Failed to connect to backend for update stream: %v", err)
+		updateItem.SetTitle("Update Failed (Connect)")
+		updateItem.Enable() 
+		return
+	}
+	defer conn.Close()
 
-    fmt.Fprintln(conn, "auth "+AUTH_TOKEN)
-    fmt.Fprintln(conn, "update")
+	fmt.Fprintln(conn, "auth "+AUTH_TOKEN)
+	fmt.Fprintln(conn, "update")
 
-    reader := bufio.NewReader(conn)
-    
-    // Read and process the streaming response from the server
-    for {
-        response, err := reader.ReadString('\n')
-        if err != nil {
-            if err != io.EOF {
-                log.Printf("Update stream error: %v", err)
-                updateItem.SetTitle("Update Failed (Stream)")
-            } else {
-                log.Println("Update stream finished (EOF).")
-                // Keep the temporary status set:
-                updateItem.SetTitle("Checking Version Status...") 
-            }
-            break
-        }
-
-        trimmed := strings.TrimSpace(response)
-        log.Printf("Update Stream: %s", trimmed)
-
-        // Display status on the menu item
-        if strings.HasPrefix(trimmed, "UPDATE_PROGRESS:") {
-            status := strings.TrimPrefix(trimmed, "UPDATE_PROGRESS: ")
-			if status == "Complete" {
-				break 
+	reader := bufio.NewReader(conn)
+	
+	// Read and process the streaming response from the server
+	for {
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			if err != io.EOF {
+				log.Printf("Update stream error: %v", err)
+				updateItem.SetTitle("Update Failed (Stream)")
+			} else {
+				log.Println("Update stream finished (EOF).")
+				// Set a temporary status before the synchronous check
+				updateItem.SetTitle("Checking Version Status...") 
 			}
-            updateItem.SetTitle(fmt.Sprintf("Updating: %s", status))
-        }
-    }
-    
-    handleVersionCheck(false)
+			break
+		}
+
+		trimmed := strings.TrimSpace(response)
+		log.Printf("Update Stream: %s", trimmed)
+
+		// Display status on the menu item
+		if strings.HasPrefix(trimmed, "UPDATE_PROGRESS:") {
+			status := strings.TrimPrefix(trimmed, "UPDATE_PROGRESS: ")
+			if status == "Complete" {
+				break
+			}
+			updateItem.SetTitle(fmt.Sprintf("Updating: %s", status))
+		}
+	}
+	
+	// CRITICAL FIX: Run the final version check SYNCHRONOUSLY to ensure the menu updates
+	// before the function (and its defer unlock) exits.
+	handleVersionCheck(false) 
 }
 
-// sendCommandAndReceive is a general utility for single request/response commands.
+// sendCommandAndReceive is a general utility for single request/response commands. (UNCHANGED)
 func sendCommandAndReceive(command string) (string, error) {
 	conn, err := net.DialTimeout("tcp", "localhost:50505", 3*time.Second)
 	if err != nil {
@@ -356,12 +354,12 @@ func sendCommandAndReceive(command string) (string, error) {
 	return trimmed, nil
 }
 
-// getEmbeddedFile reads a file from the embedded file system
+// getEmbeddedFile reads a file from the embedded file system (UNCHANGED)
 func getEmbeddedFile(path string) ([]byte, error) {
 	return embeddedFiles.ReadFile(path)
 }
 
-// getIconPath returns iconpath based on the OS
+// getIconPath returns iconpath based on the OS (UNCHANGED)
 func getIconPath() string {
 	switch os := runtime.GOOS; os {
 	case "windows":
@@ -372,7 +370,8 @@ func getIconPath() string {
 	}
 }
 
-// onExit is called when the application is terminated
+// onExit is called when the application is terminated (UNCHANGED)
 func onExit() {
 	log.Println("Frontend application stopped")
+	// Any final cleanup code goes here
 }
