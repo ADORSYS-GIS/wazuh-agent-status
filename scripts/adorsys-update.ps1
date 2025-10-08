@@ -9,11 +9,16 @@ $ErrorActionPreference = "Stop"
 $APP_DATA = "C:\ProgramData\ossec-agent\"
 $IconPath = Join-Path -Path $APP_DATA -ChildPath "wazuh-logo.png"
 $LogFile = "${env:ProgramFiles(x86)}\ossec-agent\active-response\active-responses.log"
+$StatusFile = "C:\ProgramData\WazuhAgent\update_status.json"
 $TmpFolder = New-Item -ItemType Directory -Path ([System.IO.Path]::GetTempPath() + [System.Guid]::NewGuid().ToString()) -Force
 
 function Cleanup {
     if (Test-Path $TmpFolder) {
         Remove-Item -Recurse -Force $TmpFolder
+    }
+    # Clean up status file on exit
+    if (Test-Path $StatusFile) {
+        Remove-Item -Force $StatusFile -ErrorAction SilentlyContinue
     }
 }
 Register-EngineEvent PowerShell.Exiting -Action { Cleanup }
@@ -30,6 +35,21 @@ function Log {
 function InfoMessage { param($msg) Log "INFO" $msg }
 function WarningMessage { param($msg) Log "WARNING" $msg }
 function ErrorMessage { param($msg) Log "ERROR" $msg }
+
+function Write-UpdateStatus {
+    param(
+        [string]$Status,
+        [string]$Message = ""
+    )
+    $statusObj = @{
+        status = $Status
+        message = $Message
+        timestamp = (Get-Date).ToString("o")
+    }
+    $statusJson = $statusObj | ConvertTo-Json -Compress
+    $statusJson | Out-File -FilePath $StatusFile -Encoding UTF8 -Force
+    InfoMessage "Status updated: $Status"
+}
 
 function Send-Notification {
     param (
@@ -64,6 +84,7 @@ $UserAction = [System.Windows.Forms.MessageBox]::Show($PrepareMsg, "Wazuh Update
 function Run-Upgrade {
     InfoMessage "Starting Wazuh agent upgrade..."
     InfoMessage "Using temporary directory: $TmpFolder"
+    Write-UpdateStatus -Status "started"
 
     # Check for required dependencies
     if (-not (Get-Command "Invoke-WebRequest" -ErrorAction SilentlyContinue)) {
@@ -78,25 +99,30 @@ function Run-Upgrade {
     }
 
     InfoMessage "Downloading setup script..."
+    Write-UpdateStatus -Status "downloading"
     $SetupScript = Join-Path $TmpFolder "setup-agent.ps1"
     try {
         Invoke-WebRequest -Uri $ScriptUrl -OutFile $SetupScript -UseBasicParsing
     } catch {
         ErrorMessage "Failed to download setup-agent.ps1"
+        Write-UpdateStatus -Status "error" -Message "Failed to download setup script"
         Send-Notification "Update failed: For more details go to file $LogFile"
         exit 1
     }
 
     try {
         InfoMessage "Running setup-agent.ps1..."
+        Write-UpdateStatus -Status "installing"
         $env:WAZUH_MANAGER = $WazuhManager
         & powershell -ExecutionPolicy Bypass -File $SetupScript -WazuhManager $WazuhManager *>> $LogFile
     } catch {
         ErrorMessage "Failed to setup wazuh agent"
+        Write-UpdateStatus -Status "error" -Message "Failed to install Wazuh agent"
         Send-Notification "Update failed: For more details go to file $LogFile"
         exit 1
     }
 
+    Write-UpdateStatus -Status "success"
     Send-Notification "Update completed successfully! Please save your work and reboot your device to complete the update."
 }
 

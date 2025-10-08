@@ -8,6 +8,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 $WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
 $CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
+$NOTIFIER_NAME = if ($null -ne $env:NOTIFIER_NAME) { $env:NOTIFIER_NAME } else { "wazuh-update-notifier" }
 $INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
 
 $APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.3.3" }
@@ -23,6 +24,7 @@ $ARCH = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "amd32" }
 $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
+$NOTIFIER_EXE = "$BIN_DIR\$NOTIFIER_NAME.exe"
 
 $UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/refs/tags/v$WAS_VERSION/scripts/adorsys-update.ps1" }
 $UPDATE_SCRIPT_PATH = if ($null -ne $env:UPDATE_SCRIPT_PATH) { $env:UPDATE_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.ps1" }
@@ -115,27 +117,60 @@ function Create-StartupShortcut {
 $BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
+$NotifierURL = "$BaseURL/$NOTIFIER_NAME-windows-$ARCH.exe"
 
 PrintStep 1 "Downloading binaries..."
 Download-File -Url $ServerURL -OutputPath "$BIN_DIR\$SERVER_NAME.exe"
 Download-File -Url $ClientURL -OutputPath "$BIN_DIR\$CLIENT_NAME.exe"
+Download-File -Url $NotifierURL -OutputPath "$BIN_DIR\$NOTIFIER_NAME.exe"
 
 # Configure server as a Windows service
 PrintStep 2 "Configuring server service..."
 Create-Service -ServiceName $SERVER_NAME -ExecutablePath $SERVER_EXE -DisplayName "Wazuh Agent Status Server" -Description "Wazuh Agent Status monitoring server."
 
-# Add client to Windows startup
-PrintStep 3 "Configuring client startup..."
-Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
+# Register notification service (manual start)
+PrintStep 3 "Registering notification service..."
+$NotifierServiceExists = Get-WmiObject -Class Win32_Service -Filter "Name='$NOTIFIER_NAME'" -ErrorAction SilentlyContinue
+if ($NotifierServiceExists) {
+    InfoMessage "Service $NOTIFIER_NAME already exists. Updating..."
+    Stop-Service -Name $NOTIFIER_NAME -Force -ErrorAction SilentlyContinue
+    sc.exe delete $NOTIFIER_NAME
+    Start-Sleep -Seconds 3
+}
+InfoMessage "Registering service $NOTIFIER_NAME (manual start)..."
+sc.exe create $NOTIFIER_NAME binPath= "`"$NOTIFIER_EXE`"" start= demand DisplayName= "`"Wazuh Update Notifier`"" obj= "LocalSystem"
+sc.exe description $NOTIFIER_NAME "Displays toast notifications for Wazuh agent updates"
+InfoMessage "Service $NOTIFIER_NAME registered successfully (manual start)."
 
+# Add client to Windows startup
+PrintStep 4 "Configuring client startup..."
+Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
 # Download adorsys-update.ps1
-PrintStep 4 "Downloading adorsys-update.ps1..."
+PrintStep 5 "Downloading adorsys-update.ps1..."
 Download-File -Url $UPDATE_SCRIPT_URL -OutputPath $UPDATE_SCRIPT_PATH
 
 # Update WazuhManager default value in the downloaded adorsys-update.ps1
-PrintStep 5 "Configuring WAZUH_MANAGER in adorsys-update.ps1..."
+PrintStep 6 "Configuring WAZUH_MANAGER in adorsys-update.ps1..."
 $UPDATE_SCRIPT_CONTENT = Get-Content $UPDATE_SCRIPT_PATH
-$UPDATE_SCRIPT_CONTENT = $UPDATE_SCRIPT_CONTENT -replace '(\[string\]\$WazuhManager = ")[^"]*(")', "`$1$WAZUH_MANAGER`$2"
+$UPDATE_SCRIPT_CONTENT = $UPDATE_SCRIPT_CONTENT -replace '(\[string\]\$WazuhManager = ")[^"]*(")' , "`$1$WAZUH_MANAGER`$2"
 Set-Content -Path $UPDATE_SCRIPT_PATH -Value $UPDATE_SCRIPT_CONTENT
+
+# Copy wazuh-logo.png to installation directory for notifications
+PrintStep 7 "Copying notification icon..."
+$IconSourcePath = "$BIN_DIR\assets\wazuh-logo.png"
+if (Test-Path $IconSourcePath) {
+    Copy-Item -Path $IconSourcePath -Destination "$BIN_DIR\wazuh-logo.png" -Force
+    InfoMessage "Icon copied to $BIN_DIR\wazuh-logo.png"
+} else {
+    WarnMessage "Icon file not found at $IconSourcePath. Notifications will display without icon."
+}
+
+# Create status file directory
+PrintStep 8 "Creating status file directory..."
+$StatusDir = "C:\ProgramData\WazuhAgent"
+if (-not (Test-Path $StatusDir)) {
+    New-Item -Path $StatusDir -ItemType Directory | Out-Null
+    InfoMessage "Created directory: $StatusDir"
+}
 
 SuccessMessage "Installation completed successfully."

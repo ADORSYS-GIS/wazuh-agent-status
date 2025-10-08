@@ -112,6 +112,14 @@ func updateAgent() {
 		return
 	}
 
+	// Start the notification service to monitor the update
+	log.Printf("Starting notification service...\n")
+	startNotifierCmd := exec.Command("sc.exe", "start", "wazuh-update-notifier")
+	if err := startNotifierCmd.Run(); err != nil {
+		log.Printf("Warning: Failed to start notification service: %v\n", err)
+		// Continue with update even if notification service fails
+	}
+
 	log.Printf("Updating Wazuh agent...\n")
 	setPolicyCmd = exec.Command(powershellExe, cmdFlag, "&", "'C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\adorsys-update.ps1'")
 	err = setPolicyCmd.Run()
