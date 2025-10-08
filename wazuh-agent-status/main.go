@@ -20,15 +20,10 @@ import (
 
 const (
 	versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt"
-	// AUTH_TOKEN should be set securely at build time or via config
-	
 )
 
 // Version is set at build time via ldflags
 var Version = "dev"
-
-// AUTH_TOKEN is set at build time via ldflags
-var AUTH_TOKEN = "SUPER_SECRET_LOCAL_TOKEN"
 
 // Global state and communication channels
 var (
@@ -253,16 +248,7 @@ func handleConnection(conn net.Conn) {
 	connID := conn.RemoteAddr().String()
 	reader := bufio.NewReader(conn)
 
-	// 1. Authorization check
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	message, err := reader.ReadString('\n')
-	if err != nil || !strings.HasPrefix(strings.TrimSpace(message), "auth "+AUTH_TOKEN) {
-		log.Printf("Unauthorized connection attempt from %s", connID)
-		conn.Write([]byte("ERROR: UNAUTHORIZED\n"))
-		return
-	}
 	log.Printf("Authorized connection from %s", connID)
-	conn.SetReadDeadline(time.Time{}) // Clear deadline
 
 	// Read loop
 	for {
@@ -314,8 +300,7 @@ func handleConnection(conn net.Conn) {
 				}
 				defer updateConn.Close()
 
-				// Send the dedicated command with the token to initiate the stream
-				fmt.Fprintln(updateConn, "auth "+AUTH_TOKEN)
+				// Send the dedicated command to initiate the stream
 				fmt.Fprintln(updateConn, "initiate-update-stream")
 
 				// Read the stream response and pipe it to the client's current connection

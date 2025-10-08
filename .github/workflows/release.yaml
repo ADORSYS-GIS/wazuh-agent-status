@@ -53,11 +53,11 @@ jobs:
 
       - name: Build client binary
         run: |
-          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}' -X 'main.AUTH_TOKEN=${{ secrets.APP_SERVER_AUTH_TOKEN }}'" -o ./dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Build server binary
         run: |
-          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}' -X 'main.AUTH_TOKEN=${{ secrets.APP_SERVER_AUTH_TOKEN }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Upload Linux client binaries
         if: ${{ !env.ACT }} 
@@ -110,11 +110,11 @@ jobs:
 
       - name: Build client binary for macOS (${{ matrix.arch }})
         run: |
-          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}' -X 'main.AUTH_TOKEN=${{ secrets.APP_SERVER_AUTH_TOKEN }}'" -o ./dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
+          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Build server binary for macOS (${{ matrix.arch }})
         run: |
-          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}' -X 'main.AUTH_TOKEN=${{ secrets.APP_SERVER_AUTH_TOKEN }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
+          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Upload MacOS client binaries
         uses: actions/upload-artifact@v4

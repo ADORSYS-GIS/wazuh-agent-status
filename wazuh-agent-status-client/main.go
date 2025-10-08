@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	// --- CHANGE 1: Switched to fyne.io/systray ---
 	"fyne.io/systray" 
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -34,10 +33,7 @@ var (
 )
 
 // Version is set at build time via ldflags
-var Version = "v0.3.7-fyne-systray"
-
-// AUTH_TOKEN must match the server's token. Must be a var for ldflags injection.
-var AUTH_TOKEN = "SUPER_SECRET_LOCAL_TOKEN_DEFAULT"
+var Version = "dev"
 
 func getUserLogFilePath() string {
 	var logDir string
@@ -80,7 +76,6 @@ func main() {
 		}
 	}
 	log.Printf("Starting frontend... (version: %s)", Version)
-	// --- CHANGE 2: systray.Run() only takes onReady in fyne.io ---
 	systray.Run(onReady, onExit) 
 }
 
@@ -146,7 +141,6 @@ func monitorStatusStream() {
 		}
 
 		log.Println("Status stream connected. Sending subscription...")
-		fmt.Fprintln(conn, "auth "+AUTH_TOKEN)
 		fmt.Fprintln(conn, "subscribe-status")
 
 		reader := bufio.NewReader(conn)
@@ -282,7 +276,6 @@ func startUpdateStream() {
 	}
 	defer conn.Close()
 
-	fmt.Fprintln(conn, "auth "+AUTH_TOKEN)
 	fmt.Fprintln(conn, "update")
 
 	reader := bufio.NewReader(conn)
@@ -315,8 +308,7 @@ func startUpdateStream() {
 		}
 	}
 	
-	// CRITICAL FIX: Run the final version check SYNCHRONOUSLY to ensure the menu updates
-	// before the function (and its defer unlock) exits.
+	// After the stream ends, perform a synchronous version check to update the menu accurately
 	handleVersionCheck(false) 
 }
 
@@ -329,11 +321,6 @@ func sendCommandAndReceive(command string) (string, error) {
 	defer conn.Close()
 
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-
-	_, err = fmt.Fprintln(conn, "auth "+AUTH_TOKEN)
-	if err != nil {
-		return "", fmt.Errorf("failed to authorize: %w", err)
-	}
 
 	_, err = fmt.Fprintln(conn, command)
 	if err != nil {
@@ -373,5 +360,4 @@ func getIconPath() string {
 // onExit is called when the application is terminated (UNCHANGED)
 func onExit() {
 	log.Println("Frontend application stopped")
-	// Any final cleanup code goes here
 }
