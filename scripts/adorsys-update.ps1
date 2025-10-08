@@ -71,6 +71,7 @@ function Send-Notification {
             Install-Module -Name BurntToast -Force -Scope CurrentUser -AllowClobber
         }
         Import-Module BurntToast -Force
+        $IconPath = "C:\Program Files\wazuh-agent-status\wazuh-logo.png"
         if (Test-Path $IconPath) {
             New-BurntToastNotification -Text $Title, $Message -AppLogo $IconPath
         } else {
