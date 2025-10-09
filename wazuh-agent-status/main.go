@@ -144,17 +144,6 @@ func monitorAgentStatus() {
 	}
 }
 
-// monitorVersionStatus performs a low-frequency version check.
-func monitorVersionStatus() {
-	time.Sleep(10 * time.Second)
-	checkAndSetVersion()
-
-	for {
-		time.Sleep(4 * time.Hour)
-		checkAndSetVersion()
-	}
-}
-
 func checkAndSetVersion() {
 	localVersion := getLocalVersion()
 	onlineVersion := fetchOnlineVersion()
@@ -219,7 +208,6 @@ func main() {
 
 	// Start polling routines
 	go monitorAgentStatus()
-	go monitorVersionStatus()
 
 	if runtime.GOOS == "windows" {
 		windowsMain()
@@ -266,6 +254,7 @@ func handleConnection(conn net.Conn) {
 
 		switch command {
 		case "get-version":
+			checkAndSetVersion() // Check version on demand
 			versionInfo := manager.GetVersion()
 			conn.Write([]byte(fmt.Sprintf("VERSION_CHECK: %s\n", versionInfo)))
 
