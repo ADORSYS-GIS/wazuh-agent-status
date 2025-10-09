@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"regexp"
 
 	"fyne.io/systray" 
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -31,6 +32,8 @@ var (
 	// updateMutex prevents concurrent attempts to start the update stream
 	updateMutex sync.Mutex
 )
+
+var titleRegexp = regexp.MustCompile(`"(.*?)"`)
 
 // Version is set at build time via ldflags
 var Version = "dev"
@@ -134,9 +137,9 @@ func monitorStatusStream() {
 	for {
 		conn, err := net.DialTimeout("tcp", "localhost:50505", 5*time.Second)
 		if err != nil {
-			log.Printf("Failed to connect to backend for status stream: %v. Retrying in 10s...", err)
+			log.Printf("Failed to connect to backend for status stream: %v. Retrying in 5s...", err)
 			updateStatusItems("Unknown", "Unknown")
-			time.Sleep(10 * time.Second)
+			time.Sleep(5 * time.Second)
 			continue
 		}
 
@@ -199,8 +202,10 @@ func monitorVersion() {
 		handleVersionCheck(true)
 
 		// Check if the version is still in its initial or an error state.
-		// If so, wait 30 seconds and try again.
-		if versionItem.String() == "" || versionItem.String() == "v---" || versionItem.String() == "Version: Unknown" {
+		// If so, wait 5 seconds and try again.
+		currentVersion := getMenuItemTitle(versionItem.String())
+		log.Println("Current Version:", currentVersion)
+		if currentVersion == "" || currentVersion == "---" || currentVersion == "v---" || currentVersion == "Unknown" {
 			log.Println("Version is in default/error state, retrying in 5 seconds...")
 			time.Sleep(5 * time.Second)
 		} else {
@@ -222,7 +227,7 @@ func handleVersionCheck(autoStart bool) {
 	response, err := sendCommandAndReceive("get-version")
 	if err != nil {
 		log.Printf("Error fetching version: %v", err)
-		versionItem.SetTitle("Version: Unknown")
+		versionItem.SetTitle("Unknown")
 		updateItem.SetTitle("---")
 		updateItem.Disable()
 		return
@@ -234,7 +239,7 @@ func handleVersionCheck(autoStart bool) {
 	// --- Update Menu Items ---
 	if isOutdated {
 		parts := strings.Split(response, ", ")
-		version := "vUnknown"
+		version := "Unknown"
 		if len(parts) == 2 {
 			version = parts[1]
 		}
@@ -250,7 +255,7 @@ func handleVersionCheck(autoStart bool) {
 		
 	} else if strings.Contains(response, "Up to date") {
 		parts := strings.Split(response, ", ")
-		version := "vUnknown"
+		version := "Unknown"
 		if len(parts) == 2 {
 			version = parts[1]
 		}
@@ -371,6 +376,18 @@ func getIconPath() string {
 	default:
 		return "assets/wazuh-logo.png"
 	}
+}
+
+// getMenuItemTitle extracts the Title from MenuItem.String()
+// formatted like "MenuItem[N, "Title"]".
+func getMenuItemTitle(input string) (string) {
+	// Find the text between the quotes
+	matches := titleRegexp.FindStringSubmatch(input)
+	if len(matches) > 1 {
+		// matches[1] is the content between the quotes
+		return matches[1]
+	}
+	return ""
 }
 
 // onExit is called when the application is terminated (UNCHANGED)
