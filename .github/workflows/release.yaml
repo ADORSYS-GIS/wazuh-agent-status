@@ -150,6 +150,28 @@ jobs:
           else
             echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
           fi
+      - name: Compute Windows numeric version for ps2exe
+        id: winver
+        shell: pwsh
+        run: |
+          $raw = '${{ steps.set_version.outputs.version }}'
+          # Drop leading 'v' if present
+          $ver = $raw.TrimStart('v')
+
+          # Grab the first numeric dotted sequence (up to 4 parts)
+          if ($ver -match '(\d+(?:\.\d+){0,3})') {
+            $ver = $Matches[1]
+          } else {
+            # Non-numeric branch names like dev-abcdef12
+            $ver = "0.0.0.${{ github.run_number }}"
+          }
+
+          # Normalize to 4 parts for ps2exe
+          $parts = $ver.Split('.')
+          while ($parts.Count -lt 4) { $parts += '0' }
+          $ver = ($parts[0..3] -join '.')
+
+          "win_version=$ver" >> $env:GITHUB_OUTPUT
 
       - name: Set up Go
         uses: actions/setup-go@v5
