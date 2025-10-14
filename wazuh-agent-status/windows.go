@@ -117,11 +117,8 @@ func createScheduledTask() error {
 		# Create a trigger that runs immediately
 		$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(2)
 
-		# Get the current logged-in user
-		$currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-
-		# Set to run with highest privileges for the current user
-		$principal = New-ScheduledTaskPrincipal -UserId $currentUser -LogonType Interactive -RunLevel Highest
+		# Set to run as BUILTIN\Administrators group with highest privileges
+		$principal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-544" -RunLevel Highest
 
 		# Create settings
 		$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
