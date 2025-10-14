@@ -102,25 +102,23 @@ func checkServiceStatus() (string, string) {
 
 // updategent updates the Wazuh agent on windows
 func updateAgent() {
-	log.Printf("Setting PowerShell Execution Policy...\n")
+	log.Printf("Launching Wazuh agent update in user session...\n")
 
-	// Set the execution policy to RemoteSigned for the current user
-	setPolicyCmd := exec.Command(powershellExe, cmdFlag, "Set-ExecutionPolicy", "-Scope", "CurrentUser", "-ExecutionPolicy", "RemoteSigned", "-Force")
-	output, err := setPolicyCmd.CombinedOutput()
-	if err != nil {
-		log.Printf("Failed to set execution policy: %v\n", string(output))
-		return
-	}
+	// Use PowerShell to launch the binary in the user's interactive session
+	// The -WindowStyle Hidden hides the PowerShell window, but the launched exe will show its own UI
+	psScript := `
+		$updateExe = "C:\Program Files (x86)\ossec-agent\active-response\bin\adorsys-update.exe"
+		Start-Process -FilePath $updateExe -Verb RunAs
+	`
 
-	log.Printf("Updating Wazuh agent...\n")
-	setPolicyCmd = exec.Command(powershellExe, cmdFlag, "&", "'C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\adorsys-update.ps1'")
-	err = setPolicyCmd.Run()
+	updateCmd := exec.Command(powershellExe, cmdFlag, psScript)
+	err := updateCmd.Start()
 	if err != nil {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
-		errorMessage := fmt.Sprintf("Update failed: For details check logs at %s", logFilePath)
+		errorMessage := fmt.Sprintf("Failed to launch update: %v. For details check logs at %s", err, logFilePath)
 		log.Printf("%s\n", errorMessage)
 	} else {
-		log.Printf("Wazuh agent updated successfully\n")
+		log.Printf("Wazuh agent update launcher started successfully in user session\n")
 	}
 }
 
