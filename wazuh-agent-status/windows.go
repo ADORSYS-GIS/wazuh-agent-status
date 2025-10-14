@@ -9,7 +9,6 @@ import (
 	"net"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/kardianos/service"
 )
