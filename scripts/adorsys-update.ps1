@@ -38,9 +38,8 @@ $WAZUH_SURICATA_VERSION = if ($env:WAZUH_SURICATA_VERSION) { $env:WAZUH_SURICATA
 
 # ---- Globals ----
 $AppName = "Wazuh Agent"
-$LogDir  = "C:\ProgramData\wazuh\logs"
-New-Item -ItemType Directory -Force -Path $LogDir -ErrorAction SilentlyContinue | Out-Null
-$LogPath = Join-Path $LogDir "setup-agent.log"
+$ActiveResponsesLogDir = Join-Path $OSSEC_PATH "active-response"
+$LogPath = Join-Path $ActiveResponsesLogDir "active-responses.log"
 $global:InstallerFiles = @()
 $global:CurrentStep = 1
 $global:InstallationComplete = $false
@@ -57,8 +56,34 @@ function Append-Log {
     $LogBox.AppendText($line + [Environment]::NewLine)
     $LogBox.ScrollToCaret()
 
-    # Write to setup-agent.log
-    try { Add-Content -Path $LogPath -Value $line -Encoding UTF8 } catch {}
+    # Write to active-responses.log (create directory if needed)
+    try {
+        # Create active-response directory if it doesn't exist
+        if (-not (Test-Path $ActiveResponsesLogDir)) {
+            New-Item -ItemType Directory -Force -Path $ActiveResponsesLogDir -ErrorAction Stop | Out-Null
+        }
+
+        # Use FileStream with shared access to write to the log file
+        $fileStream = $null
+        $streamWriter = $null
+        try {
+            # Open file with shared read/write access so Wazuh agent can still access it
+            $fileStream = [System.IO.FileStream]::new(
+                $LogPath,
+                [System.IO.FileMode]::Append,
+                [System.IO.FileAccess]::Write,
+                [System.IO.FileShare]::ReadWrite
+            )
+            $streamWriter = [System.IO.StreamWriter]::new($fileStream, [System.Text.Encoding]::UTF8)
+            $streamWriter.WriteLine($line)
+            $streamWriter.Flush()
+        } finally {
+            if ($streamWriter) { $streamWriter.Dispose() }
+            if ($fileStream) { $fileStream.Dispose() }
+        }
+    } catch {
+        # Silently ignore errors if still locked
+    }
 
     [System.Windows.Forms.Application]::DoEvents()
 }
