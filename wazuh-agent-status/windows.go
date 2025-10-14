@@ -81,7 +81,7 @@ func checkServiceStatus() (string, string) {
 	}
 
 	// Check connection status by reading the wazuh-agent.state file
-	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String", "-Path", "C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state", "-Pattern", "^status")
+	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String -Path 'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state' -Pattern '^status'")
 	connOutput, connErr := connCmd.CombinedOutput()
 	if connErr != nil {
 		log.Printf("Error checking connection status: %v\n", connErr)
@@ -113,16 +113,19 @@ func createScheduledTask() error {
 		
 		# Create the action
 		$action = New-ScheduledTaskAction -Execute $updateExe
-		
+
 		# Create a trigger that runs immediately
 		$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(2)
-		
-		# Set to run with highest privileges in interactive mode
-		$principal = New-ScheduledTaskPrincipal -UserId "INTERACTIVE" -LogonType Interactive -RunLevel Highest
-		
+
+		# Get the current logged-in user
+		$currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+
+		# Set to run with highest privileges for the current user
+		$principal = New-ScheduledTaskPrincipal -UserId $currentUser -LogonType Interactive -RunLevel Highest
+
 		# Create settings
 		$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-		
+
 		# Register the task
 		Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force
 		
