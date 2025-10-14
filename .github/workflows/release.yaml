@@ -197,9 +197,18 @@ jobs:
           Import-Module ps2exe
           $scriptPath = "scripts/adorsys-update.ps1"
           $outputPath = "scripts/dist/adorsys-update-windows-${{ matrix.arch }}.exe"
-          New-Item -ItemType Directory -Force -Path "scripts/dist"
-          Invoke-ps2exe -inputFile $scriptPath -outputFile $outputPath -noConsole -title "Wazuh Agent Update Wizard" -version "${{ steps.set_version.outputs.version }}" -company "ADORSYS" -product "Wazuh Agent Update Wizard" -copyright "Copyright (c) 2025 ADORSYS" -requireAdmin
-
+          New-Item -ItemType Directory -Force -Path "scripts/dist" | Out-Null
+          Invoke-ps2exe `
+            -inputFile $scriptPath `
+            -outputFile $outputPath `
+            -noConsole `
+            -title "Wazuh Agent Update Wizard" `
+            -version "${{ steps.winver.outputs.win_version }}" `
+            -company "ADORSYS" `
+            -product "Wazuh Agent Update Wizard" `
+            -copyright "Copyright (c) 2025 ADORSYS" `
+            -requireAdmin
+            
       - name: Upload windows client binaries
         uses: actions/upload-artifact@v4
         with:
