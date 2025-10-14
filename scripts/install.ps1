@@ -174,64 +174,79 @@ if ($UpdateProcesses) {
     InfoMessage "New version downloaded to: $UpdateBinaryNewPath"
     InfoMessage "Creating scheduled task to replace binary on next reboot..."
 
-    # Create a scheduled task to replace the binary on reboot
+    # Create a scheduled task to replace the binary after logon
     $TaskName = "AdorsysUpdateSwap"
+    $SwapScriptPath = "C:\ProgramData\ossec-agent\Run-UpdateSwap.ps1"
     $SwapScript = @"
-`$updateExePath = '$UPDATE_BINARY_PATH'
+#Requires -Version 5.1
+`$ErrorActionPreference = 'Stop'
+
+`$updateExePath    = '$UPDATE_BINARY_PATH'
 `$updateExeNewPath = '$UPDATE_BINARY_PATH.new'
 `$updateExeOldPath = '$UPDATE_BINARY_PATH.old'
-`$logPath = 'C:\Program Files (x86)\ossec-agent\active-response\active-responses.log'
+`$logPath          = 'C:\Program Files (x86)\ossec-agent\active-response\active-responses.log'
 
 function Write-SwapLog {
     param([string]`$Message)
-    `$timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    `$logMessage = "[`$timestamp] [UPDATE-SWAP] `$Message"
     try {
+        `$timestamp  = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+        `$logMessage = "[`$timestamp] [UPDATE-SWAP] `$Message"
         Add-Content -Path `$logPath -Value `$logMessage -ErrorAction SilentlyContinue
     } catch {}
 }
 
 Write-SwapLog 'Update swap task started'
 
-if (Test-Path `$updateExeNewPath) {
-    Write-SwapLog 'Found pending update'
-    try {
-        # Remove old backup if it exists
-        if (Test-Path `$updateExeOldPath) {
-            Remove-Item -Path `$updateExeOldPath -Force -ErrorAction Stop
+try {
+    if (Test-Path -LiteralPath `$updateExeNewPath) {
+        Write-SwapLog 'Found pending update'
+
+        if (Test-Path -LiteralPath `$updateExeOldPath) {
+            Remove-Item -LiteralPath `$updateExeOldPath -Force
             Write-SwapLog 'Removed old backup'
         }
 
-        # Backup current version
-        if (Test-Path `$updateExePath) {
-            Move-Item -Path `$updateExePath -Destination `$updateExeOldPath -Force -ErrorAction Stop
+        if (Test-Path -LiteralPath `$updateExePath) {
+            Move-Item -LiteralPath `$updateExePath -Destination `$updateExeOldPath -Force
             Write-SwapLog 'Backed up current version'
         }
 
-        # Move new version to current
-        Move-Item -Path `$updateExeNewPath -Destination `$updateExePath -Force -ErrorAction Stop
+        Move-Item -LiteralPath `$updateExeNewPath -Destination `$updateExePath -Force
         Write-SwapLog 'Installed new version successfully'
 
-        # Clean up old backup
-        if (Test-Path `$updateExeOldPath) {
-            Remove-Item -Path `$updateExeOldPath -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath `$updateExeOldPath) {
+            Remove-Item -LiteralPath `$updateExeOldPath -Force -ErrorAction SilentlyContinue
             Write-SwapLog 'Cleaned up old backup'
         }
-    } catch {
-        Write-SwapLog "ERROR: Failed to swap files: `$(`$_.Exception.Message)"
-        # Attempt rollback
-        if (-not (Test-Path `$updateExePath) -and (Test-Path `$updateExeOldPath)) {
-            Move-Item -Path `$updateExeOldPath -Destination `$updateExePath -Force -ErrorAction SilentlyContinue
+    } else {
+        Write-SwapLog 'No pending update found'
+    }
+}
+catch {
+    Write-SwapLog "ERROR: Failed to swap files: `$(`$_.Exception.Message)"
+    # Attempt rollback if current went missing but backup exists
+    try {
+        if (-not (Test-Path -LiteralPath `$updateExePath) -and (Test-Path -LiteralPath `$updateExeOldPath)) {
+            Move-Item -LiteralPath `$updateExeOldPath -Destination `$updateExePath -Force
             Write-SwapLog 'Rolled back to previous version'
         }
+    } catch {
+        Write-SwapLog "ERROR: Rollback failed: `$(`$_.Exception.Message)"
     }
-} else {
-    Write-SwapLog 'No pending update found'
 }
-
-# Delete this scheduled task
-Unregister-ScheduledTask -TaskName '$TaskName' -Confirm:`$false -ErrorAction SilentlyContinue
-Write-SwapLog 'Update swap task completed and removed'
+finally {
+    # Remove the scheduled task if present
+    try {
+        if (Get-ScheduledTask -TaskName 'AdorsysUpdateSwap' -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName 'AdorsysUpdateSwap' -Confirm:`$false -ErrorAction SilentlyContinue
+            Write-SwapLog 'Update swap task completed and removed'
+        } else {
+            Write-SwapLog 'Scheduled task not found (nothing to remove)'
+        }
+    } catch {
+        Write-SwapLog "ERROR: Failed to remove task: `$(`$_.Exception.Message)"
+    }
+}
 "@
 
     try {
@@ -241,15 +256,21 @@ Write-SwapLog 'Update swap task completed and removed'
             Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction Stop
         }
 
-        # Create the action
-        $Action = New-ScheduledTaskAction -Execute "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$SwapScript`""
+        # Create the swap script file
+        $SwapScriptDir = Split-Path -Path $SwapScriptPath -Parent
+        if (-not (Test-Path $SwapScriptDir)) {
+            New-Item -Path $SwapScriptDir -ItemType Directory -Force | Out-Null
+        }
+        Set-Content -Path $SwapScriptPath -Value $SwapScript -Force
 
-        # Create a trigger that runs at startup with a delay (to ensure user is logged in)
-        $Trigger = New-ScheduledTaskTrigger -AtStartup
-        $Trigger.Delay = "PT1M"  # 1 minute delay after startup
+        # Create the action to run the script
+        $Action = New-ScheduledTaskAction -Execute "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SwapScriptPath`""
 
-        # Set to run as SYSTEM with highest privileges
-        $Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+        # Create a trigger that runs at logon
+        $Trigger = New-ScheduledTaskTrigger -AtLogOn
+
+        # Set to run with highest privileges using Administrators group
+        $Principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
 
         # Create settings
         $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
@@ -258,7 +279,7 @@ Write-SwapLog 'Update swap task completed and removed'
         Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Force | Out-Null
 
         InfoMessage "Scheduled task '$TaskName' created successfully"
-        InfoMessage "The new version will be installed on next reboot"
+        InfoMessage "The new version will be installed on next logon"
     } catch {
         ErrorMessage "Failed to create scheduled task: $($_.Exception.Message)"
     }
