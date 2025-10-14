@@ -24,8 +24,8 @@ $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
 
-$UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/refs/tags/v$WAS_VERSION/scripts/adorsys-update.ps1" }
-$UPDATE_SCRIPT_PATH = if ($null -ne $env:UPDATE_SCRIPT_PATH) { $env:UPDATE_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.ps1" }
+$UPDATE_BINARY_URL = if ($null -ne $env:UPDATE_BINARY_URL) { $env:UPDATE_BINARY_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION/adorsys-update-windows-$ARCH.exe" }
+$UPDATE_BINARY_PATH = if ($null -ne $env:UPDATE_BINARY_PATH) { $env:UPDATE_BINARY_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.exe" }
 
 # Create necessary directories
 if (-not (Test-Path $BIN_DIR)) {
@@ -163,14 +163,8 @@ Create-Service -ServiceName $SERVER_NAME -ExecutablePath $SERVER_EXE -DisplayNam
 PrintStep 4 "Configuring client startup..."
 Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
 
-# Download adorsys-update.ps1
-PrintStep 5 "Downloading adorsys-update.ps1..."
-Download-File -Url $UPDATE_SCRIPT_URL -OutputPath $UPDATE_SCRIPT_PATH
-
-# Update WazuhManager default value in the downloaded adorsys-update.ps1
-PrintStep 6 "Configuring WAZUH_MANAGER in adorsys-update.ps1..."
-$UPDATE_SCRIPT_CONTENT = Get-Content $UPDATE_SCRIPT_PATH
-$UPDATE_SCRIPT_CONTENT = $UPDATE_SCRIPT_CONTENT -replace '(\[string\]\$WazuhManager = ")[^"]*(")', "`$1$WAZUH_MANAGER`$2"
-Set-Content -Path $UPDATE_SCRIPT_PATH -Value $UPDATE_SCRIPT_CONTENT
+# Download adorsys-update binary
+PrintStep 5 "Downloading adorsys-update binary..."
+Download-File -Url $UPDATE_BINARY_URL -OutputPath $UPDATE_BINARY_PATH
 
 SuccessMessage "Installation completed successfully."
