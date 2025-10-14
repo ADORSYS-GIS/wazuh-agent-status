@@ -194,31 +194,29 @@ func updateStatusItems(status, connection string) {
 	}
 }
 
-// monitorVersion handles the startup check and the periodic check. (UNCHANGED)
+// monitorVersion handles the startup check and the periodic check.
 func monitorVersion() {
-	// Loop indefinitely. The inner logic handles breaking out into the long poll.
 	for {
-		// Attempt to get the version.
-		handleVersionCheck(true)
+		// This inner loop handles the version check with retries.
+		for {
+			handleVersionCheck(true)
+			currentVersion := getMenuItemTitle(versionItem.String())
+			log.Println("Current Version:", currentVersion)
 
-		// Check if the version is still in its initial or an error state.
-		// If so, wait 5 seconds and try again.
-		currentVersion := getMenuItemTitle(versionItem.String())
-		log.Println("Current Version:", currentVersion)
-		if currentVersion == "" || currentVersion == "---" || currentVersion == "v---" || currentVersion == "Unknown" {
+			// If the version is valid, break the inner loop.
+			if currentVersion != "" && currentVersion != "---" && currentVersion != "v---" && currentVersion != "Unknown" {
+				log.Println("Version check successful.")
+				break
+			}
+
+			// If the version is in a default/error state, retry after a short delay.
 			log.Println("Version is in default/error state, retrying in 5 seconds...")
 			time.Sleep(5 * time.Second)
-		} else {
-			// If a valid version is fetched, break out of the initial retry loop.
-			log.Println("Version check successful. Switching to 4-hour polling interval.")
-			break
 		}
-	}
 
-	// Once the initial version is fetched, switch to long polling.
-	for {
+		// Once a valid version is fetched, wait for the long polling interval.
+		log.Println("Switching to 4-hour polling interval.")
 		time.Sleep(4 * time.Hour)
-		handleVersionCheck(true)
 	}
 }
 
