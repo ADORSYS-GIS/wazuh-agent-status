@@ -165,6 +165,106 @@ Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
 
 # Download adorsys-update binary
 PrintStep 5 "Downloading adorsys-update binary..."
-Download-File -Url $UPDATE_BINARY_URL -OutputPath $UPDATE_BINARY_PATH
+# Check if the binary is currently running
+$UpdateProcesses = Get-Process -Name "adorsys-update" -ErrorAction SilentlyContinue
+if ($UpdateProcesses) {
+    InfoMessage "adorsys-update.exe is currently running. Downloading to .new file for delayed replacement..."
+    $UpdateBinaryNewPath = "$UPDATE_BINARY_PATH.new"
+    Download-File -Url $UPDATE_BINARY_URL -OutputPath $UpdateBinaryNewPath
+    InfoMessage "New version downloaded to: $UpdateBinaryNewPath"
+    InfoMessage "Creating scheduled task to replace binary on next reboot..."
+
+    # Create a scheduled task to replace the binary on reboot
+    $TaskName = "AdorsysUpdateSwap"
+    $SwapScript = @"
+`$updateExePath = '$UPDATE_BINARY_PATH'
+`$updateExeNewPath = '$UPDATE_BINARY_PATH.new'
+`$updateExeOldPath = '$UPDATE_BINARY_PATH.old'
+`$logPath = 'C:\Program Files (x86)\ossec-agent\active-response\active-responses.log'
+
+function Write-SwapLog {
+    param([string]`$Message)
+    `$timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    `$logMessage = "[`$timestamp] [UPDATE-SWAP] `$Message"
+    try {
+        Add-Content -Path `$logPath -Value `$logMessage -ErrorAction SilentlyContinue
+    } catch {}
+}
+
+Write-SwapLog 'Update swap task started'
+
+if (Test-Path `$updateExeNewPath) {
+    Write-SwapLog 'Found pending update'
+    try {
+        # Remove old backup if it exists
+        if (Test-Path `$updateExeOldPath) {
+            Remove-Item -Path `$updateExeOldPath -Force -ErrorAction Stop
+            Write-SwapLog 'Removed old backup'
+        }
+
+        # Backup current version
+        if (Test-Path `$updateExePath) {
+            Move-Item -Path `$updateExePath -Destination `$updateExeOldPath -Force -ErrorAction Stop
+            Write-SwapLog 'Backed up current version'
+        }
+
+        # Move new version to current
+        Move-Item -Path `$updateExeNewPath -Destination `$updateExePath -Force -ErrorAction Stop
+        Write-SwapLog 'Installed new version successfully'
+
+        # Clean up old backup
+        if (Test-Path `$updateExeOldPath) {
+            Remove-Item -Path `$updateExeOldPath -Force -ErrorAction SilentlyContinue
+            Write-SwapLog 'Cleaned up old backup'
+        }
+    } catch {
+        Write-SwapLog "ERROR: Failed to swap files: `$(`$_.Exception.Message)"
+        # Attempt rollback
+        if (-not (Test-Path `$updateExePath) -and (Test-Path `$updateExeOldPath)) {
+            Move-Item -Path `$updateExeOldPath -Destination `$updateExePath -Force -ErrorAction SilentlyContinue
+            Write-SwapLog 'Rolled back to previous version'
+        }
+    }
+} else {
+    Write-SwapLog 'No pending update found'
+}
+
+# Delete this scheduled task
+Unregister-ScheduledTask -TaskName '$TaskName' -Confirm:`$false -ErrorAction SilentlyContinue
+Write-SwapLog 'Update swap task completed and removed'
+"@
+
+    try {
+        # Check if task already exists and remove it
+        $ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+        if ($ExistingTask) {
+            Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction Stop
+        }
+
+        # Create the action
+        $Action = New-ScheduledTaskAction -Execute "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$SwapScript`""
+
+        # Create a trigger that runs at startup with a delay (to ensure user is logged in)
+        $Trigger = New-ScheduledTaskTrigger -AtStartup
+        $Trigger.Delay = "PT1M"  # 1 minute delay after startup
+
+        # Set to run as SYSTEM with highest privileges
+        $Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+        # Create settings
+        $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+
+        # Register the task
+        Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Force | Out-Null
+
+        InfoMessage "Scheduled task '$TaskName' created successfully"
+        InfoMessage "The new version will be installed on next reboot"
+    } catch {
+        ErrorMessage "Failed to create scheduled task: $($_.Exception.Message)"
+    }
+} else {
+    InfoMessage "adorsys-update.exe is not running. Downloading directly..."
+    Download-File -Url $UPDATE_BINARY_URL -OutputPath $UPDATE_BINARY_PATH
+}
 
 SuccessMessage "Installation completed successfully."

@@ -104,13 +104,13 @@ func createScheduledTask() error {
 	psScript := fmt.Sprintf(`
 		$taskName = "%s"
 		$updateExe = "C:\Program Files (x86)\ossec-agent\active-response\bin\adorsys-update.exe"
-		
+
 		# Check if task already exists
 		$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
 		if ($existingTask) {
 			Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
 		}
-		
+
 		# Create the action
 		$action = New-ScheduledTaskAction -Execute $updateExe
 
@@ -125,13 +125,13 @@ func createScheduledTask() error {
 
 		# Register the task
 		Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force
-		
+
 		# Run the task immediately
 		Start-ScheduledTask -TaskName $taskName
-		
+
 		# Wait a moment for task to start
 		Start-Sleep -Seconds 2
-		
+
 		# Clean up the task after it runs
 		Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
 	`, taskName)
