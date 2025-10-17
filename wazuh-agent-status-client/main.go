@@ -9,13 +9,13 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
-	"regexp"
 
-	"fyne.io/systray" 
+	"fyne.io/systray"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -34,6 +34,7 @@ var (
 )
 
 var titleRegexp = regexp.MustCompile(`"(.*?)"`)
+var versionRegex = regexp.MustCompile(`^v\d+\.\d+\.\d+(-rc[.\d]*)?`)
 
 // Version is set at build time via ldflags
 var Version = "dev"
@@ -79,7 +80,7 @@ func main() {
 		}
 	}
 	log.Printf("Starting frontend... (version: %s)", Version)
-	systray.Run(onReady, onExit) 
+	systray.Run(onReady, onExit)
 }
 
 // onReady sets up the tray icon
@@ -112,7 +113,7 @@ func onReady() {
 	systray.AddSeparator()
 	versionItem = systray.AddMenuItem("v---", "The version state of the wazuhbsetup")
 	versionItem.Disable() // Initially disabled
-	
+
 	// Start background monitoring routines (guarded to run only once)
 	monitorOnce.Do(func() {
 		go monitorStatusStream()
@@ -203,8 +204,8 @@ func monitorVersion() {
 			currentVersion := getMenuItemTitle(versionItem.String())
 			log.Println("Current Version:", currentVersion)
 
-			// If the version is valid, break the inner loop.
-			if currentVersion != "" && currentVersion != "---" && currentVersion != "v---" && currentVersion != "Unknown" {
+			// If the version matches the expected format, break the inner loop.
+			if versionRegex.MatchString(currentVersion) {
 				log.Println("Version check successful.")
 				break
 			}
@@ -233,7 +234,7 @@ func handleVersionCheck(autoStart bool) {
 
 	response = strings.TrimPrefix(response, "VERSION_CHECK: ")
 	isOutdated := strings.Contains(response, "Outdated")
-	
+
 	// --- Update Menu Items ---
 	if isOutdated {
 		parts := strings.Split(response, ", ")
@@ -244,13 +245,13 @@ func handleVersionCheck(autoStart bool) {
 		versionItem.SetTitle(version)
 		updateItem.SetTitle("Update Available")
 		updateItem.Enable()
-		
+
 		if autoStart {
 			log.Println("Automatic update triggered by periodic check.")
 			updateItem.Disable()
 			go startUpdateStream()
 		}
-		
+
 	} else if strings.Contains(response, "Up to date") {
 		parts := strings.Split(response, ", ")
 		version := "Unknown"
@@ -273,7 +274,7 @@ func handleMenuActions() {
 		log.Println("Update clicked. Starting stream...")
 		updateItem.SetTitle("Starting Update...")
 		updateItem.Disable()
-		go startUpdateStream() 
+		go startUpdateStream()
 	}
 }
 
@@ -290,7 +291,7 @@ func startUpdateStream() {
 	if err != nil {
 		log.Printf("Failed to connect to backend for update stream: %v", err)
 		updateItem.SetTitle("Update Failed (Connect)")
-		updateItem.Enable() 
+		updateItem.Enable()
 		return
 	}
 	defer conn.Close()
@@ -298,7 +299,7 @@ func startUpdateStream() {
 	fmt.Fprintln(conn, "update")
 
 	reader := bufio.NewReader(conn)
-	
+
 	// Read and process the streaming response from the server
 	for {
 		response, err := reader.ReadString('\n')
@@ -309,7 +310,7 @@ func startUpdateStream() {
 			} else {
 				log.Println("Update stream finished (EOF).")
 				// Set a temporary status before the synchronous check
-				updateItem.SetTitle("Checking Version Status...") 
+				updateItem.SetTitle("Checking Version Status...")
 			}
 			break
 		}
@@ -326,9 +327,9 @@ func startUpdateStream() {
 			updateItem.SetTitle(fmt.Sprintf("Updating: %s", status))
 		}
 	}
-	
+
 	// After the stream ends, perform a synchronous version check to update the menu accurately
-	handleVersionCheck(false) 
+	handleVersionCheck(false)
 }
 
 // sendCommandAndReceive is a general utility for single request/response commands. (UNCHANGED)
@@ -369,7 +370,7 @@ func getEmbeddedFile(path string) ([]byte, error) {
 func getIconPath() string {
 	switch os := runtime.GOOS; os {
 	case "windows":
-		_ = os 
+		_ = os
 		return "assets/wazuh-logo.ico"
 	default:
 		return "assets/wazuh-logo.png"
@@ -378,7 +379,7 @@ func getIconPath() string {
 
 // getMenuItemTitle extracts the Title from MenuItem.String()
 // formatted like "MenuItem[N, "Title"]".
-func getMenuItemTitle(input string) (string) {
+func getMenuItemTitle(input string) string {
 	// Find the text between the quotes
 	matches := titleRegexp.FindStringSubmatch(input)
 	if len(matches) > 1 {
