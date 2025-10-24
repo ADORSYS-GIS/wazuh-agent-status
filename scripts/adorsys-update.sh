@@ -2,6 +2,29 @@
 # Upgrade script from ADORSYS.
 # Copyright (C) 2025, ADORSYS GmbH & CO KG.
 
+# Function for logging with timestamp
+log() {
+    local LEVEL="$1"
+    shift
+    local MESSAGE="$*"
+    local TIMESTAMP
+    TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+    echo -e "${TIMESTAMP} ${LEVEL} ${MESSAGE}" >> "$LOG_FILE"
+}
+
+# Logging helpers
+info_message() {
+    log "[INFO]" "$*"
+}
+
+warn_message() {
+    log "[WARNING]" "$*"
+}
+
+error_message() {
+    log "[ERROR]" "$*"
+}
+
 # Check if we're running in bash; if not, adjust behavior
 if [ -n "$BASH_VERSION" ]; then
     set -euo pipefail
@@ -24,10 +47,11 @@ if [ "$OS_TYPE" = "Darwin" ]; then
     LOG_FILE='/Library/Ossec/logs/active-responses.log'
     UPGRADE_SCRIPT_PATH='/Library/Ossec/active-response/bin/adorsys-update.sh'
     ARCH=$(uname -m)
-    if [ "$ARCH" = "x86_64" ]; then
-        BIN_FOLDER='/usr/local/bin'
+    if command -v brew >/dev/null 2>&1; then
+        BIN_FOLDER="$(brew --prefix)/bin"
     else
-        BIN_FOLDER='/opt/homebrew/bin'
+        error_message "Homebrew not found. Please install Homebrew first."
+        exit 1
     fi
 else
     ICON_PATH='/usr/share/pixmaps/wazuh-logo.png'
@@ -57,29 +81,6 @@ if [ "$OS_TYPE" = "Linux" ]; then
     fi
 fi
 # --- End of Centralized User Detection ---
-
-# Function for logging with timestamp
-log() {
-    local LEVEL="$1"
-    shift
-    local MESSAGE="$*"
-    local TIMESTAMP
-    TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "${TIMESTAMP} ${LEVEL} ${MESSAGE}" >> "$LOG_FILE"
-}
-
-# Logging helpers
-info_message() {
-    log "[INFO]" "$*"
-}
-
-warn_message() {
-    log "[WARNING]" "$*"
-}
-
-error_message() {
-    log "[ERROR]" "$*"
-}
 
 cleanup() {
     if [ -d "$TMP_FOLDER" ]; then
