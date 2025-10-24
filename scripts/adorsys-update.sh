@@ -47,11 +47,16 @@ if [ "$OS_TYPE" = "Darwin" ]; then
     LOG_FILE='/Library/Ossec/logs/active-responses.log'
     UPGRADE_SCRIPT_PATH='/Library/Ossec/active-response/bin/adorsys-update.sh'
     ARCH=$(uname -m)
-    if command -v brew >/dev/null 2>&1; then
-        BIN_FOLDER="$(brew --prefix)/bin"
+    # Check for brew in common installation paths
+    if [ -x "/opt/homebrew/bin/brew" ]; then
+        BIN_FOLDER="$(/opt/homebrew/bin/brew --prefix)/bin"
+        info_message "Detected Homebrew installation at /opt/homebrew"
+    elif [ -x "/usr/local/bin/brew" ]; then
+        BIN_FOLDER="$(/usr/local/bin/brew --prefix)/bin"
+        info_message "Detected Homebrew installation at /usr/local"
     else
-        error_message "Homebrew not found. Please install Homebrew first."
-        exit 1
+        warn_message "Homebrew not found, falling back to /usr/local/bin"
+        BIN_FOLDER="/usr/local/bin"
     fi
 else
     ICON_PATH='/usr/share/pixmaps/wazuh-logo.png'
