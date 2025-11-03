@@ -321,7 +321,7 @@ func startUpdateStream() {
 		// Display status on the menu item
 		if strings.HasPrefix(trimmed, "UPDATE_PROGRESS:") {
 			status := strings.TrimPrefix(trimmed, "UPDATE_PROGRESS: ")
-			if status == "Complete" {
+			if status == "Complete" || status == "Error" {
 				break
 			}
 			updateItem.SetTitle(fmt.Sprintf("Updating: %s", status))

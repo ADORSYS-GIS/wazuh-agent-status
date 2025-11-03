@@ -77,7 +77,8 @@ func updateAgent(conn net.Conn) {
 	if err := cmd.Wait(); err != nil {
 		logFilePath := "/var/ossec/logs/active-responses.log"
 		errorMessage := fmt.Sprintf("ERROR: Update failed: %v. Check logs at %s", err, logFilePath)
-		writeUpdate(errorMessage)
+		writeUpdate("Error")
+		log.Println(errorMessage)
 	} else {
 		writeUpdate("Complete")
 		log.Println("Wazuh agent updated successfully")
