@@ -159,12 +159,17 @@ func monitorStatusStream() {
 
 			response = strings.TrimSpace(response)
 			if strings.HasPrefix(response, "STATUS_UPDATE:") {
-				parts := strings.Split(response, ": ")
+				// Use SplitN to avoid unexpected extra splits and check lengths defensively
+				parts := strings.SplitN(response, ": ", 2)
 				if len(parts) > 1 {
-					data := strings.Split(parts[1], ", ")
+					data := strings.SplitN(parts[1], ", ", 2)
 					if len(data) == 2 {
 						updateStatusItems(data[0], data[1])
+					} else {
+						log.Printf("Unexpected STATUS_UPDATE data format: %q", parts[1])
 					}
+				} else {
+					log.Printf("Unexpected STATUS_UPDATE format: %q", response)
 				}
 			} else if strings.HasPrefix(response, "ERROR:") {
 				log.Printf("Error from status stream: %s", response)
@@ -237,10 +242,13 @@ func handleVersionCheck(autoStart bool) {
 
 	// --- Update Menu Items ---
 	if isOutdated {
-		parts := strings.Split(response, ", ")
+		// Defensive parsing: only split into two parts and validate
+		parts := strings.SplitN(response, ", ", 2)
 		version := "Unknown"
 		if len(parts) == 2 {
 			version = parts[1]
+		} else {
+			log.Printf("Unexpected version response (Outdated): %q", response)
 		}
 		versionItem.SetTitle(version)
 		updateItem.SetTitle("Update Available")
@@ -253,10 +261,13 @@ func handleVersionCheck(autoStart bool) {
 		}
 
 	} else if strings.Contains(response, "Up to date") {
-		parts := strings.Split(response, ", ")
+		// Defensive parsing: only split into two parts and validate
+		parts := strings.SplitN(response, ", ", 2)
 		version := "Unknown"
 		if len(parts) == 2 {
 			version = parts[1]
+		} else {
+			log.Printf("Unexpected version response (Up to date): %q", response)
 		}
 		versionItem.SetTitle(version)
 		updateItem.SetTitle("Up to date")
