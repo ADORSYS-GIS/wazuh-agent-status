@@ -5,7 +5,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"net"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -27,7 +30,6 @@ func checkServiceStatus() (string, string) {
 		status = "Active"
 	}
 
-	// Check connection status
 	connCmd := exec.Command(sudoCommand, "grep", "^status", "/Library/Ossec/var/run/wazuh-agentd.state")
 	connOutput, connErr := connCmd.CombinedOutput()
 	connection := "Disconnected"
@@ -38,17 +40,45 @@ func checkServiceStatus() (string, string) {
 	return status, connection
 }
 
-// updateAgent updates the Wazuh agent on macOS
-func updateAgent() {
-	logFilePath := "/Library/Ossec/logs/active-responses.log"
-	log.Printf("Updating Wazuh agent...\n")
+// updateAgent updates the Wazuh agent on macOS and streams progress to the client
+func updateAgent(conn net.Conn) {
+	// The caller (handleConnection) closes the dedicated update stream conn when this function returns
+	defer conn.Close() 
+
+	// Helper to write status updates directly to the connection
+	writeUpdate := func(status string) {
+		conn.Write([]byte(fmt.Sprintf("UPDATE_PROGRESS: %s\n", status)))
+		log.Printf("Update progress: %s", status)
+	}
+
+	writeUpdate("Starting...")
+
 	cmd := exec.Command(sudoCommand, "/Library/Ossec/active-response/bin/adorsys-update.sh")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		errorMessage := fmt.Sprintf("Update failed: %v. Check logs: %s", string(output), logFilePath)
-		log.Printf("%s\n", errorMessage)
+
+	// Stream stdout and stderr to the log and to the client connection
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+
+	if err := cmd.Start(); err != nil {
+		writeUpdate(fmt.Sprintf("ERROR: Command failed to start: %v", err))
+		return
+	}
+
+	writeUpdate("Executing script...")
+
+	// Stream stdout and stderr to os.Stdout/os.Stderr (which goes to the server log)
+	go io.Copy(os.Stdout, stdout)
+	go io.Copy(os.Stderr, stderr)
+
+	// Wait for the command to finish
+	if err := cmd.Wait(); err != nil {
+		logFilePath := "/Library/Ossec/logs/active-responses.log"
+		errorMessage := fmt.Sprintf("ERROR: Update failed: %v. Check logs at %s", err, logFilePath)
+		writeUpdate("Error")
+		log.Println(errorMessage)
 	} else {
-		log.Printf("Wazuh agent updated successfully\n")
+		writeUpdate("Complete")
+		log.Println("Wazuh agent updated successfully")
 	}
 }
 

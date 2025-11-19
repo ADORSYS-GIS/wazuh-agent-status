@@ -5,8 +5,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -28,8 +30,6 @@ type program struct {
 // Start will be called when the service is started
 func (p *program) Start(s service.Service) error {
 	log.Println("Starting wazuh-agent-status server...")
-
-	// Start the listener in a goroutine
 	go p.run()
 	return nil
 }
@@ -67,22 +67,19 @@ func (p *program) Stop(s service.Service) error {
 
 // checkServiceStatus checks the status of Wazuh agent and its connection on Windows
 func checkServiceStatus() (string, string) {
-	// Check if the Wazuh service is running
 	cmd := exec.Command(powershellExe, cmdFlag, "Get-Service", "-Name", "WazuhSvc")
-	output, err := cmd.CombinedOutput() // Use CombinedOutput to capture both stdout and stderr
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Error checking service status: %v\n", err)
 		log.Printf("Service command error output:\n%s\n", string(output))
 		return "Inactive", "Disconnected"
 	}
 
-	// Check if the service is running
 	status := "Inactive"
 	if strings.Contains(string(output), "Running") {
 		status = "Active"
 	}
 
-	// Check connection status by reading the wazuh-agent.state file
 	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String", "-Path", "C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state", "-Pattern", "^status")
 	connOutput, connErr := connCmd.CombinedOutput()
 	if connErr != nil {
@@ -91,7 +88,6 @@ func checkServiceStatus() (string, string) {
 		return status, "Disconnected"
 	}
 
-	// Clean the output and check if the status indicates "connected"
 	connection := "Disconnected"
 	if strings.Contains(string(connOutput), "status='connected'") {
 		connection = "Connected"
@@ -100,49 +96,72 @@ func checkServiceStatus() (string, string) {
 	return status, connection
 }
 
-// updategent updates the Wazuh agent on windows
-func updateAgent() {
-	log.Printf("Setting PowerShell Execution Policy...\n")
+// updateAgent updates the Wazuh agent on Windows and streams progress to the client
+func updateAgent(conn net.Conn) {
+	// The caller (handleConnection) closes the dedicated update stream conn when this function returns
+	defer conn.Close() 
+
+	// Helper to write status updates directly to the connection
+	writeUpdate := func(status string) {
+		conn.Write([]byte(fmt.Sprintf("UPDATE_PROGRESS: %s\n", status)))
+		log.Printf("Update progress: %s", status)
+	}
+
+	writeUpdate("Starting...")
 
 	// Set the execution policy to RemoteSigned for the current user
 	setPolicyCmd := exec.Command(powershellExe, cmdFlag, "Set-ExecutionPolicy", "-Scope", "CurrentUser", "-ExecutionPolicy", "RemoteSigned", "-Force")
-	output, err := setPolicyCmd.CombinedOutput()
-	if err != nil {
-		log.Printf("Failed to set execution policy: %v\n", string(output))
+	if output, err := setPolicyCmd.CombinedOutput(); err != nil {
+		writeUpdate(fmt.Sprintf("ERROR: Failed to set execution policy: %v", string(output)))
+		return
+	}
+	writeUpdate("Policy Set...")
+
+	// Command to execute the update script
+	cmd := exec.Command(powershellExe, cmdFlag, "&", "'C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\adorsys-update.ps1'")
+
+	// Stream stdout and stderr to the log and to the client connection (Note: PowerShell streaming can be complex; this is a simplified approach)
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+
+	if err := cmd.Start(); err != nil {
+		writeUpdate(fmt.Sprintf("ERROR: Command failed to start: %v", err))
 		return
 	}
 
-	log.Printf("Updating Wazuh agent...\n")
-	setPolicyCmd = exec.Command(powershellExe, cmdFlag, "&", "'C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\adorsys-update.ps1'")
-	err = setPolicyCmd.Run()
-	if err != nil {
+	writeUpdate("Executing script...")
+
+	// Stream stdout and stderr to os.Stdout/os.Stderr (which goes to the server log)
+	go io.Copy(os.Stdout, stdout)
+	go io.Copy(os.Stderr, stderr)
+
+	// Wait for the command to finish
+	if err := cmd.Wait(); err != nil {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
-		errorMessage := fmt.Sprintf("Update failed: For details check logs at %s", logFilePath)
-		log.Printf("%s\n", errorMessage)
+		errorMessage := fmt.Sprintf("ERROR: Update failed: For details check logs at %s", logFilePath)
+		writeUpdate("Error")
+		log.Println(errorMessage)
 	} else {
-		log.Printf("Wazuh agent updated successfully\n")
+		writeUpdate("Complete")
+		log.Println("Wazuh agent updated successfully")
 	}
 }
 
 // Main function that sets up the service
 func windowsMain() {
-	// Define the service config
 	serviceConfig := &service.Config{
 		Name:        "GoWazuhService",
 		DisplayName: "Go Wazuh Service",
 		Description: "A Go application to manage Wazuh service.",
 	}
-	
-	// Create the program object
+
 	prg := &program{}
 
-	// Create a new service object
 	s, err := service.New(prg, serviceConfig)
 	if err != nil {
 		log.Fatalf("Failed to create service: %v", err)
 	}
 
-	// Run the service
 	err = s.Run()
 	if err != nil {
 		log.Fatalf("Failed to run service: %v", err)

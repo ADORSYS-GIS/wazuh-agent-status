@@ -12,16 +12,155 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+	"time"
 
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-const versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt"
-
-var isUpdateInProgress bool // Flag to track if the update is in progress
+const (
+	versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt"
+)
 
 // Version is set at build time via ldflags
 var Version = "dev"
+
+// Global state and communication channels
+var (
+	// Notifier broadcasts status changes to all subscribed clients
+	notifier = NewEventNotifier()
+	// Manager handles the overall state of the Wazuh Agent
+	manager = NewStateManager()
+)
+
+// --- STATE MANAGEMENT & NOTIFICATION ---
+
+type AgentState struct {
+	Status     string
+	Connection string
+	Version    string
+}
+
+type StateManager struct {
+	state AgentState
+	mu    sync.RWMutex
+}
+
+func NewStateManager() *StateManager {
+	return &StateManager{
+		state: AgentState{
+			Status: "Unknown", Connection: "Unknown", Version: "Unknown",
+		},
+	}
+}
+
+func (m *StateManager) SetStatus(status, connection string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	changed := false
+	if m.state.Status != status || m.state.Connection != connection {
+		m.state.Status = status
+		m.state.Connection = connection
+		changed = true
+	}
+	if changed {
+		log.Printf("State change: Status=%s, Connection=%s", status, connection)
+		// Push update instantly
+		notifier.Notify(fmt.Sprintf("STATUS_UPDATE: %s, %s\n", status, connection))
+	}
+}
+
+func (m *StateManager) GetStatus() (string, string) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.state.Status, m.state.Connection
+}
+
+func (m *StateManager) SetVersion(version string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.state.Version != version {
+		m.state.Version = version
+	}
+}
+
+func (m *StateManager) GetVersion() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.state.Version
+}
+
+// EventNotifier handles subscriptions for event pushing
+type EventNotifier struct {
+	// A map of connection ID (as a unique string) to the channel it listens on
+	subscribers map[string]chan string
+	mu          sync.Mutex
+}
+
+func NewEventNotifier() *EventNotifier {
+	return &EventNotifier{
+		subscribers: make(map[string]chan string),
+	}
+}
+
+func (n *EventNotifier) Subscribe(connID string) chan string {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	ch := make(chan string, 5) // Buffered channel for safety
+	n.subscribers[connID] = ch
+	return ch
+}
+
+func (n *EventNotifier) Unsubscribe(connID string) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if ch, ok := n.subscribers[connID]; ok {
+		close(ch)
+		delete(n.subscribers, connID)
+	}
+}
+
+func (n *EventNotifier) Notify(message string) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	for _, ch := range n.subscribers {
+		// Non-blocking send to prevent one slow client from blocking others
+		select {
+		case ch <- message:
+		default:
+			log.Println("Warning: Dropping message for a slow subscriber.")
+		}
+	}
+}
+
+// --- POLLING ROUTINES ---
+
+// monitorAgentStatus polls the OS for the agent's status and updates the StateManager.
+func monitorAgentStatus() {
+	for {
+		status, connection := checkServiceStatus()
+		manager.SetStatus(status, connection)
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func checkAndSetVersion() {
+	localVersion := getLocalVersion()
+	onlineVersion := fetchOnlineVersion()
+
+	currentVersion := fmt.Sprintf("v%s", localVersion)
+	if localVersion == "Unknown" || onlineVersion == "Unknown" {
+		currentVersion = "Version: Unknown"
+	} else if localVersion != onlineVersion {
+		currentVersion = fmt.Sprintf("Outdated, v%s", localVersion)
+	} else {
+		currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
+	}
+	manager.SetVersion(currentVersion)
+	log.Printf("Version status: %s", currentVersion)
+}
+
+// --- SERVER AND CONNECTION HANDLER ---
 
 func getSystemLogFilePath() string {
 	var logDir string
@@ -35,7 +174,6 @@ func getSystemLogFilePath() string {
 		logDir = "./logs"
 	}
 
-	// Ensure the directory exists (Windows only, since /var/log usually exists)
 	if runtime.GOOS == "windows" {
 		if err := os.MkdirAll(logDir, 0755); err != nil {
 			log.Fatalf("failed to create log directory: %v", err)
@@ -56,7 +194,7 @@ func init() {
 		Compress:   true,
 	})
 
-	log.Printf("Logging to: %s", logFilePath) // Debugging info
+	log.Printf("Logging to: %s", logFilePath)
 }
 
 func main() {
@@ -67,6 +205,9 @@ func main() {
 		}
 	}
 	fmt.Printf("Starting server... (version: %s)\n", Version)
+
+	// Start polling routines
+	go monitorAgentStatus()
 
 	if runtime.GOOS == "windows" {
 		windowsMain()
@@ -92,46 +233,79 @@ func main() {
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
+	connID := conn.RemoteAddr().String()
 	reader := bufio.NewReader(conn)
 
+	log.Printf("Authorized connection from %s", connID)
+
+	// Read loop
 	for {
 		message, err := reader.ReadString('\n')
 		if err != nil {
-			log.Printf("Connection closed or error: %v", err)
+			if err != io.EOF && !strings.Contains(err.Error(), "timeout") {
+				log.Printf("Connection error for %s: %v", connID, err)
+			}
+			notifier.Unsubscribe(connID)
 			return
 		}
 
-		command := message//[:len(message)-1] // Remove newline character
-		command = strings.TrimSpace(command)
-		switch command {
-		case "status":
-			status, connection := checkServiceStatus()
-			conn.Write([]byte(fmt.Sprintf("Status: %s, Connection: %s\n", status, connection)))
-		case "update":
-			log.Println("Received update command...")
-			isUpdateInProgress = true
-			updateAgent()
-			isUpdateInProgress = false
-			log.Println("Update finished")
-		case "update-status":
-			if isUpdateInProgress {
-				conn.Write([]byte("Update: Progressing\n"))
-			} else {
-				conn.Write([]byte("Update: Disable\n"))
-			}
-		case "check-version":
-			localVersion := getLocalVersion()
-			onlineVersion := fetchOnlineVersion()
+		command := strings.TrimSpace(message)
+		log.Printf("Received command from %s: %s", connID, command)
 
-			if localVersion == "" || onlineVersion == "" {
-				conn.Write([]byte("VersionCheck: Unknown\n"))
-			} else if localVersion != onlineVersion {
-				conn.Write([]byte(fmt.Sprintf("VersionCheck: Outdated, v%s\n", localVersion)))
-			} else {
-				conn.Write([]byte(fmt.Sprintf("VersionCheck: Up to date, v%s\n", localVersion)))
+		switch command {
+		case "get-version":
+			checkAndSetVersion() // Check version on demand
+			versionInfo := manager.GetVersion()
+			conn.Write([]byte(fmt.Sprintf("VERSION_CHECK: %s\n", versionInfo)))
+
+		case "subscribe-status":
+			ch := notifier.Subscribe(connID)
+
+			// Send initial state immediately
+			status, connection := manager.GetStatus()
+			conn.Write([]byte(fmt.Sprintf("STATUS_UPDATE: %s, %s\n", status, connection)))
+
+			// Push loop
+			for update := range ch {
+				_, err := conn.Write([]byte(update))
+				if err != nil {
+					log.Printf("Error writing update to %s: %v", connID, err)
+					notifier.Unsubscribe(connID)
+					return
+				}
 			}
+			return
+
+		case "update":
+			log.Println("Received update command. Starting update stream...")
+			// Update routine runs in a new goroutine and streams progress
+			go func() {
+				// We dial self to open a new dedicated connection for the update stream.
+				updateConn, dialErr := net.DialTimeout("tcp", "localhost:50505", 5*time.Second)
+				if dialErr != nil {
+					log.Printf("Failed to dial self for update stream: %v", dialErr)
+					conn.Write([]byte("ERROR: Update stream failed to start.\n"))
+					return
+				}
+				defer updateConn.Close()
+
+				// Send the dedicated command to initiate the stream
+				fmt.Fprintln(updateConn, "initiate-update-stream")
+
+				// Read the stream response and pipe it to the client's current connection
+				_, copyErr := io.Copy(conn, updateConn)
+				if copyErr != nil && copyErr != io.EOF {
+					log.Printf("Error streaming update logs: %v", copyErr)
+				}
+			}()
+
+		case "initiate-update-stream":
+			// This is the dedicated connection for the update process, passed from the self-dial
+			updateAgent(conn) // updateAgent will write progress and close this conn
+			log.Println("Update finished and stream closed.")
+
 		default:
-			conn.Write([]byte(fmt.Sprintf("Unknown command: %s \n", command)))
+			conn.Write([]byte(fmt.Sprintf("ERROR: Unknown command: %s\n", command)))
 		}
 	}
 }
@@ -151,7 +325,6 @@ func getLocalVersion() string {
 			log.Printf("Failed to read local version on Windows: %v", err)
 			return "Unknown"
 		}
-		log.Printf("Local version (Windows): %s", strings.TrimSpace(string(output)))
 		return strings.TrimSpace(string(output))
 	} else {
 		output, err := runAsRoot("cat", getVersionFilePath())
@@ -159,8 +332,7 @@ func getLocalVersion() string {
 			log.Printf("Failed to read local version on Linux/macOS: %v", err)
 			return "Unknown"
 		}
-		log.Printf("Local version (Linux/macOS): %s", output)
-		return output
+		return strings.TrimSpace(output)
 	}
 }
 
@@ -178,7 +350,6 @@ func fetchOnlineVersion() string {
 		log.Printf("Failed to read response: %v", err)
 		return "Unknown"
 	}
-	log.Printf("Online version: %v", string(body))
 	return strings.TrimSpace(string(body))
 }
 
