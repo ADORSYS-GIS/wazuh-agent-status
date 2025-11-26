@@ -56,6 +56,55 @@ function ErrorExit {
     exit 1
 }
 
+function Validate-Installation {
+    PrintStep 6 "Validating installation and configuration..."
+
+    # Validate server binary
+    if (Test-Path -LiteralPath $SERVER_EXE) {
+        SuccessMessage "Server binary exists: $SERVER_EXE."
+    } else {
+        ErrorExit "Server binary is missing: $SERVER_EXE."
+    }
+
+    # Validate client binary
+    if (Test-Path -LiteralPath $CLIENT_EXE) {
+        SuccessMessage "Client binary exists: $CLIENT_EXE."
+    } else {
+        ErrorExit "Client binary is missing: $CLIENT_EXE."
+    }
+
+    # Validate Windows service
+    try {
+        $service = Get-Service -Name $SERVER_NAME -ErrorAction Stop
+        SuccessMessage "Windows service exists: $SERVER_NAME."
+
+        if ($service.Status -eq 'Running') {
+            SuccessMessage "Windows service is running: $SERVER_NAME."
+        } else {
+            ErrorExit "Windows service is not running: $SERVER_NAME (current status: $($service.Status))."
+        }
+    } catch {
+        ErrorExit "Windows service is missing: $SERVER_NAME."
+    }
+
+    # Validate startup shortcut for client
+    $startupShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$CLIENT_NAME.lnk")
+    if (Test-Path -LiteralPath $startupShortcutPath) {
+        SuccessMessage "Startup shortcut exists: $startupShortcutPath."
+    } else {
+        ErrorExit "Startup shortcut is missing: $startupShortcutPath."
+    }
+
+    # Validate adorsys-update binary/script
+    if (Test-Path -LiteralPath $UPDATE_BINARY_PATH) {
+        SuccessMessage "adorsys-update binary exists: $UPDATE_BINARY_PATH."
+    } else {
+        ErrorExit "adorsys-update binary is missing: $UPDATE_BINARY_PATH."
+    }
+
+    SuccessMessage "Installation validation completed successfully."
+}
+
 function Download-File {
     param(
         [string]$Url,
@@ -288,4 +337,7 @@ finally {
     Download-File -Url $UPDATE_BINARY_URL -OutputPath $UPDATE_BINARY_PATH
 }
 
-SuccessMessage "Installation completed successfully."
+PrintStep 6 "Validating installation and configuration..."
+Validate-Installation
+
+SuccessMessage "Installation completed successfully!"
