@@ -228,7 +228,7 @@ function Test-YaraInstalled {
     }
 
     try {
-        $yaraCmd = Get-Command yara -ErrorAction SilentlyContinue
+        $yaraCmd = Get-Command yara64 -ErrorAction SilentlyContinue
         if ($yaraCmd) {
             InfoMessage "Detected YARA in system PATH: $($yaraCmd.Source)"
             return $true
