@@ -587,7 +587,7 @@ function Do-Install {
 
 # ---- UI Creation ----
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "A new Update for wazuh"
+$form.Text = "Wazuh Agent Upgrade Assistant"
 $form.Size = New-Object System.Drawing.Size(750,600)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedDialog"
@@ -595,7 +595,7 @@ $form.MaximizeBox = $false
 
 # Title Label
 $Title = New-Object System.Windows.Forms.Label
-$Title.Text = "Wazuh Agent Installation"
+$Title.Text = "Wazuh Agent Upgrade Assistant"
 $Title.Font = New-Object System.Drawing.Font("Segoe UI",16,[System.Drawing.FontStyle]::Bold)
 $Title.AutoSize = $true
 $Title.Location = New-Object System.Drawing.Point(15,15)
