@@ -24,8 +24,8 @@ $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
 
-$UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/refs/tags/v$WAS_VERSION/scripts/adorsys-update.ps1" }
-$UPDATE_SCRIPT_PATH = if ($null -ne $env:UPDATE_SCRIPT_PATH) { $env:UPDATE_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.ps1" }
+$UPDATE_BINARY_URL = if ($null -ne $env:UPDATE_BINARY_URL) { $env:UPDATE_BINARY_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION/adorsys-update-windows-$ARCH.exe" }
+$UPDATE_BINARY_PATH = if ($null -ne $env:UPDATE_BINARY_PATH) { $env:UPDATE_BINARY_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.exe" }
 
 # Create necessary directories
 if (-not (Test-Path $BIN_DIR)) {
@@ -54,6 +54,55 @@ function ErrorExit {
     param ([string]$Message)
     ErrorMessage $Message
     exit 1
+}
+
+function Validate-Installation {
+    PrintStep 6 "Validating installation and configuration..."
+
+    # Validate server binary
+    if (Test-Path -LiteralPath $SERVER_EXE) {
+        SuccessMessage "Server binary exists: $SERVER_EXE."
+    } else {
+        ErrorExit "Server binary is missing: $SERVER_EXE."
+    }
+
+    # Validate client binary
+    if (Test-Path -LiteralPath $CLIENT_EXE) {
+        SuccessMessage "Client binary exists: $CLIENT_EXE."
+    } else {
+        ErrorExit "Client binary is missing: $CLIENT_EXE."
+    }
+
+    # Validate Windows service
+    try {
+        $service = Get-Service -Name $SERVER_NAME -ErrorAction Stop
+        SuccessMessage "Windows service exists: $SERVER_NAME."
+
+        if ($service.Status -eq 'Running') {
+            SuccessMessage "Windows service is running: $SERVER_NAME."
+        } else {
+            ErrorExit "Windows service is not running: $SERVER_NAME (current status: $($service.Status))."
+        }
+    } catch {
+        ErrorExit "Windows service is missing: $SERVER_NAME."
+    }
+
+    # Validate startup shortcut for client
+    $startupShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$CLIENT_NAME.lnk")
+    if (Test-Path -LiteralPath $startupShortcutPath) {
+        SuccessMessage "Startup shortcut exists: $startupShortcutPath."
+    } else {
+        ErrorExit "Startup shortcut is missing: $startupShortcutPath."
+    }
+
+    # Validate adorsys-update binary/script
+    if (Test-Path -LiteralPath $UPDATE_BINARY_PATH) {
+        SuccessMessage "adorsys-update binary exists: $UPDATE_BINARY_PATH."
+    } else {
+        ErrorExit "adorsys-update binary is missing: $UPDATE_BINARY_PATH."
+    }
+
+    SuccessMessage "Installation validation completed successfully."
 }
 
 function Download-File {
@@ -116,26 +165,179 @@ $BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 
-PrintStep 1 "Downloading binaries..."
+PrintStep 1 "Stopping existing agent-status service and client processes..."
+try {
+    # Stop the service if it exists
+    $Service = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
+    if ($Service) {
+        if ($Service.Status -eq 'Running') {
+            InfoMessage "Stopping $SERVER_NAME service..."
+            Stop-Service -Name $SERVER_NAME -Force -ErrorAction Stop
+            InfoMessage "Service $SERVER_NAME stopped successfully."
+        } else {
+            InfoMessage "Service $SERVER_NAME is not running."
+        }
+    } else {
+        InfoMessage "Service $SERVER_NAME does not exist."
+    }
+
+    # Stop any running client processes
+    $ClientProcesses = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
+    if ($ClientProcesses) {
+        InfoMessage "Stopping $CLIENT_NAME processes..."
+        $ClientProcesses | ForEach-Object {
+            Stop-Process -Id $_.Id -Force
+        }
+        InfoMessage "All $CLIENT_NAME processes stopped successfully."
+    } else {
+        InfoMessage "No running $CLIENT_NAME processes found."
+    }
+
+    # Wait a moment for processes to fully terminate
+    Start-Sleep -Seconds 2
+} catch {
+    WarnMessage "Error while stopping existing services/processes: $($_.Exception.Message)"
+    WarnMessage "Continuing with installation..."
+}
+
+PrintStep 2 "Downloading binaries..."
 Download-File -Url $ServerURL -OutputPath "$BIN_DIR\$SERVER_NAME.exe"
 Download-File -Url $ClientURL -OutputPath "$BIN_DIR\$CLIENT_NAME.exe"
 
 # Configure server as a Windows service
-PrintStep 2 "Configuring server service..."
+PrintStep 3 "Configuring server service..."
 Create-Service -ServiceName $SERVER_NAME -ExecutablePath $SERVER_EXE -DisplayName "Wazuh Agent Status Server" -Description "Wazuh Agent Status monitoring server."
 
 # Add client to Windows startup
-PrintStep 3 "Configuring client startup..."
+PrintStep 4 "Configuring client startup..."
 Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
 
-# Download adorsys-update.ps1
-PrintStep 4 "Downloading adorsys-update.ps1..."
-Download-File -Url $UPDATE_SCRIPT_URL -OutputPath $UPDATE_SCRIPT_PATH
+# Download adorsys-update binary
+PrintStep 5 "Downloading adorsys-update binary..."
+# Check if the binary is currently running
+$UpdateProcesses = Get-Process -Name "adorsys-update" -ErrorAction SilentlyContinue
+if ($UpdateProcesses) {
+    InfoMessage "adorsys-update.exe is currently running. Downloading to .new file for delayed replacement..."
+    $UpdateBinaryNewPath = "$UPDATE_BINARY_PATH.new"
+    Download-File -Url $UPDATE_BINARY_URL -OutputPath $UpdateBinaryNewPath
+    InfoMessage "New version downloaded to: $UpdateBinaryNewPath"
+    InfoMessage "Creating scheduled task to replace binary on next reboot..."
 
-# Update WazuhManager default value in the downloaded adorsys-update.ps1
-PrintStep 5 "Configuring WAZUH_MANAGER in adorsys-update.ps1..."
-$UPDATE_SCRIPT_CONTENT = Get-Content $UPDATE_SCRIPT_PATH
-$UPDATE_SCRIPT_CONTENT = $UPDATE_SCRIPT_CONTENT -replace '(\[string\]\$WazuhManager = ")[^"]*(")', "`$1$WAZUH_MANAGER`$2"
-Set-Content -Path $UPDATE_SCRIPT_PATH -Value $UPDATE_SCRIPT_CONTENT
+    # Create a scheduled task to replace the binary after logon
+    $TaskName = "AdorsysUpdateSwap"
+    $SwapScriptPath = "C:\ProgramData\ossec-agent\Run-UpdateSwap.ps1"
+    $SwapScript = @"
+#Requires -Version 5.1
+`$ErrorActionPreference = 'Stop'
 
-SuccessMessage "Installation completed successfully."
+`$updateExePath    = '$UPDATE_BINARY_PATH'
+`$updateExeNewPath = '$UPDATE_BINARY_PATH.new'
+`$updateExeOldPath = '$UPDATE_BINARY_PATH.old'
+`$logPath          = 'C:\Program Files (x86)\ossec-agent\active-response\active-responses.log'
+
+function Write-SwapLog {
+    param([string]`$Message)
+    try {
+        `$timestamp  = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+        `$logMessage = "[`$timestamp] [UPDATE-SWAP] `$Message"
+        Add-Content -Path `$logPath -Value `$logMessage -ErrorAction SilentlyContinue
+    } catch {}
+}
+
+Write-SwapLog 'Update swap task started'
+
+try {
+    if (Test-Path -LiteralPath `$updateExeNewPath) {
+        Write-SwapLog 'Found pending update'
+
+        if (Test-Path -LiteralPath `$updateExeOldPath) {
+            Remove-Item -LiteralPath `$updateExeOldPath -Force
+            Write-SwapLog 'Removed old backup'
+        }
+
+        if (Test-Path -LiteralPath `$updateExePath) {
+            Move-Item -LiteralPath `$updateExePath -Destination `$updateExeOldPath -Force
+            Write-SwapLog 'Backed up current version'
+        }
+
+        Move-Item -LiteralPath `$updateExeNewPath -Destination `$updateExePath -Force
+        Write-SwapLog 'Installed new version successfully'
+
+        if (Test-Path -LiteralPath `$updateExeOldPath) {
+            Remove-Item -LiteralPath `$updateExeOldPath -Force -ErrorAction SilentlyContinue
+            Write-SwapLog 'Cleaned up old backup'
+        }
+    } else {
+        Write-SwapLog 'No pending update found'
+    }
+}
+catch {
+    Write-SwapLog "ERROR: Failed to swap files: `$(`$_.Exception.Message)"
+    # Attempt rollback if current went missing but backup exists
+    try {
+        if (-not (Test-Path -LiteralPath `$updateExePath) -and (Test-Path -LiteralPath `$updateExeOldPath)) {
+            Move-Item -LiteralPath `$updateExeOldPath -Destination `$updateExePath -Force
+            Write-SwapLog 'Rolled back to previous version'
+        }
+    } catch {
+        Write-SwapLog "ERROR: Rollback failed: `$(`$_.Exception.Message)"
+    }
+}
+finally {
+    # Remove the scheduled task if present
+    try {
+        if (Get-ScheduledTask -TaskName 'AdorsysUpdateSwap' -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName 'AdorsysUpdateSwap' -Confirm:`$false -ErrorAction SilentlyContinue
+            Write-SwapLog 'Update swap task completed and removed'
+        } else {
+            Write-SwapLog 'Scheduled task not found (nothing to remove)'
+        }
+    } catch {
+        Write-SwapLog "ERROR: Failed to remove task: `$(`$_.Exception.Message)"
+    }
+}
+"@
+
+    try {
+        # Check if task already exists and remove it
+        $ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+        if ($ExistingTask) {
+            Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction Stop
+        }
+
+        # Create the swap script file
+        $SwapScriptDir = Split-Path -Path $SwapScriptPath -Parent
+        if (-not (Test-Path $SwapScriptDir)) {
+            New-Item -Path $SwapScriptDir -ItemType Directory -Force | Out-Null
+        }
+        Set-Content -Path $SwapScriptPath -Value $SwapScript -Force
+
+        # Create the action to run the script
+        $Action = New-ScheduledTaskAction -Execute "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SwapScriptPath`""
+
+        # Create a trigger that runs at logon
+        $Trigger = New-ScheduledTaskTrigger -AtLogOn
+
+        # Set to run with highest privileges using Administrators group
+        $Principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Administrators" -RunLevel Highest
+
+        # Create settings
+        $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+
+        # Register the task
+        Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Force | Out-Null
+
+        InfoMessage "Scheduled task '$TaskName' created successfully"
+        InfoMessage "The new version will be installed on next logon"
+    } catch {
+        ErrorMessage "Failed to create scheduled task: $($_.Exception.Message)"
+    }
+} else {
+    InfoMessage "adorsys-update.exe is not running. Downloading directly..."
+    Download-File -Url $UPDATE_BINARY_URL -OutputPath $UPDATE_BINARY_PATH
+}
+
+PrintStep 6 "Validating installation and configuration..."
+Validate-Installation
+
+SuccessMessage "Installation completed successfully!"
