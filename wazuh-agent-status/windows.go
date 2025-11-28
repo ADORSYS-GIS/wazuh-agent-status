@@ -5,10 +5,8 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -144,17 +142,31 @@ func createScheduledTask() error {
 	return nil
 }
 
-// updateAgent updates the Wazuh agent on Windows using Task Scheduler
-func updateAgent() {
+// updateAgent updates the Wazuh agent on Windows and streams progress to the client
+func updateAgent(conn net.Conn) {
+	// The caller (handleConnection) closes the dedicated update stream conn when this function returns
+	defer conn.Close()
+
+	// Helper to write status updates directly to the connection
+	writeUpdate := func(status string) {
+		conn.Write([]byte(fmt.Sprintf("UPDATE_PROGRESS: %s\n", status)))
+		log.Printf("Update progress: %s", status)
+	}
+
+	writeUpdate("Starting...")
 	log.Printf("Launching Wazuh agent update via Task Scheduler...\n")
-	
+
 	err := createScheduledTask()
 	if err != nil {
 		// Fallback to WMI method if Task Scheduler fails
+		writeUpdate("Task Scheduler failed, trying WMI method...")
 		log.Printf("Task Scheduler failed, trying WMI method...\n")
 		updateAgentViaWMI()
+		writeUpdate("Complete")
 	} else {
+		writeUpdate("Task Scheduler method succeeded")
 		log.Printf("Wazuh agent update launched successfully via Task Scheduler\n")
+		writeUpdate("Complete")
 	}
 }
 
