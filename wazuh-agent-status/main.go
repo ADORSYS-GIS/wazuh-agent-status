@@ -312,7 +312,7 @@ func handleConnection(conn net.Conn) {
 
 // Run a command as root using sudo
 func runAsRoot(command string, args ...string) (string, error) {
-	cmd := exec.Command("sudo", append([]string{command}, args...)...)
+	cmd := exec.Command("/usr/bin/sudo", append([]string{command}, args...)...)
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
