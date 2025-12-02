@@ -161,7 +161,7 @@ function Create-StartupShortcut {
 }
 
 # Download binaries
-$BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
+$BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v0.3.4-rc3-user"
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 
