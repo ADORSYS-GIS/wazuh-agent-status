@@ -78,7 +78,7 @@ func checkServiceStatus() (string, string) {
 		status = "Active"
 	}
 
-	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String", "-Path", "C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state", "-Pattern", "^status")
+	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String -Path 'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state' -Pattern '^status'")
 	connOutput, connErr := connCmd.CombinedOutput()
 	if connErr != nil {
 		log.Printf("Error checking connection status: %v\n", connErr)
@@ -207,7 +207,7 @@ func updateAgentViaWMI() {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
 		errorMessage := fmt.Sprintf("Failed to launch update via WMI: %v. Output: %s\nFor details check logs at %s", err, string(output), logFilePath)
 		log.Printf("%s\n", errorMessage)
-		
+
 		// Last resort: try direct execution
 		updateAgentDirect()
 	} else {
@@ -218,7 +218,7 @@ func updateAgentViaWMI() {
 // updateAgentDirect attempts direct execution (last resort)
 func updateAgentDirect() {
 	log.Printf("Attempting direct execution as last resort...\n")
-	
+
 	psScript := `
 		$updateExe = "C:\Program Files (x86)\ossec-agent\active-response\bin\adorsys-update.exe"
 		Start-Process -FilePath $updateExe -Verb RunAs -WindowStyle Normal
