@@ -7,3 +7,13 @@ publish.workspace = true
 authors.workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tonic = { workspace = true }
+wazuh-status-core = { workspace = true }
+wazuh-status-proto-build = { workspace = true }
+wazuh-status-socket = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }

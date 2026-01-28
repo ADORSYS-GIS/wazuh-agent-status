@@ -25,7 +25,12 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-os = "2"
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+tonic = { workspace = true }
+wazuh-status-proto-build = { workspace = true }
+wazuh-status-socket = { workspace = true }
+wazuh-status-common = { workspace = true }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
-

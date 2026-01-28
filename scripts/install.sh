@@ -43,6 +43,9 @@ SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
 WAZUH_USER=${WAZUH_USER:-"root"}
+WAZUH_GROUP=${WAZUH_GROUP:-"wazuh"}
+SOCKET_DIR=${SOCKET_DIR:-"/var/run/wazuh-status"}
+SOCKET_PATH=${SOCKET_PATH:-"$SOCKET_DIR/wazuh-status.sock"}
 
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
 SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
@@ -131,9 +134,10 @@ Description=Wazuh Agent Status daemon
 After=network.target
 
 [Service]
-ExecStart=$BIN_DIR/$SERVER_NAME
+ExecStart=$BIN_DIR/$SERVER_NAME --socket-path $SOCKET_PATH
 Restart=always
 User=$WAZUH_USER
+Group=$WAZUH_GROUP
 
 [Install]
 WantedBy=multi-user.target
@@ -186,9 +190,11 @@ create_launchd_plist_file() {
 <dict>
     <key>Label</key>
     <string>com.adorsys.$name</string>
+    $( [ "$name" = "$SERVER_NAME" ] && echo "<key>GroupName</key><string>$WAZUH_GROUP</string>" )
     <key>ProgramArguments</key>
     <array>
         <string>$BIN_DIR/$name</string>
+        $( [ "$name" = "$SERVER_NAME" ] && echo "<string>--socket-path</string><string>$SOCKET_PATH</string>" )
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -233,6 +239,13 @@ make_client_launch_at_startup() {
     linux) create_desktop_unit_file ;;
     darwin) create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE" ;;
     esac
+}
+
+ensure_socket_dir() {
+    info_message "Ensuring socket directory exists: $SOCKET_DIR"
+    maybe_sudo mkdir -p "$SOCKET_DIR"
+    maybe_sudo chown "$WAZUH_USER:$WAZUH_GROUP" "$SOCKET_DIR"
+    maybe_sudo chmod 770 "$SOCKET_DIR"
 }
 
 validate_installation() {
@@ -316,16 +329,19 @@ maybe_sudo mv "$TEMP_DIR/$CLIENT_BIN_NAME" "$BIN_DIR/$CLIENT_NAME"
 maybe_sudo chmod +x "$BIN_DIR/$CLIENT_NAME"
 success_message "Binaries installed successfully."
 
-print_step_header 3 "Server Service Configuration"
+print_step_header 3 "Socket Directory Configuration"
+ensure_socket_dir
+
+print_step_header 4 "Server Service Configuration"
 make_server_launch_at_startup
 
-print_step_header 4 "Client Service Configuration"
+print_step_header 5 "Client Service Configuration"
 if [ "$OS" = "darwin" ]; then
     unload_plist_file "$CLIENT_LAUNCH_AGENT_FILE"
 fi
 make_client_launch_at_startup
 
-print_step_header 5 "Download and configure adorsys-update.sh"
+print_step_header 6 "Download and configure adorsys-update.sh"
 info_message "Downloading adorsys-update.sh from $ADORSYS_UPDATE_SCRIPT_URL -> $UPDATE_SCRIPT_PATH..."
 if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     maybe_sudo curl -SL --progress-bar -o "$UPDATE_SCRIPT_PATH" "$ADORSYS_UPDATE_SCRIPT_URL" || warn_message "Failed to download adorsys-update.sh"
@@ -342,5 +358,5 @@ else
     warn_message "$WAZUH_ACTIVE_RESPONSE_BIN_DIR does not exist, skipping."
 fi
 
-print_step_header 6 "Validating installation and configuration..."
+print_step_header 7 "Validating installation and configuration..."
 validate_installation

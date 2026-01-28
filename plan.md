@@ -1,5 +1,10 @@
 # Go → Rust Migration Plan (wazuh-agent-status)
 
+## Status (rolling)
+
+- ✅ Implemented: protobuf contract, gRPC daemon skeleton, Unix/TCP transports, basic tray polling + actions, initial installer wiring.
+- ⚠️ Not yet validated: running `cargo test` / `cargo build` end-to-end, and runtime behavior on each OS.
+
 ## Constraints (locked in)
 
 - **Transport**
@@ -64,15 +69,9 @@
 
 ### Deliverables
 
-- Add `proto/wazuh_status.proto` (or equivalent) defining:
-  - `service WazuhStatus`
-    - `rpc GetStatus(Empty) returns (StatusReply)`
-    - `rpc Pause(Empty) returns (ActionReply)`
-    - `rpc Restart(Empty) returns (ActionReply)`
-    - `rpc StartUpdate(Empty) returns (ActionReply)`
-    - `rpc GetUpdateStatus(Empty) returns (UpdateStatusReply)`
-    - `rpc CheckVersion(Empty) returns (VersionReply)`
-- Generate Rust types + server/client stubs via `tonic-build`.
+- ~~Add `proto/wazuh_status.proto` (or equivalent) defining the `WazuhStatus` service + messages.~~
+- ~~Wire Rust type generation via `tonic-build` (build script).~~
+- TODO: run/verify the generated code compiles on all targets (some issues only appear after `cargo build`).
 
 ### Notes
 
@@ -88,35 +87,25 @@
 
 ### Deliverables
 
-- `wazuh-status-socket` exposes a single “dial” API the client and daemon can share, e.g.:
-  - `ServerBind::bind(config) -> impl Stream<IO>`
-  - `ClientConnect::connect(config) -> tonic::transport::Channel`
-- macOS/Linux:
-  - Use `tokio::net::UnixListener` + `tonic::transport::Server::builder().serve_with_incoming(...)`.
-  - Ensure socket file cleanup on startup, and `chmod/chown` to `root:wazuh` (`0660`).
-- Windows:
-  - Use `tokio::net::TcpListener` binding to `127.0.0.1:<port>`.
-  - Hard-check that the resolved bind address is loopback (not `0.0.0.0`).
+- ~~`wazuh-status-socket` exposes a shared bind/connect API (`bind_incoming`, `connect_channel`).~~
+- ~~macOS/Linux: bind UDS, clean up stale socket, set socket dir `0770` and socket `0660`, `chown root:wazuh` when running as root.~~
+  - Note: `chown root:wazuh` only applies if effective uid is `0`; otherwise it leaves ownership unchanged (dev-friendly).
+- ~~Windows: bind TCP to `127.0.0.1:<port>` only.~~
+  - Comment: this effectively enforces loopback binding by construction; if we later add a configurable bind address, we must add an explicit “must be loopback” validator.
 
 ### Acceptance checks
 
-- Attempting to bind to `0.0.0.0` should fail fast with a clear error.
-- A remote host should not be able to connect on Windows (loopback-only binding).
+- TODO: add explicit guardrails if we ever allow a bind address (today we hard-bind `127.0.0.1`).
+- TODO: validate on Windows that the service is not reachable remotely (expected due to loopback binding).
 
 ## Phase 3 — Core agent control (port Go OS logic into Rust)
 
 ### Deliverables
 
-- `wazuh-status-core` implements a trait like:
-  - `check_service_status() -> (AgentState, ConnectionState)`
-  - `pause_agent()`
-  - `restart_agent()`
-  - `update_agent()`
-  - `get_local_version() -> Option<String>`
-  - `fetch_online_version(version_url) -> Option<String>`
-- OS-specific backends:
-  - Linux/macOS: call `wazuh-control` and read `wazuh-agentd.state` equivalent.
-  - Windows: service control + state file equivalent using PowerShell or native APIs (start with PowerShell parity, then move to Windows APIs if needed).
+- ~~Implemented core functions in `wazuh-status-core` for status/pause/restart/update/version (function-based, not a trait yet).~~
+- ~~Linux/macOS: uses `wazuh-control` + reads `wazuh-agentd.state`.~~
+- ~~Windows: uses PowerShell service control + reads `wazuh-agent.state`.~~
+- TODO: make the core module more testable (abstract command execution / file reads) and add unit tests for parsers/decisions.
 
 ### Privilege strategy
 
@@ -127,26 +116,21 @@
 
 ### Deliverables
 
-- `crates/wazuh-status-daemon/src/main.rs` becomes:
-  - CLI config (`--socket-path` for Unix; `--listen-port` for Windows).
-  - gRPC service implementation.
-  - `update_state` stored in a shared state object (e.g., `Arc<Mutex<...>>`), with update running in a background task.
-  - logging via `tracing` + file appender (Linux `/var/log/...`, macOS `/var/log/...` or `/Library/Logs/...`).
+- ~~Daemon exposes gRPC service and basic update state machine.~~
+- ~~CLI config exists: `--socket-path` (Unix) and `--port` (Windows).~~
+- TODO: add `tracing` + file appender and align log paths with requirements.
+- TODO: add graceful shutdown and cleanup behavior (signal handling).
 
 ### Acceptance checks
 
-- `just run-daemon` works locally using `/tmp/wazuh-status-daemon-dev.sock` (macOS/Linux).
-- On Windows dev: daemon binds only to `127.0.0.1`.
+- TODO: verify `just run-daemon` end-to-end (daemon starts, client can query).
+- TODO: verify Windows service binds only to `127.0.0.1` (expected).
 
-## Phase 5 — Client library + CLI (optional but recommended)
+## Phase 5 — Client library (shared gRPC wrapper)
 
 ### Deliverables
 
-- A small Rust client wrapper crate (could live in `wazuh-status-common` or a new crate) that:
-  - dials UDS or TCP based on OS
-  - exposes methods matching the gRPC API
-- Optional: a `wazuh-status` CLI binary for quick testing:
-  - `wazuh-status status|pause|restart|update|version`
+- ~~Created shared Rust client wrapper crate (`wazuh-status-common`) and wired it into Tauri.~~
 
 ### Why this helps
 
@@ -156,42 +140,32 @@
 
 ### Deliverables
 
-- Update `crates/wazuh-status-client/src-tauri/src/lib.rs`:
-  - Build tray menu mirroring Go systray behavior (status lines + actions).
-  - Poll daemon on a timer (e.g., every 5s for status; every 4h for version), but avoid duplicate concurrent polling.
-  - Menu actions call gRPC methods.
-- Keep the window config for “display only”, but ensure:
-  - app can run with **no window shown** by default
-  - tray remains functional without creating/focusing a window
+- ~~Tray menu + polling/actions wired in Rust (Status/Connection/Version/Update/Pause/Restart/Quit).~~
+  - Comment: we still need to add menu icons (green/gray) and handle “daemon unreachable” states more gracefully.
+  - Comment: current Quit uses `std::process::exit(0)`; switch to `app.exit(0)` for cleaner teardown.
+- TODO: enforce “tray-only by default” behavior (no visible window on start) while keeping the window available for display.
+- TODO: throttle/merge polling so we don’t create many new gRPC connections too frequently (introduce a client wrapper and reuse a channel when possible).
 
 ### Acceptance checks
 
-- Running `just run-status` shows only tray icon (no visible window) unless explicitly opened.
+- TODO: confirm `just run-status` shows only tray icon by default (adjust `tauri.conf.json`/window creation as needed).
 
 ## Phase 7 — Startup/installer integration (root:wazuh, start at launch)
 
 ### Linux
 
-- Update `scripts/install.sh` to:
-  - install Rust daemon + client binaries
-  - systemd unit:
-    - `User=root`
-    - `Group=wazuh`
-    - ensure socket directory exists and permissions are correct
-  - XDG autostart entry points to the tray binary
+- ~~Updated `scripts/install.sh` to create the socket dir and set systemd unit `User=root` + `Group=wazuh` and pass `--socket-path`.~~
+- TODO: confirm the installed daemon binary name and arguments match the Rust binary naming scheme we will ship (post-Go cutover).
 
 ### macOS
 
-- Update `scripts/install.sh` to:
-  - LaunchDaemon for daemon (runs as root) + set group to `wazuh` if required by creating/chowning socket directory at install time
-  - LaunchAgent for tray app
+- ~~Updated `scripts/install.sh` to ensure socket dir `root:wazuh` and pass `--socket-path` to LaunchDaemon.~~
+- TODO: validate that the LaunchDaemon plist `GroupName` injection is correct (it’s currently generated inline in the heredoc).
 
 ### Windows
 
-- Update `install.ps1` to:
-  - install daemon as service (LocalSystem)
-  - configure tray app to start at login (startup folder / registry run key / scheduled task)
-  - enforce daemon listen address `127.0.0.1` in config defaults
+- ~~Updated `scripts/install.ps1` to start the daemon with `--port 50505` as a LocalSystem service and keep tray autostart.~~
+- TODO: optionally add a firewall rule or explicit “deny non-loopback” check if we ever allow overriding bind address (currently we hard-bind `127.0.0.1` in Rust).
 
 ## Phase 8 — Cutover strategy
 
@@ -201,12 +175,11 @@
 
 ## Suggested execution order (work breakdown)
 
-1. Protobuf + generated code wired into workspace.
-2. Transport helpers (UDS + Windows loopback TCP).
-3. Daemon skeleton + health endpoints (GetStatus returns placeholder).
-4. Port agent control logic per OS into `wazuh-status-core`.
-5. Wire full gRPC service + update state machine.
-6. Add Rust client wrapper + optional CLI.
-7. Implement tray menu + polling/actions in Tauri (tray-only by default).
-8. Update install/startup scripts for all OSes; verify `root:wazuh` on macOS/Linux and loopback-only on Windows.
-
+1. ~~Protobuf + generated code wired into workspace.~~
+2. ~~Transport helpers (UDS + Windows loopback TCP).~~
+3. ~~Port agent control logic per OS into `wazuh-status-core`.~~
+4. ~~Wire full gRPC service + basic update state machine.~~
+5. ~~Implement tray menu + polling/actions in Tauri (partial; tray-only-by-default still pending).~~
+6. ~~Add Rust client wrapper (shared by Tauri and tooling).~~
+7. Next: add tracing/logging + graceful shutdown.
+8. Next: verify installers on all OSes; finalize `root:wazuh` and loopback-only guarantees.

@@ -26,6 +26,28 @@ icons:
 test-backend:
     cargo test
 
+# Run tests per crate
+test-proto:
+    cargo test -p wazuh-status-proto-build
+
+test-socket:
+    cargo test -p wazuh-status-socket
+
+test-core:
+    cargo test -p wazuh-status-core
+
+test-common:
+    cargo test -p wazuh-status-common
+
+test-daemon:
+    cargo test -p wazuh-status-daemon
+
+test-client:
+    cargo test -p wazuh-status-client
+
+test-all:
+    just test-backend && just test-proto && just test-socket && just test-core && just test-common && just test-daemon && just test-client
+
 # Run backend + desktop checks used in CI pipelines
 ci-verify:
     just test-backend

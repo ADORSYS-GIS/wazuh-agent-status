@@ -6,4 +6,12 @@ license.workspace = true
 publish.workspace = true
 authors.workspace = true
 
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+tonic = { workspace = true }
+wazuh-status-proto-build = { workspace = true }
+wazuh-status-socket = { workspace = true }

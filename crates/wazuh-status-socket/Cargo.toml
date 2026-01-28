@@ -6,4 +6,16 @@ license.workspace = true
 publish.workspace = true
 authors.workspace = true
 
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["net", "rt-multi-thread"] }
+tokio-stream = { workspace = true }
+tonic = { workspace = true }
+tower = { workspace = true }
+libc = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package wazuh.status;
+
+message Empty {}
+
+enum AgentState {
+  AGENT_STATE_UNSPECIFIED = 0;
+  AGENT_STATE_ACTIVE = 1;
+  AGENT_STATE_INACTIVE = 2;
+  AGENT_STATE_UNKNOWN = 3;
+}
+
+enum ConnectionState {
+  CONNECTION_STATE_UNSPECIFIED = 0;
+  CONNECTION_STATE_CONNECTED = 1;
+  CONNECTION_STATE_DISCONNECTED = 2;
+  CONNECTION_STATE_UNKNOWN = 3;
+}
+
+enum UpdateState {
+  UPDATE_STATE_UNSPECIFIED = 0;
+  UPDATE_STATE_IDLE = 1;
+  UPDATE_STATE_IN_PROGRESS = 2;
+  UPDATE_STATE_FAILED = 3;
+  UPDATE_STATE_UNKNOWN = 4;
+}
+
+enum VersionState {
+  VERSION_STATE_UNSPECIFIED = 0;
+  VERSION_STATE_UP_TO_DATE = 1;
+  VERSION_STATE_OUTDATED = 2;
+  VERSION_STATE_UNKNOWN = 3;
+}
+
+message StatusReply {
+  AgentState agent_state = 1;
+  ConnectionState connection_state = 2;
+}
+
+message ActionReply {
+  bool ok = 1;
+  string message = 2;
+}
+
+message UpdateStatusReply {
+  UpdateState update_state = 1;
+  string message = 2;
+}
+
+message VersionReply {
+  VersionState version_state = 1;
+  string version = 2;
+}
+
+service WazuhStatus {
+  rpc GetStatus(Empty) returns (StatusReply);
+  rpc Pause(Empty) returns (ActionReply);
+  rpc Restart(Empty) returns (ActionReply);
+  rpc StartUpdate(Empty) returns (ActionReply);
+  rpc GetUpdateStatus(Empty) returns (UpdateStatusReply);
+  rpc CheckVersion(Empty) returns (VersionReply);
+}

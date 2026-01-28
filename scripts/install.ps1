@@ -23,6 +23,7 @@ $ARCH = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "amd32" }
 $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
+$SERVER_ARGS = "--port 50505"
 
 $UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v$WAS_VERSION/scripts/adorsys-update.ps1" }
 $UPDATE_SCRIPT_PATH = if ($null -ne $env:UPDATE_SCRIPT_PATH) { $env:UPDATE_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.ps1" }
@@ -122,7 +123,7 @@ Download-File -Url $ClientURL -OutputPath "$BIN_DIR\$CLIENT_NAME.exe"
 
 # Configure server as a Windows service
 PrintStep 2 "Configuring server service..."
-Create-Service -ServiceName $SERVER_NAME -ExecutablePath $SERVER_EXE -DisplayName "Wazuh Agent Status Server" -Description "Wazuh Agent Status monitoring server."
+Create-Service -ServiceName $SERVER_NAME -ExecutablePath "$SERVER_EXE $SERVER_ARGS" -DisplayName "Wazuh Agent Status Server" -Description "Wazuh Agent Status monitoring server."
 
 # Add client to Windows startup
 PrintStep 3 "Configuring client startup..."
