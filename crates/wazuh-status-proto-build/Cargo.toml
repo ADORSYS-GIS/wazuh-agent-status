@@ -1,0 +1,9 @@
+[package]
+name = "wazuh-status-proto-build"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+authors.workspace = true
+
+[dependencies]

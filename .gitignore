@@ -26,3 +26,9 @@ go.work.sum
 
 # Output directories or files
 dist/
+target
+
+node_modules
+
+.idea
+.vscode
