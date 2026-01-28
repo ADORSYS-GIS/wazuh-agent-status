@@ -1,6 +1,9 @@
 use anyhow::{anyhow, Context, Result};
 use std::path::PathBuf;
+#[cfg(windows)]
 use tokio::net::TcpListener;
+
+#[cfg(windows)]
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::{Channel, Endpoint, Uri};
 
@@ -30,6 +33,9 @@ use tokio::net::UnixListener;
 
 #[cfg(not(windows))]
 use tokio_stream::wrappers::UnixListenerStream;
+
+#[cfg(not(windows))]
+use hyper_util::rt::TokioIo;
 
 #[cfg(not(windows))]
 pub async fn bind_incoming(config: &SocketConfig) -> Result<UnixListenerStream> {
@@ -80,6 +86,7 @@ async fn connect_uds(path: &Path) -> Result<Channel> {
             async move {
                 tokio::net::UnixStream::connect(path)
                     .await
+                    .map(TokioIo::new)
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))
             }
         }))

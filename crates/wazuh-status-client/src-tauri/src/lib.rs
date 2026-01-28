@@ -32,10 +32,10 @@ async fn daemon_status(client: tauri::State<'_, WazuhClient>) -> Result<StatusDt
 
 fn format_agent_state(state: wazuh_status_proto_build::wazuh_status::AgentState) -> String {
     match state {
-        wazuh_status_proto_build::wazuh_status::AgentState::AgentStateActive => {
+        wazuh_status_proto_build::wazuh_status::AgentState::Active => {
             "Agent: Active".to_string()
         }
-        wazuh_status_proto_build::wazuh_status::AgentState::AgentStateInactive => {
+        wazuh_status_proto_build::wazuh_status::AgentState::Inactive => {
             "Agent: Inactive".to_string()
         }
         _ => "Agent: Unknown".to_string(),
@@ -46,10 +46,10 @@ fn format_connection_state(
     state: wazuh_status_proto_build::wazuh_status::ConnectionState,
 ) -> String {
     match state {
-        wazuh_status_proto_build::wazuh_status::ConnectionState::ConnectionStateConnected => {
+        wazuh_status_proto_build::wazuh_status::ConnectionState::Connected => {
             "Connection: Connected".to_string()
         }
-        wazuh_status_proto_build::wazuh_status::ConnectionState::ConnectionStateDisconnected => {
+        wazuh_status_proto_build::wazuh_status::ConnectionState::Disconnected => {
             "Connection: Disconnected".to_string()
         }
         _ => "Connection: Unknown".to_string(),
@@ -61,7 +61,7 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {}))
+        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
         .plugin(tauri_plugin_opener::init())
         .manage(WazuhClient::default())
         .setup(|app| {
@@ -97,8 +97,8 @@ pub fn run() {
                 .show_menu_on_left_click(true)
                 .build(app)?;
 
-            let version_state = Arc::new(Mutex::new(VersionState::VersionStateUnknown));
-            let update_state = Arc::new(Mutex::new(UpdateState::UpdateStateUnknown));
+            let version_state = Arc::new(Mutex::new(VersionState::Unknown));
+            let update_state = Arc::new(Mutex::new(UpdateState::Unknown));
             let daemon_online = Arc::new(Mutex::new(false));
 
             let status_item_clone = status_item.clone();
@@ -159,11 +159,11 @@ pub fn run() {
                             let _ = version_item_clone.set_text(format!("Version: {version}"));
                             let online = *daemon_online_clone.lock().await;
                             match state {
-                                VersionState::VersionStateOutdated if online => {
+                                VersionState::Outdated if online => {
                                     let _ = update_item_clone.set_text("Update");
                                     let _ = update_item_clone.set_enabled(true);
                                 }
-                                VersionState::VersionStateUpToDate => {
+                                VersionState::UpToDate => {
                                     let _ = update_item_clone.set_text("Up to date");
                                     let _ = update_item_clone.set_enabled(false);
                                 }
@@ -195,19 +195,19 @@ pub fn run() {
                             let state = reply.update_state();
                             let mut guard = update_state_clone.lock().await;
                             *guard = state;
-                            if matches!(state, UpdateState::UpdateStateInProgress) {
+                            if matches!(state, UpdateState::InProgress) {
                                 let _ = update_item_clone.set_text("Updating...");
                                 let _ = update_item_clone.set_enabled(false);
                             }
-                            if matches!(state, UpdateState::UpdateStateIdle) {
+                            if matches!(state, UpdateState::Idle) {
                                 let version_state = version_state_for_update.lock().await;
                                 let online = *daemon_online_for_update.lock().await;
                                 match *version_state {
-                                    VersionState::VersionStateOutdated if online => {
+                                    VersionState::Outdated if online => {
                                         let _ = update_item_clone.set_text("Update");
                                         let _ = update_item_clone.set_enabled(true);
                                     }
-                                    VersionState::VersionStateUpToDate => {
+                                    VersionState::UpToDate => {
                                         let _ = update_item_clone.set_text("Up to date");
                                         let _ = update_item_clone.set_enabled(false);
                                     }
@@ -220,7 +220,7 @@ pub fn run() {
                         }
                         Err(_) => {
                             let mut guard = update_state_clone.lock().await;
-                            *guard = UpdateState::UpdateStateUnknown;
+                            *guard = UpdateState::Unknown;
                         }
                     }
                     ticker.tick().await;
@@ -261,7 +261,7 @@ pub fn run() {
                         let client = client.clone();
                         tauri::async_runtime::spawn(async move {
                             if *online.lock().await
-                                && matches!(*version_state.lock().await, VersionState::VersionStateOutdated)
+                                && matches!(*version_state.lock().await, VersionState::Outdated)
                             {
                                 let _ = update_item.set_text("Updating...");
                                 let _ = update_item.set_enabled(false);
@@ -298,23 +298,23 @@ mod tests {
 
     #[test]
     fn format_agent_state_texts() {
-        assert_eq!(format_agent_state(AgentState::AgentStateActive), "Agent: Active");
-        assert_eq!(format_agent_state(AgentState::AgentStateInactive), "Agent: Inactive");
-        assert_eq!(format_agent_state(AgentState::AgentStateUnknown), "Agent: Unknown");
+        assert_eq!(format_agent_state(AgentState::Active), "Agent: Active");
+        assert_eq!(format_agent_state(AgentState::Inactive), "Agent: Inactive");
+        assert_eq!(format_agent_state(AgentState::Unknown), "Agent: Unknown");
     }
 
     #[test]
     fn format_connection_state_texts() {
         assert_eq!(
-            format_connection_state(ConnectionState::ConnectionStateConnected),
+            format_connection_state(ConnectionState::Connected),
             "Connection: Connected"
         );
         assert_eq!(
-            format_connection_state(ConnectionState::ConnectionStateDisconnected),
+            format_connection_state(ConnectionState::Disconnected),
             "Connection: Disconnected"
         );
         assert_eq!(
-            format_connection_state(ConnectionState::ConnectionStateUnknown),
+            format_connection_state(ConnectionState::Unknown),
             "Connection: Unknown"
         );
     }

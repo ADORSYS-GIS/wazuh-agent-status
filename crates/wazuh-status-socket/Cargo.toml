@@ -16,6 +16,7 @@ tokio-stream = { workspace = true }
 tonic = { workspace = true }
 tower = { workspace = true }
 libc = { workspace = true }
+hyper-util = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

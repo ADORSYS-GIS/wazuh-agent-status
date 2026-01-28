@@ -30,7 +30,6 @@ tokio-stream = "0.1"
 async-trait = "0.1"
 tonic = { version = "0.14", features = ["transport"] }
 tonic-prost = "0.14"
-tonic-build = { version = "0.14" }
 tonic-prost-build = { version = "0.14" }
 prost-build = { version = "0.14" }
 walkdir = { version = "2.5" }
@@ -68,6 +67,7 @@ handlebars = "6.3.2"
 mime = "0.3.17"
 log = "0.4.29"
 libc = "0.2"
+hyper-util = { version = "0.1", features = ["tokio"] }
 
 [profile.release]
 lto = true

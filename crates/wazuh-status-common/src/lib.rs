@@ -6,7 +6,7 @@ use wazuh_status_proto_build::wazuh_status::wazuh_status_client::WazuhStatusClie
 use wazuh_status_proto_build::wazuh_status::{
     ActionReply, Empty, StatusReply, UpdateStatusReply, VersionReply,
 };
-use wazuh_socket::SocketConfig;
+use wazuh_status_socket::SocketConfig;
 
 #[derive(Clone)]
 pub struct WazuhClient {
@@ -66,7 +66,7 @@ impl WazuhClient {
         if let Some(channel) = guard.as_ref() {
             return Ok(channel.clone());
         }
-        let channel = wazuh_socket::connect_channel(&self.config).await?;
+        let channel = wazuh_status_socket::connect_channel(&self.config).await?;
         *guard = Some(channel.clone());
         Ok(channel)
     }
@@ -88,7 +88,7 @@ pub fn default_socket_config() -> SocketConfig {
 #[cfg(test)]
 mod tests {
     use super::default_socket_config;
-    use wazuh_socket::SocketConfig;
+    use wazuh_status_socket::SocketConfig;
 
     #[test]
     fn default_socket_config_is_loopback_on_windows_or_uds_on_unix() {

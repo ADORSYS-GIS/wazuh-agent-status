@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use wazuh_core::{
+use wazuh_status_core::{
     check_service_status, fetch_online_version, get_local_version, pause_agent, restart_agent,
     update_agent, AgentState, ConnectionState,
 };
@@ -14,7 +14,7 @@ use wazuh_status_proto_build::wazuh_status::{
     ActionReply, AgentState as ProtoAgentState, ConnectionState as ProtoConnectionState, Empty,
     StatusReply, UpdateState, UpdateStatusReply, VersionReply, VersionState,
 };
-use wazuh_socket::{bind_incoming, SocketConfig};
+use wazuh_status_socket::{bind_incoming, SocketConfig};
 
 const VERSION_URL: &str = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt";
 
@@ -71,7 +71,7 @@ impl WazuhStatus for WazuhStatusService {
     async fn start_update(&self, _request: Request<Empty>) -> Result<Response<ActionReply>, Status> {
         {
             let mut state = self.state.update_state.lock().await;
-            *state = UpdateState::UpdateStateInProgress;
+            *state = UpdateState::InProgress;
         }
         {
             let mut message = self.state.update_message.lock().await;
@@ -85,11 +85,11 @@ impl WazuhStatus for WazuhStatusService {
             let mut update_message = state.update_message.lock().await;
             match result {
                 Ok(_) => {
-                    *update_state = UpdateState::UpdateStateIdle;
+                    *update_state = UpdateState::Idle;
                     *update_message = "Update finished".to_string();
                 }
                 Err(err) => {
-                    *update_state = UpdateState::UpdateStateFailed;
+                    *update_state = UpdateState::Failed;
                     *update_message = format!("Update failed: {err}");
                 }
             }
@@ -122,13 +122,13 @@ impl WazuhStatus for WazuhStatusService {
         let (state, version) = match (local, online) {
             (Some(local_version), Some(online_version)) => {
                 if local_version == online_version {
-                    (VersionState::VersionStateUpToDate, local_version)
+                    (VersionState::UpToDate, local_version)
                 } else {
-                    (VersionState::VersionStateOutdated, local_version)
+                    (VersionState::Outdated, local_version)
                 }
             }
-            (Some(local_version), None) => (VersionState::VersionStateUnknown, local_version),
-            (None, _) => (VersionState::VersionStateUnknown, "Unknown".to_string()),
+            (Some(local_version), None) => (VersionState::Unknown, local_version),
+            (None, _) => (VersionState::Unknown, "Unknown".to_string()),
         };
 
         Ok(Response::new(VersionReply {
@@ -140,46 +140,48 @@ impl WazuhStatus for WazuhStatusService {
 
 fn map_agent_state(state: AgentState) -> ProtoAgentState {
     match state {
-        AgentState::Active => ProtoAgentState::AgentStateActive,
-        AgentState::Inactive => ProtoAgentState::AgentStateInactive,
-        AgentState::Unknown => ProtoAgentState::AgentStateUnknown,
+        AgentState::Active => ProtoAgentState::Active,
+        AgentState::Inactive => ProtoAgentState::Inactive,
+        AgentState::Unknown => ProtoAgentState::Unknown,
     }
 }
 
 fn map_connection_state(state: ConnectionState) -> ProtoConnectionState {
     match state {
-        ConnectionState::Connected => ProtoConnectionState::ConnectionStateConnected,
-        ConnectionState::Disconnected => ProtoConnectionState::ConnectionStateDisconnected,
-        ConnectionState::Unknown => ProtoConnectionState::ConnectionStateUnknown,
+        ConnectionState::Connected => ProtoConnectionState::Connected,
+        ConnectionState::Disconnected => ProtoConnectionState::Disconnected,
+        ConnectionState::Unknown => ProtoConnectionState::Unknown,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{map_agent_state, map_connection_state};
-    use wazuh_core::{AgentState, ConnectionState};
-    use wazuh_proto_build::wazuh_status::{AgentState as ProtoAgentState, ConnectionState as ProtoConnectionState};
+    use wazuh_status_core::{AgentState, ConnectionState};
+    use wazuh_status_proto_build::wazuh_status::{
+        AgentState as ProtoAgentState, ConnectionState as ProtoConnectionState,
+    };
 
     #[test]
     fn map_agent_state_maps_correctly() {
-        assert_eq!(map_agent_state(AgentState::Active), ProtoAgentState::AgentStateActive);
-        assert_eq!(map_agent_state(AgentState::Inactive), ProtoAgentState::AgentStateInactive);
-        assert_eq!(map_agent_state(AgentState::Unknown), ProtoAgentState::AgentStateUnknown);
+        assert_eq!(map_agent_state(AgentState::Active), ProtoAgentState::Active);
+        assert_eq!(map_agent_state(AgentState::Inactive), ProtoAgentState::Inactive);
+        assert_eq!(map_agent_state(AgentState::Unknown), ProtoAgentState::Unknown);
     }
 
     #[test]
     fn map_connection_state_maps_correctly() {
         assert_eq!(
             map_connection_state(ConnectionState::Connected),
-            ProtoConnectionState::ConnectionStateConnected
+            ProtoConnectionState::Connected
         );
         assert_eq!(
             map_connection_state(ConnectionState::Disconnected),
-            ProtoConnectionState::ConnectionStateDisconnected
+            ProtoConnectionState::Disconnected
         );
         assert_eq!(
             map_connection_state(ConnectionState::Unknown),
-            ProtoConnectionState::ConnectionStateUnknown
+            ProtoConnectionState::Unknown
         );
     }
 }
@@ -202,7 +204,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let service = WazuhStatusService {
         state: DaemonState {
-            update_state: Arc::new(Mutex::new(UpdateState::UpdateStateIdle)),
+            update_state: Arc::new(Mutex::new(UpdateState::Idle)),
             update_message: Arc::new(Mutex::new("Idle".to_string())),
         },
     };
