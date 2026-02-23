@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -19,11 +20,16 @@ import (
 )
 
 const (
-	versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt"
+	versionURL = "https://api.github.com/repos/ADORSYS-GIS/wazuh-agent/releases/latest"
 )
 
 // Version is set at build time via ldflags
 var Version = "dev"
+
+type GitHubRelease struct {
+	TagName string `json:"tag_name"`
+	Prerelease bool `json:"prerelease"`
+}
 
 // Global state and communication channels
 var (
@@ -151,7 +157,7 @@ func checkAndSetVersion() {
 	currentVersion := fmt.Sprintf("v%s", localVersion)
 	if localVersion == "Unknown" || onlineVersion == "Unknown" {
 		currentVersion = "Version: Unknown"
-	} else if localVersion != onlineVersion {
+	} else if isVersionHigher(onlineVersion, localVersion) {
 		currentVersion = fmt.Sprintf("Outdated, v%s", localVersion)
 	} else {
 		currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
@@ -336,7 +342,26 @@ func getLocalVersion() string {
 	}
 }
 
-// Fetch the latest version from the server
+func isVersionHigher(online, local string) bool {
+	onlineParts := strings.Split(strings.TrimPrefix(online, "v"), ".")
+	localParts := strings.Split(strings.TrimPrefix(local, "v"), ".")
+
+	for i := 0; i < len(onlineParts) && i < len(localParts); i++ {
+		var onlineNum, localNum int
+		fmt.Sscanf(onlineParts[i], "%d", &onlineNum)
+		fmt.Sscanf(localParts[i], "%d", &localNum)
+
+		if onlineNum > localNum {
+			return true
+		}
+		if onlineNum < localNum {
+			return false
+		}
+	}
+
+	return len(onlineParts) > len(localParts)
+}
+
 func fetchOnlineVersion() string {
 	resp, err := http.Get(versionURL)
 	if err != nil {
@@ -345,12 +370,20 @@ func fetchOnlineVersion() string {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	var release GitHubRelease
+	err = json.NewDecoder(resp.Body).Decode(&release)
+	log.Printf("Fetched release info: TagName=%s, Prerelease=%v", release.TagName, release.Prerelease)
 	if err != nil {
-		log.Printf("Failed to read response: %v", err)
+		log.Printf("Failed to parse release: %v", err)
 		return "Unknown"
 	}
-	return strings.TrimSpace(string(body))
+
+	if release.TagName == "" {
+		log.Println("No release found")
+		return "Unknown"
+	}
+
+	return release.TagName
 }
 
 // getVersionPath returns version file path based on the OS
