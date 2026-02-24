@@ -154,11 +154,14 @@ func monitorAgentStatus() {
 
 func checkAndSetVersion() {
 	localVersion := getLocalVersion()
-	onlineVersion := fetchOnlineVersion()
+	onlineVersion, isPrerelease := fetchOnlineVersion()
 
 	currentVersion := fmt.Sprintf("v%s", localVersion)
 	if localVersion == "Unknown" || onlineVersion == "Unknown" {
 		currentVersion = "Version: Unknown"
+	} else if isPrerelease {
+		currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
+		log.Printf("Skipping upstream prerelease: %s", onlineVersion)
 	} else if isVersionHigher(onlineVersion, localVersion) {
 		currentVersion = fmt.Sprintf("Outdated, v%s", localVersion)
 	} else {
@@ -364,11 +367,11 @@ func isVersionHigher(online, local string) bool {
 	return len(onlineParts) > len(localParts)
 }
 
-func fetchOnlineVersion() string {
+func fetchOnlineVersion() (string, bool) {
 	resp, err := http.Get(versionURL)
 	if err != nil {
 		log.Printf("Failed to fetch online version: %v", err)
-		return "Unknown"
+		return "Unknown", false
 	}
 	defer resp.Body.Close()
 
@@ -377,15 +380,15 @@ func fetchOnlineVersion() string {
 	log.Printf("Fetched release info: TagName=%s, Prerelease=%v", release.TagName, release.Prerelease)
 	if err != nil {
 		log.Printf("Failed to parse release: %v", err)
-		return "Unknown"
+		return "Unknown", false
 	}
 
 	if release.TagName == "" {
 		log.Println("No release found")
-		return "Unknown"
+		return "Unknown", false
 	}
 
-	return release.TagName
+	return release.TagName, release.Prerelease
 }
 
 // getVersionPath returns version file path based on the OS
