@@ -18,6 +18,7 @@ const (
 	powershellExe = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 	cmdFlag       = "-Command"
 	taskName      = "WazuhAgentUpdate"
+	backendPort   = "50505"
 )
 
 // Define the program structure for the service
@@ -34,14 +35,14 @@ func (p *program) Start(s service.Service) error {
 
 // The actual server logic in the background
 func (p *program) run() {
-	listener, err := net.Listen("tcp", ":50505")
+	listener, err := net.Listen("tcp", ":"+backendPort)
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 		return
 	}
 	p.listener = listener
 	defer listener.Close()
-	log.Println("wazuh-agent-status server listening on port 50505")
+	log.Println("wazuh-agent-status server listening on port " + backendPort)
 
 	// Handle incoming connections
 	for {

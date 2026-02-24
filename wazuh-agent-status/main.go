@@ -20,7 +20,9 @@ import (
 )
 
 const (
-	versionURL = "https://api.github.com/repos/ADORSYS-GIS/wazuh-agent/releases/latest"
+	versionURL     = "https://api.github.com/repos/ADORSYS-GIS/wazuh-agent/releases/latest"
+	backendPort    = "50505"
+	backendAddress = "localhost:" + backendPort
 )
 
 // Version is set at build time via ldflags
@@ -219,12 +221,12 @@ func main() {
 		windowsMain()
 	} else {
 		log.Println("Starting wazuh-agent-status server...")
-		listener, err := net.Listen("tcp", ":50505")
+		listener, err := net.Listen("tcp", ":"+backendPort)
 		if err != nil {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 		defer listener.Close()
-		log.Println("wazuh-agent-status server listening on port 50505")
+		log.Println("wazuh-agent-status server listening on port " + backendPort)
 
 		for {
 			conn, err := listener.Accept()
@@ -287,7 +289,7 @@ func handleConnection(conn net.Conn) {
 			// Update routine runs in a new goroutine and streams progress
 			go func() {
 				// We dial self to open a new dedicated connection for the update stream.
-				updateConn, dialErr := net.DialTimeout("tcp", "localhost:50505", 5*time.Second)
+				updateConn, dialErr := net.DialTimeout("tcp", backendAddress, 5*time.Second)
 				if dialErr != nil {
 					log.Printf("Failed to dial self for update stream: %v", dialErr)
 					conn.Write([]byte("ERROR: Update stream failed to start.\n"))
