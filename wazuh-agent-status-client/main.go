@@ -19,6 +19,10 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+const (
+	backendAddress = "localhost:50505"
+)
+
 //go:embed assets/*
 var embeddedFiles embed.FS
 
@@ -133,10 +137,44 @@ func goroutineCounter() {
 	}
 }
 
-// monitorStatusStream establishes a persistent connection to receive status updates. (UNCHANGED)
+// establishConnection creates and initializes a connection to the backend
+func establishConnection() (net.Conn, error) {
+	conn, err := net.DialTimeout("tcp", backendAddress, 5*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Println("Status stream connected. Sending subscription...")
+	fmt.Fprintln(conn, "subscribe-status")
+	return conn, nil
+}
+
+// parseStatusResponse processes incoming status messages and updates UI accordingly
+func parseStatusResponse(response string) (shouldContinue bool) {
+	response = strings.TrimSpace(response)
+	if strings.HasPrefix(response, "STATUS_UPDATE:") {
+		parts := strings.SplitN(response, ": ", 2)
+		if len(parts) > 1 {
+			data := strings.SplitN(parts[1], ", ", 2)
+			if len(data) == 2 {
+				updateStatusItems(data[0], data[1])
+				return true
+			}
+			log.Printf("Unexpected STATUS_UPDATE data format: %q", parts[1])
+		} else {
+			log.Printf("Unexpected STATUS_UPDATE format: %q", response)
+		}
+	} else if strings.HasPrefix(response, "ERROR:") {
+		log.Printf("Error from status stream: %s", response)
+		return false
+	}
+	return true
+}
+
+// monitorStatusStream establishes a persistent connection to receive status updates
 func monitorStatusStream() {
 	for {
-		conn, err := net.DialTimeout("tcp", "localhost:50505", 5*time.Second)
+		conn, err := establishConnection()
 		if err != nil {
 			log.Printf("Failed to connect to backend for status stream: %v. Retrying in 5s...", err)
 			updateStatusItems("Unknown", "Unknown")
@@ -144,44 +182,30 @@ func monitorStatusStream() {
 			continue
 		}
 
-		log.Println("Status stream connected. Sending subscription...")
-		fmt.Fprintln(conn, "subscribe-status")
-
-		reader := bufio.NewReader(conn)
-
-		for {
-			response, err := reader.ReadString('\n')
-			if err != nil {
-				log.Printf("Status stream closed by server or error: %v. Reconnecting...", err)
-				conn.Close()
-				break
-			}
-
-			response = strings.TrimSpace(response)
-			if strings.HasPrefix(response, "STATUS_UPDATE:") {
-				// Use SplitN to avoid unexpected extra splits and check lengths defensively
-				parts := strings.SplitN(response, ": ", 2)
-				if len(parts) > 1 {
-					data := strings.SplitN(parts[1], ", ", 2)
-					if len(data) == 2 {
-						updateStatusItems(data[0], data[1])
-					} else {
-						log.Printf("Unexpected STATUS_UPDATE data format: %q", parts[1])
-					}
-				} else {
-					log.Printf("Unexpected STATUS_UPDATE format: %q", response)
-				}
-			} else if strings.HasPrefix(response, "ERROR:") {
-				log.Printf("Error from status stream: %s", response)
-				conn.Close()
-				break
-			}
+		if !processStatusStream(conn) {
+			conn.Close()
 		}
 		time.Sleep(5 * time.Second)
 	}
 }
 
-// updateStatusItems safely updates the systray menu items. (UNCHANGED)
+// processStatusStream handles the reading loop for an established connection
+func processStatusStream(conn net.Conn) bool {
+	reader := bufio.NewReader(conn)
+	for {
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			log.Printf("Status stream closed by server or error: %v. Reconnecting...", err)
+			return false
+		}
+
+		if !parseStatusResponse(response) {
+			return false
+		}
+	}
+}
+
+// updateStatusItems safely updates the systray menu items.
 func updateStatusItems(status, connection string) {
 	if status == "Active" {
 		statusItem.SetTitle("Agent: Active")
@@ -298,7 +322,7 @@ func startUpdateStream() {
 	}
 	defer updateMutex.Unlock()
 
-	conn, err := net.DialTimeout("tcp", "localhost:50505", 5*time.Second)
+	conn, err := net.DialTimeout("tcp", backendAddress, 5*time.Second)
 	if err != nil {
 		log.Printf("Failed to connect to backend for update stream: %v", err)
 		updateItem.SetTitle("Update Failed (Connect)")
@@ -345,7 +369,7 @@ func startUpdateStream() {
 
 // sendCommandAndReceive is a general utility for single request/response commands. (UNCHANGED)
 func sendCommandAndReceive(command string) (string, error) {
-	conn, err := net.DialTimeout("tcp", "localhost:50505", 3*time.Second)
+	conn, err := net.DialTimeout("tcp", backendAddress, 3*time.Second)
 	if err != nil {
 		return "", fmt.Errorf("failed to dial: %w", err)
 	}

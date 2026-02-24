@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -19,11 +20,18 @@ import (
 )
 
 const (
-	versionURL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt"
+	versionURL     = "https://api.github.com/repos/ADORSYS-GIS/wazuh-agent/releases/latest"
+	backendPort    = "50505"
+	backendAddress = "localhost:" + backendPort
 )
 
 // Version is set at build time via ldflags
 var Version = "dev"
+
+type GitHubRelease struct {
+	TagName    string `json:"tag_name"`
+	Prerelease bool   `json:"prerelease"`
+}
 
 // Global state and communication channels
 var (
@@ -146,12 +154,15 @@ func monitorAgentStatus() {
 
 func checkAndSetVersion() {
 	localVersion := getLocalVersion()
-	onlineVersion := fetchOnlineVersion()
+	onlineVersion, isPrerelease := fetchOnlineVersion()
 
 	currentVersion := fmt.Sprintf("v%s", localVersion)
 	if localVersion == "Unknown" || onlineVersion == "Unknown" {
 		currentVersion = "Version: Unknown"
-	} else if localVersion != onlineVersion {
+	} else if isPrerelease {
+		currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
+		log.Printf("Skipping upstream prerelease: %s", onlineVersion)
+	} else if isVersionHigher(onlineVersion, localVersion) {
 		currentVersion = fmt.Sprintf("Outdated, v%s", localVersion)
 	} else {
 		currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
@@ -213,12 +224,12 @@ func main() {
 		windowsMain()
 	} else {
 		log.Println("Starting wazuh-agent-status server...")
-		listener, err := net.Listen("tcp", ":50505")
+		listener, err := net.Listen("tcp", ":"+backendPort)
 		if err != nil {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 		defer listener.Close()
-		log.Println("wazuh-agent-status server listening on port 50505")
+		log.Println("wazuh-agent-status server listening on port " + backendPort)
 
 		for {
 			conn, err := listener.Accept()
@@ -281,7 +292,7 @@ func handleConnection(conn net.Conn) {
 			// Update routine runs in a new goroutine and streams progress
 			go func() {
 				// We dial self to open a new dedicated connection for the update stream.
-				updateConn, dialErr := net.DialTimeout("tcp", "localhost:50505", 5*time.Second)
+				updateConn, dialErr := net.DialTimeout("tcp", backendAddress, 5*time.Second)
 				if dialErr != nil {
 					log.Printf("Failed to dial self for update stream: %v", dialErr)
 					conn.Write([]byte("ERROR: Update stream failed to start.\n"))
@@ -312,7 +323,7 @@ func handleConnection(conn net.Conn) {
 
 // Run a command as root using sudo
 func runAsRoot(command string, args ...string) (string, error) {
-	cmd := exec.Command("sudo", append([]string{command}, args...)...)
+	cmd := exec.Command("/usr/bin/sudo", append([]string{command}, args...)...)
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
@@ -336,21 +347,53 @@ func getLocalVersion() string {
 	}
 }
 
-// Fetch the latest version from the server
-func fetchOnlineVersion() string {
+func isVersionHigher(online, local string) bool {
+	onlineParts := strings.Split(strings.TrimPrefix(online, "v"), ".")
+	localParts := strings.Split(strings.TrimPrefix(local, "v"), ".")
+
+	for i := 0; i < len(onlineParts) && i < len(localParts); i++ {
+		var onlineNum, localNum int
+		fmt.Sscanf(onlineParts[i], "%d", &onlineNum)
+		fmt.Sscanf(localParts[i], "%d", &localNum)
+
+		if onlineNum > localNum {
+			return true
+		}
+		if onlineNum < localNum {
+			return false
+		}
+	}
+
+	return len(onlineParts) > len(localParts)
+}
+
+func fetchOnlineVersion() (string, bool) {
 	resp, err := http.Get(versionURL)
 	if err != nil {
 		log.Printf("Failed to fetch online version: %v", err)
-		return "Unknown"
+		return "Unknown", false
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Failed to read response: %v", err)
-		return "Unknown"
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Failed to fetch online version: HTTP %d", resp.StatusCode)
+		return "Unknown", false
 	}
-	return strings.TrimSpace(string(body))
+
+	var release GitHubRelease
+	err = json.NewDecoder(resp.Body).Decode(&release)
+	if err != nil {
+		log.Printf("Failed to parse release: %v", err)
+		return "Unknown", false
+	}
+	log.Printf("Fetched release info: TagName=%s, Prerelease=%v", release.TagName, release.Prerelease)
+
+	if release.TagName == "" {
+		log.Println("No release found")
+		return "Unknown", false
+	}
+
+	return release.TagName, release.Prerelease
 }
 
 // getVersionPath returns version file path based on the OS

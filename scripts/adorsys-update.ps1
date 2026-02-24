@@ -25,15 +25,15 @@ Set-StrictMode -Version Latest
 # ---- Configuration Variables ----
 $LOG_LEVEL = if ($env:LOG_LEVEL) { $env:LOG_LEVEL } else { "INFO" }
 $WAZUH_MANAGER = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
-$WAZUH_AGENT_VERSION = if ($env:WAZUH_AGENT_VERSION) { $env:WAZUH_AGENT_VERSION } else { "4.12.0-1" }
+$WAZUH_AGENT_VERSION = if ($env:WAZUH_AGENT_VERSION) { $env:WAZUH_AGENT_VERSION } else { "4.14.2-1" }
 $OSSEC_PATH = "C:\Program Files (x86)\ossec-agent\"
 $OSSEC_CONF_PATH = Join-Path -Path $OSSEC_PATH -ChildPath "ossec.conf"
 $RepoUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main"
 $VERSION_FILE_URL = "$RepoUrl/version.txt"
 $VERSION_FILE_PATH = Join-Path -Path $OSSEC_PATH -ChildPath "version.txt"
-$WAZUH_YARA_VERSION = if ($env:WAZUH_YARA_VERSION) { $env:WAZUH_YARA_VERSION } else { "0.3.11" }
+$WAZUH_YARA_VERSION = if ($env:WAZUH_YARA_VERSION) { $env:WAZUH_YARA_VERSION } else { "0.3.14" }
 $WAZUH_SNORT_VERSION = if ($env:WAZUH_SNORT_VERSION) { $env:WAZUH_SNORT_VERSION } else { "0.2.4" }
-$WAZUH_AGENT_STATUS_VERSION = if ($env:WAZUH_AGENT_STATUS_VERSION) { $env:WAZUH_AGENT_STATUS_VERSION } else { "0.3.3" }
+$WAZUH_AGENT_STATUS_VERSION = if ($env:WAZUH_AGENT_STATUS_VERSION) { $env:WAZUH_AGENT_STATUS_VERSION } else { "0.4.1-rc4" }
 $WAZUH_SURICATA_VERSION = if ($env:WAZUH_SURICATA_VERSION) { $env:WAZUH_SURICATA_VERSION } else { "0.1.4" }
 
 # ---- Globals ----
@@ -228,7 +228,7 @@ function Test-YaraInstalled {
     }
 
     try {
-        $yaraCmd = Get-Command yara -ErrorAction SilentlyContinue
+        $yaraCmd = Get-Command yara64 -ErrorAction SilentlyContinue
         if ($yaraCmd) {
             InfoMessage "Detected YARA in system PATH: $($yaraCmd.Source)"
             return $true
@@ -362,6 +362,35 @@ function Install-Yara {
     }
 }
 
+function Uninstall-Yara {
+    $YaraUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-yara/refs/tags/v$WAZUH_YARA_VERSION/scripts/uninstall.ps1"
+    $UninstallYaraScript = "$env:TEMP\uninstall_yara.ps1"
+    $global:InstallerFiles += $UninstallYaraScript
+
+    # Check if YARA is installed before attempting uninstall
+    if (Test-YaraInstalled) {
+        InfoMessage "Removing existing YARA installation..."
+        Invoke-WebRequest -Uri $YaraUrl -OutFile $UninstallYaraScript -ErrorAction Stop
+
+        $process = Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$UninstallYaraScript`"" -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\uninstall_yara_output.log" -RedirectStandardError "$env:TEMP\uninstall_yara_error.log" -Wait
+
+        if (Test-Path "$env:TEMP\uninstall_yara_output.log") {
+            Get-Content "$env:TEMP\uninstall_yara_output.log" | ForEach-Object { InfoMessage $_ }
+            Remove-Item "$env:TEMP\uninstall_yara_output.log" -Force
+        }
+        if (Test-Path "$env:TEMP\uninstall_yara_error.log") {
+            Get-Content "$env:TEMP\uninstall_yara_error.log" | ForEach-Object { ErrorMessage $_ }
+            Remove-Item "$env:TEMP\uninstall_yara_error.log" -Force
+        }
+
+        if ($process.ExitCode -ne 0) {
+            WarningMessage "YARA uninstall completed with exit code $($process.ExitCode)"
+        }
+    } else {
+        InfoMessage "YARA is not installed. Skipping uninstall."
+    }
+}
+
 function Install-Snort {
     $SnortUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-snort/refs/tags/v$WAZUH_SNORT_VERSION/scripts/windows/snort.ps1"
     $SnortScript = "$env:TEMP\snort.ps1"
@@ -388,7 +417,7 @@ function Install-Snort {
 }
 
 function Uninstall-Snort {
-    $SnortUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-snort/refs/tags/v$WAZUH_SNORT_VERSION/scripts/uninstall.ps1"
+    $SnortUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-snort/refs/tags/v$WAZUH_SNORT_VERSION/scripts/windows/uninstall.ps1"
     $UninstallSnortScript = "$env:TEMP\uninstall_snort.ps1"
     $global:InstallerFiles += $UninstallSnortScript
     $TaskName = "SnortStartup"
@@ -469,7 +498,7 @@ function Uninstall-Suricata {
 }
 
 function Install-AgentStatus {
-    $AgentStatusUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/refs/heads/fix/agent-status-update-launcher/scripts/install.ps1"
+    $AgentStatusUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/refs/tags/v$WAZUH_AGENT_STATUS_VERSION-user/scripts/install.ps1"
     $AgentStatusScript = "$env:TEMP\install-agent-status.ps1"
     $global:InstallerFiles += $AgentStatusScript
 
@@ -549,7 +578,7 @@ function Do-Install {
         if ($YaraCheckbox.Checked) {
             Invoke-Step -Name "Installing YARA" -Weight $yaraWeight -Action { Install-Yara }
         } else {
-            InfoMessage "YARA installation step skipped by user selection."
+            Invoke-Step -Name "Removing YARA (if present)" -Weight $yaraWeight -Action { Uninstall-Yara }
         }
 
         # Install selected NIDS

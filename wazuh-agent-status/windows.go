@@ -5,10 +5,8 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -36,14 +34,14 @@ func (p *program) Start(s service.Service) error {
 
 // The actual server logic in the background
 func (p *program) run() {
-	listener, err := net.Listen("tcp", ":50505")
+	listener, err := net.Listen("tcp", ":"+backendPort)
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 		return
 	}
 	p.listener = listener
 	defer listener.Close()
-	log.Println("wazuh-agent-status server listening on port 50505")
+	log.Println("wazuh-agent-status server listening on port " + backendPort)
 
 	// Handle incoming connections
 	for {
@@ -80,7 +78,7 @@ func checkServiceStatus() (string, string) {
 		status = "Active"
 	}
 
-	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String", "-Path", "C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state", "-Pattern", "^status")
+	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String -Path 'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state' -Pattern '^status'")
 	connOutput, connErr := connCmd.CombinedOutput()
 	if connErr != nil {
 		log.Printf("Error checking connection status: %v\n", connErr)
@@ -144,17 +142,31 @@ func createScheduledTask() error {
 	return nil
 }
 
-// updateAgent updates the Wazuh agent on Windows using Task Scheduler
-func updateAgent() {
+// updateAgent updates the Wazuh agent on Windows and streams progress to the client
+func updateAgent(conn net.Conn) {
+	// The caller (handleConnection) closes the dedicated update stream conn when this function returns
+	defer conn.Close()
+
+	// Helper to write status updates directly to the connection
+	writeUpdate := func(status string) {
+		conn.Write([]byte(fmt.Sprintf("UPDATE_PROGRESS: %s\n", status)))
+		log.Printf("Update progress: %s", status)
+	}
+
+	writeUpdate("Starting...")
 	log.Printf("Launching Wazuh agent update via Task Scheduler...\n")
-	
+
 	err := createScheduledTask()
 	if err != nil {
 		// Fallback to WMI method if Task Scheduler fails
+		writeUpdate("Task Scheduler failed, trying WMI method...")
 		log.Printf("Task Scheduler failed, trying WMI method...\n")
 		updateAgentViaWMI()
+		writeUpdate("Complete")
 	} else {
+		writeUpdate("Task Scheduler method succeeded")
 		log.Printf("Wazuh agent update launched successfully via Task Scheduler\n")
+		writeUpdate("Complete")
 	}
 }
 
@@ -195,7 +207,7 @@ func updateAgentViaWMI() {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
 		errorMessage := fmt.Sprintf("Failed to launch update via WMI: %v. Output: %s\nFor details check logs at %s", err, string(output), logFilePath)
 		log.Printf("%s\n", errorMessage)
-		
+
 		// Last resort: try direct execution
 		updateAgentDirect()
 	} else {
@@ -206,7 +218,7 @@ func updateAgentViaWMI() {
 // updateAgentDirect attempts direct execution (last resort)
 func updateAgentDirect() {
 	log.Printf("Attempting direct execution as last resort...\n")
-	
+
 	psScript := `
 		$updateExe = "C:\Program Files (x86)\ossec-agent\active-response\bin\adorsys-update.exe"
 		Start-Process -FilePath $updateExe -Verb RunAs -WindowStyle Normal
