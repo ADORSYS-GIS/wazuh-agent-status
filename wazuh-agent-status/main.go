@@ -29,8 +29,8 @@ const (
 var Version = "dev"
 
 type GitHubRelease struct {
-	TagName string `json:"tag_name"`
-	Prerelease bool `json:"prerelease"`
+	TagName    string `json:"tag_name"`
+	Prerelease bool   `json:"prerelease"`
 }
 
 // Global state and communication channels
@@ -375,13 +375,18 @@ func fetchOnlineVersion() (string, bool) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Failed to fetch online version: HTTP %d", resp.StatusCode)
+		return "Unknown", false
+	}
+
 	var release GitHubRelease
 	err = json.NewDecoder(resp.Body).Decode(&release)
-	log.Printf("Fetched release info: TagName=%s, Prerelease=%v", release.TagName, release.Prerelease)
 	if err != nil {
 		log.Printf("Failed to parse release: %v", err)
 		return "Unknown", false
 	}
+	log.Printf("Fetched release info: TagName=%s, Prerelease=%v", release.TagName, release.Prerelease)
 
 	if release.TagName == "" {
 		log.Println("No release found")

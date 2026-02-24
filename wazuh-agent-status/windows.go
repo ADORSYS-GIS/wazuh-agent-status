@@ -18,7 +18,6 @@ const (
 	powershellExe = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 	cmdFlag       = "-Command"
 	taskName      = "WazuhAgentUpdate"
-	backendPort   = "50505"
 )
 
 // Define the program structure for the service
