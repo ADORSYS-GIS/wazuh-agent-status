@@ -81,9 +81,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-14-large
+          - os: arc-runner-set
             arch: amd64
-          - os: macos-latest
+          - os: arc-runner-set
             arch: arm64
 
     steps:
