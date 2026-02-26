@@ -245,8 +245,8 @@ func monitorVersion() {
 		}
 
 		// Once a valid version is fetched, wait for the long polling interval.
-		log.Println("Switching to 4-hour polling interval.")
-		time.Sleep(4 * time.Hour)
+		log.Println("Switching to 8-hour polling interval.")
+		time.Sleep(8 * time.Hour)
 	}
 }
 
