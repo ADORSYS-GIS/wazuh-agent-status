@@ -35,10 +35,18 @@ var (
 
 	// updateMutex prevents concurrent attempts to start the update stream
 	updateMutex sync.Mutex
+
+	// prereleaseShown tracks if we've already shown the prerelease notification
+	prereleaseShown bool
+	prereleaseMutex sync.Mutex
+
+	// Prerelease notification menu items
+	prereleaseItem, prereleaseUpdateItem *systray.MenuItem
+	prereleaseNotificationActive         bool
 )
 
 var titleRegexp = regexp.MustCompile(`"(.*?)"`)
-var versionRegex = regexp.MustCompile(`^v\d+\.\d+\.\d+(-rc[.\d]*)?`)
+var versionRegex = regexp.MustCompile(`^v?\d+\.\d+\.\d+(-rc[.\d]*)?$`)
 
 // Version is set at build time via ldflags
 var Version = "dev"
@@ -250,7 +258,7 @@ func monitorVersion() {
 	}
 }
 
-// handleVersionCheck communicates with the backend, updates the menu, and conditionally starts an update. (UNCHANGED)
+// handleVersionCheck communicates with the backend, updates the menu, and conditionally starts an update.
 func handleVersionCheck(autoStart bool) {
 	response, err := sendCommandAndReceive("get-version")
 	if err != nil {
@@ -263,6 +271,7 @@ func handleVersionCheck(autoStart bool) {
 
 	response = strings.TrimPrefix(response, "VERSION_CHECK: ")
 	isOutdated := strings.Contains(response, "Outdated")
+	isPrerelease := strings.Contains(response, "Prerelease available")
 
 	// --- Update Menu Items ---
 	if isOutdated {
@@ -284,6 +293,49 @@ func handleVersionCheck(autoStart bool) {
 			go startUpdateStream()
 		}
 
+	} else if isPrerelease {
+		// Parse prerelease version info
+		// Expected format: "Prerelease available: 1.9.0-rc.1 (current: v1.8.0)"
+		log.Printf("Prerelease response received: %q", response)
+		if strings.HasPrefix(response, "Prerelease available:") {
+			// Extract the prerelease version and current version
+			prereleaseVersion := ""
+			currentVersion := ""
+
+			// Use regex to extract versions more reliably
+			re := regexp.MustCompile(`Prerelease available: ([^\s]+) \(current: v([^\)]+)\)`)
+			matches := re.FindStringSubmatch(response)
+			log.Printf("Regex matches: %v (length: %d)", matches, len(matches))
+			if len(matches) == 3 {
+				prereleaseVersion = matches[1]
+				currentVersion = matches[2]
+				log.Printf("Extracted - Prerelease: %s, Current: %s", prereleaseVersion, currentVersion)
+
+				versionItem.SetTitle(currentVersion)
+
+				// Mark version item as "hidden" when prerelease is available
+				versionItem.SetTooltip("Prerelease available")
+
+				// Show prerelease notification with clean format
+				prereleaseInfo := fmt.Sprintf("%s", prereleaseVersion)
+				showPrereleaseNotification(prereleaseInfo)
+
+				// Hide regular update button when prerelease is available
+				updateItem.SetTitle("Up to date")
+				updateItem.Disable()
+			} else {
+				// Fallback parsing if regex fails
+				log.Printf("Failed to parse prerelease info from: %q", response)
+				versionItem.SetTitle("v---")
+				versionItem.SetTooltip("Prerelease available")
+				updateItem.SetTitle("---")
+				updateItem.Disable()
+			}
+		} else {
+			versionItem.SetTitle(response)
+			updateItem.SetTitle("---")
+			updateItem.Disable()
+		}
 	} else if strings.Contains(response, "Up to date") {
 		// Defensive parsing: only split into two parts and validate
 		parts := strings.SplitN(response, ", ", 2)
@@ -294,10 +346,12 @@ func handleVersionCheck(autoStart bool) {
 			log.Printf("Unexpected version response (Up to date): %q", response)
 		}
 		versionItem.SetTitle(version)
+		versionItem.SetTooltip(fmt.Sprintf("Current version: %s", version))
 		updateItem.SetTitle("Up to date")
 		updateItem.Disable()
 	} else {
-		versionItem.SetTitle(response)
+		versionItem.SetTitle("v---")
+		versionItem.SetTooltip("Prerelease available")
 		updateItem.SetTitle("---")
 		updateItem.Disable()
 	}
@@ -410,6 +464,52 @@ func getIconPath() string {
 	default:
 		return "assets/wazuh-logo.png"
 	}
+}
+
+// showPrereleaseNotification displays a systray notification for prerelease versions
+func showPrereleaseNotification(prereleaseInfo string) {
+	prereleaseMutex.Lock()
+	defer prereleaseMutex.Unlock()
+
+	// Only show the notification once per session
+	if prereleaseShown {
+		return
+	}
+
+	prereleaseShown = true
+	prereleaseNotificationActive = true
+	log.Printf("Showing prerelease notification: %s", prereleaseInfo)
+
+	// Add prerelease notification menu items
+	systray.AddSeparator()
+	log.Printf("Creating prerelease menu items with info: %s", prereleaseInfo)
+	prereleaseItem = systray.AddMenuItem("Prerelease Available: "+prereleaseInfo, "Prerelease version available for testing")
+	prereleaseItem.Disable()
+	prereleaseUpdateItem = systray.AddMenuItem("Update to Prerelease", "Install prerelease version")
+	log.Printf("Prerelease menu items created successfully")
+
+	// Handle prerelease menu actions
+	go handlePrereleaseActions(prereleaseInfo)
+}
+
+// handlePrereleaseActions handles clicks on prerelease notification menu items
+func handlePrereleaseActions(prereleaseInfo string) {
+	for {
+		select {
+		case <-prereleaseUpdateItem.ClickedCh:
+			log.Println("Prerelease update clicked. Starting update...")
+			prereleaseUpdateItem.SetTitle("Starting Prerelease Update...")
+			prereleaseUpdateItem.Disable()
+			go startPrereleaseUpdateStream()
+			return
+		}
+	}
+}
+
+// startPrereleaseUpdateStream starts the update process for prerelease versions
+func startPrereleaseUpdateStream() {
+	// Use the same update stream as regular updates
+	startUpdateStream()
 }
 
 // getMenuItemTitle extracts the Title from MenuItem.String()

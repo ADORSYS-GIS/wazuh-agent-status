@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"log"
@@ -20,17 +21,29 @@ import (
 )
 
 const (
-	versionURL     = "https://api.github.com/repos/ADORSYS-GIS/wazuh-agent/releases/latest"
-	backendPort    = "50505"
+	versionURL     = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
+	backendPort    = "5050"
 	backendAddress = "localhost:" + backendPort
 )
 
 // Version is set at build time via ldflags
 var Version = "dev"
 
-type GitHubRelease struct {
-	TagName    string `json:"tag_name"`
-	Prerelease bool   `json:"prerelease"`
+type VersionInfo struct {
+	Framework struct {
+		Version           string `json:"version"`
+		PrereleaseVersion string `json:"prerelease_version"`
+	} `json:"framework"`
+	PrereleaseTestGroups []string `json:"prerelease_test_groups"`
+}
+
+type OssecConfig struct {
+	XMLName xml.Name `xml:"ossec_config"`
+	Client  struct {
+		Enrollment struct {
+			Groups string `xml:"groups"`
+		} `xml:"enrollment"`
+	} `xml:"client"`
 }
 
 // Global state and communication channels
@@ -154,15 +167,20 @@ func monitorAgentStatus() {
 
 func checkAndSetVersion() {
 	localVersion := getLocalVersion()
-	onlineVersion, isPrerelease := fetchOnlineVersion()
+	versionInfo := fetchVersionInfo()
+	agentGroups := getAgentGroups()
 
 	currentVersion := fmt.Sprintf("v%s", localVersion)
-	if localVersion == "Unknown" || onlineVersion == "Unknown" {
+	if localVersion == "Unknown" || versionInfo == nil {
 		currentVersion = "Version: Unknown"
-	} else if isPrerelease {
-		currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
-		log.Printf("Skipping upstream prerelease: %s", onlineVersion)
-	} else if isVersionHigher(onlineVersion, localVersion) {
+	} else if versionInfo.Framework.PrereleaseVersion != "" && shouldShowPrerelease(versionInfo, agentGroups) {
+		// Show prerelease version if agent is in test groups
+		if isVersionHigher(versionInfo.Framework.PrereleaseVersion, localVersion) {
+			currentVersion = fmt.Sprintf("Prerelease available: %s (current: v%s)", versionInfo.Framework.PrereleaseVersion, localVersion)
+		} else {
+			currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
+		}
+	} else if versionInfo.Framework.Version != "" && isVersionHigher(versionInfo.Framework.Version, localVersion) {
 		currentVersion = fmt.Sprintf("Outdated, v%s", localVersion)
 	} else {
 		currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
@@ -367,36 +385,104 @@ func isVersionHigher(online, local string) bool {
 	return len(onlineParts) > len(localParts)
 }
 
-func fetchOnlineVersion() (string, bool) {
+func fetchVersionInfo() *VersionInfo {
 	resp, err := http.Get(versionURL)
 	if err != nil {
-		log.Printf("Failed to fetch online version: %v", err)
-		return "Unknown", false
+		log.Printf("Failed to fetch version info: %v", err)
+		return nil
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("Failed to fetch online version: HTTP %d", resp.StatusCode)
-		return "Unknown", false
+		log.Printf("Failed to fetch version info: HTTP %d", resp.StatusCode)
+		return nil
 	}
 
-	var release GitHubRelease
-	err = json.NewDecoder(resp.Body).Decode(&release)
+	var versionInfo VersionInfo
+	err = json.NewDecoder(resp.Body).Decode(&versionInfo)
 	if err != nil {
-		log.Printf("Failed to parse release: %v", err)
-		return "Unknown", false
+		log.Printf("Failed to parse version info: %v", err)
+		return nil
 	}
-	log.Printf("Fetched release info: TagName=%s, Prerelease=%v", release.TagName, release.Prerelease)
+	log.Printf("Fetched version info: Framework.Version=%s, Framework.PrereleaseVersion=%s, TestGroups=%v",
+		versionInfo.Framework.Version, versionInfo.Framework.PrereleaseVersion, versionInfo.PrereleaseTestGroups)
 
-	if release.TagName == "" {
-		log.Println("No release found")
-		return "Unknown", false
-	}
-
-	return release.TagName, release.Prerelease
+	return &versionInfo
 }
 
-// getVersionPath returns version file path based on the OS
+// getAgentGroups extracts groups from ossec.conf
+func getAgentGroups() []string {
+	configPath := getOssecConfigPath()
+	if runtime.GOOS == "windows" {
+		data, err := os.ReadFile(configPath)
+		if err != nil {
+			log.Printf("Failed to read ossec.conf on Windows: %v", err)
+			return []string{}
+		}
+		return parseGroupsFromXML(data)
+	} else {
+		output, err := runAsRoot("cat", configPath)
+		if err != nil {
+			log.Printf("Failed to read ossec.conf on Linux/macOS: %v", err)
+			return []string{}
+		}
+		return parseGroupsFromXML([]byte(output))
+	}
+}
+
+// parseGroupsFromXML parses XML data and extracts groups
+func parseGroupsFromXML(data []byte) []string {
+	var config OssecConfig
+	err := xml.Unmarshal(data, &config)
+	if err != nil {
+		log.Printf("Failed to parse ossec.conf XML: %v", err)
+		return []string{}
+	}
+
+	if config.Client.Enrollment.Groups == "" {
+		return []string{}
+	}
+
+	// Split groups by comma and trim whitespace
+	groups := strings.Split(config.Client.Enrollment.Groups, ",")
+	for i, group := range groups {
+		groups[i] = strings.TrimSpace(group)
+	}
+
+	return groups
+}
+
+// shouldShowPrerelease checks if prerelease should be shown based on agent groups
+func shouldShowPrerelease(versionInfo *VersionInfo, agentGroups []string) bool {
+	if len(versionInfo.PrereleaseTestGroups) == 0 || len(agentGroups) == 0 {
+		return false
+	}
+
+	// Check if any agent group matches the test groups
+	for _, agentGroup := range agentGroups {
+		for _, testGroup := range versionInfo.PrereleaseTestGroups {
+			if strings.EqualFold(agentGroup, testGroup) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// getOssecConfigPath returns ossec.conf path based on the OS
+func getOssecConfigPath() string {
+	switch os := runtime.GOOS; os {
+	case "linux":
+		return "/var/ossec/etc/ossec.conf"
+	case "darwin":
+		return "/Library/Ossec/etc/ossec.conf"
+	case "windows":
+		return "C:\\Program Files (x86)\\ossec-agent\\ossec.conf"
+	default:
+		return "/var/ossec/etc/ossec.conf"
+	}
+}
 func getVersionFilePath() string {
 	switch os := runtime.GOOS; os {
 	case "linux":
