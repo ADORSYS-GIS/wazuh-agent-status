@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	backendAddress = "localhost:50505"
+	backendAddress = "localhost:50506"
 )
 
 //go:embed assets/*
@@ -276,6 +276,7 @@ func handleVersionCheck(autoStart bool) {
 	// --- Update Menu Items ---
 	if isOutdated {
 		// Defensive parsing: only split into two parts and validate
+		isPrerelease = false // Ensure we don't treat an outdated response as a prerelease
 		parts := strings.SplitN(response, ", ", 2)
 		version := "Unknown"
 		if len(parts) == 2 {
@@ -494,15 +495,12 @@ func showPrereleaseNotification(prereleaseInfo string) {
 
 // handlePrereleaseActions handles clicks on prerelease notification menu items
 func handlePrereleaseActions(prereleaseInfo string) {
-	for {
-		select {
-		case <-prereleaseUpdateItem.ClickedCh:
-			log.Println("Prerelease update clicked. Starting update...")
-			prereleaseUpdateItem.SetTitle("Starting Prerelease Update...")
-			prereleaseUpdateItem.Disable()
-			go startPrereleaseUpdateStream()
-			return
-		}
+	for range prereleaseUpdateItem.ClickedCh {
+		log.Println("Prerelease update clicked. Starting update...")
+		prereleaseUpdateItem.SetTitle("Starting Prerelease Update...")
+		prereleaseUpdateItem.Disable()
+		go startPrereleaseUpdateStream()
+		return
 	}
 }
 

@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"io"
 	"log"
@@ -22,7 +21,7 @@ import (
 
 const (
 	versionURL     = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
-	backendPort    = "5050"
+	backendPort    = "50506"
 	backendAddress = "localhost:" + backendPort
 )
 
@@ -35,15 +34,6 @@ type VersionInfo struct {
 		PrereleaseVersion string `json:"prerelease_version"`
 	} `json:"framework"`
 	PrereleaseTestGroups []string `json:"prerelease_test_groups"`
-}
-
-type OssecConfig struct {
-	XMLName xml.Name `xml:"ossec_config"`
-	Client  struct {
-		Enrollment struct {
-			Groups string `xml:"groups"`
-		} `xml:"enrollment"`
-	} `xml:"client"`
 }
 
 // Global state and communication channels
@@ -173,15 +163,12 @@ func checkAndSetVersion() {
 	currentVersion := fmt.Sprintf("v%s", localVersion)
 	if localVersion == "Unknown" || versionInfo == nil {
 		currentVersion = "Version: Unknown"
-	} else if versionInfo.Framework.PrereleaseVersion != "" && shouldShowPrerelease(versionInfo, agentGroups) {
-		// Show prerelease version if agent is in test groups
-		if isVersionHigher(versionInfo.Framework.PrereleaseVersion, localVersion) {
-			currentVersion = fmt.Sprintf("Prerelease available: %s (current: v%s)", versionInfo.Framework.PrereleaseVersion, localVersion)
-		} else {
-			currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
-		}
 	} else if versionInfo.Framework.Version != "" && isVersionHigher(versionInfo.Framework.Version, localVersion) {
+		// Agent is outdated compared to stable version - prioritize this
 		currentVersion = fmt.Sprintf("Outdated, v%s", localVersion)
+	} else if versionInfo.Framework.PrereleaseVersion != "" && shouldShowPrerelease(versionInfo, agentGroups) && isVersionHigher(versionInfo.Framework.PrereleaseVersion, localVersion) {
+		// Agent is NOT outdated compared to stable, but a higher prerelease version is available for test groups
+		currentVersion = fmt.Sprintf("Prerelease available: %s (current: v%s)", versionInfo.Framework.PrereleaseVersion, localVersion)
 	} else {
 		currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
 	}
@@ -341,7 +328,7 @@ func handleConnection(conn net.Conn) {
 
 // Run a command as root using sudo
 func runAsRoot(command string, args ...string) (string, error) {
-	cmd := exec.Command("/usr/bin/sudo", append([]string{command}, args...)...)
+	cmd := exec.Command(sudoCommand, append([]string{command}, args...)...)
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
@@ -410,45 +397,53 @@ func fetchVersionInfo() *VersionInfo {
 	return &versionInfo
 }
 
-// getAgentGroups extracts groups from ossec.conf
+// getAgentGroups extracts groups from merged.mg
 func getAgentGroups() []string {
-	configPath := getOssecConfigPath()
+	mergedMgPath := getMergedMgPath()
+	var output string
+	var err error
+
 	if runtime.GOOS == "windows" {
-		data, err := os.ReadFile(configPath)
-		if err != nil {
-			log.Printf("Failed to read ossec.conf on Windows: %v", err)
+		data, readErr := os.ReadFile(mergedMgPath)
+		if readErr != nil {
+			log.Printf("Failed to read merged.mg on Windows: %v", readErr)
 			return []string{}
 		}
-		return parseGroupsFromXML(data)
+		output = string(data)
 	} else {
-		output, err := runAsRoot("cat", configPath)
+		output, err = runAsRoot(grepCommand, "Source file:", mergedMgPath)
 		if err != nil {
-			log.Printf("Failed to read ossec.conf on Linux/macOS: %v", err)
-			return []string{}
+			log.Printf("Failed to grep merged.mg on Linux/macOS: %v", err)
+			// On error, try reading the file directly as a fallback
+			data, readErr := os.ReadFile(mergedMgPath)
+			if readErr != nil {
+				return []string{}
+			}
+			output = string(data)
 		}
-		return parseGroupsFromXML([]byte(output))
 	}
+
+	return extractGroupsFromMergedMg(output)
 }
 
-// parseGroupsFromXML parses XML data and extracts groups
-func parseGroupsFromXML(data []byte) []string {
-	var config OssecConfig
-	err := xml.Unmarshal(data, &config)
-	if err != nil {
-		log.Printf("Failed to parse ossec.conf XML: %v", err)
-		return []string{}
+// extractGroupsFromMergedMg parses the merged.mg content to extract groups
+func extractGroupsFromMergedMg(content string) []string {
+	var groups []string
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "Source file:") {
+			// Extract group from "<!-- Source file: <group>/agent.conf -->"
+			parts := strings.Split(line, "Source file:")
+			if len(parts) > 1 {
+				groupPart := strings.TrimSpace(parts[1])
+				// Extract until "/agent.conf"
+				if strings.Contains(groupPart, "/agent.conf") {
+					group := strings.Split(groupPart, "/agent.conf")[0]
+					groups = append(groups, strings.TrimSpace(group))
+				}
+			}
+		}
 	}
-
-	if config.Client.Enrollment.Groups == "" {
-		return []string{}
-	}
-
-	// Split groups by comma and trim whitespace
-	groups := strings.Split(config.Client.Enrollment.Groups, ",")
-	for i, group := range groups {
-		groups[i] = strings.TrimSpace(group)
-	}
-
 	return groups
 }
 
@@ -470,19 +465,20 @@ func shouldShowPrerelease(versionInfo *VersionInfo, agentGroups []string) bool {
 	return false
 }
 
-// getOssecConfigPath returns ossec.conf path based on the OS
-func getOssecConfigPath() string {
+// getMergedMgPath returns merged.mg path based on the OS
+func getMergedMgPath() string {
 	switch os := runtime.GOOS; os {
 	case "linux":
-		return "/var/ossec/etc/ossec.conf"
+		return "/var/ossec/etc/shared/merged.mg"
 	case "darwin":
-		return "/Library/Ossec/etc/ossec.conf"
+		return "/Library/Ossec/etc/shared/merged.mg"
 	case "windows":
-		return "C:\\Program Files (x86)\\ossec-agent\\ossec.conf"
+		return "C:\\Program Files (x86)\\ossec-agent\\etc\\shared\\merged.mg"
 	default:
-		return "/var/ossec/etc/ossec.conf"
+		return "/var/ossec/etc/shared/merged.mg"
 	}
 }
+
 func getVersionFilePath() string {
 	switch os := runtime.GOOS; os {
 	case "linux":
