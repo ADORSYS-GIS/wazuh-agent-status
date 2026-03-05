@@ -506,8 +506,53 @@ func handlePrereleaseActions(prereleaseInfo string) {
 
 // startPrereleaseUpdateStream starts the update process for prerelease versions
 func startPrereleaseUpdateStream() {
-	// Use the same update stream as regular updates
-	startUpdateStream()
+	// Use a specialized update stream for prerelease versions
+	if !updateMutex.TryLock() {
+		log.Println("Update already in progress. Skipping.")
+		return
+	}
+	defer updateMutex.Unlock()
+
+	conn, err := net.DialTimeout("tcp", backendAddress, 5*time.Second)
+	if err != nil {
+		log.Printf("Failed to connect to backend for prerelease update stream: %v", err)
+		prereleaseUpdateItem.SetTitle("Update Failed (Connect)")
+		prereleaseUpdateItem.Enable()
+		return
+	}
+	defer conn.Close()
+
+	fmt.Fprintln(conn, "update-prerelease")
+
+	reader := bufio.NewReader(conn)
+
+	// Read and process the streaming response from the server
+	for {
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			if err != io.EOF {
+				log.Printf("Prerelease update stream error: %v", err)
+				prereleaseUpdateItem.SetTitle("Update Failed (Stream)")
+			} else {
+				log.Println("Prerelease update stream finished (EOF).")
+				// Set a temporary status before the synchronous check
+				prereleaseUpdateItem.SetTitle("Checking Version Status...")
+			}
+			break
+		}
+
+		trimmed := strings.TrimSpace(response)
+		log.Printf("Prerelease Update Stream: %s", trimmed)
+
+		// Display status on the menu item
+		if strings.HasPrefix(trimmed, "UPDATE_PROGRESS:") {
+			status := strings.TrimPrefix(trimmed, "UPDATE_PROGRESS: ")
+			if status == "Complete" || status == "Error" {
+				break
+			}
+			prereleaseUpdateItem.SetTitle(fmt.Sprintf("Updating: %s", status))
+		}
+	}
 }
 
 // getMenuItemTitle extracts the Title from MenuItem.String()

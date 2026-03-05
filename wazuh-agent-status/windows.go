@@ -143,7 +143,7 @@ func createScheduledTask() error {
 }
 
 // updateAgent updates the Wazuh agent on Windows and streams progress to the client
-func updateAgent(conn net.Conn) {
+func updateAgent(conn net.Conn, isPrerelease bool) {
 	// The caller (handleConnection) closes the dedicated update stream conn when this function returns
 	defer conn.Close()
 

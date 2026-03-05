@@ -23,6 +23,8 @@ const (
 	versionURL     = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
 	backendPort    = "50506"
 	backendAddress = "localhost:" + backendPort
+	sudoCommand    = "/usr/bin/sudo"
+	grepCommand    = "/usr/bin/grep"
 )
 
 // Version is set at build time via ldflags
@@ -315,10 +317,38 @@ func handleConnection(conn net.Conn) {
 				}
 			}()
 
+		case "update-prerelease":
+			log.Println("Received prerelease update command. Starting update stream...")
+			// Update routine runs in a new goroutine and streams progress
+			go func() {
+				// We dial self to open a new dedicated connection for the update stream.
+				updateConn, dialErr := net.DialTimeout("tcp", backendAddress, 5*time.Second)
+				if dialErr != nil {
+					log.Printf("Failed to dial self for prerelease update stream: %v", dialErr)
+					conn.Write([]byte("ERROR: Prerelease update stream failed to start.\n"))
+					return
+				}
+				defer updateConn.Close()
+
+				// Send the dedicated command to initiate the prerelease stream
+				fmt.Fprintln(updateConn, "initiate-prerelease-update-stream")
+
+				// Read the stream response and pipe it to the client's current connection
+				_, copyErr := io.Copy(conn, updateConn)
+				if copyErr != nil && copyErr != io.EOF {
+					log.Printf("Error streaming prerelease update logs: %v", copyErr)
+				}
+			}()
+
 		case "initiate-update-stream":
 			// This is the dedicated connection for the update process, passed from the self-dial
-			updateAgent(conn) // updateAgent will write progress and close this conn
+			updateAgent(conn, false) // updateAgent will write progress and close this conn
 			log.Println("Update finished and stream closed.")
+
+		case "initiate-prerelease-update-stream":
+			// This is the dedicated connection for the prerelease update process, passed from the self-dial
+			updateAgent(conn, true) // updateAgent will write progress and close this conn
+			log.Println("Prerelease update finished and stream closed.")
 
 		default:
 			conn.Write([]byte(fmt.Sprintf("ERROR: Unknown command: %s\n", command)))

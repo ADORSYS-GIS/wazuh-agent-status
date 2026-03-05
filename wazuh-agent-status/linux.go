@@ -13,11 +13,6 @@ import (
 	"strings"
 )
 
-const (
-	sudoCommand = "/usr/bin/sudo"
-	grepCommand = "/usr/bin/grep"
-)
-
 // checkServiceStatus checks the status of Wazuh agent and its connection on Linux
 func checkServiceStatus() (string, string) {
 	cmd := exec.Command(sudoCommand, "/var/ossec/bin/wazuh-control", "status")
@@ -45,9 +40,9 @@ func checkServiceStatus() (string, string) {
 }
 
 // updateAgent updates the Wazuh agent on Linux and streams progress to the client
-func updateAgent(conn net.Conn) {
+func updateAgent(conn net.Conn, isPrerelease bool) {
 	// The caller (handleConnection) closes the dedicated update stream conn when this function returns
-	defer conn.Close() 
+	defer conn.Close()
 
 	// Helper to write status updates directly to the connection
 	writeUpdate := func(status string) {
@@ -57,7 +52,12 @@ func updateAgent(conn net.Conn) {
 
 	writeUpdate("Starting...")
 
-	cmd := exec.Command(sudoCommand, "/var/ossec/active-response/bin/adorsys-update.sh")
+	var cmd *exec.Cmd
+	if isPrerelease {
+		cmd = exec.Command(sudoCommand, "/var/ossec/active-response/bin/adorsys-update.sh", "--no-confirm")
+	} else {
+		cmd = exec.Command(sudoCommand, "/var/ossec/active-response/bin/adorsys-update.sh")
+	}
 
 	// Stream stdout and stderr to the log and to the client connection
 	stdout, _ := cmd.StdoutPipe()

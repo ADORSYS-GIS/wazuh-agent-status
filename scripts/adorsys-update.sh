@@ -40,6 +40,16 @@ else
     BIN_FOLDER='/usr/bin'
 fi
 
+# Argument parsing
+NO_CONFIRM=false
+for arg in "$@"; do
+    case "$arg" in
+        --no-confirm)
+            NO_CONFIRM=true
+            ;;
+    esac
+done
+
 # Create a temporary directory
 TMP_FOLDER=$(mktemp -d)
 
@@ -133,7 +143,9 @@ send_notification() {
 PREPARE_MSG="A new version of Wazuh is available. Would you like to upgrade?"
 ACTION=""
 
-if [[ "$OS_TYPE" = "$DARWIN_OS" ]]; then
+if [[ "$NO_CONFIRM" = true ]]; then
+    ACTION="Upgrade Now"
+elif [[ "$OS_TYPE" = "$DARWIN_OS" ]]; then
     # Show dialog and capture user action, default to "Remind Me Later" if dismissed
     ACTION=$(osascript <<EOF_OSASCRIPT
         try
