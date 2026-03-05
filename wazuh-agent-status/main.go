@@ -513,7 +513,7 @@ func getMergedMgPath() string {
 	case "darwin":
 		return "/Library/Ossec/etc/shared/merged.mg"
 	case "windows":
-		return "C:\\Program Files (x86)\\ossec-agent\\etc\\shared\\merged.mg"
+		return "C:\\Program Files (x86)\\ossec-agent\\shared\\merged.mg"
 	default:
 		return "/var/ossec/etc/shared/merged.mg"
 	}
