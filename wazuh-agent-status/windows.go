@@ -159,7 +159,7 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 	writeUpdate("Starting...")
 
 	// Create log file for troubleshooting
-	logFile := "C:\\temp\\wazuh-update.log"
+	logFile := filepath.Join(os.TempDir(), "wazuh-update.log")
 	logFileHandle, err := os.Create(logFile)
 	if err != nil {
 		writeUpdate(fmt.Sprintf("ERROR: Failed to create log file: %v", err))
@@ -179,7 +179,7 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 			logFileHandle.WriteString(fmt.Sprintf("Prerelease Script URL: %s\n", prereleaseScriptURL))
 
 			// Create a temporary directory for the script
-			tmpDir := "C:\\temp\\wazuh-prerelease"
+			tmpDir := filepath.Join(os.TempDir(), "wazuh-prerelease")
 			if err := os.MkdirAll(tmpDir, 0755); err != nil {
 				writeUpdate(fmt.Sprintf("ERROR: Failed to create temp directory: %v", err))
 				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to create temp directory: %v\n", err))
