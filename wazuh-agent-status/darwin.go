@@ -5,7 +5,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -106,9 +105,9 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 		logFileHandle.WriteString(fmt.Sprintf("Executing: %s %s\n", sudoCommand, "/Library/Ossec/active-response/bin/adorsys-update.sh"))
 	}
 
-	// Stream stdout and stderr to the log and to the client connection
-	stdout, _ := cmd.StdoutPipe()
-	stderr, _ := cmd.StderrPipe()
+	// Stream stdout and stderr ONLY to the update log file
+	cmd.Stdout = logFileHandle
+	cmd.Stderr = logFileHandle
 
 	if err := cmd.Start(); err != nil {
 		writeUpdate(fmt.Sprintf("ERROR: Command failed to start: %v", err))
@@ -119,10 +118,6 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 
 	writeUpdate("Executing script...")
 	logFileHandle.WriteString("Executing script...\n")
-
-	// Stream stdout and stderr ONLY to the update log file
-	go io.Copy(logFileHandle, stdout)
-	go io.Copy(logFileHandle, stderr)
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
@@ -137,9 +132,6 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 		logFileHandle.WriteString("UPDATE COMPLETED SUCCESSFULLY\n")
 		log.Println("Wazuh agent updated successfully")
 	}
-
-	// Close log file at the very end
-	logFileHandle.Close()
 }
 
 func windowsMain() {

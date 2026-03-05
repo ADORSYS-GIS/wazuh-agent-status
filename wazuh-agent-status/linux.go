@@ -5,7 +5,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -84,7 +83,6 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 				writeUpdate(fmt.Sprintf("ERROR: Failed to create temp directory: %v", err))
 				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to create temp directory: %v\n", err))
 				logFileHandle.Sync()
-				logFileHandle.Close()
 				return
 			}
 			defer os.RemoveAll(tmpDir)
@@ -95,7 +93,6 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 				writeUpdate(fmt.Sprintf("ERROR: Failed to download script: %v", err))
 				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to download script: %v\n", err))
 				logFileHandle.Sync()
-				logFileHandle.Close()
 				return
 			}
 
@@ -104,7 +101,6 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 				writeUpdate(fmt.Sprintf("ERROR: Failed to make script executable: %v", err))
 				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to make script executable: %v\n", err))
 				logFileHandle.Sync()
-				logFileHandle.Close()
 				return
 			}
 
@@ -122,24 +118,19 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 		logFileHandle.Sync()
 	}
 
-	// Stream stdout and stderr to the log and to the client connection
-	stdout, _ := cmd.StdoutPipe()
-	stderr, _ := cmd.StderrPipe()
+	// Stream stdout and stderr ONLY to the update log file
+	cmd.Stdout = logFileHandle
+	cmd.Stderr = logFileHandle
 
 	if err := cmd.Start(); err != nil {
 		writeUpdate(fmt.Sprintf("ERROR: Command failed to start: %v", err))
 		logFileHandle.WriteString(fmt.Sprintf("ERROR: Command failed to start: %v\n", err))
 		logFileHandle.Sync()
-		logFileHandle.Close()
 		return
 	}
 
 	writeUpdate("Executing script...")
 	logFileHandle.WriteString("Executing script...\n")
-
-	// Stream stdout and stderr ONLY to the update log file
-	go io.Copy(logFileHandle, stdout)
-	go io.Copy(logFileHandle, stderr)
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {

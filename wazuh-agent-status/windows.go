@@ -5,7 +5,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -165,6 +164,7 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 		writeUpdate(fmt.Sprintf("ERROR: Failed to create log file: %v", err))
 		return
 	}
+	defer logFileHandle.Close()
 
 	writeUpdate(fmt.Sprintf("Logging to: %s", logFile))
 
@@ -182,7 +182,6 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 			if err := os.MkdirAll(tmpDir, 0755); err != nil {
 				writeUpdate(fmt.Sprintf("ERROR: Failed to create temp directory: %v", err))
 				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to create temp directory: %v\n", err))
-				logFileHandle.Close()
 				return
 			}
 			defer os.RemoveAll(tmpDir)
@@ -192,29 +191,25 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 			if err := downloadFile(prereleaseScriptURL, scriptPath); err != nil {
 				writeUpdate(fmt.Sprintf("ERROR: Failed to download script: %v", err))
 				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to download script: %v\n", err))
-				logFileHandle.Close()
 				return
 			}
 
 			cmd = exec.Command(powershellExe, "-ExecutionPolicy", "Bypass", "-File", scriptPath)
 			logFileHandle.WriteString(fmt.Sprintf("Executing: %s -ExecutionPolicy Bypass -File %s\n", powershellExe, scriptPath))
 
+			// Stream stdout and stderr ONLY to the update log file
+			cmd.Stdout = logFileHandle
+			cmd.Stderr = logFileHandle
+
 			// Execute the prerelease script
 			if err := cmd.Start(); err != nil {
 				writeUpdate(fmt.Sprintf("ERROR: Command failed to start: %v", err))
 				logFileHandle.WriteString(fmt.Sprintf("ERROR: Command failed to start: %v\n", err))
-				logFileHandle.Close()
 				return
 			}
 
 			writeUpdate("Executing script...")
 			logFileHandle.WriteString("Executing script...\n")
-
-			// Stream stdout and stderr ONLY to the update log file
-			stdout, _ := cmd.StdoutPipe()
-			stderr, _ := cmd.StderrPipe()
-			go io.Copy(logFileHandle, stdout)
-			go io.Copy(logFileHandle, stderr)
 
 			// Wait for the command to finish
 			if err := cmd.Wait(); err != nil {
@@ -226,12 +221,10 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 				logFileHandle.WriteString("UPDATE COMPLETED SUCCESSFULLY\n")
 				log.Println("Wazuh agent updated successfully")
 			}
-			logFileHandle.Close()
 			return
 		} else {
 			writeUpdate(fmt.Sprintf("ERROR: Empty prerelease"))
 			logFileHandle.WriteString(fmt.Sprintf("ERROR: Empty prerelease"))
-			logFileHandle.Close()
 			return
 		}
 	} else {
@@ -246,7 +239,6 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 			writeUpdate("Task Scheduler method succeeded")
 		}
 		writeUpdate("Complete")
-		logFileHandle.Close()
 		return
 	}
 }
