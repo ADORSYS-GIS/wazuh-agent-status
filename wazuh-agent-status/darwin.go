@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -49,11 +50,60 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 
 	writeUpdate("Starting...")
 
+	// Create log file for troubleshooting
+	logFile := "/tmp/wazuh-update.log"
+	logFileHandle, err := os.Create(logFile)
+	if err != nil {
+		writeUpdate(fmt.Sprintf("ERROR: Failed to create log file: %v", err))
+		return
+	}
+	defer logFileHandle.Close()
+
 	var cmd *exec.Cmd
 	if isPrerelease {
-		cmd = exec.Command(sudoCommand, "/Library/Ossec/active-response/bin/adorsys-update.sh", "--no-confirm")
+		// For prerelease, download and execute setup script directly
+		versionInfo := fetchVersionInfo()
+		if versionInfo != nil && versionInfo.Framework.PrereleaseVersion != "" {
+			prereleaseScriptURL := fmt.Sprintf("https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v%s/scripts/setup-agent.sh", versionInfo.Framework.PrereleaseVersion)
+			writeUpdate(fmt.Sprintf("Downloading prerelease script from: %s", versionInfo.Framework.PrereleaseVersion))
+			logFileHandle.WriteString(fmt.Sprintf("Prerelease Script URL: %s\n", prereleaseScriptURL))
+
+			// Create a temporary directory for the script
+			tmpDir := "/tmp/wazuh-prerelease"
+			if err := os.MkdirAll(tmpDir, 0755); err != nil {
+				writeUpdate(fmt.Sprintf("ERROR: Failed to create temp directory: %v", err))
+				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to create temp directory: %v\n", err))
+				return
+			}
+			defer os.RemoveAll(tmpDir)
+
+			// Download prerelease setup script
+			scriptPath := filepath.Join(tmpDir, "setup-agent.sh")
+			if err := downloadFile(prereleaseScriptURL, scriptPath); err != nil {
+				writeUpdate(fmt.Sprintf("ERROR: Failed to download script: %v", err))
+				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to download script: %v\n", err))
+				logFileHandle.Sync()
+				return
+			}
+
+			// Make script executable and run it
+			if err := os.Chmod(scriptPath, 0755); err != nil {
+				writeUpdate(fmt.Sprintf("ERROR: Failed to make script executable: %v", err))
+				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to make script executable: %v\n", err))
+				logFileHandle.Sync()
+				return
+			}
+
+			cmd = exec.Command(sudoCommand, "bash", scriptPath)
+			logFileHandle.WriteString(fmt.Sprintf("Executing: %s %s %s\n", sudoCommand, "bash", scriptPath))
+		} else {
+			writeUpdate(fmt.Sprintf("ERROR: Empty prerelease"))
+			logFileHandle.WriteString(fmt.Sprintf("ERROR: Empty prerelease"))
+			logFileHandle.Sync()
+		}
 	} else {
 		cmd = exec.Command(sudoCommand, "/Library/Ossec/active-response/bin/adorsys-update.sh")
+		logFileHandle.WriteString(fmt.Sprintf("Executing: %s %s\n", sudoCommand, "/Library/Ossec/active-response/bin/adorsys-update.sh"))
 	}
 
 	// Stream stdout and stderr to the log and to the client connection
@@ -62,25 +112,34 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 
 	if err := cmd.Start(); err != nil {
 		writeUpdate(fmt.Sprintf("ERROR: Command failed to start: %v", err))
+		logFileHandle.WriteString(fmt.Sprintf("ERROR: Command failed to start: %v\n", err))
+		logFileHandle.Sync()
 		return
 	}
 
 	writeUpdate("Executing script...")
+	logFileHandle.WriteString("Executing script...\n")
 
-	// Stream stdout and stderr to os.Stdout/os.Stderr (which goes to the server log)
-	go io.Copy(os.Stdout, stdout)
-	go io.Copy(os.Stderr, stderr)
+	// Stream stdout and stderr ONLY to the update log file
+	go io.Copy(logFileHandle, stdout)
+	go io.Copy(logFileHandle, stderr)
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
 		logFilePath := "/Library/Ossec/logs/active-responses.log"
 		errorMessage := fmt.Sprintf("ERROR: Update failed: %v. Check logs at %s", err, logFilePath)
 		writeUpdate("Error")
+		logFileHandle.WriteString(fmt.Sprintf("UPDATE FAILED: %v\n", err))
+		logFileHandle.WriteString(fmt.Sprintf("Additional logs available at: %s\n", logFilePath))
 		log.Println(errorMessage)
 	} else {
 		writeUpdate("Complete")
+		logFileHandle.WriteString("UPDATE COMPLETED SUCCESSFULLY\n")
 		log.Println("Wazuh agent updated successfully")
 	}
+
+	// Close log file at the very end
+	logFileHandle.Close()
 }
 
 func windowsMain() {

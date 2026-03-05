@@ -5,9 +5,12 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/kardianos/service"
@@ -154,19 +157,98 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 	}
 
 	writeUpdate("Starting...")
-	log.Printf("Launching Wazuh agent update via Task Scheduler...\n")
 
-	err := createScheduledTask()
+	// Create log file for troubleshooting
+	logFile := "C:\\temp\\wazuh-update.log"
+	logFileHandle, err := os.Create(logFile)
 	if err != nil {
-		// Fallback to WMI method if Task Scheduler fails
-		writeUpdate("Task Scheduler failed, trying WMI method...")
-		log.Printf("Task Scheduler failed, trying WMI method...\n")
-		updateAgentViaWMI()
-		writeUpdate("Complete")
+		writeUpdate(fmt.Sprintf("ERROR: Failed to create log file: %v", err))
+		return
+	}
+	defer logFileHandle.Close()
+
+	writeUpdate(fmt.Sprintf("Logging to: %s", logFile))
+
+	var cmd *exec.Cmd
+	if isPrerelease {
+		// For prerelease, download and execute setup script directly
+		versionInfo := fetchVersionInfo()
+		if versionInfo != nil && versionInfo.Framework.PrereleaseVersion != "" {
+			prereleaseScriptURL := fmt.Sprintf("https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v%s/scripts/setup-agent.ps1", versionInfo.Framework.PrereleaseVersion)
+			writeUpdate(fmt.Sprintf("Downloading prerelease script from: %s", versionInfo.Framework.PrereleaseVersion))
+			logFileHandle.WriteString(fmt.Sprintf("Prerelease Script URL: %s\n", prereleaseScriptURL))
+
+			// Create a temporary directory for the script
+			tmpDir := "C:\\temp\\wazuh-prerelease"
+			if err := os.MkdirAll(tmpDir, 0755); err != nil {
+				writeUpdate(fmt.Sprintf("ERROR: Failed to create temp directory: %v", err))
+				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to create temp directory: %v\n", err))
+				logFileHandle.Close()
+				return
+			}
+			defer os.RemoveAll(tmpDir)
+
+			// Download the prerelease setup script
+			scriptPath := filepath.Join(tmpDir, "setup-agent.ps1")
+			if err := downloadFile(prereleaseScriptURL, scriptPath); err != nil {
+				writeUpdate(fmt.Sprintf("ERROR: Failed to download script: %v", err))
+				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to download script: %v\n", err))
+				logFileHandle.Close()
+				return
+			}
+
+			cmd = exec.Command(powershellExe, "-ExecutionPolicy", "Bypass", "-File", scriptPath)
+			logFileHandle.WriteString(fmt.Sprintf("Executing: %s -ExecutionPolicy Bypass -File %s\n", powershellExe, scriptPath))
+
+			// Execute the prerelease script
+			if err := cmd.Start(); err != nil {
+				writeUpdate(fmt.Sprintf("ERROR: Command failed to start: %v", err))
+				logFileHandle.WriteString(fmt.Sprintf("ERROR: Command failed to start: %v\n", err))
+				logFileHandle.Close()
+				return
+			}
+
+			writeUpdate("Executing script...")
+			logFileHandle.WriteString("Executing script...\n")
+
+			// Stream stdout and stderr ONLY to the update log file
+			stdout, _ := cmd.StdoutPipe()
+			stderr, _ := cmd.StderrPipe()
+			go io.Copy(logFileHandle, stdout)
+			go io.Copy(logFileHandle, stderr)
+
+			// Wait for the command to finish
+			if err := cmd.Wait(); err != nil {
+				writeUpdate("Error")
+				logFileHandle.WriteString(fmt.Sprintf("UPDATE FAILED: %v\n", err))
+				log.Println(fmt.Sprintf("ERROR: Update failed: %v", err))
+			} else {
+				writeUpdate("Complete")
+				logFileHandle.WriteString("UPDATE COMPLETED SUCCESSFULLY\n")
+				log.Println("Wazuh agent updated successfully")
+			}
+
+			// Close log file at the very end
+			logFileHandle.Close()
+		} else {
+			writeUpdate(fmt.Sprintf("ERROR: Empty prerelease"))
+			logFileHandle.WriteString(fmt.Sprintf("ERROR: Empty prerelease"))
+			return
+		}
 	} else {
-		writeUpdate("Task Scheduler method succeeded")
-		log.Printf("Wazuh agent update launched successfully via Task Scheduler\n")
+		// Regular update - use existing methods
+		writeUpdate("Using regular update method")
+		logFileHandle.WriteString("Using regular update method\n")
+		logFileHandle.Close()
+		err := createScheduledTask()
+		if err != nil {
+			writeUpdate("Task Scheduler failed, trying WMI method...")
+			updateAgentViaWMI()
+		} else {
+			writeUpdate("Task Scheduler method succeeded")
+		}
 		writeUpdate("Complete")
+		return
 	}
 }
 

@@ -162,17 +162,27 @@ func checkAndSetVersion() {
 	versionInfo := fetchVersionInfo()
 	agentGroups := getAgentGroups()
 
-	currentVersion := fmt.Sprintf("v%s", localVersion)
+	// Check if current version is a prerelease (contains "rc")
+	isCurrentPrerelease := strings.Contains(localVersion, "rc")
+
+	var versionPrefix string
+	if isCurrentPrerelease {
+		versionPrefix = fmt.Sprintf("Prerelease: v%s", localVersion)
+	} else {
+		versionPrefix = fmt.Sprintf("v%s", localVersion)
+	}
+
+	currentVersion := versionPrefix
 	if localVersion == "Unknown" || versionInfo == nil {
 		currentVersion = "Version: Unknown"
 	} else if versionInfo.Framework.Version != "" && isVersionHigher(versionInfo.Framework.Version, localVersion) {
 		// Agent is outdated compared to stable version - prioritize this
-		currentVersion = fmt.Sprintf("Outdated, v%s", localVersion)
+		currentVersion = fmt.Sprintf("Outdated, %s", versionPrefix)
 	} else if versionInfo.Framework.PrereleaseVersion != "" && shouldShowPrerelease(versionInfo, agentGroups) && isVersionHigher(versionInfo.Framework.PrereleaseVersion, localVersion) {
 		// Agent is NOT outdated compared to stable, but a higher prerelease version is available for test groups
-		currentVersion = fmt.Sprintf("Prerelease available: %s (current: v%s)", versionInfo.Framework.PrereleaseVersion, localVersion)
+		currentVersion = fmt.Sprintf("Prerelease available: %s (current: %s)", versionInfo.Framework.PrereleaseVersion, versionPrefix)
 	} else {
-		currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
+		currentVersion = fmt.Sprintf("Up to date, %s", versionPrefix)
 	}
 	manager.SetVersion(currentVersion)
 	log.Printf("Version status: %s", currentVersion)
@@ -520,4 +530,26 @@ func getVersionFilePath() string {
 	default:
 		return "/var/ossec/etc/version.txt"
 	}
+}
+
+// downloadFile downloads a file from URL to the specified path
+func downloadFile(url, filePath string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+	}
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
 }

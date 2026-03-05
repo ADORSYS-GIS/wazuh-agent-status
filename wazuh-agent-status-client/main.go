@@ -242,7 +242,7 @@ func monitorVersion() {
 			log.Println("Current Version:", currentVersion)
 
 			// If the version matches the expected format, break the inner loop.
-			if versionRegex.MatchString(currentVersion) {
+			if versionRegex.MatchString(currentVersion) || strings.HasPrefix(currentVersion, "Prerelease: ") {
 				log.Println("Version check successful.")
 				break
 			}
@@ -350,6 +350,22 @@ func handleVersionCheck(autoStart bool) {
 		versionItem.SetTooltip(fmt.Sprintf("Current version: %s", version))
 		updateItem.SetTitle("Up to date")
 		updateItem.Disable()
+
+		// Hide prerelease button if current version is a prerelease and up to date
+		if strings.Contains(version, "rc") {
+			if prereleaseUpdateItem != nil {
+				prereleaseUpdateItem.SetTitle("Up to date")
+				prereleaseUpdateItem.Disable()
+			}
+			// Hide prerelease notification items if they exist
+			if prereleaseItem != nil {
+				prereleaseItem.Hide()
+			}
+			if prereleaseUpdateItem != nil {
+				prereleaseUpdateItem.Hide()
+			}
+			prereleaseNotificationActive = false
+		}
 	} else {
 		versionItem.SetTitle("v---")
 		versionItem.SetTooltip("Prerelease available")
@@ -490,11 +506,11 @@ func showPrereleaseNotification(prereleaseInfo string) {
 	log.Printf("Prerelease menu items created successfully")
 
 	// Handle prerelease menu actions
-	go handlePrereleaseActions(prereleaseInfo)
+	go handlePrereleaseActions()
 }
 
 // handlePrereleaseActions handles clicks on prerelease notification menu items
-func handlePrereleaseActions(prereleaseInfo string) {
+func handlePrereleaseActions() {
 	for range prereleaseUpdateItem.ClickedCh {
 		log.Println("Prerelease update clicked. Starting update...")
 		prereleaseUpdateItem.SetTitle("Starting Prerelease Update...")
@@ -509,6 +525,8 @@ func startPrereleaseUpdateStream() {
 	// Use a specialized update stream for prerelease versions
 	if !updateMutex.TryLock() {
 		log.Println("Update already in progress. Skipping.")
+		prereleaseUpdateItem.SetTitle("Update to Prerelease")
+		prereleaseUpdateItem.Enable()
 		return
 	}
 	defer updateMutex.Unlock()
@@ -516,7 +534,7 @@ func startPrereleaseUpdateStream() {
 	conn, err := net.DialTimeout("tcp", backendAddress, 5*time.Second)
 	if err != nil {
 		log.Printf("Failed to connect to backend for prerelease update stream: %v", err)
-		prereleaseUpdateItem.SetTitle("Update Failed (Connect)")
+		prereleaseUpdateItem.SetTitle("Prerelease Update Failed (Connect)")
 		prereleaseUpdateItem.Enable()
 		return
 	}
@@ -532,7 +550,8 @@ func startPrereleaseUpdateStream() {
 		if err != nil {
 			if err != io.EOF {
 				log.Printf("Prerelease update stream error: %v", err)
-				prereleaseUpdateItem.SetTitle("Update Failed (Stream)")
+				prereleaseUpdateItem.SetTitle("Prerelease Update Failed (Stream)")
+				prereleaseUpdateItem.Enable()
 			} else {
 				log.Println("Prerelease update stream finished (EOF).")
 				// Set a temporary status before the synchronous check
@@ -547,12 +566,19 @@ func startPrereleaseUpdateStream() {
 		// Display status on the menu item
 		if strings.HasPrefix(trimmed, "UPDATE_PROGRESS:") {
 			status := strings.TrimPrefix(trimmed, "UPDATE_PROGRESS: ")
-			if status == "Complete" || status == "Error" {
+			if status == "Complete" || status == "Error" || strings.HasPrefix(status, "ERROR:") {
+				if status == "Error" || strings.HasPrefix(status, "ERROR:") {
+					prereleaseUpdateItem.SetTitle("Prerelease Update Failed")
+					prereleaseUpdateItem.Enable()
+				}
 				break
 			}
 			prereleaseUpdateItem.SetTitle(fmt.Sprintf("Updating: %s", status))
 		}
 	}
+
+	// After the stream ends, perform a synchronous version check to update the menu accurately
+	handleVersionCheck(false)
 }
 
 // getMenuItemTitle extracts the Title from MenuItem.String()
