@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	backendAddress = "localhost:50506"
+	backendAddress = "localhost:50505"
 )
 
 //go:embed assets/*
