@@ -165,7 +165,6 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 		writeUpdate(fmt.Sprintf("ERROR: Failed to create log file: %v", err))
 		return
 	}
-	defer logFileHandle.Close()
 
 	writeUpdate(fmt.Sprintf("Logging to: %s", logFile))
 
@@ -227,19 +226,18 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 				logFileHandle.WriteString("UPDATE COMPLETED SUCCESSFULLY\n")
 				log.Println("Wazuh agent updated successfully")
 			}
-
-			// Close log file at the very end
 			logFileHandle.Close()
+			return
 		} else {
 			writeUpdate(fmt.Sprintf("ERROR: Empty prerelease"))
 			logFileHandle.WriteString(fmt.Sprintf("ERROR: Empty prerelease"))
+			logFileHandle.Close()
 			return
 		}
 	} else {
 		// Regular update - use existing methods
 		writeUpdate("Using regular update method")
 		logFileHandle.WriteString("Using regular update method\n")
-		logFileHandle.Close()
 		err := createScheduledTask()
 		if err != nil {
 			writeUpdate("Task Scheduler failed, trying WMI method...")
@@ -248,6 +246,7 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 			writeUpdate("Task Scheduler method succeeded")
 		}
 		writeUpdate("Complete")
+		logFileHandle.Close()
 		return
 	}
 }
