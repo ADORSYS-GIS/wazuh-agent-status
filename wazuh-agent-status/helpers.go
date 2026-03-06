@@ -61,9 +61,18 @@ func getLocalVersion() string {
 }
 
 func isVersionHigher(online, local string) bool {
-	onlineParts := strings.Split(strings.TrimPrefix(online, "v"), ".")
-	localParts := strings.Split(strings.TrimPrefix(local, "v"), ".")
+	// Strip "v" prefix
+	online = strings.TrimPrefix(online, "v")
+	local = strings.TrimPrefix(local, "v")
 
+	// Split by "-" to separate version from prerelease (e.g., "1.9.0-rc.1" -> ["1.9.0", "rc.1"])
+	onlineBase := strings.Split(online, "-")[0]
+	localBase := strings.Split(local, "-")[0]
+
+	onlineParts := strings.Split(onlineBase, ".")
+	localParts := strings.Split(localBase, ".")
+
+	// Compare base version numbers
 	for i := 0; i < len(onlineParts) && i < len(localParts); i++ {
 		var onlineNum, localNum int
 		fmt.Sscanf(onlineParts[i], "%d", &onlineNum)
@@ -77,7 +86,25 @@ func isVersionHigher(online, local string) bool {
 		}
 	}
 
-	return len(onlineParts) > len(localParts)
+	// If base versions are equal, check length
+	if len(onlineParts) != len(localParts) {
+		return len(onlineParts) > len(localParts)
+	}
+
+	// If base versions are identical, stable release (no "-") is higher than prerelease (has "-")
+	// e.g., "1.9.0" > "1.9.0-rc.1"
+	onlineIsPrerelease := strings.Contains(online, "-")
+	localIsPrerelease := strings.Contains(local, "-")
+
+	if onlineIsPrerelease && !localIsPrerelease {
+		return false // online is prerelease, local is stable -> online is NOT higher
+	}
+	if !onlineIsPrerelease && localIsPrerelease {
+		return true // online is stable, local is prerelease -> online IS higher
+	}
+
+	// Both are prerelease or both are stable with same base version
+	return false
 }
 
 func fetchVersionInfo() *VersionInfo {
@@ -182,15 +209,15 @@ func getBasePath() string {
 	case "windows":
 		return "C:\\Program Files (x86)\\ossec-agent"
 	default:
-		return "Unsupported OS"
+		return unsupportedOSMessage
 	}
 }
 
 // getMergedMgPath returns merged.mg path based on the OS
 func getMergedMgPath() string {
 	basePath := getBasePath()
-	if basePath == "Unsupported OS" {
-		return "Unsupported OS"
+	if basePath == unsupportedOSMessage {
+		return unsupportedOSMessage
 	}
 	switch os := runtime.GOOS; os {
 	case "windows":
@@ -203,8 +230,8 @@ func getMergedMgPath() string {
 // getVersionFilePath returns version.txt path based on the OS
 func getVersionFilePath() string {
 	basePath := getBasePath()
-	if basePath == "Unsupported OS" {
-		return "Unsupported OS"
+	if basePath == unsupportedOSMessage {
+		return unsupportedOSMessage
 	}
 	switch runtime.GOOS {
 	case "windows":
@@ -294,7 +321,7 @@ func handlePrereleaseUpdate(writeUpdate func(string), logFileHandle *os.File) {
 	switch runtime.GOOS {
 	case "windows":
 		// On Windows, use PowerShell to execute the PowerShell script
-		cmd = exec.Command("powershell.exe", "-ExecutionPolicy", "Bypass", "-File", tempFile.Name())
+		cmd = exec.Command(powershellExe, executionPolicyFlag, "Bypass", "-File", tempFile.Name())
 	default:
 		// On Unix-like systems, execute the shell script directly
 		cmd = exec.Command(tempFile.Name())

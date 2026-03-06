@@ -16,16 +16,17 @@ import (
 )
 
 const (
-	versionURL          = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
-	backendPort         = "50506"
-	backendAddress      = "localhost:" + backendPort
-	sudoCommand         = "/usr/bin/sudo"
-	grepCommand         = "/usr/bin/grep"
-	errorPrefix         = "ERROR:"
-	upToDateStatus      = "Up to date"
-	sourceFileMarker    = "Source file:"
-	powershellExe       = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
-	executionPolicyFlag = "-ExecutionPolicy"
+	versionURL           = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
+	backendPort          = "50506"
+	backendAddress       = "localhost:" + backendPort
+	sudoCommand          = "/usr/bin/sudo"
+	grepCommand          = "/usr/bin/grep"
+	errorPrefix          = "ERROR:"
+	upToDateStatus       = "Up to date"
+	sourceFileMarker     = "Source file:"
+	powershellExe        = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+	executionPolicyFlag  = "-ExecutionPolicy"
+	unsupportedOSMessage = "Unsupported OS"
 )
 
 // Version is set at build time via ldflags

@@ -113,54 +113,54 @@ func handleRegularUpdate(writeUpdate func(string), adorsysUpdatePath string, upd
 
 func getWazuhControlPath() (string, error) {
 	basePath := getBasePath()
-	if basePath == "Unsupported OS" {
-		return "", fmt.Errorf("unsupported OS")
+	if basePath == unsupportedOSMessage {
+		return "", fmt.Errorf(unsupportedOSMessage)
 	}
 
 	switch runtime.GOOS {
 	case "linux", "darwin":
 		return filepath.Join(basePath, "bin", "wazuh-control"), nil
 	default:
-		return "", fmt.Errorf("unsupported OS")
+		return "", fmt.Errorf(unsupportedOSMessage)
 	}
 }
 
 func getWazuhStatePath() (string, error) {
 	basePath := getBasePath()
-	if basePath == "Unsupported OS" {
-		return "", fmt.Errorf("unsupported OS")
+	if basePath == unsupportedOSMessage {
+		return "", fmt.Errorf(unsupportedOSMessage)
 	}
 	switch runtime.GOOS {
 	case "linux", "darwin":
 		return filepath.Join(basePath, "var", "run", "wazuh-agentd.state"), nil
 	default:
-		return "", fmt.Errorf("unsupported OS")
+		return "", fmt.Errorf(unsupportedOSMessage)
 	}
 }
 
 func getAdorsysUpdatePath() (string, error) {
 	basePath := getBasePath()
-	if basePath == "Unsupported OS" {
-		return "", fmt.Errorf("unsupported OS")
+	if basePath == unsupportedOSMessage {
+		return "", fmt.Errorf(unsupportedOSMessage)
 	}
 	switch runtime.GOOS {
 	case "linux", "darwin":
 		return filepath.Join(basePath, "active-response", "bin", "adorsys-update.sh"), nil
 	default:
-		return "", fmt.Errorf("unsupported OS")
+		return "", fmt.Errorf(unsupportedOSMessage)
 	}
 }
 
 func getUpdateLogPath() (string, error) {
 	basePath := getBasePath()
-	if basePath == "Unsupported OS" {
-		return "", fmt.Errorf("unsupported OS")
+	if basePath == unsupportedOSMessage {
+		return "", fmt.Errorf(unsupportedOSMessage)
 	}
 	switch runtime.GOOS {
 	case "linux", "darwin":
 		return filepath.Join(basePath, "active-response", "logs", "active-responses.log"), nil
 	default:
-		return "", fmt.Errorf("unsupported OS")
+		return "", fmt.Errorf(unsupportedOSMessage)
 	}
 }
 
