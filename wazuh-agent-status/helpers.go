@@ -265,16 +265,19 @@ func handlePrereleaseUpdate(writeUpdate func(string), logFileHandle *os.File) {
 	}
 
 	var prereleaseScriptURL string
+	var tempFilePattern string
 	switch runtime.GOOS {
 	case "windows":
 		prereleaseScriptURL = fmt.Sprintf("https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v%s/scripts/setup-agent.ps1", versionInfo.Framework.PrereleaseVersion)
+		tempFilePattern = "wazuh-prerelease-*.ps1"
 	default:
 		prereleaseScriptURL = fmt.Sprintf("https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v%s/scripts/setup-agent.sh", versionInfo.Framework.PrereleaseVersion)
+		tempFilePattern = "wazuh-prerelease-*.sh"
 	}
 
 	log.Printf("Prerelease script URL: %s", prereleaseScriptURL)
 
-	tempFile, err := os.CreateTemp("", "wazuh-prerelease-*.sh")
+	tempFile, err := os.CreateTemp("", tempFilePattern)
 	if err != nil {
 		logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to create temp log file: %v\n", err))
 		return
@@ -287,7 +290,15 @@ func handlePrereleaseUpdate(writeUpdate func(string), logFileHandle *os.File) {
 	}
 	defer os.Remove(tempFile.Name()) // Clean up temp file
 
-	cmd := exec.Command(tempFile.Name())
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		// On Windows, use PowerShell to execute the PowerShell script
+		cmd = exec.Command("powershell.exe", "-ExecutionPolicy", "Bypass", "-File", tempFile.Name())
+	default:
+		// On Unix-like systems, execute the shell script directly
+		cmd = exec.Command(tempFile.Name())
+	}
 
 	executePrereleaseScript(cmd, writeUpdate, logFileHandle)
 }

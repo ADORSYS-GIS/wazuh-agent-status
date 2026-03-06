@@ -16,10 +16,8 @@ import (
 
 // Define constants for commonly used literals
 const (
-	powershellExe       = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
-	cmdFlag             = "-Command"
-	taskName            = "WazuhAgentUpdate"
-	executionPolicyFlag = "-ExecutionPolicy"
+	cmdFlag  = "-Command"
+	taskName = "WazuhAgentUpdate"
 )
 
 // Define the program structure for the service
