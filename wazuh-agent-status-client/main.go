@@ -19,8 +19,19 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// String constants to avoid duplication
 const (
-	backendAddress = "localhost:50505"
+	// backend address
+	backendAddress = "localhost:50506"
+
+	// Update state
+	updateAvailableTitle = "Update Available"
+	upToDateStatus       = "Up to date"
+
+	// Default states
+	defaultVersionTitle = "v---"
+	defaultUpdateTitle  = "---"
+	unknownString       = "Unknown"
 )
 
 //go:embed assets/*
@@ -115,15 +126,15 @@ func onReady() {
 	}
 
 	// Create menu items
-	statusItem = systray.AddMenuItem("Agent: Unknown", "Wazuh Agent Status")
+	statusItem = systray.AddMenuItem(fmt.Sprintf("Agent: %s", unknownString), "Wazuh Agent Status")
 	statusItem.Disable()
-	connectionItem = systray.AddMenuItem("Connection: Unknown", "Wazuh Agent Connection")
+	connectionItem = systray.AddMenuItem(fmt.Sprintf("Connection: %s", unknownString), "Wazuh Agent Connection")
 	connectionItem.Disable()
 	systray.AddSeparator()
-	updateItem = systray.AddMenuItem("---", "Update the Wazuh Agent")
+	updateItem = systray.AddMenuItem(defaultUpdateTitle, "Update the Wazuh Agent")
 	updateItem.Disable() // Initially disabled
 	systray.AddSeparator()
-	versionItem = systray.AddMenuItem("v---", "The version state of the wazuhbsetup")
+	versionItem = systray.AddMenuItem(defaultVersionTitle, "The version state of the wazuhbsetup")
 	versionItem.Disable() // Initially disabled
 
 	// Start background monitoring routines (guarded to run only once)
@@ -185,7 +196,7 @@ func monitorStatusStream() {
 		conn, err := establishConnection()
 		if err != nil {
 			log.Printf("Failed to connect to backend for status stream: %v. Retrying in 5s...", err)
-			updateStatusItems("Unknown", "Unknown")
+			updateStatusItems(unknownString, unknownString)
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -242,7 +253,7 @@ func monitorVersion() {
 			log.Println("Current Version:", currentVersion)
 
 			// If the version matches the expected format, break the inner loop.
-			if versionRegex.MatchString(currentVersion) || strings.HasPrefix(currentVersion, "Prerelease: ") {
+			if versionRegex.MatchString(currentVersion) || strings.HasPrefix(currentVersion, "Prerelease: ") || strings.HasPrefix(currentVersion, "v") {
 				log.Println("Version check successful.")
 				break
 			}
@@ -263,8 +274,8 @@ func handleVersionCheck(autoStart bool) {
 	response, err := sendCommandAndReceive("get-version")
 	if err != nil {
 		log.Printf("Error fetching version: %v", err)
-		versionItem.SetTitle("Unknown")
-		updateItem.SetTitle("---")
+		versionItem.SetTitle(unknownString)
+		updateItem.SetTitle(defaultUpdateTitle)
 		updateItem.Disable()
 		return
 	}
@@ -272,105 +283,162 @@ func handleVersionCheck(autoStart bool) {
 	response = strings.TrimPrefix(response, "VERSION_CHECK: ")
 	isOutdated := strings.Contains(response, "Outdated")
 	isPrerelease := strings.Contains(response, "Prerelease available")
+	isCombined := strings.Contains(response, "Outdated with Prerelease available")
 
 	// --- Update Menu Items ---
-	if isOutdated {
-		// Defensive parsing: only split into two parts and validate
-		isPrerelease = false // Ensure we don't treat an outdated response as a prerelease
-		parts := strings.SplitN(response, ", ", 2)
-		version := "Unknown"
-		if len(parts) == 2 {
-			version = parts[1]
-		} else {
-			log.Printf("Unexpected version response (Outdated): %q", response)
+	if isCombined {
+		handleCombinedStatus(response, autoStart)
+	} else if isOutdated {
+		handleOutdatedVersion(response, autoStart)
+	} else if isPrerelease {
+		handlePrereleaseVersion(response)
+	} else if strings.Contains(response, upToDateStatus) {
+		handleUpToDateVersion(response)
+	} else {
+		versionItem.SetTitle(defaultVersionTitle)
+		versionItem.SetTooltip("Prerelease available")
+		updateItem.SetTitle(defaultUpdateTitle)
+		updateItem.Disable()
+	}
+}
+
+// handleCombinedStatus processes responses where both stable update and prerelease are available
+func handleCombinedStatus(response string, autoStart bool) {
+	// Parse the combined response format: "Outdated with Prerelease available: v1.0.0 (stable: 1.1.0, prerelease: 1.2.0-rc1)"
+	// or "Outdated with Prerelease available: Prerelease: v1.9.0-rc.1 (stable: 1.1.0, prerelease: 1.2.0-rc1)"
+	re := regexp.MustCompile(`Outdated with Prerelease available: (.+?) \(stable: ([^,]+), prerelease: ([^\)]+)\)`)
+	matches := re.FindStringSubmatch(response)
+
+	if len(matches) == 4 {
+		currentVersion := strings.TrimSpace(matches[1])
+		stableVersion := matches[2]
+		prereleaseVersion := matches[3]
+
+		log.Printf("Combined status - Current: %s, Stable: %s, Prerelease: %s", currentVersion, stableVersion, prereleaseVersion)
+
+		// Ensure current version has proper format (starts with v if not prerelease)
+		if !strings.HasPrefix(currentVersion, "v") && !strings.HasPrefix(currentVersion, "Prerelease:") {
+			currentVersion = "v" + currentVersion
 		}
-		versionItem.SetTitle(version)
-		updateItem.SetTitle("Update Available")
+
+		// Set version display to current version
+		versionItem.SetTitle(currentVersion)
+		versionItem.SetTooltip(fmt.Sprintf("%s: %s (stable), %s (prerelease)", updateAvailableTitle, stableVersion, prereleaseVersion))
+
+		// Enable regular update button for stable version
+		updateItem.SetTitle(fmt.Sprintf("%s (Stable)", updateAvailableTitle))
 		updateItem.Enable()
 
+		// Show prerelease notification
+		prereleaseInfo := fmt.Sprintf("%s", prereleaseVersion)
+		showPrereleaseNotification(prereleaseInfo)
+
 		if autoStart {
-			log.Println("Automatic update triggered by periodic check.")
+			log.Println("Automatic update triggered by periodic check (stable version).")
 			updateItem.Disable()
 			go startUpdateStream()
 		}
+	} else {
+		// Fallback parsing if regex fails
+		log.Printf("Failed to parse combined status from: %q", response)
+		versionItem.SetTitle(defaultVersionTitle)
+		versionItem.SetTooltip("Update and prerelease available")
+		updateItem.SetTitle(updateAvailableTitle)
+		updateItem.Enable()
+	}
+}
 
-	} else if isPrerelease {
-		// Parse prerelease version info
-		// Expected format: "Prerelease available: 1.9.0-rc.1 (current: v1.8.0)"
-		log.Printf("Prerelease response received: %q", response)
-		if strings.HasPrefix(response, "Prerelease available:") {
-			// Extract the prerelease version and current version
-			prereleaseVersion := ""
-			currentVersion := ""
+// handleOutdatedVersion processes outdated version response
+func handleOutdatedVersion(response string, autoStart bool) {
+	parts := strings.SplitN(response, ", ", 2)
+	version := unknownString
+	if len(parts) == 2 {
+		version = parts[1]
+	} else {
+		log.Printf("Unexpected version response (Outdated): %q", response)
+	}
+	versionItem.SetTitle(version)
+	updateItem.SetTitle(updateAvailableTitle)
+	updateItem.Enable()
 
-			// Use regex to extract versions more reliably
-			re := regexp.MustCompile(`Prerelease available: ([^\s]+) \(current: v([^\)]+)\)`)
-			matches := re.FindStringSubmatch(response)
-			log.Printf("Regex matches: %v (length: %d)", matches, len(matches))
-			if len(matches) == 3 {
-				prereleaseVersion = matches[1]
-				currentVersion = matches[2]
-				log.Printf("Extracted - Prerelease: %s, Current: %s", prereleaseVersion, currentVersion)
+	if autoStart {
+		log.Println("Automatic update triggered by periodic check.")
+		updateItem.Disable()
+		go startUpdateStream()
+	}
+}
 
-				versionItem.SetTitle(currentVersion)
+// handlePrereleaseVersion processes prerelease version response
+func handlePrereleaseVersion(response string) {
+	log.Printf("Prerelease response received: %q", response)
+	if !strings.HasPrefix(response, "Prerelease available:") {
+		versionItem.SetTitle(response)
+		updateItem.SetTitle(defaultUpdateTitle)
+		updateItem.Disable()
+		return
+	}
 
-				// Mark version item as "hidden" when prerelease is available
-				versionItem.SetTooltip("Prerelease available")
+	// Use regex to extract versions more reliably
+	re := regexp.MustCompile(`Prerelease available: ([^\s]+) \(current: v([^\)]+)\)`)
+	matches := re.FindStringSubmatch(response)
+	log.Printf("Regex matches: %v (length: %d)", matches, len(matches))
 
-				// Show prerelease notification with clean format
-				prereleaseInfo := fmt.Sprintf("%s", prereleaseVersion)
-				showPrereleaseNotification(prereleaseInfo)
+	if len(matches) == 3 {
+		prereleaseVersion := matches[1]
+		currentVersion := matches[2]
+		log.Printf("Extracted - Prerelease: %s, Current: %s", prereleaseVersion, currentVersion)
 
-				// Hide regular update button when prerelease is available
-				updateItem.SetTitle("Up to date")
-				updateItem.Disable()
-			} else {
-				// Fallback parsing if regex fails
-				log.Printf("Failed to parse prerelease info from: %q", response)
-				versionItem.SetTitle("v---")
-				versionItem.SetTooltip("Prerelease available")
-				updateItem.SetTitle("---")
-				updateItem.Disable()
-			}
-		} else {
-			versionItem.SetTitle(response)
-			updateItem.SetTitle("---")
+		versionItem.SetTitle(currentVersion)
+		versionItem.SetTooltip("Prerelease available")
+
+		// Show prerelease notification with clean format
+		prereleaseInfo := fmt.Sprintf("%s", prereleaseVersion)
+		showPrereleaseNotification(prereleaseInfo)
+
+		// Only hide regular update button if this is not a combined status
+		// (combined status is handled by handleCombinedStatus)
+		if !strings.Contains(response, "Outdated with") {
+			updateItem.SetTitle(upToDateStatus)
 			updateItem.Disable()
 		}
-	} else if strings.Contains(response, "Up to date") {
-		// Defensive parsing: only split into two parts and validate
-		parts := strings.SplitN(response, ", ", 2)
-		version := "Unknown"
-		if len(parts) == 2 {
-			version = parts[1]
-		} else {
-			log.Printf("Unexpected version response (Up to date): %q", response)
-		}
-		versionItem.SetTitle(version)
-		versionItem.SetTooltip(fmt.Sprintf("Current version: %s", version))
-		updateItem.SetTitle("Up to date")
-		updateItem.Disable()
-
-		// Hide prerelease button if current version is a prerelease and up to date
-		if strings.Contains(version, "rc") {
-			if prereleaseUpdateItem != nil {
-				prereleaseUpdateItem.SetTitle("Up to date")
-				prereleaseUpdateItem.Disable()
-			}
-			// Hide prerelease notification items if they exist
-			if prereleaseItem != nil {
-				prereleaseItem.Hide()
-			}
-			if prereleaseUpdateItem != nil {
-				prereleaseUpdateItem.Hide()
-			}
-			prereleaseNotificationActive = false
-		}
 	} else {
-		versionItem.SetTitle("v---")
+		// Fallback parsing if regex fails
+		log.Printf("Failed to parse prerelease info from: %q", response)
+		versionItem.SetTitle(defaultVersionTitle)
 		versionItem.SetTooltip("Prerelease available")
-		updateItem.SetTitle("---")
+		updateItem.SetTitle(defaultUpdateTitle)
 		updateItem.Disable()
+	}
+}
+
+// handleUpToDateVersion processes up-to-date version response
+func handleUpToDateVersion(response string) {
+	parts := strings.SplitN(response, ", ", 2)
+	version := unknownString
+	if len(parts) == 2 {
+		version = parts[1]
+	} else {
+		log.Printf("Unexpected version response (%s): %q", upToDateStatus, response)
+	}
+	versionItem.SetTitle(version)
+	versionItem.SetTooltip(fmt.Sprintf("Current version: %s", version))
+	updateItem.SetTitle(upToDateStatus)
+	updateItem.Disable()
+
+	// Hide prerelease button if current version is a prerelease and up to date
+	if strings.Contains(version, "rc") {
+		if prereleaseUpdateItem != nil {
+			prereleaseUpdateItem.SetTitle(upToDateStatus)
+			prereleaseUpdateItem.Disable()
+		}
+		// Hide prerelease notification items if they exist
+		if prereleaseItem != nil {
+			prereleaseItem.Hide()
+		}
+		if prereleaseUpdateItem != nil {
+			prereleaseUpdateItem.Hide()
+		}
+		prereleaseNotificationActive = false
 	}
 }
 
@@ -543,8 +611,35 @@ func startPrereleaseUpdateStream() {
 	fmt.Fprintln(conn, "update-prerelease")
 
 	reader := bufio.NewReader(conn)
+	readUpdateStream(reader, prereleaseUpdateItem)
 
-	// Read and process the streaming response from the server
+	// After the stream ends, perform a synchronous version check to update the menu accurately
+	handleVersionCheck(false)
+}
+
+// processUpdateStreamResponse processes a single line from the update stream
+func processUpdateStreamResponse(trimmed string, prereleaseUpdateItem *systray.MenuItem) bool {
+	log.Printf("Prerelease Update Stream: %s", trimmed)
+
+	// Display status on the menu item
+	if !strings.HasPrefix(trimmed, "UPDATE_PROGRESS:") {
+		return true
+	}
+
+	status := strings.TrimPrefix(trimmed, "UPDATE_PROGRESS: ")
+	if status == "Complete" || status == "Error" || strings.HasPrefix(status, "ERROR:") {
+		if status == "Error" || strings.HasPrefix(status, "ERROR:") {
+			prereleaseUpdateItem.SetTitle("Prerelease Update Failed")
+			prereleaseUpdateItem.Enable()
+		}
+		return false
+	}
+	prereleaseUpdateItem.SetTitle(fmt.Sprintf("Updating: %s", status))
+	return true
+}
+
+// readUpdateStream reads and processes the update stream
+func readUpdateStream(reader *bufio.Reader, prereleaseUpdateItem *systray.MenuItem) {
 	for {
 		response, err := reader.ReadString('\n')
 		if err != nil {
@@ -554,31 +649,16 @@ func startPrereleaseUpdateStream() {
 				prereleaseUpdateItem.Enable()
 			} else {
 				log.Println("Prerelease update stream finished (EOF).")
-				// Set a temporary status before the synchronous check
 				prereleaseUpdateItem.SetTitle("Checking Version Status...")
 			}
 			break
 		}
 
 		trimmed := strings.TrimSpace(response)
-		log.Printf("Prerelease Update Stream: %s", trimmed)
-
-		// Display status on the menu item
-		if strings.HasPrefix(trimmed, "UPDATE_PROGRESS:") {
-			status := strings.TrimPrefix(trimmed, "UPDATE_PROGRESS: ")
-			if status == "Complete" || status == "Error" || strings.HasPrefix(status, "ERROR:") {
-				if status == "Error" || strings.HasPrefix(status, "ERROR:") {
-					prereleaseUpdateItem.SetTitle("Prerelease Update Failed")
-					prereleaseUpdateItem.Enable()
-				}
-				break
-			}
-			prereleaseUpdateItem.SetTitle(fmt.Sprintf("Updating: %s", status))
+		if !processUpdateStreamResponse(trimmed, prereleaseUpdateItem) {
+			break
 		}
 	}
-
-	// After the stream ends, perform a synchronous version check to update the menu accurately
-	handleVersionCheck(false)
 }
 
 // getMenuItemTitle extracts the Title from MenuItem.String()

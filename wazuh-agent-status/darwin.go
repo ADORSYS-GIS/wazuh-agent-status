@@ -49,11 +49,8 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 
 	writeUpdate("Starting...")
 
-	// Create log file for troubleshooting
-	logFile := "/tmp/wazuh-update.log"
-	logFileHandle, err := os.Create(logFile)
+	logFileHandle, err := createLogFile()
 	if err != nil {
-		writeUpdate(fmt.Sprintf("ERROR: Failed to create log file: %v", err))
 		return
 	}
 	defer logFileHandle.Close()
@@ -67,9 +64,9 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 			writeUpdate(fmt.Sprintf("Downloading prerelease script from: %s", versionInfo.Framework.PrereleaseVersion))
 			logFileHandle.WriteString(fmt.Sprintf("Prerelease Script URL: %s\n", prereleaseScriptURL))
 
-			// Create a temporary directory for the script
-			tmpDir := "/tmp/wazuh-prerelease"
-			if err := os.MkdirAll(tmpDir, 0755); err != nil {
+			// Create a secure temporary directory for the script
+			tmpDir, err := os.MkdirTemp("", "wazuh-prerelease-*")
+			if err != nil {
 				writeUpdate(fmt.Sprintf("ERROR: Failed to create temp directory: %v", err))
 				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to create temp directory: %v\n", err))
 				return
@@ -86,7 +83,7 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 			}
 
 			// Make script executable and run it
-			if err := os.Chmod(scriptPath, 0755); err != nil {
+			if err := os.Chmod(scriptPath, 0750); err != nil {
 				writeUpdate(fmt.Sprintf("ERROR: Failed to make script executable: %v", err))
 				logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to make script executable: %v\n", err))
 				logFileHandle.Sync()
@@ -135,5 +132,5 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 }
 
 func windowsMain() {
-	// This function is intentionally left empty for macOS builds.
+	// This function is intentionally left empty for unix builds.
 }

@@ -2,15 +2,11 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net"
-	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -20,11 +16,14 @@ import (
 )
 
 const (
-	versionURL     = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
-	backendPort    = "50505"
-	backendAddress = "localhost:" + backendPort
-	sudoCommand    = "/usr/bin/sudo"
-	grepCommand    = "/usr/bin/grep"
+	versionURL       = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
+	backendPort      = "50506"
+	backendAddress   = "localhost:" + backendPort
+	sudoCommand      = "/usr/bin/sudo"
+	grepCommand      = "/usr/bin/grep"
+	errorPrefix      = "ERROR:"
+	upToDateStatus   = "Up to date"
+	sourceFileMarker = "Source file:"
 )
 
 // Version is set at build time via ldflags
@@ -175,41 +174,30 @@ func checkAndSetVersion() {
 	currentVersion := versionPrefix
 	if localVersion == "Unknown" || versionInfo == nil {
 		currentVersion = "Version: Unknown"
-	} else if versionInfo.Framework.Version != "" && isVersionHigher(versionInfo.Framework.Version, localVersion) {
-		// Agent is outdated compared to stable version - prioritize this
-		currentVersion = fmt.Sprintf("Outdated, %s", versionPrefix)
-	} else if versionInfo.Framework.PrereleaseVersion != "" && shouldShowPrerelease(versionInfo, agentGroups) && isVersionHigher(versionInfo.Framework.PrereleaseVersion, localVersion) {
-		// Agent is NOT outdated compared to stable, but a higher prerelease version is available for test groups
-		currentVersion = fmt.Sprintf("Prerelease available: %s (current: %s)", versionInfo.Framework.PrereleaseVersion, versionPrefix)
 	} else {
-		currentVersion = fmt.Sprintf("Up to date, %s", versionPrefix)
+		// Check for both outdated stable and prerelease availability
+		isOutdated := versionInfo.Framework.Version != "" && isVersionHigher(versionInfo.Framework.Version, localVersion)
+		hasPrerelease := versionInfo.Framework.PrereleaseVersion != "" && shouldShowPrerelease(versionInfo, agentGroups) && isVersionHigher(versionInfo.Framework.PrereleaseVersion, localVersion)
+
+		if isOutdated && hasPrerelease {
+			// Both stable update and prerelease available
+			currentVersion = fmt.Sprintf("Outdated with Prerelease available: %s (stable: %s, prerelease: %s)", versionPrefix, versionInfo.Framework.Version, versionInfo.Framework.PrereleaseVersion)
+		} else if isOutdated {
+			// Only stable update available
+			currentVersion = fmt.Sprintf("Outdated, %s", versionPrefix)
+		} else if hasPrerelease {
+			// Only prerelease available
+			currentVersion = fmt.Sprintf("Prerelease available: %s (current: %s)", versionInfo.Framework.PrereleaseVersion, versionPrefix)
+		} else {
+			// Up to date
+			currentVersion = fmt.Sprintf("%s, %s", upToDateStatus, versionPrefix)
+		}
 	}
 	manager.SetVersion(currentVersion)
 	log.Printf("Version status: %s", currentVersion)
 }
 
 // --- SERVER AND CONNECTION HANDLER ---
-
-func getSystemLogFilePath() string {
-	var logDir string
-
-	switch runtime.GOOS {
-	case "linux", "darwin":
-		logDir = "/var/log"
-	case "windows":
-		logDir = "C:\\ProgramData\\wazuh\\logs"
-	default:
-		logDir = "./logs"
-	}
-
-	if runtime.GOOS == "windows" {
-		if err := os.MkdirAll(logDir, 0755); err != nil {
-			log.Fatalf("failed to create log directory: %v", err)
-		}
-	}
-
-	return filepath.Join(logDir, "wazuh-agent-status.log")
-}
 
 func init() {
 	logFilePath := getSystemLogFilePath()
@@ -282,274 +270,88 @@ func handleConnection(conn net.Conn) {
 
 		switch command {
 		case "get-version":
-			checkAndSetVersion() // Check version on demand
-			versionInfo := manager.GetVersion()
-			conn.Write([]byte(fmt.Sprintf("VERSION_CHECK: %s\n", versionInfo)))
+			handleGetVersion(conn)
 
 		case "subscribe-status":
-			ch := notifier.Subscribe(connID)
-
-			// Send initial state immediately
-			status, connection := manager.GetStatus()
-			conn.Write([]byte(fmt.Sprintf("STATUS_UPDATE: %s, %s\n", status, connection)))
-
-			// Push loop
-			for update := range ch {
-				_, err := conn.Write([]byte(update))
-				if err != nil {
-					log.Printf("Error writing update to %s: %v", connID, err)
-					notifier.Unsubscribe(connID)
-					return
-				}
-			}
+			handleSubscribeStatus(conn, connID)
 			return
 
 		case "update":
 			log.Println("Received update command. Starting update stream...")
-			// Update routine runs in a new goroutine and streams progress
-			go func() {
-				// We dial self to open a new dedicated connection for the update stream.
-				updateConn, dialErr := net.DialTimeout("tcp", backendAddress, 5*time.Second)
-				if dialErr != nil {
-					log.Printf("Failed to dial self for update stream: %v", dialErr)
-					conn.Write([]byte("ERROR: Update stream failed to start.\n"))
-					return
-				}
-				defer updateConn.Close()
-
-				// Send the dedicated command to initiate the stream
-				fmt.Fprintln(updateConn, "initiate-update-stream")
-
-				// Read the stream response and pipe it to the client's current connection
-				_, copyErr := io.Copy(conn, updateConn)
-				if copyErr != nil && copyErr != io.EOF {
-					log.Printf("Error streaming update logs: %v", copyErr)
-				}
-			}()
+			startUpdateStreamAsync(conn, false)
 
 		case "update-prerelease":
 			log.Println("Received prerelease update command. Starting update stream...")
-			// Update routine runs in a new goroutine and streams progress
-			go func() {
-				// We dial self to open a new dedicated connection for the update stream.
-				updateConn, dialErr := net.DialTimeout("tcp", backendAddress, 5*time.Second)
-				if dialErr != nil {
-					log.Printf("Failed to dial self for prerelease update stream: %v", dialErr)
-					conn.Write([]byte("ERROR: Prerelease update stream failed to start.\n"))
-					return
-				}
-				defer updateConn.Close()
-
-				// Send the dedicated command to initiate the prerelease stream
-				fmt.Fprintln(updateConn, "initiate-prerelease-update-stream")
-
-				// Read the stream response and pipe it to the client's current connection
-				_, copyErr := io.Copy(conn, updateConn)
-				if copyErr != nil && copyErr != io.EOF {
-					log.Printf("Error streaming prerelease update logs: %v", copyErr)
-				}
-			}()
+			startUpdateStreamAsync(conn, true)
 
 		case "initiate-update-stream":
-			// This is the dedicated connection for the update process, passed from the self-dial
-			updateAgent(conn, false) // updateAgent will write progress and close this conn
+			// This is the dedicated connection for the update process
+			updateAgent(conn, false)
 			log.Println("Update finished and stream closed.")
 
 		case "initiate-prerelease-update-stream":
-			// This is the dedicated connection for the prerelease update process, passed from the self-dial
-			updateAgent(conn, true) // updateAgent will write progress and close this conn
+			// This is the dedicated connection for the prerelease update process
+			updateAgent(conn, true)
 			log.Println("Prerelease update finished and stream closed.")
 
 		default:
-			conn.Write([]byte(fmt.Sprintf("ERROR: Unknown command: %s\n", command)))
+			conn.Write([]byte(fmt.Sprintf("%s Unknown command: %s\n", errorPrefix, command)))
 		}
 	}
 }
 
-// Run a command as root using sudo
-func runAsRoot(command string, args ...string) (string, error) {
-	cmd := exec.Command(sudoCommand, append([]string{command}, args...)...)
-	output, err := cmd.CombinedOutput()
-	return string(output), err
+// handleGetVersion processes the get-version command
+func handleGetVersion(conn net.Conn) {
+	checkAndSetVersion() // Check version on demand
+	versionInfo := manager.GetVersion()
+	conn.Write([]byte(fmt.Sprintf("VERSION_CHECK: %s\n", versionInfo)))
 }
 
-// Read local version from embedded file
-func getLocalVersion() string {
-	if runtime.GOOS == "windows" {
-		output, err := os.ReadFile(getVersionFilePath())
+// handleSubscribeStatus processes the subscribe-status command
+func handleSubscribeStatus(conn net.Conn, connID string) {
+	ch := notifier.Subscribe(connID)
+
+	// Send initial state immediately
+	status, connection := manager.GetStatus()
+	conn.Write([]byte(fmt.Sprintf("STATUS_UPDATE: %s, %s\n", status, connection)))
+
+	// Push loop
+	for update := range ch {
+		_, err := conn.Write([]byte(update))
 		if err != nil {
-			log.Printf("Failed to read local version on Windows: %v", err)
-			return "Unknown"
+			log.Printf("Error writing update to %s: %v", connID, err)
+			notifier.Unsubscribe(connID)
+			return
 		}
-		return strings.TrimSpace(string(output))
-	} else {
-		output, err := runAsRoot("cat", getVersionFilePath())
-		if err != nil {
-			log.Printf("Failed to read local version on Linux/macOS: %v", err)
-			return "Unknown"
-		}
-		return strings.TrimSpace(output)
 	}
 }
 
-func isVersionHigher(online, local string) bool {
-	onlineParts := strings.Split(strings.TrimPrefix(online, "v"), ".")
-	localParts := strings.Split(strings.TrimPrefix(local, "v"), ".")
-
-	for i := 0; i < len(onlineParts) && i < len(localParts); i++ {
-		var onlineNum, localNum int
-		fmt.Sscanf(onlineParts[i], "%d", &onlineNum)
-		fmt.Sscanf(localParts[i], "%d", &localNum)
-
-		if onlineNum > localNum {
-			return true
-		}
-		if onlineNum < localNum {
-			return false
-		}
-	}
-
-	return len(onlineParts) > len(localParts)
-}
-
-func fetchVersionInfo() *VersionInfo {
-	resp, err := http.Get(versionURL)
-	if err != nil {
-		log.Printf("Failed to fetch version info: %v", err)
-		return nil
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("Failed to fetch version info: HTTP %d", resp.StatusCode)
-		return nil
-	}
-
-	var versionInfo VersionInfo
-	err = json.NewDecoder(resp.Body).Decode(&versionInfo)
-	if err != nil {
-		log.Printf("Failed to parse version info: %v", err)
-		return nil
-	}
-	log.Printf("Fetched version info: Framework.Version=%s, Framework.PrereleaseVersion=%s, TestGroups=%v",
-		versionInfo.Framework.Version, versionInfo.Framework.PrereleaseVersion, versionInfo.PrereleaseTestGroups)
-
-	return &versionInfo
-}
-
-// getAgentGroups extracts groups from merged.mg
-func getAgentGroups() []string {
-	mergedMgPath := getMergedMgPath()
-	var output string
-	var err error
-
-	if runtime.GOOS == "windows" {
-		data, readErr := os.ReadFile(mergedMgPath)
-		if readErr != nil {
-			log.Printf("Failed to read merged.mg on Windows: %v", readErr)
-			return []string{}
-		}
-		output = string(data)
-	} else {
-		output, err = runAsRoot(grepCommand, "Source file:", mergedMgPath)
-		if err != nil {
-			log.Printf("Failed to grep merged.mg on Linux/macOS: %v", err)
-			// On error, try reading the file directly as a fallback
-			data, readErr := os.ReadFile(mergedMgPath)
-			if readErr != nil {
-				return []string{}
+// startUpdateStreamAsync starts an update stream in a goroutine
+func startUpdateStreamAsync(conn net.Conn, isPrerelease bool) {
+	go func() {
+		updateConn, dialErr := net.DialTimeout("tcp", backendAddress, 5*time.Second)
+		if dialErr != nil {
+			streamType := "update"
+			if isPrerelease {
+				streamType = "prerelease update"
 			}
-			output = string(data)
+			log.Printf("Failed to dial self for %s stream: %v", streamType, dialErr)
+			conn.Write([]byte(fmt.Sprintf("%s %s stream failed to start.\n", errorPrefix, streamType)))
+			return
 		}
-	}
+		defer updateConn.Close()
 
-	return extractGroupsFromMergedMg(output)
-}
-
-// extractGroupsFromMergedMg parses the merged.mg content to extract groups
-func extractGroupsFromMergedMg(content string) []string {
-	var groups []string
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "Source file:") {
-			// Extract group from "<!-- Source file: <group>/agent.conf -->"
-			parts := strings.Split(line, "Source file:")
-			if len(parts) > 1 {
-				groupPart := strings.TrimSpace(parts[1])
-				// Extract until "/agent.conf"
-				if strings.Contains(groupPart, "/agent.conf") {
-					group := strings.Split(groupPart, "/agent.conf")[0]
-					groups = append(groups, strings.TrimSpace(group))
-				}
-			}
+		// Send the dedicated command to initiate the stream
+		command := "initiate-update-stream"
+		if isPrerelease {
+			command = "initiate-prerelease-update-stream"
 		}
-	}
-	return groups
-}
+		fmt.Fprintln(updateConn, command)
 
-// shouldShowPrerelease checks if prerelease should be shown based on agent groups
-func shouldShowPrerelease(versionInfo *VersionInfo, agentGroups []string) bool {
-	if len(versionInfo.PrereleaseTestGroups) == 0 || len(agentGroups) == 0 {
-		return false
-	}
-
-	// Check if any agent group matches the test groups
-	for _, agentGroup := range agentGroups {
-		for _, testGroup := range versionInfo.PrereleaseTestGroups {
-			if strings.EqualFold(agentGroup, testGroup) {
-				return true
-			}
+		// Read the stream response and pipe it to the client's current connection
+		_, copyErr := io.Copy(conn, updateConn)
+		if copyErr != nil && copyErr != io.EOF {
+			log.Printf("Error streaming update logs: %v", copyErr)
 		}
-	}
-
-	return false
-}
-
-// getMergedMgPath returns merged.mg path based on the OS
-func getMergedMgPath() string {
-	switch os := runtime.GOOS; os {
-	case "linux":
-		return "/var/ossec/etc/shared/merged.mg"
-	case "darwin":
-		return "/Library/Ossec/etc/shared/merged.mg"
-	case "windows":
-		return "C:\\Program Files (x86)\\ossec-agent\\shared\\merged.mg"
-	default:
-		return "/var/ossec/etc/shared/merged.mg"
-	}
-}
-
-func getVersionFilePath() string {
-	switch os := runtime.GOOS; os {
-	case "linux":
-		return "/var/ossec/etc/version.txt"
-	case "darwin":
-		return "/Library/Ossec/etc/version.txt"
-	case "windows":
-		return "C:\\Program Files (x86)\\ossec-agent\\version.txt"
-	default:
-		return "/var/ossec/etc/version.txt"
-	}
-}
-
-// downloadFile downloads a file from URL to the specified path
-func downloadFile(url, filePath string) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
-	}
-
-	out, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	return err
+	}()
 }
