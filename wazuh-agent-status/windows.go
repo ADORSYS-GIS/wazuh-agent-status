@@ -16,9 +16,10 @@ import (
 
 // Define constants for commonly used literals
 const (
-	cmdFlag    = "-Command"
-	taskName   = "WazuhAgentUpdate"
-	updateFlag = "-Update"
+	cmdFlag      = "-Command"
+	taskName     = "WazuhAgentUpdate"
+	updateFlag   = "-Update"
+	updateScript = "C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\adorsys-update.ps1"
 )
 
 // Define the program structure for the service
@@ -100,7 +101,7 @@ func createScheduledTask() error {
 	// PowerShell script to create a scheduled task
 	psScript := fmt.Sprintf(`
 		$taskName = "%s"
-		$updateExe = "C:\Program Files (x86)\ossec-agent\active-response\bin\adorsys-update.exe"
+		$updateScript = "%s"
 
 		# Check if task already exists
 		$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
@@ -108,7 +109,7 @@ func createScheduledTask() error {
 			Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
 		}
 
-		# Create the action
+		# Create the action to run PowerShell with the script
 		$action = New-ScheduledTaskAction -Execute $updateExe -Argument "%s"
 
 		# Create a trigger that runs immediately
@@ -131,7 +132,7 @@ func createScheduledTask() error {
 
 		# Clean up the task after it runs
 		Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-	`, taskName, updateFlag)
+	`, taskName, updateScript, updateFlag)
 
 	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	output, err := cmd.CombinedOutput()
@@ -193,7 +194,7 @@ func updateAgentViaWMI() {
 			$sessionId = (Get-Process -IncludeUserName | Where-Object {$_.UserName -eq $sessions} | Select-Object -First 1).SessionId
 			if ($sessionId) {
 				# Use WMI to create process in user session
-				$updateExe = "C:\Program Files (x86)\ossec-agent\active-response\bin\adorsys-update.exe"
+				$updateScript = %s
 				
 				# Create process in the user's session
 				$startInfo = ([wmiclass]"\\localhost\root\cimv2:Win32_ProcessStartup").CreateInstance()
@@ -212,7 +213,7 @@ func updateAgentViaWMI() {
 		} else {
 			Write-Error "No active user session found"
 		}
-	`, updateFlag)
+	`, updateScript, updateFlag)
 
 	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	output, err := cmd.CombinedOutput()
@@ -231,11 +232,10 @@ func updateAgentViaWMI() {
 // updateAgentDirect attempts direct execution (last resort)
 func updateAgentDirect() {
 	log.Printf("Attempting direct execution as last resort...\n")
-
 	psScript := fmt.Sprintf(`
-		$updateExe = "C:\Program Files (x86)\ossec-agent\active-response\bin\adorsys-update.exe"
+		$updateExe = %s
 		Start-Process -FilePath $updateExe -ArgumentList "%s" -Verb RunAs -WindowStyle Normal
-	`, updateFlag)
+	`, updateScript, updateFlag)
 
 	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	err := cmd.Start()
