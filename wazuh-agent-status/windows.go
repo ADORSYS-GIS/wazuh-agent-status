@@ -110,7 +110,7 @@ func createScheduledTask() error {
 		}
 
 		# Create the action to run PowerShell with the script
-		$action = New-ScheduledTaskAction -Execute $updateExe -Argument "%s"
+		$action = New-ScheduledTaskAction -Execute $updateScript -Argument "%s"
 
 		# Create a trigger that runs immediately
 		$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(2)
@@ -200,7 +200,7 @@ func updateAgentViaWMI() {
 				$startInfo = ([wmiclass]"\\localhost\root\cimv2:Win32_ProcessStartup").CreateInstance()
 				$startInfo.ShowWindow = 1  # Show window
 				
-				$result = ([wmiclass]"\\localhost\root\cimv2:Win32_Process").Create("$updateExe %s", $null, $startInfo)
+				$result = ([wmiclass]"\\localhost\root\cimv2:Win32_Process").Create("$updateScript %s", $null, $startInfo)
 				
 				if ($result.ReturnValue -eq 0) {
 					Write-Output "Update process started successfully with PID: $($result.ProcessId)"
@@ -233,8 +233,8 @@ func updateAgentViaWMI() {
 func updateAgentDirect() {
 	log.Printf("Attempting direct execution as last resort...\n")
 	psScript := fmt.Sprintf(`
-		$updateExe = %s
-		Start-Process -FilePath $updateExe -ArgumentList "%s" -Verb RunAs -WindowStyle Normal
+		$updateScript = %s
+		Start-Process -FilePath $updateScript -ArgumentList "%s" -Verb RunAs -WindowStyle Normal
 	`, updateScript, updateFlag)
 
 	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
