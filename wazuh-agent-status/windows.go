@@ -96,54 +96,6 @@ func checkServiceStatus() (string, string) {
 	return status, connection
 }
 
-// createScheduledTask creates a Windows scheduled task that will run in the user's context
-func createScheduledTask() error {
-	// PowerShell script to create a scheduled task
-	psScript := fmt.Sprintf(`
-		$taskName = "%s"
-		$updateScript = "%s"
-
-		# Check if task already exists
-		$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-		if ($existingTask) {
-			Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-		}
-
-		# Create the action to run PowerShell with the script
-		$action = New-ScheduledTaskAction -Execute $updateScript -Argument "%s"
-
-		# Create a trigger that runs immediately
-		$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(2)
-
-		# Set to run as BUILTIN\Administrators group with highest privileges
-		$principal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-544" -RunLevel Highest
-
-		# Create settings
-		$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-
-		# Register the task
-		Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force
-
-		# Run the task immediately
-		Start-ScheduledTask -TaskName $taskName
-
-		# Wait a moment for task to start
-		Start-Sleep -Seconds 2
-
-		# Clean up the task after it runs
-		Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-	`, taskName, updateScript, updateFlag)
-
-	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("Failed to create scheduled task: %v\nOutput: %s", err, string(output))
-		return err
-	}
-	log.Printf("Scheduled task created and started successfully")
-	return nil
-}
-
 // updateAgent updates the Wazuh agent on Windows and streams progress to the client
 func updateAgent(conn net.Conn, isPrerelease bool) {
 	// The caller (handleConnection) closes the dedicated update stream conn when this function returns
@@ -174,64 +126,6 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 func handleRegularUpdate(writeUpdate func(string), logFileHandle *os.File) {
 	writeUpdate("Using regular update method")
 	logFileHandle.WriteString("Using regular update method\n")
-	err := createScheduledTask()
-	if err != nil {
-		writeUpdate("Task Scheduler failed, trying WMI method...")
-		updateAgentViaWMI()
-	} else {
-		writeUpdate("Task Scheduler method succeeded")
-	}
-	writeUpdate("Complete")
-}
-
-// updateAgentViaWMI uses WMI to launch the update in the user's session (fallback method)
-func updateAgentViaWMI() {
-	psScript := fmt.Sprintf(`
-		# Get the active user session
-		$sessions = Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty UserName
-		if ($sessions) {
-			# Get the session ID of the active user
-			$sessionId = (Get-Process -IncludeUserName | Where-Object {$_.UserName -eq $sessions} | Select-Object -First 1).SessionId
-			if ($sessionId) {
-				# Use WMI to create process in user session
-				$updateScript = %s
-				
-				# Create process in the user's session
-				$startInfo = ([wmiclass]"\\localhost\root\cimv2:Win32_ProcessStartup").CreateInstance()
-				$startInfo.ShowWindow = 1  # Show window
-				
-				$result = ([wmiclass]"\\localhost\root\cimv2:Win32_Process").Create("$updateScript %s", $null, $startInfo)
-				
-				if ($result.ReturnValue -eq 0) {
-					Write-Output "Update process started successfully with PID: $($result.ProcessId)"
-				} else {
-					Write-Error "Failed to start update process. Return code: $($result.ReturnValue)"
-				}
-			} else {
-				Write-Error "Could not find active user session ID"
-			}
-		} else {
-			Write-Error "No active user session found"
-		}
-	`, updateScript, updateFlag)
-
-	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
-		errorMessage := fmt.Sprintf("Failed to launch update via WMI: %v. Output: %s\nFor details check logs at %s", err, string(output), logFilePath)
-		log.Printf("%s\n", errorMessage)
-
-		// Last resort: try direct execution
-		updateAgentDirect()
-	} else {
-		log.Printf("Wazuh agent update launched successfully via WMI\nOutput: %s\n", string(output))
-	}
-}
-
-// updateAgentDirect attempts direct execution (last resort)
-func updateAgentDirect() {
-	log.Printf("Attempting direct execution as last resort...\n")
 	psScript := fmt.Sprintf(`
 		$updateScript = %s
 		Start-Process -FilePath $updateScript -ArgumentList "%s" -Verb RunAs -WindowStyle Normal
@@ -240,10 +134,11 @@ func updateAgentDirect() {
 	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	err := cmd.Start()
 	if err != nil {
-		log.Printf("Direct execution failed: %v\n", err)
-		log.Printf("All update methods have failed. Manual intervention may be required.\n")
+		writeUpdate("Update failed")
+		logFileHandle.WriteString("Update failed\n")
 	} else {
-		log.Printf("Direct execution initiated\n")
+		writeUpdate("Update initiated")
+		logFileHandle.WriteString("Update initiated\n")
 	}
 }
 
