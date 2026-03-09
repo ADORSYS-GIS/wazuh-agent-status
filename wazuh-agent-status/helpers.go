@@ -321,7 +321,7 @@ func handlePrereleaseUpdate(writeUpdate func(string), logFileHandle *os.File) {
 	switch runtime.GOOS {
 	case "windows":
 		// On Windows, use PowerShell to execute the PowerShell script
-		cmd = exec.Command(powershellExe, executionPolicyFlag, "Bypass", "-File", tempFile.Name())
+		cmd = exec.Command(powershellExe, executionPolicyFlag, "Bypass", "-File", tempFile.Name(), "-Prerelease")
 	default:
 		// On Unix-like systems, execute the shell script directly
 		cmd = exec.Command(tempFile.Name())

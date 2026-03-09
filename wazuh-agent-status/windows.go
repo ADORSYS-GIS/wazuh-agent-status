@@ -16,8 +16,9 @@ import (
 
 // Define constants for commonly used literals
 const (
-	cmdFlag  = "-Command"
-	taskName = "WazuhAgentUpdate"
+	cmdFlag    = "-Command"
+	taskName   = "WazuhAgentUpdate"
+	updateFlag = "-Update"
 )
 
 // Define the program structure for the service
@@ -108,7 +109,7 @@ func createScheduledTask() error {
 		}
 
 		# Create the action
-		$action = New-ScheduledTaskAction -Execute $updateExe
+		$action = New-ScheduledTaskAction -Execute $updateExe -Argument "%s"
 
 		# Create a trigger that runs immediately
 		$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(2)
@@ -130,7 +131,7 @@ func createScheduledTask() error {
 
 		# Clean up the task after it runs
 		Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-	`, taskName)
+	`, taskName, updateFlag)
 
 	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	output, err := cmd.CombinedOutput()
@@ -184,7 +185,7 @@ func handleRegularUpdate(writeUpdate func(string), logFileHandle *os.File) {
 
 // updateAgentViaWMI uses WMI to launch the update in the user's session (fallback method)
 func updateAgentViaWMI() {
-	psScript := `
+	psScript := fmt.Sprintf(`
 		# Get the active user session
 		$sessions = Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty UserName
 		if ($sessions) {
@@ -198,7 +199,7 @@ func updateAgentViaWMI() {
 				$startInfo = ([wmiclass]"\\localhost\root\cimv2:Win32_ProcessStartup").CreateInstance()
 				$startInfo.ShowWindow = 1  # Show window
 				
-				$result = ([wmiclass]"\\localhost\root\cimv2:Win32_Process").Create($updateExe, $null, $startInfo)
+				$result = ([wmiclass]"\\localhost\root\cimv2:Win32_Process").Create("$updateExe %s", $null, $startInfo)
 				
 				if ($result.ReturnValue -eq 0) {
 					Write-Output "Update process started successfully with PID: $($result.ProcessId)"
@@ -211,7 +212,7 @@ func updateAgentViaWMI() {
 		} else {
 			Write-Error "No active user session found"
 		}
-	`
+	`, updateFlag)
 
 	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	output, err := cmd.CombinedOutput()
@@ -231,10 +232,10 @@ func updateAgentViaWMI() {
 func updateAgentDirect() {
 	log.Printf("Attempting direct execution as last resort...\n")
 
-	psScript := `
+	psScript := fmt.Sprintf(`
 		$updateExe = "C:\Program Files (x86)\ossec-agent\active-response\bin\adorsys-update.exe"
-		Start-Process -FilePath $updateExe -Verb RunAs -WindowStyle Normal
-	`
+		Start-Process -FilePath $updateExe -ArgumentList "%s" -Verb RunAs -WindowStyle Normal
+	`, updateFlag)
 
 	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	err := cmd.Start()
