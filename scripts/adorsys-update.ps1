@@ -36,10 +36,10 @@ if (-not $IsAdmin) {
 Set-StrictMode -Version Latest
 
 # ---- Configuration Variables ----
-$WAZUH_MANAGER       = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
-$OSSEC_PATH          = "C:\Program Files (x86)\ossec-agent\"
-$VERSION_URL         = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
-$STABLE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/scripts/setup-agent.ps1"
+$WAZUH_MANAGER           = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
+$OSSEC_PATH              = "C:\Program Files (x86)\ossec-agent\"
+$VERSION_URL             = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
+$STABLE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/windows-setup-agent-installer/scripts/setup-agent.ps1"
 
 # ---- Globals ----
 $ActiveResponsesLogDir = Join-Path $OSSEC_PATH "active-response"
@@ -143,7 +143,7 @@ function Run-Update {
 
     # Always pass -Upgrade to the downloaded setup script; add -Prerelease when in prerelease mode
     $setupArgs = @("-ExecutionPolicy", "Bypass", "-File", "`"$setupScriptPath`"", "-Update")
-    
+
     $flagSummary = ($setupArgs | Where-Object { $_ -like '-*' } | Select-Object -Skip 2) -join " "
     InfoMessage "Executing setup script with flags: $flagSummary"
 
