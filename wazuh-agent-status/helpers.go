@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func getSystemLogFilePath() string {
+func getSystemLogFilePath() (string, error) {
 	var logDir string
 
 	switch runtime.GOOS {
@@ -22,16 +22,16 @@ func getSystemLogFilePath() string {
 	case "windows":
 		logDir = "C:\\ProgramData\\wazuh\\logs"
 	default:
-		logDir = "./logs"
+		return "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 
 	if runtime.GOOS == "windows" {
 		if err := os.MkdirAll(logDir, 0755); err != nil {
-			log.Fatalf("failed to create log directory: %v", err)
+			return "", fmt.Errorf("failed to create log directory: %v", err)
 		}
 	}
 
-	return filepath.Join(logDir, "wazuh-agent-status.log")
+	return filepath.Join(logDir, "wazuh-agent-status.log"), nil
 }
 
 // Run a command as root using sudo
@@ -44,14 +44,24 @@ func runAsRoot(command string, args ...string) (string, error) {
 // Read local version from embedded file
 func getLocalVersion() string {
 	if runtime.GOOS == "windows" {
-		output, err := os.ReadFile(getVersionFilePath())
+		versionPath, err := getVersionFilePath()
+		if err != nil {
+			log.Printf("Failed to get version file path on Windows: %v", err)
+			return "Unknown"
+		}
+		output, err := os.ReadFile(versionPath)
 		if err != nil {
 			log.Printf("Failed to read local version on Windows: %v", err)
 			return "Unknown"
 		}
 		return strings.TrimSpace(string(output))
 	} else {
-		output, err := runAsRoot("cat", getVersionFilePath())
+		versionPath, err := getVersionFilePath()
+		if err != nil {
+			log.Printf("Failed to get version file path on Linux/macOS: %v", err)
+			return "Unknown"
+		}
+		output, err := runAsRoot("cat", versionPath)
 		if err != nil {
 			log.Printf("Failed to read local version on Linux/macOS: %v", err)
 			return "Unknown"
@@ -134,9 +144,13 @@ func fetchVersionInfo() *VersionInfo {
 
 // getAgentGroups extracts groups from merged.mg
 func getAgentGroups() []string {
-	mergedMgPath := getMergedMgPath()
+	mergedMgPath, err := getMergedMgPath()
+	if err != nil {
+		log.Printf("Failed to get merged.mg path: %v", err)
+		return []string{}
+	}
 	var output string
-	var err error
+	var readErr error
 
 	if runtime.GOOS == "windows" {
 		data, readErr := os.ReadFile(mergedMgPath)
@@ -146,9 +160,9 @@ func getAgentGroups() []string {
 		}
 		output = string(data)
 	} else {
-		output, err = runAsRoot(grepCommand, sourceFileMarker, mergedMgPath)
-		if err != nil {
-			log.Printf("Failed to grep merged.mg on Linux/macOS: %v", err)
+		output, readErr = runAsRoot(grepCommand, sourceFileMarker, mergedMgPath)
+		if readErr != nil {
+			log.Printf("Failed to grep merged.mg on Linux/macOS: %v", readErr)
 			// On error, try reading the file directly as a fallback
 			data, readErr := os.ReadFile(mergedMgPath)
 			if readErr != nil {
@@ -200,44 +214,72 @@ func shouldShowPrerelease(versionInfo *VersionInfo, agentGroups []string) bool {
 	return false
 }
 
-func getBasePath() string {
-	switch os := runtime.GOOS; os {
+func getBasePath() (string, error) {
+	switch runtime.GOOS {
 	case "linux":
-		return "/var/ossec"
+		return "/var/ossec", nil
 	case "darwin":
-		return "/Library/Ossec"
+		return "/Library/Ossec", nil
 	case "windows":
-		return "C:\\Program Files (x86)\\ossec-agent"
+		return "C:\\Program Files (x86)\\ossec-agent", nil
 	default:
-		return unsupportedOSMessage
+		return "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 }
 
 // getMergedMgPath returns merged.mg path based on the OS
-func getMergedMgPath() string {
-	basePath := getBasePath()
-	if basePath == unsupportedOSMessage {
-		return unsupportedOSMessage
+func getMergedMgPath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
 	}
 	switch os := runtime.GOOS; os {
 	case "windows":
-		return filepath.Join(basePath, "shared", "merged.mg")
+		return filepath.Join(basePath, "shared", "merged.mg"), nil
 	default:
-		return filepath.Join(basePath, "etc", "shared", "merged.mg")
+		return filepath.Join(basePath, "etc", "shared", "merged.mg"), nil
 	}
 }
 
 // getVersionFilePath returns version.txt path based on the OS
-func getVersionFilePath() string {
-	basePath := getBasePath()
-	if basePath == unsupportedOSMessage {
-		return unsupportedOSMessage
+func getVersionFilePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
 	}
 	switch runtime.GOOS {
 	case "windows":
-		return filepath.Join(basePath, "version.txt")
+		return filepath.Join(basePath, "version.txt"), nil
 	default:
-		return filepath.Join(basePath, "etc", "version.txt")
+		return filepath.Join(basePath, "etc", "version.txt"), nil
+	}
+}
+
+// getVersionFilePath returns adorsys-update.ps1 path based on the OS
+func getAdorsysUpdatePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	switch runtime.GOOS {
+	case "windows":
+		return filepath.Join(basePath, "active-response", "bin", "adorsys-update.ps1"), nil
+	default:
+		return filepath.Join(basePath, "active-response", "bin", "adorsys-update.sh"), nil
+	}
+}
+
+// getVersionFilePath returns state file path based on the OS
+func getWazuhStatePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	switch runtime.GOOS {
+	case "linux", "darwin":
+		return filepath.Join(basePath, "wazuh-agent.state"), nil
+	default:
+		return filepath.Join(basePath, "var", "run", "wazuh-agentd.state"), nil
 	}
 }
 

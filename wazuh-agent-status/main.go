@@ -203,7 +203,10 @@ func checkAndSetVersion() {
 // --- SERVER AND CONNECTION HANDLER ---
 
 func init() {
-	logFilePath := getSystemLogFilePath()
+	logFilePath, err := getSystemLogFilePath()
+	if err != nil {
+		log.Fatalf("Failed to get system log file path: %v", err)
+	}
 
 	log.SetOutput(&lumberjack.Logger{
 		Filename:   logFilePath,

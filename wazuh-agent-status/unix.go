@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -21,7 +22,7 @@ func checkServiceStatus() (string, string) {
 		return "Inactive", "Disconnected"
 	}
 
-	var getWazuhStatePath, statePathErr = getWazuhStatePath()
+	var wazuhStatePath, statePathErr = getWazuhStatePath()
 	if statePathErr != nil {
 		log.Printf("Error getting Wazuh state path: %v", statePathErr)
 		return "Inactive", "Disconnected"
@@ -39,7 +40,7 @@ func checkServiceStatus() (string, string) {
 		status = "Active"
 	}
 
-	connCmd := exec.Command(sudoCommand, grepCommand, "^status", getWazuhStatePath)
+	connCmd := exec.Command(sudoCommand, grepCommand, "^status", wazuhStatePath)
 	connOutput, connErr := connCmd.CombinedOutput()
 	connection := "Disconnected"
 	if connErr != nil {
@@ -68,12 +69,6 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 		return
 	}
 
-	var updateLogPath, logPathErr = getUpdateLogPath()
-	if logPathErr != nil {
-		log.Printf("Error getting update log path: %v", logPathErr)
-		return
-	}
-
 	writeUpdate("Starting...")
 
 	logFileHandle, err := createLogFile()
@@ -85,12 +80,12 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 	if isPrerelease {
 		handlePrereleaseUpdate(writeUpdate, logFileHandle)
 	} else {
-		handleRegularUpdate(writeUpdate, adorsysUpdatePath, updateLogPath)
+		handleRegularUpdate(writeUpdate, logFileHandle, adorsysUpdatePath)
 	}
 }
 
 // handleRegularUpdate handles the regular update process
-func handleRegularUpdate(writeUpdate func(string), adorsysUpdatePath string, updateLogPath string) {
+func handleRegularUpdate(writeUpdate func(string), logFileHandle *os.File, adorsysUpdatePath string) {
 	var cmd *exec.Cmd
 	cmd = exec.Command(sudoCommand, adorsysUpdatePath)
 	if err := cmd.Start(); err != nil {
@@ -102,8 +97,9 @@ func handleRegularUpdate(writeUpdate func(string), adorsysUpdatePath string, upd
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
-		errorMessage := fmt.Sprintf("ERROR: Update failed: %v. Check logs at %s", err, updateLogPath)
+		errorMessage := fmt.Sprintf("ERROR: Update failed: %v", err)
 		writeUpdate("Error")
+		logFileHandle.WriteString(errorMessage + "\n")
 		log.Println(errorMessage)
 	} else {
 		writeUpdate("Complete")
@@ -112,55 +108,16 @@ func handleRegularUpdate(writeUpdate func(string), adorsysUpdatePath string, upd
 }
 
 func getWazuhControlPath() (string, error) {
-	basePath := getBasePath()
-	if basePath == unsupportedOSMessage {
-		return "", fmt.Errorf(unsupportedOSMessage)
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
 	}
 
 	switch runtime.GOOS {
 	case "linux", "darwin":
 		return filepath.Join(basePath, "bin", "wazuh-control"), nil
 	default:
-		return "", fmt.Errorf(unsupportedOSMessage)
-	}
-}
-
-func getWazuhStatePath() (string, error) {
-	basePath := getBasePath()
-	if basePath == unsupportedOSMessage {
-		return "", fmt.Errorf(unsupportedOSMessage)
-	}
-	switch runtime.GOOS {
-	case "linux", "darwin":
-		return filepath.Join(basePath, "var", "run", "wazuh-agentd.state"), nil
-	default:
-		return "", fmt.Errorf(unsupportedOSMessage)
-	}
-}
-
-func getAdorsysUpdatePath() (string, error) {
-	basePath := getBasePath()
-	if basePath == unsupportedOSMessage {
-		return "", fmt.Errorf(unsupportedOSMessage)
-	}
-	switch runtime.GOOS {
-	case "linux", "darwin":
-		return filepath.Join(basePath, "active-response", "bin", "adorsys-update.sh"), nil
-	default:
-		return "", fmt.Errorf(unsupportedOSMessage)
-	}
-}
-
-func getUpdateLogPath() (string, error) {
-	basePath := getBasePath()
-	if basePath == unsupportedOSMessage {
-		return "", fmt.Errorf(unsupportedOSMessage)
-	}
-	switch runtime.GOOS {
-	case "linux", "darwin":
-		return filepath.Join(basePath, "active-response", "logs", "active-responses.log"), nil
-	default:
-		return "", fmt.Errorf(unsupportedOSMessage)
+		return "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 }
 
