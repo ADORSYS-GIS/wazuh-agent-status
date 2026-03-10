@@ -150,29 +150,6 @@ jobs:
           else
             echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
           fi
-      - name: Compute Windows numeric version for ps2exe
-        id: winver
-        shell: pwsh
-        run: |
-          $raw = '${{ steps.set_version.outputs.version }}'
-          # Drop leading 'v' if present
-          $ver = $raw.TrimStart('v')
-
-          # Grab the first numeric dotted sequence (up to 4 parts)
-          if ($ver -match '(\d+(?:\.\d+){0,3})') {
-            $ver = $Matches[1]
-          } else {
-            # Non-numeric branch names like dev-abcdef12
-            $ver = "0.0.0.${{ github.run_number }}"
-          }
-
-          # Normalize to 4 parts for ps2exe
-          $parts = $ver.Split('.')
-          while ($parts.Count -lt 4) { $parts += '0' }
-          $ver = ($parts[0..3] -join '.')
-
-          "win_version=$ver" >> $env:GITHUB_OUTPUT
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -186,28 +163,6 @@ jobs:
         run: |
           go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
-      - name: Install ps2exe module
-        shell: pwsh
-        run: |
-          Install-Module -Name ps2exe -Force -Scope CurrentUser
-
-      - name: Build adorsys-update.ps1 to executable
-        shell: pwsh
-        run: |
-          Import-Module ps2exe
-          $scriptPath = "scripts/adorsys-update.ps1"
-          $outputPath = "scripts/dist/adorsys-update-windows-${{ matrix.arch }}.exe"
-          New-Item -ItemType Directory -Force -Path "scripts/dist" | Out-Null
-          Invoke-ps2exe `
-            -inputFile $scriptPath `
-            -outputFile $outputPath `
-            -noConsole `
-            -title "Wazuh Agent Update Wizard" `
-            -version "${{ steps.winver.outputs.win_version }}" `
-            -company "ADORSYS" `
-            -product "Wazuh Agent Update Wizard" `
-            -copyright "Copyright (c) 2025 ADORSYS" `
-            -requireAdmin
 
       - name: Upload windows client binaries
         uses: actions/upload-artifact@v4
@@ -222,13 +177,6 @@ jobs:
           name: ${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}
           path: |
             ${{ env.SERVER_APP_NAME }}/dist/
-
-      - name: Upload adorsys-update executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: adorsys-update-windows-${{ matrix.arch }}
-          path: |
-            scripts/dist/
           
   release:
     name: Release

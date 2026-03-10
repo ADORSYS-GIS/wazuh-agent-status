@@ -4,6 +4,7 @@ $CLIENT_NAME =  "wazuh-agent-status-client"
 $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
+$UPDATE_SCRIPT_PATH = "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.bat"
 
 
 
@@ -135,6 +136,7 @@ function Remove-StartupShortcut {
 function Remove-Binaries {
     Remove-File $SERVER_EXE
     Remove-File $CLIENT_EXE
+    Remove-File $UPDATE_SCRIPT_PATH
     Remove-File $BIN_DIR
 }
 

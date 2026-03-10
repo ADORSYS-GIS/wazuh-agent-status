@@ -24,8 +24,8 @@ $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
 
-$UPDATE_BINARY_URL = if ($null -ne $env:UPDATE_BINARY_URL) { $env:UPDATE_BINARY_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION/adorsys-update-windows-$ARCH.exe" }
-$UPDATE_BINARY_PATH = if ($null -ne $env:UPDATE_BINARY_PATH) { $env:UPDATE_BINARY_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.exe" }
+$UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/v$WAS_VERSION/scripts/adorsys-update.bat" }
+$UPDATE_SCRIPT_PATH = if ($null -ne $env:UPDATE_SCRIPT_PATH) { $env:UPDATE_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.bat" }
 
 # Create necessary directories
 if (-not (Test-Path $BIN_DIR)) {
@@ -95,11 +95,11 @@ function Validate-Installation {
         ErrorExit "Startup shortcut is missing: $startupShortcutPath."
     }
 
-    # Validate adorsys-update binary/script
-    if (Test-Path -LiteralPath $UPDATE_BINARY_PATH) {
-        SuccessMessage "adorsys-update binary exists: $UPDATE_BINARY_PATH."
+    # Validate adorsys-update script
+    if (Test-Path -LiteralPath $UPDATE_SCRIPT_PATH) {
+        SuccessMessage "adorsys-update script exists: $UPDATE_SCRIPT_PATH."
     } else {
-        ErrorExit "adorsys-update binary is missing: $UPDATE_BINARY_PATH."
+        ErrorExit "adorsys-update script is missing: $UPDATE_SCRIPT_PATH."
     }
 
     SuccessMessage "Installation validation completed successfully."
@@ -212,27 +212,27 @@ Create-Service -ServiceName $SERVER_NAME -ExecutablePath $SERVER_EXE -DisplayNam
 PrintStep 4 "Configuring client startup..."
 Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
 
-# Download adorsys-update binary
-PrintStep 5 "Downloading adorsys-update binary..."
-# Check if the binary is currently running
+# Download adorsys-update script
+PrintStep 5 "Downloading adorsys-update script..."
+# Check if the script is currently running
 $UpdateProcesses = Get-Process -Name "adorsys-update" -ErrorAction SilentlyContinue
 if ($UpdateProcesses) {
-    InfoMessage "adorsys-update.exe is currently running. Downloading to .new file for delayed replacement..."
-    $UpdateBinaryNewPath = "$UPDATE_BINARY_PATH.new"
-    Download-File -Url $UPDATE_BINARY_URL -OutputPath $UpdateBinaryNewPath
-    InfoMessage "New version downloaded to: $UpdateBinaryNewPath"
-    InfoMessage "Creating scheduled task to replace binary on next reboot..."
+    InfoMessage "adorsys-update.bat is currently running. Downloading to .new file for delayed replacement..."
+    $UpdateScriptNewPath = "$UPDATE_SCRIPT_PATH.new"
+    Download-File -Url $UPDATE_SCRIPT_URL -OutputPath $UpdateScriptNewPath
+    InfoMessage "New version downloaded to: $UpdateScriptNewPath"
+    InfoMessage "Creating scheduled task to replace script on next reboot..."
 
-    # Create a scheduled task to replace the binary after logon
+    # Create a scheduled task to replace the script after logon
     $TaskName = "AdorsysUpdateSwap"
     $SwapScriptPath = "C:\ProgramData\ossec-agent\Run-UpdateSwap.ps1"
     $SwapScript = @"
 #Requires -Version 5.1
 `$ErrorActionPreference = 'Stop'
 
-`$updateExePath    = '$UPDATE_BINARY_PATH'
-`$updateExeNewPath = '$UPDATE_BINARY_PATH.new'
-`$updateExeOldPath = '$UPDATE_BINARY_PATH.old'
+`$updateScriptPath    = '$UPDATE_SCRIPT_PATH'
+`$updateScriptNewPath = '$UPDATE_SCRIPT_PATH.new'
+`$updateScriptOldPath = '$UPDATE_SCRIPT_PATH.old'
 `$logPath          = 'C:\Program Files (x86)\ossec-agent\active-response\active-responses.log'
 
 function Write-SwapLog {
@@ -247,24 +247,24 @@ function Write-SwapLog {
 Write-SwapLog 'Update swap task started'
 
 try {
-    if (Test-Path -LiteralPath `$updateExeNewPath) {
+    if (Test-Path -LiteralPath `$updateScriptNewPath) {
         Write-SwapLog 'Found pending update'
 
-        if (Test-Path -LiteralPath `$updateExeOldPath) {
-            Remove-Item -LiteralPath `$updateExeOldPath -Force
+        if (Test-Path -LiteralPath `$updateScriptOldPath) {
+            Remove-Item -LiteralPath `$updateScriptOldPath -Force
             Write-SwapLog 'Removed old backup'
         }
 
-        if (Test-Path -LiteralPath `$updateExePath) {
-            Move-Item -LiteralPath `$updateExePath -Destination `$updateExeOldPath -Force
+        if (Test-Path -LiteralPath `$updateScriptPath) {
+            Move-Item -LiteralPath `$updateScriptPath -Destination `$updateScriptOldPath -Force
             Write-SwapLog 'Backed up current version'
         }
 
-        Move-Item -LiteralPath `$updateExeNewPath -Destination `$updateExePath -Force
+        Move-Item -LiteralPath `$updateScriptNewPath -Destination `$updateScriptPath -Force
         Write-SwapLog 'Installed new version successfully'
 
-        if (Test-Path -LiteralPath `$updateExeOldPath) {
-            Remove-Item -LiteralPath `$updateExeOldPath -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath `$updateScriptOldPath) {
+            Remove-Item -LiteralPath `$updateScriptOldPath -Force -ErrorAction SilentlyContinue
             Write-SwapLog 'Cleaned up old backup'
         }
     } else {
@@ -275,8 +275,8 @@ catch {
     Write-SwapLog "ERROR: Failed to swap files: `$(`$_.Exception.Message)"
     # Attempt rollback if current went missing but backup exists
     try {
-        if (-not (Test-Path -LiteralPath `$updateExePath) -and (Test-Path -LiteralPath `$updateExeOldPath)) {
-            Move-Item -LiteralPath `$updateExeOldPath -Destination `$updateExePath -Force
+        if (-not (Test-Path -LiteralPath `$updateScriptPath) -and (Test-Path -LiteralPath `$updateScriptOldPath)) {
+            Move-Item -LiteralPath `$updateScriptOldPath -Destination `$updateScriptPath -Force
             Write-SwapLog 'Rolled back to previous version'
         }
     } catch {
@@ -333,8 +333,8 @@ finally {
         ErrorMessage "Failed to create scheduled task: $($_.Exception.Message)"
     }
 } else {
-    InfoMessage "adorsys-update.exe is not running. Downloading directly..."
-    Download-File -Url $UPDATE_BINARY_URL -OutputPath $UPDATE_BINARY_PATH
+    InfoMessage "adorsys-update.bat is not running. Downloading directly..."
+    Download-File -Url $UPDATE_SCRIPT_URL -OutputPath $UPDATE_SCRIPT_PATH
 }
 
 PrintStep 6 "Validating installation and configuration..."
