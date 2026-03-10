@@ -19,7 +19,6 @@ const (
 	cmdFlag    = "-Command"
 	taskName   = "WazuhAgentUpdate"
 	updateFlag = "-Update"
-	updateExe  = "C:\\Program Files (x86)\\ossec-agent\\active-response\\bin\\adorsys-update.bat"
 )
 
 // Define the program structure for the service
@@ -103,7 +102,7 @@ func checkServiceStatus() (string, string) {
 }
 
 // createScheduledTask creates a Windows scheduled task that will run in the user's context
-func createScheduledTask() error {
+func createScheduledTask(updateExe string) error {
 	// PowerShell script to create a scheduled task
 	psScript := fmt.Sprintf(`
 		$taskName = "%s"
@@ -169,29 +168,50 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 	}
 	defer logFileHandle.Close()
 
-	if isPrerelease {
-		handlePrereleaseUpdate(writeUpdate, logFileHandle)
-	} else {
-		handleRegularUpdate(writeUpdate, logFileHandle)
-	}
-}
-
-// handleRegularUpdate handles the regular update process
-func handleRegularUpdate(writeUpdate func(string), logFileHandle *os.File) {
-	writeUpdate("Using regular update method")
-	logFileHandle.WriteString("Using regular update method\n")
-	err := createScheduledTask()
+	// Get the adorsys-update script path
+	updateExe, err := getAdorsysUpdatePath()
 	if err != nil {
-		writeUpdate("Task Scheduler failed, trying WMI method...")
-		updateAgentViaWMI()
-	} else {
-		writeUpdate("Task Scheduler method succeeded")
+		writeUpdate(fmt.Sprintf("ERROR: Failed to get update script path: %v", err))
+		logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to get update script path: %v\n", err))
+		return
 	}
+
+	if isPrerelease {
+		writeUpdate("Using prerelease update method")
+		logFileHandle.WriteString("Using prerelease update method\n")
+		if err := handlePrereleaseUpdate(logFileHandle); err != nil {
+			log.Printf("Error handling prerelease update: %v", err)
+			logFileHandle.WriteString(fmt.Sprintf("Error handling prerelease update: %v\n", err))
+			writeUpdate("Error")
+			return
+		}
+	} else {
+		writeUpdate("Using regular update method")
+		logFileHandle.WriteString("Using regular update method\n")
+		if err := handleRegularUpdate(updateExe); err != nil {
+			log.Printf("Error handling regular update: %v", err)
+			logFileHandle.WriteString(fmt.Sprintf("Error handling regular update: %v\n", err))
+			writeUpdate("Error")
+			return
+		}
+	}
+
+	log.Println("Wazuh agent updated successfully")
 	writeUpdate("Complete")
 }
 
+// handleRegularUpdate handles the regular update process
+func handleRegularUpdate(updateExe string) error {
+	err := createScheduledTask(updateExe)
+	if err != nil {
+		return updateAgentViaWMI(updateExe)
+	} else {
+		return nil
+	}
+}
+
 // updateAgentViaWMI uses WMI to launch the update in the user's session (fallback method)
-func updateAgentViaWMI() {
+func updateAgentViaWMI(updateExe string) error {
 	psScript := fmt.Sprintf(`
 		# Get the active user session
 		$sessions = Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty UserName
@@ -229,14 +249,15 @@ func updateAgentViaWMI() {
 		log.Printf("%s\n", errorMessage)
 
 		// Last resort: try direct execution
-		updateAgentDirect()
+		return updateAgentDirect(updateExe)
 	} else {
 		log.Printf("Wazuh agent update launched successfully via WMI\nOutput: %s\n", string(output))
+		return nil
 	}
 }
 
 // updateAgentDirect attempts direct execution (last resort)
-func updateAgentDirect() {
+func updateAgentDirect(updateExe string) error {
 	log.Printf("Attempting direct execution as last resort...\n")
 	psScript := fmt.Sprintf(`
 		$updateExe = %s
@@ -248,8 +269,50 @@ func updateAgentDirect() {
 	if err != nil {
 		log.Printf("Direct execution failed: %v\n", err)
 		log.Printf("All update methods have failed. Manual intervention may be required.\n")
+		return fmt.Errorf("all update methods failed: %w", err)
 	} else {
 		log.Printf("Direct execution initiated\n")
+		return nil
+	}
+}
+
+// handlePrereleaseUpdate handles the prerelease update process for Windows
+func handlePrereleaseUpdate(logFileHandle *os.File) error {
+	versionInfo := fetchVersionInfo()
+	if versionInfo == nil || versionInfo.Framework.PrereleaseVersion == "" {
+		return fmt.Errorf("empty prerelease")
+	}
+
+	// Get the adorsys-update.bat path
+	updateScript, err := getAdorsysUpdatePath()
+	if err != nil {
+		return fmt.Errorf("failed to get update script path: %w", err)
+	}
+
+	// Execute the batch file with -Prerelease flag
+	cmd := exec.Command(updateScript, "-Prerelease")
+	return executePrereleaseScript(cmd, logFileHandle)
+}
+
+// executePrereleaseScript executes the prerelease script and waits for completion
+func executePrereleaseScript(cmd *exec.Cmd, logFileHandle *os.File) error {
+	// Stream stdout and stderr ONLY to the update log file
+	cmd.Stdout = logFileHandle
+	cmd.Stderr = logFileHandle
+
+	// Execute the prerelease script
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("command failed to start: %w", err)
+	}
+
+	logFileHandle.WriteString("Executing script...\n")
+
+	// Wait for the command to finish
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("update failed: %w", err)
+	} else {
+		logFileHandle.WriteString("UPDATE COMPLETED SUCCESSFULLY\n")
+		return nil
 	}
 }
 

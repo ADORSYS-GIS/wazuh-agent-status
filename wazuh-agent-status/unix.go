@@ -65,6 +65,7 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 
 	var adorsysUpdatePath, updatePathErr = getAdorsysUpdatePath()
 	if updatePathErr != nil {
+		writeUpdate("Failed")
 		log.Printf("Error getting adorsys update path: %v", updatePathErr)
 		return
 	}
@@ -73,38 +74,49 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 
 	logFileHandle, err := createLogFile()
 	if err != nil {
+		log.Printf("Failed to create log file: %v", err)
+		writeUpdate("Failed")
 		return
 	}
 	defer logFileHandle.Close()
 
 	if isPrerelease {
-		handlePrereleaseUpdate(writeUpdate, logFileHandle)
+		writeUpdate("Using prerelease update method")
+		logFileHandle.WriteString("Using prerelease update method\n")
+		if err := handlePrereleaseUpdate(logFileHandle); err != nil {
+			log.Printf("Error handling prerelease update: %v", err)
+			logFileHandle.WriteString(fmt.Sprintf("Error handling prerelease update: %v\n", err))
+			writeUpdate("Error")
+			return
+		}
 	} else {
-		handleRegularUpdate(writeUpdate, logFileHandle, adorsysUpdatePath)
+		writeUpdate("Using regular update method")
+		logFileHandle.WriteString("Using regular update method\n")
+		if err := handleRegularUpdate(adorsysUpdatePath); err != nil {
+			log.Printf("Error handling regular update: %v", err)
+			logFileHandle.WriteString(fmt.Sprintf("Error handling regular update: %v\n", err))
+			writeUpdate("Error")
+			return
+		}
 	}
+
+	writeUpdate("Complete")
 }
 
 // handleRegularUpdate handles the regular update process
-func handleRegularUpdate(writeUpdate func(string), logFileHandle *os.File, adorsysUpdatePath string) {
+func handleRegularUpdate(adorsysUpdatePath string) error {
 	var cmd *exec.Cmd
 	cmd = exec.Command(sudoCommand, adorsysUpdatePath)
 	if err := cmd.Start(); err != nil {
-		log.Printf("Error starting update command: %v", err)
-		return
+		return fmt.Errorf("error starting update command: %w", err)
 	}
-
-	writeUpdate("Executing script...")
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
-		errorMessage := fmt.Sprintf("ERROR: Update failed: %v", err)
-		writeUpdate("Error")
-		logFileHandle.WriteString(errorMessage + "\n")
-		log.Println(errorMessage)
-	} else {
-		writeUpdate("Complete")
-		log.Println("Wazuh agent updated successfully")
+		return fmt.Errorf("update failed: %w", err)
 	}
+
+	return nil
 }
 
 func getWazuhControlPath() (string, error) {
@@ -118,6 +130,54 @@ func getWazuhControlPath() (string, error) {
 		return filepath.Join(basePath, "bin", "wazuh-control"), nil
 	default:
 		return "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+	}
+}
+
+// handlePrereleaseUpdate handles the prerelease update process for Unix systems
+func handlePrereleaseUpdate(logFileHandle *os.File) error {
+	versionInfo := fetchVersionInfo()
+	if versionInfo == nil || versionInfo.Framework.PrereleaseVersion == "" {
+		return fmt.Errorf("empty prerelease")
+	}
+
+	prereleaseScriptURL := fmt.Sprintf("https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v%s/scripts/setup-agent.sh", versionInfo.Framework.PrereleaseVersion)
+	tempFilePattern := "wazuh-prerelease-*.sh"
+
+	tempFile, err := os.CreateTemp("", tempFilePattern)
+	if err != nil {
+		return fmt.Errorf("failed to create temp log file: %w", err)
+	}
+	tempFile.Close() // We just need the name, will write to it later
+
+	if err := os.Chmod(tempFile.Name(), 0750); err != nil {
+		return fmt.Errorf("failed to set permissions on temp file: %w", err)
+	}
+
+	if err := downloadAndSaveFile(prereleaseScriptURL, tempFile.Name(), 0750); err != nil {
+		return fmt.Errorf("failed to download prerelease script: %w", err)
+	}
+	defer os.Remove(tempFile.Name()) // Clean up temp file
+
+	// On Unix-like systems, execute the shell script directly
+	cmd := exec.Command(tempFile.Name())
+
+	// Stream stdout and stderr ONLY to the update log file
+	cmd.Stdout = logFileHandle
+	cmd.Stderr = logFileHandle
+
+	// Execute the prerelease script
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("command failed to start: %w", err)
+	}
+
+	logFileHandle.WriteString("Executing script...\n")
+
+	// Wait for the command to finish
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("update failed: %w", err)
+	} else {
+		logFileHandle.WriteString("UPDATE COMPLETED SUCCESSFULLY\n")
+		return nil
 	}
 }
 

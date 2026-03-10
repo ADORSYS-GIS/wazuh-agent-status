@@ -255,7 +255,7 @@ func getVersionFilePath() (string, error) {
 	}
 }
 
-// getVersionFilePath returns adorsys-update.ps1 path based on the OS
+// getAdorsysUpdatePath returns adorsys-update script path based on the OS
 func getAdorsysUpdatePath() (string, error) {
 	basePath, err := getBasePath()
 	if err != nil {
@@ -263,7 +263,7 @@ func getAdorsysUpdatePath() (string, error) {
 	}
 	switch runtime.GOOS {
 	case "windows":
-		return filepath.Join(basePath, "active-response", "bin", "adorsys-update.ps1"), nil
+		return filepath.Join(basePath, "active-response", "bin", "adorsys-update.bat"), nil
 	default:
 		return filepath.Join(basePath, "active-response", "bin", "adorsys-update.sh"), nil
 	}
@@ -322,80 +322,4 @@ func downloadAndSaveFile(url string, filePath string, mod os.FileMode) error {
 
 	_, err = io.Copy(out, resp.Body)
 	return err
-}
-
-// handlePrereleaseUpdate handles the prerelease update process
-func handlePrereleaseUpdate(writeUpdate func(string), logFileHandle *os.File) {
-	versionInfo := fetchVersionInfo()
-	if versionInfo == nil || versionInfo.Framework.PrereleaseVersion == "" {
-		writeUpdate(fmt.Sprintf("ERROR: Empty prerelease"))
-		logFileHandle.WriteString(fmt.Sprintf("ERROR: Empty prerelease"))
-		return
-	}
-
-	var prereleaseScriptURL string
-	var tempFilePattern string
-	switch runtime.GOOS {
-	case "windows":
-		prereleaseScriptURL = fmt.Sprintf("https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v%s/scripts/setup-agent.ps1", versionInfo.Framework.PrereleaseVersion)
-		tempFilePattern = "wazuh-prerelease-*.ps1"
-	default:
-		prereleaseScriptURL = fmt.Sprintf("https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v%s/scripts/setup-agent.sh", versionInfo.Framework.PrereleaseVersion)
-		tempFilePattern = "wazuh-prerelease-*.sh"
-	}
-
-	log.Printf("Prerelease script URL: %s", prereleaseScriptURL)
-
-	tempFile, err := os.CreateTemp("", tempFilePattern)
-	if err != nil {
-		logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to create temp log file: %v\n", err))
-		return
-	}
-	tempFile.Close() // We just need the name, will write to it later
-
-	if err := downloadAndSaveFile(prereleaseScriptURL, tempFile.Name(), 0750); err != nil {
-		logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to download prerelease script: %v\n", err))
-		return
-	}
-	defer os.Remove(tempFile.Name()) // Clean up temp file
-
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		// On Windows, use PowerShell to execute the PowerShell script
-		cmd = exec.Command(powershellExe, executionPolicyFlag, "Bypass", "-File", tempFile.Name(), "-Prerelease")
-	default:
-		// On Unix-like systems, execute the shell script directly
-		cmd = exec.Command(tempFile.Name())
-	}
-
-	executePrereleaseScript(cmd, writeUpdate, logFileHandle)
-}
-
-// executePrereleaseScript executes the prerelease script and waits for completion
-func executePrereleaseScript(cmd *exec.Cmd, writeUpdate func(string), logFileHandle *os.File) {
-	// Stream stdout and stderr ONLY to the update log file
-	cmd.Stdout = logFileHandle
-	cmd.Stderr = logFileHandle
-
-	// Execute the prerelease script
-	if err := cmd.Start(); err != nil {
-		writeUpdate(fmt.Sprintf("ERROR: Command failed to start: %v", err))
-		logFileHandle.WriteString(fmt.Sprintf("ERROR: Command failed to start: %v\n", err))
-		return
-	}
-
-	writeUpdate("Executing script...")
-	logFileHandle.WriteString("Executing script...\n")
-
-	// Wait for the command to finish
-	if err := cmd.Wait(); err != nil {
-		writeUpdate("Error")
-		logFileHandle.WriteString(fmt.Sprintf("UPDATE FAILED: %v\n", err))
-		log.Println(fmt.Sprintf("ERROR: Update failed: %v", err))
-	} else {
-		writeUpdate("Complete")
-		logFileHandle.WriteString("UPDATE COMPLETED SUCCESSFULLY\n")
-		log.Println("Wazuh agent updated successfully")
-	}
 }
