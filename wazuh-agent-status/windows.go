@@ -19,7 +19,7 @@ const (
 	cmdFlag    = "-Command"
 	taskName   = "WazuhAgentUpdate"
 	updateFlag = "-Update"
-	updateExe  = "C:\\Program Files (x86)\\ossec-agent\\active-response\\update-agent.exe"
+	updateExe  = "C:\\Program Files (x86)\\ossec-agent\\active-response\\adorsys-update.exe"
 )
 
 // Define the program structure for the service
