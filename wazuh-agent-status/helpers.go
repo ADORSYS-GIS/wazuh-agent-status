@@ -276,7 +276,7 @@ func getWazuhStatePath() (string, error) {
 		return "", err
 	}
 	switch runtime.GOOS {
-	case "linux", "darwin":
+	case "windows":
 		return filepath.Join(basePath, "wazuh-agent.state"), nil
 	default:
 		return filepath.Join(basePath, "var", "run", "wazuh-agentd.state"), nil
