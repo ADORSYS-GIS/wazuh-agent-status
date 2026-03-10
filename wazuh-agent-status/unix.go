@@ -72,15 +72,14 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 
 	writeUpdate("Starting...")
 
-	logFileHandle, err := createLogFile()
-	if err != nil {
-		log.Printf("Failed to create log file: %v", err)
-		writeUpdate("Failed")
-		return
-	}
-	defer logFileHandle.Close()
-
 	if isPrerelease {
+		logFileHandle, err := createLogFile()
+		if err != nil {
+			writeUpdate(fmt.Sprintf("ERROR: Failed to create log file: %v", err))
+			return
+		}
+		defer logFileHandle.Close()
+
 		writeUpdate("Using prerelease update method")
 		logFileHandle.WriteString("Using prerelease update method\n")
 		if err := handlePrereleaseUpdate(logFileHandle); err != nil {
@@ -91,10 +90,8 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 		}
 	} else {
 		writeUpdate("Using regular update method")
-		logFileHandle.WriteString("Using regular update method\n")
 		if err := handleRegularUpdate(adorsysUpdatePath); err != nil {
 			log.Printf("Error handling regular update: %v", err)
-			logFileHandle.WriteString(fmt.Sprintf("Error handling regular update: %v\n", err))
 			writeUpdate("Error")
 			return
 		}

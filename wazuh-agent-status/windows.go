@@ -162,21 +162,21 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 
 	writeUpdate("Starting...")
 
-	logFileHandle, err := createLogFile()
-	if err != nil {
-		return
-	}
-	defer logFileHandle.Close()
-
 	// Get the adorsys-update script path
 	updateExe, err := getAdorsysUpdatePath()
 	if err != nil {
 		writeUpdate(fmt.Sprintf("ERROR: Failed to get update script path: %v", err))
-		logFileHandle.WriteString(fmt.Sprintf("ERROR: Failed to get update script path: %v\n", err))
 		return
 	}
 
 	if isPrerelease {
+		logFileHandle, err := createLogFile()
+		if err != nil {
+			writeUpdate(fmt.Sprintf("ERROR: Failed to create log file: %v", err))
+			return
+		}
+		defer logFileHandle.Close()
+
 		writeUpdate("Using prerelease update method")
 		logFileHandle.WriteString("Using prerelease update method\n")
 		if err := handlePrereleaseUpdate(logFileHandle); err != nil {
@@ -187,10 +187,8 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 		}
 	} else {
 		writeUpdate("Using regular update method")
-		logFileHandle.WriteString("Using regular update method\n")
 		if err := handleRegularUpdate(updateExe); err != nil {
 			log.Printf("Error handling regular update: %v", err)
-			logFileHandle.WriteString(fmt.Sprintf("Error handling regular update: %v\n", err))
 			writeUpdate("Error")
 			return
 		}
