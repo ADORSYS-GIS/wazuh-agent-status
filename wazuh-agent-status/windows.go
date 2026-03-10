@@ -104,41 +104,33 @@ func checkServiceStatus() (string, string) {
 
 // createScheduledTask creates a Windows scheduled task that will run in the user's context
 func createScheduledTask() error {
-	// PowerShell script to create a scheduled task
 	psScript := fmt.Sprintf(`
-		$taskName = "%s"
-		$updateExe = "%s"
+        $taskName = "%s"
+        $updateExe = "%s"
 
-		# Check if task already exists
-		$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-		if ($existingTask) {
-			Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-		}
+        # Get the currently logged-on interactive user
+        $loggedOnUser = (Get-CimInstance -ClassName Win32_ComputerSystem).UserName
+        if (-not $loggedOnUser) {
+            throw "No interactive user session found"
+        }
 
-		# Create the action to run PowerShell with the script
-		$action = New-ScheduledTaskAction -Execute $updateExe -Argument "%s"
+        # Strip domain prefix if present (DOMAIN\user -> user)
+        $username = $loggedOnUser -replace '.*\\', ''
 
-		# Create a trigger that runs immediately
-		$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(2)
+        # Remove existing task if present
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 
-		# Set to run as BUILTIN\Administrators group with highest privileges
-		$principal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-544" -RunLevel Highest
+        $action   = New-ScheduledTaskAction -Execute $updateExe -Argument "%s"
+        $trigger  = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(3)
+        
+        # Run as the logged-on user (NOT SYSTEM) so it gets a real desktop session
+        $principal = New-ScheduledTaskPrincipal -UserId $loggedOnUser -LogonType Interactive -RunLevel Highest
+        
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
 
-		# Create settings
-		$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-
-		# Register the task
-		Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force
-
-		# Run the task immediately
-		Start-ScheduledTask -TaskName $taskName
-
-		# Wait a moment for task to start
-		Start-Sleep -Seconds 2
-
-		# Clean up the task after it runs
-		Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-	`, taskName, updateExe, updateFlag)
+        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force
+        Start-ScheduledTask -TaskName $taskName
+    `, taskName, updateExe, updateFlag)
 
 	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	output, err := cmd.CombinedOutput()
