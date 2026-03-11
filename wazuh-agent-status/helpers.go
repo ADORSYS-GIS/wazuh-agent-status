@@ -165,6 +165,7 @@ func getAgentGroups() ([]string, error) {
 
 	var groups []string
 	scanner := bufio.NewScanner(f)
+	firstCommentedLineAdded := false
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -172,15 +173,17 @@ func getAgentGroups() ([]string, error) {
 			continue
 		}
 
-		// Case 1: single group — "#SIEM"
-		if strings.HasPrefix(line, "#") && !strings.Contains(line, sourceFileMarker) {
-			if candidate := strings.TrimSpace(strings.TrimPrefix(line, "#")); candidate != "" {
+		// Add first commented line as a group
+		if strings.HasPrefix(line, "#") && !strings.Contains(line, sourceFileMarker) && !firstCommentedLineAdded {
+			candidate := strings.TrimSpace(strings.TrimPrefix(line, "#"))
+			if candidate != "" {
 				groups = append(groups, candidate)
+				firstCommentedLineAdded = true
 			}
 			continue
 		}
 
-		// Case 2: multiple groups — "<!-- Source file: <group>/agent.conf -->"
+		// Collect all source file markers
 		if strings.Contains(line, sourceFileMarker) {
 			parts := strings.SplitN(line, sourceFileMarker, 2)
 			if len(parts) == 2 {
