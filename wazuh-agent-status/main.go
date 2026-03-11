@@ -169,10 +169,6 @@ func checkAndSetVersion() {
 	}
 
 	versionInfo := fetchVersionInfo()
-	if versionInfo == nil || versionInfo.Framework.PrereleaseVersion == "" {
-		log.Println("No prerelease version available")
-		return
-	}
 
 	// Check if current version is a prerelease (contains "rc")
 	isCurrentPrerelease := strings.Contains(localVersion, "rc")
@@ -190,7 +186,7 @@ func checkAndSetVersion() {
 	} else {
 		// Check for both outdated stable and prerelease availability
 		isOutdated := versionInfo.Framework.Version != "" && isVersionHigher(versionInfo.Framework.Version, localVersion)
-		hasPrerelease := versionInfo.Framework.PrereleaseVersion != "" && shouldShowPrerelease(versionInfo, agentGroups) && isVersionHigher(versionInfo.Framework.PrereleaseVersion, localVersion)
+		hasPrerelease := versionInfo != nil && versionInfo.Framework.PrereleaseVersion != "" && shouldShowPrerelease(versionInfo, agentGroups) && isVersionHigher(versionInfo.Framework.PrereleaseVersion, localVersion)
 
 		if isOutdated && hasPrerelease {
 			// Both stable update and prerelease available
