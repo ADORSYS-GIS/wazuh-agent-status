@@ -27,6 +27,10 @@ $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
 $UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/v$WAS_VERSION/scripts/adorsys-update.bat" }
 $UPDATE_SCRIPT_PATH = if ($null -ne $env:UPDATE_SCRIPT_PATH) { $env:UPDATE_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.bat" }
 
+# $UPDATE_SCRIPT_PS_URL = if ($null -ne $env:UPDATE_SCRIPT_PS_URL) { $env:UPDATE_SCRIPT_PS_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/v$WAS_VERSION/scripts/adorsys-update.ps1" } 
+$UPDATE_SCRIPT_PS_URL = if ($null -ne $env:UPDATE_SCRIPT_PS_URL) { $env:UPDATE_SCRIPT_PS_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/refs/heads/feat/group-based-prerelease-update/scripts/adorsys-update.ps1" }
+$UPDATE_SCRIPT_PS_PATH = if ($null -ne $env:UPDATE_SCRIPT_PS_PATH) { $env:UPDATE_SCRIPT_PS_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.ps1" }
+
 # Create necessary directories
 if (-not (Test-Path $BIN_DIR)) {
     New-Item -Path $BIN_DIR -ItemType Directory | Out-Null
@@ -100,6 +104,13 @@ function Validate-Installation {
         SuccessMessage "adorsys-update script exists: $UPDATE_SCRIPT_PATH."
     } else {
         ErrorExit "adorsys-update script is missing: $UPDATE_SCRIPT_PATH."
+    }
+
+    # Validate adorsys-update PowerShell script
+    if (Test-Path -LiteralPath $UPDATE_SCRIPT_PS_PATH) {
+        SuccessMessage "adorsys-update PowerShell script exists: $UPDATE_SCRIPT_PS_PATH."
+    } else {
+        ErrorExit "adorsys-update PowerShell script is missing: $UPDATE_SCRIPT_PS_PATH."
     }
 
     SuccessMessage "Installation validation completed successfully."
@@ -213,7 +224,7 @@ PrintStep 4 "Configuring client startup..."
 Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
 
 # Download adorsys-update script
-PrintStep 5 "Downloading adorsys-update script..."
+PrintStep 5 "Downloading adorsys-update scripts..."
 # Check if the script is currently running
 $UpdateProcesses = Get-Process -Name "adorsys-update" -ErrorAction SilentlyContinue
 if ($UpdateProcesses) {
@@ -222,6 +233,11 @@ if ($UpdateProcesses) {
     Download-File -Url $UPDATE_SCRIPT_URL -OutputPath $UpdateScriptNewPath
     InfoMessage "New version downloaded to: $UpdateScriptNewPath"
     InfoMessage "Creating scheduled task to replace script on next reboot..."
+
+    # Also download PowerShell script
+    $UpdateScriptPsNewPath = "$UPDATE_SCRIPT_PS_PATH.new"
+    Download-File -Url $UPDATE_SCRIPT_PS_URL -OutputPath $UpdateScriptPsNewPath
+    InfoMessage "PowerShell version downloaded to: $UpdateScriptPsNewPath"
 
     # Create a scheduled task to replace the script after logon
     $TaskName = "AdorsysUpdateSwap"
@@ -233,6 +249,9 @@ if ($UpdateProcesses) {
 `$updateScriptPath    = '$UPDATE_SCRIPT_PATH'
 `$updateScriptNewPath = '$UPDATE_SCRIPT_PATH.new'
 `$updateScriptOldPath = '$UPDATE_SCRIPT_PATH.old'
+`$updateScriptPsPath    = '$UPDATE_SCRIPT_PS_PATH'
+`$updateScriptPsNewPath = '$UPDATE_SCRIPT_PS_PATH.new'
+`$updateScriptPsOldPath = '$UPDATE_SCRIPT_PS_PATH.old'
 `$logPath          = 'C:\Program Files (x86)\ossec-agent\active-response\active-responses.log'
 
 function Write-SwapLog {
@@ -248,27 +267,52 @@ Write-SwapLog 'Update swap task started'
 
 try {
     if (Test-Path -LiteralPath `$updateScriptNewPath) {
-        Write-SwapLog 'Found pending update'
+        Write-SwapLog 'Found pending update for .bat script'
 
         if (Test-Path -LiteralPath `$updateScriptOldPath) {
             Remove-Item -LiteralPath `$updateScriptOldPath -Force
-            Write-SwapLog 'Removed old backup'
+            Write-SwapLog 'Removed old backup for .bat script'
         }
 
         if (Test-Path -LiteralPath `$updateScriptPath) {
             Move-Item -LiteralPath `$updateScriptPath -Destination `$updateScriptOldPath -Force
-            Write-SwapLog 'Backed up current version'
+            Write-SwapLog 'Backed up current .bat script version'
         }
 
         Move-Item -LiteralPath `$updateScriptNewPath -Destination `$updateScriptPath -Force
-        Write-SwapLog 'Installed new version successfully'
+        Write-SwapLog 'Installed new .bat script version successfully'
 
         if (Test-Path -LiteralPath `$updateScriptOldPath) {
             Remove-Item -LiteralPath `$updateScriptOldPath -Force -ErrorAction SilentlyContinue
-            Write-SwapLog 'Cleaned up old backup'
+            Write-SwapLog 'Cleaned up old .bat script backup'
         }
     } else {
-        Write-SwapLog 'No pending update found'
+        Write-SwapLog 'No pending update found for .bat script'
+    }
+
+    # Handle PowerShell script
+    if (Test-Path -LiteralPath `$updateScriptPsNewPath) {
+        Write-SwapLog 'Found pending update for .ps1 script'
+
+        if (Test-Path -LiteralPath `$updateScriptPsOldPath) {
+            Remove-Item -LiteralPath `$updateScriptPsOldPath -Force
+            Write-SwapLog 'Removed old backup for .ps1 script'
+        }
+
+        if (Test-Path -LiteralPath `$updateScriptPsPath) {
+            Move-Item -LiteralPath `$updateScriptPsPath -Destination `$updateScriptPsOldPath -Force
+            Write-SwapLog 'Backed up current .ps1 script version'
+        }
+
+        Move-Item -LiteralPath `$updateScriptPsNewPath -Destination `$updateScriptPsPath -Force
+        Write-SwapLog 'Installed new .ps1 script version successfully'
+
+        if (Test-Path -LiteralPath `$updateScriptPsOldPath) {
+            Remove-Item -LiteralPath `$updateScriptPsOldPath -Force -ErrorAction SilentlyContinue
+            Write-SwapLog 'Cleaned up old .ps1 script backup'
+        }
+    } else {
+        Write-SwapLog 'No pending update found for .ps1 script'
     }
 }
 catch {
@@ -277,7 +321,11 @@ catch {
     try {
         if (-not (Test-Path -LiteralPath `$updateScriptPath) -and (Test-Path -LiteralPath `$updateScriptOldPath)) {
             Move-Item -LiteralPath `$updateScriptOldPath -Destination `$updateScriptPath -Force
-            Write-SwapLog 'Rolled back to previous version'
+            Write-SwapLog 'Rolled back .bat script to previous version'
+        }
+        if (-not (Test-Path -LiteralPath `$updateScriptPsPath) -and (Test-Path -LiteralPath `$updateScriptPsOldPath)) {
+            Move-Item -LiteralPath `$updateScriptPsOldPath -Destination `$updateScriptPsPath -Force
+            Write-SwapLog 'Rolled back .ps1 script to previous version'
         }
     } catch {
         Write-SwapLog "ERROR: Rollback failed: `$(`$_.Exception.Message)"
@@ -335,6 +383,8 @@ finally {
 } else {
     InfoMessage "adorsys-update.bat is not running. Downloading directly..."
     Download-File -Url $UPDATE_SCRIPT_URL -OutputPath $UPDATE_SCRIPT_PATH
+    InfoMessage "adorsys-update.ps1 is not running. Downloading directly..."
+    Download-File -Url $UPDATE_SCRIPT_PS_URL -OutputPath $UPDATE_SCRIPT_PS_PATH
 }
 
 PrintStep 6 "Validating installation and configuration..."
