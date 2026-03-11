@@ -176,7 +176,7 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 		}
 		defer logFileHandle.Close()
 
-		writeUpdate("Using prerelease update method")
+		writeUpdate("Updating to prerelease")
 		logFileHandle.WriteString("Using prerelease update method\n")
 		if err := handlePrereleaseUpdate(logFileHandle); err != nil {
 			log.Printf("Error handling prerelease update: %v", err)
@@ -185,7 +185,7 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 			return
 		}
 	} else {
-		writeUpdate("Using regular update method")
+		writeUpdate("Updating to stable")
 		if err := handleRegularUpdate(updateExe); err != nil {
 			log.Printf("Error handling regular update: %v", err)
 			writeUpdate("Error")
