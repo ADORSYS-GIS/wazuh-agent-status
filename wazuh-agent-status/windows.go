@@ -16,7 +16,6 @@ import (
 
 // Define constants for commonly used literals
 const (
-	cmdFlag    = "-Command"
 	taskName   = "WazuhAgentUpdate"
 	updateFlag = "-Update"
 )

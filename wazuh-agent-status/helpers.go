@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 func getSystemLogFilePath() (string, error) {
@@ -118,7 +120,12 @@ func isVersionHigher(online, local string) bool {
 }
 
 func fetchVersionInfo() *VersionInfo {
-	resp, err := http.Get(versionURL)
+	// Create HTTP client with timeout to prevent hanging
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Get(versionURL)
 	if err != nil {
 		log.Printf("Failed to fetch version info: %v", err)
 		return nil
@@ -136,64 +143,58 @@ func fetchVersionInfo() *VersionInfo {
 		log.Printf("Failed to parse version info: %v", err)
 		return nil
 	}
-	log.Printf("Fetched version info: Framework.Version=%s, Framework.PrereleaseVersion=%s, TestGroups=%v",
-		versionInfo.Framework.Version, versionInfo.Framework.PrereleaseVersion, versionInfo.PrereleaseTestGroups)
+	log.Printf("Fetched version info: Framework.Version=%s, Framework.PrereleaseVersion=%s",
+		versionInfo.Framework.Version, versionInfo.Framework.PrereleaseVersion)
 
 	return &versionInfo
 }
 
-// getAgentGroups extracts groups from merged.mg
-func getAgentGroups() []string {
+// getAgentGroups extracts groups from merged.mg file
+func getAgentGroups() ([]string, error) {
 	mergedMgPath, err := getMergedMgPath()
 	if err != nil {
 		log.Printf("Failed to get merged.mg path: %v", err)
-		return []string{}
-	}
-	var output string
-	var readErr error
-
-	if runtime.GOOS == "windows" {
-		data, readErr := os.ReadFile(mergedMgPath)
-		if readErr != nil {
-			log.Printf("Failed to read merged.mg on Windows: %v", readErr)
-			return []string{}
-		}
-		output = string(data)
-	} else {
-		output, readErr = runAsRoot(grepCommand, sourceFileMarker, mergedMgPath)
-		if readErr != nil {
-			log.Printf("Failed to grep merged.mg on Linux/macOS: %v", readErr)
-			// On error, try reading the file directly as a fallback
-			data, readErr := os.ReadFile(mergedMgPath)
-			if readErr != nil {
-				return []string{}
-			}
-			output = string(data)
-		}
+		return []string{}, err
 	}
 
-	return extractGroupsFromMergedMg(output)
-}
+	f, err := os.Open(mergedMgPath)
+	if err != nil {
+		return nil, fmt.Errorf("open merged.mg: %w", err)
+	}
+	defer f.Close()
 
-// extractGroupsFromMergedMg parses the merged.mg content to extract groups
-func extractGroupsFromMergedMg(content string) []string {
 	var groups []string
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
+	scanner := bufio.NewScanner(f)
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		// Case 1: single group — "#SIEM"
+		if strings.HasPrefix(line, "#") && !strings.Contains(line, sourceFileMarker) {
+			if candidate := strings.TrimSpace(strings.TrimPrefix(line, "#")); candidate != "" {
+				groups = append(groups, candidate)
+			}
+			continue
+		}
+
+		// Case 2: multiple groups — "<!-- Source file: <group>/agent.conf -->"
 		if strings.Contains(line, sourceFileMarker) {
-			// Extract group from "<!-- Source file: <group>/agent.conf -->"
-			parts := strings.Split(line, sourceFileMarker)
-			if len(parts) > 1 {
-				groupPart := strings.TrimSpace(parts[1])
-				// Extract until "/agent.conf"
-				if strings.Contains(groupPart, "/agent.conf") {
-					group := strings.Split(groupPart, "/agent.conf")[0]
-					groups = append(groups, strings.TrimSpace(group))
+			parts := strings.SplitN(line, sourceFileMarker, 2)
+			if len(parts) == 2 {
+				if before, found := strings.CutSuffix(strings.TrimSpace(parts[1]), "/agent.conf -->"); found {
+					if group := strings.TrimSpace(before); group != "" {
+						groups = append(groups, group)
+					}
 				}
 			}
 		}
 	}
-	return groups
+	log.Printf("Extracted groups: %s", groups)
+
+	return groups, scanner.Err()
 }
 
 // shouldShowPrerelease checks if prerelease should be shown based on agent groups

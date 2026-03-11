@@ -26,6 +26,7 @@ const (
 	sourceFileMarker     = "Source file:"
 	powershellExe        = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
 	executionPolicyFlag  = "-ExecutionPolicy"
+	cmdFlag              = "-Command"
 	unsupportedOSMessage = "Unsupported OS"
 )
 
@@ -161,8 +162,17 @@ func monitorAgentStatus() {
 
 func checkAndSetVersion() {
 	localVersion := getLocalVersion()
+	agentGroups, err := getAgentGroups()
+	if err != nil {
+		log.Println("Failed to extract agent groups")
+		return
+	}
+
 	versionInfo := fetchVersionInfo()
-	agentGroups := getAgentGroups()
+	if versionInfo == nil || versionInfo.Framework.PrereleaseVersion == "" {
+		log.Println("No prerelease version available")
+		return
+	}
 
 	// Check if current version is a prerelease (contains "rc")
 	isCurrentPrerelease := strings.Contains(localVersion, "rc")
