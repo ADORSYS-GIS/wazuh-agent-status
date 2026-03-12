@@ -8,69 +8,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 )
-
-func getSystemLogFilePath() (string, error) {
-	var logDir string
-
-	switch runtime.GOOS {
-	case "linux", "darwin":
-		logDir = "/var/log"
-	case "windows":
-		logDir = "C:\\ProgramData\\wazuh\\logs"
-	default:
-		return "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
-	}
-
-	if runtime.GOOS == "windows" {
-		if err := os.MkdirAll(logDir, 0755); err != nil {
-			return "", fmt.Errorf("failed to create log directory: %v", err)
-		}
-	}
-
-	return filepath.Join(logDir, "wazuh-agent-status.log"), nil
-}
-
-// Run a command as root using sudo
-func runAsRoot(command string, args ...string) (string, error) {
-	cmd := exec.Command(sudoCommand, append([]string{command}, args...)...)
-	output, err := cmd.CombinedOutput()
-	return string(output), err
-}
-
-// Read local version from embedded file
-func getLocalVersion() string {
-	if runtime.GOOS == "windows" {
-		versionPath, err := getVersionFilePath()
-		if err != nil {
-			log.Printf("Failed to get version file path on Windows: %v", err)
-			return "Unknown"
-		}
-		output, err := os.ReadFile(versionPath)
-		if err != nil {
-			log.Printf("Failed to read local version on Windows: %v", err)
-			return "Unknown"
-		}
-		return strings.TrimSpace(string(output))
-	} else {
-		versionPath, err := getVersionFilePath()
-		if err != nil {
-			log.Printf("Failed to get version file path on Linux/macOS: %v", err)
-			return "Unknown"
-		}
-		output, err := runAsRoot("cat", versionPath)
-		if err != nil {
-			log.Printf("Failed to read local version on Linux/macOS: %v", err)
-			return "Unknown"
-		}
-		return strings.TrimSpace(output)
-	}
-}
 
 func isVersionHigher(online, local string) bool {
 	// Strip "v" prefix
@@ -216,75 +157,6 @@ func shouldShowPrerelease(versionInfo *VersionInfo, agentGroups []string) bool {
 	}
 
 	return false
-}
-
-func getBasePath() (string, error) {
-	switch runtime.GOOS {
-	case "linux":
-		return "/var/ossec", nil
-	case "darwin":
-		return "/Library/Ossec", nil
-	case "windows":
-		return "C:\\Program Files (x86)\\ossec-agent", nil
-	default:
-		return "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
-	}
-}
-
-// getMergedMgPath returns merged.mg path based on the OS
-func getMergedMgPath() (string, error) {
-	basePath, err := getBasePath()
-	if err != nil {
-		return "", err
-	}
-	switch os := runtime.GOOS; os {
-	case "windows":
-		return filepath.Join(basePath, "shared", "merged.mg"), nil
-	default:
-		return filepath.Join(basePath, "etc", "shared", "merged.mg"), nil
-	}
-}
-
-// getVersionFilePath returns version.txt path based on the OS
-func getVersionFilePath() (string, error) {
-	basePath, err := getBasePath()
-	if err != nil {
-		return "", err
-	}
-	switch runtime.GOOS {
-	case "windows":
-		return filepath.Join(basePath, "version.txt"), nil
-	default:
-		return filepath.Join(basePath, "etc", "version.txt"), nil
-	}
-}
-
-// getAdorsysUpdatePath returns adorsys-update script path based on the OS
-func getAdorsysUpdatePath() (string, error) {
-	basePath, err := getBasePath()
-	if err != nil {
-		return "", err
-	}
-	switch runtime.GOOS {
-	case "windows":
-		return filepath.Join(basePath, "active-response", "bin", "adorsys-update.bat"), nil
-	default:
-		return filepath.Join(basePath, "active-response", "bin", "adorsys-update.sh"), nil
-	}
-}
-
-// getVersionFilePath returns state file path based on the OS
-func getWazuhStatePath() (string, error) {
-	basePath, err := getBasePath()
-	if err != nil {
-		return "", err
-	}
-	switch runtime.GOOS {
-	case "windows":
-		return filepath.Join(basePath, "wazuh-agent.state"), nil
-	default:
-		return filepath.Join(basePath, "var", "run", "wazuh-agentd.state"), nil
-	}
 }
 
 // createLogFile creates a secure log file for update operations

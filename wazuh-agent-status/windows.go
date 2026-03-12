@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/kardianos/service"
@@ -332,4 +333,66 @@ func windowsMain() {
 	if err != nil {
 		log.Fatalf("Failed to run service: %v", err)
 	}
+}
+
+// Windows-specific helper functions
+
+func getSystemLogFilePath() (string, error) {
+	logDir := "C:\\ProgramData\\wazuh\\logs"
+
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create log directory: %v", err)
+	}
+
+	return filepath.Join(logDir, "wazuh-agent-status.log"), nil
+}
+
+func getLocalVersion() string {
+	versionPath, err := getVersionFilePath()
+	if err != nil {
+		log.Printf("Failed to get version file path on Windows: %v", err)
+		return "Unknown"
+	}
+	output, err := os.ReadFile(versionPath)
+	if err != nil {
+		log.Printf("Failed to read local version on Windows: %v", err)
+		return "Unknown"
+	}
+	return strings.TrimSpace(string(output))
+}
+
+func getBasePath() (string, error) {
+	return "C:\\Program Files (x86)\\ossec-agent", nil
+}
+
+func getMergedMgPath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "shared", "merged.mg"), nil
+}
+
+func getVersionFilePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "version.txt"), nil
+}
+
+func getAdorsysUpdatePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "active-response", "bin", "adorsys-update.bat"), nil
+}
+
+func getWazuhStatePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "wazuh-agent.state"), nil
 }

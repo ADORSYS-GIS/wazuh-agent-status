@@ -1,5 +1,5 @@
-//go:build linux || darwin
-// +build linux darwin
+//go:build darwin
+// +build darwin
 
 package main
 
@@ -10,11 +10,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
-// checkServiceStatus checks the status of Wazuh agent and its connection on Linux
+// checkServiceStatus checks the status of Wazuh agent and its connection on macOS
 func checkServiceStatus() (string, string) {
 	var wazuhControlPath, controlPathErr = getWazuhControlPath()
 	if controlPathErr != nil {
@@ -52,7 +51,7 @@ func checkServiceStatus() (string, string) {
 	return status, connection
 }
 
-// updateAgent updates the Wazuh agent on Linux and streams progress to the client
+// updateAgent updates the Wazuh agent on macOS and streams progress to the client
 func updateAgent(conn net.Conn, isPrerelease bool) {
 	// The caller (handleConnection) closes the dedicated update stream conn when this function returns
 	defer conn.Close()
@@ -122,15 +121,10 @@ func getWazuhControlPath() (string, error) {
 		return "", err
 	}
 
-	switch runtime.GOOS {
-	case "linux", "darwin":
-		return filepath.Join(basePath, "bin", "wazuh-control"), nil
-	default:
-		return "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
-	}
+	return filepath.Join(basePath, "bin", "wazuh-control"), nil
 }
 
-// handlePrereleaseUpdate handles the prerelease update process for Unix systems
+// handlePrereleaseUpdate handles the prerelease update process for macOS
 func handlePrereleaseUpdate(logFileHandle *os.File) error {
 	versionInfo := fetchVersionInfo()
 	if versionInfo == nil || versionInfo.Framework.PrereleaseVersion == "" {
@@ -155,7 +149,7 @@ func handlePrereleaseUpdate(logFileHandle *os.File) error {
 	}
 	defer os.Remove(tempFile.Name()) // Clean up temp file
 
-	// On Unix-like systems, execute the shell script directly
+	// On macOS, execute the shell script directly
 	cmd := exec.Command(tempFile.Name())
 
 	// Stream stdout and stderr ONLY to the update log file
@@ -179,5 +173,69 @@ func handlePrereleaseUpdate(logFileHandle *os.File) error {
 }
 
 func windowsMain() {
-	// This function is intentionally left empty for Linux builds.
+	// This function is intentionally left empty for macOS builds.
+}
+
+// macOS-specific helper functions
+
+func getSystemLogFilePath() (string, error) {
+	logDir := "/var/log"
+	return filepath.Join(logDir, "wazuh-agent-status.log"), nil
+}
+
+// Run a command as root using sudo
+func runAsRoot(command string, args ...string) (string, error) {
+	cmd := exec.Command(sudoCommand, append([]string{command}, args...)...)
+	output, err := cmd.CombinedOutput()
+	return string(output), err
+}
+
+func getLocalVersion() string {
+	versionPath, err := getVersionFilePath()
+	if err != nil {
+		log.Printf("Failed to get version file path on macOS: %v", err)
+		return "Unknown"
+	}
+	output, err := runAsRoot("cat", versionPath)
+	if err != nil {
+		log.Printf("Failed to read local version on macOS: %v", err)
+		return "Unknown"
+	}
+	return strings.TrimSpace(output)
+}
+
+func getBasePath() (string, error) {
+	return "/Library/Ossec", nil
+}
+
+func getMergedMgPath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "etc", "shared", "merged.mg"), nil
+}
+
+func getVersionFilePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "etc", "version.txt"), nil
+}
+
+func getAdorsysUpdatePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "active-response", "bin", "adorsys-update.sh"), nil
+}
+
+func getWazuhStatePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "var", "run", "wazuh-agentd.state"), nil
 }
