@@ -56,7 +56,6 @@ func updateAgent(conn net.Conn, isPrerelease bool) {
 	// The caller (handleConnection) closes the dedicated update stream conn when this function returns
 	defer conn.Close()
 
-	// Helper to write status updates directly to the connection
 	writeUpdate := func(status string) {
 		conn.Write([]byte(fmt.Sprintf("UPDATE_PROGRESS: %s\n", status)))
 		log.Printf("Update progress: %s", status)
@@ -138,7 +137,7 @@ func handlePrereleaseUpdate(logFileHandle *os.File) error {
 	if err != nil {
 		return fmt.Errorf("failed to create temp log file: %w", err)
 	}
-	tempFile.Close() // We just need the name, will write to it later
+	tempFile.Close()
 
 	if err := os.Chmod(tempFile.Name(), 0750); err != nil {
 		return fmt.Errorf("failed to set permissions on temp file: %w", err)
@@ -147,16 +146,14 @@ func handlePrereleaseUpdate(logFileHandle *os.File) error {
 	if err := downloadAndSaveFile(prereleaseScriptURL, tempFile.Name(), 0750); err != nil {
 		return fmt.Errorf("failed to download prerelease script: %w", err)
 	}
-	defer os.Remove(tempFile.Name()) // Clean up temp file
+	defer os.Remove(tempFile.Name())
 
-	// On Linux, execute the shell script directly
 	cmd := exec.Command(tempFile.Name())
 
 	// Stream stdout and stderr ONLY to the update log file
 	cmd.Stdout = logFileHandle
 	cmd.Stderr = logFileHandle
 
-	// Execute the prerelease script
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("command failed to start: %w", err)
 	}
@@ -172,10 +169,6 @@ func handlePrereleaseUpdate(logFileHandle *os.File) error {
 	}
 }
 
-func windowsMain() {
-	// This function is intentionally left empty for Linux builds.
-}
-
 // Linux-specific helper functions
 
 func getSystemLogFilePath() (string, error) {
@@ -183,7 +176,6 @@ func getSystemLogFilePath() (string, error) {
 	return filepath.Join(logDir, "wazuh-agent-status.log"), nil
 }
 
-// Run a command as root using sudo
 func runAsRoot(command string, args ...string) (string, error) {
 	cmd := exec.Command(sudoCommand, append([]string{command}, args...)...)
 	output, err := cmd.CombinedOutput()
@@ -238,4 +230,8 @@ func getWazuhStatePath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(basePath, "var", "run", "wazuh-agentd.state"), nil
+}
+
+func windowsMain() {
+	// This function is intentionally left empty for Linux builds.
 }

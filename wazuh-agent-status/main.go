@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	versionURL           = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
-	backendPort          = "50506"
+	versionURL           = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/main/versions.json"
+	backendPort          = "50505"
 	backendAddress       = "localhost:" + backendPort
 	sudoCommand          = "/usr/bin/sudo"
 	grepCommand          = "/usr/bin/grep"
@@ -184,21 +184,16 @@ func checkAndSetVersion() {
 	if localVersion == "Unknown" || versionInfo == nil {
 		currentVersion = "Version: Unknown"
 	} else {
-		// Check for both outdated stable and prerelease availability
 		isOutdated := versionInfo.Framework.Version != "" && isVersionHigher(versionInfo.Framework.Version, localVersion)
-		hasPrerelease := versionInfo != nil && versionInfo.Framework.PrereleaseVersion != "" && shouldShowPrerelease(versionInfo, agentGroups) && isVersionHigher(versionInfo.Framework.PrereleaseVersion, localVersion)
+		hasPrerelease := versionInfo.Framework.PrereleaseVersion != "" && shouldShowPrerelease(versionInfo, agentGroups) && isVersionHigher(versionInfo.Framework.PrereleaseVersion, localVersion)
 
 		if isOutdated && hasPrerelease {
-			// Both stable update and prerelease available
 			currentVersion = fmt.Sprintf("Outdated with Prerelease available: %s (stable: %s, prerelease: %s)", versionPrefix, versionInfo.Framework.Version, versionInfo.Framework.PrereleaseVersion)
 		} else if isOutdated {
-			// Only stable update available
 			currentVersion = fmt.Sprintf("Outdated, %s", versionPrefix)
 		} else if hasPrerelease {
-			// Only prerelease available
 			currentVersion = fmt.Sprintf("Prerelease available: %s (current: %s)", versionInfo.Framework.PrereleaseVersion, versionPrefix)
 		} else {
-			// Up to date
 			currentVersion = fmt.Sprintf("%s, %s", upToDateStatus, versionPrefix)
 		}
 	}

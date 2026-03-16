@@ -22,7 +22,7 @@ import (
 // String constants to avoid duplication
 const (
 	// backend address
-	backendAddress = "localhost:50506"
+	backendAddress = "localhost:50505"
 
 	// Update state
 	updateAvailableTitle     = "Update Available"
@@ -33,6 +33,10 @@ const (
 	defaultVersionTitle = "v---"
 	defaultUpdateTitle  = "---"
 	unknownString       = "Unknown"
+
+	// Common strings
+	errorPrefix                          = "ERROR:"
+	updateAvailableTitleWithStableSuffix = updateAvailableTitle + " (Stable)"
 )
 
 //go:embed assets/*
@@ -184,7 +188,7 @@ func parseStatusResponse(response string) (shouldContinue bool) {
 		} else {
 			log.Printf("Unexpected STATUS_UPDATE format: %q", response)
 		}
-	} else if strings.HasPrefix(response, "ERROR:") {
+	} else if strings.HasPrefix(response, errorPrefix) {
 		log.Printf("Error from status stream: %s", response)
 		return false
 	}
@@ -305,8 +309,6 @@ func handleVersionCheck(autoStart bool) {
 
 // handleCombinedStatus processes responses where both stable update and prerelease are available
 func handleCombinedStatus(response string, autoStart bool) {
-	// Parse the combined response format: "Outdated with Prerelease available: v1.0.0 (stable: 1.1.0, prerelease: 1.2.0-rc1)"
-	// or "Outdated with Prerelease available: Prerelease: v1.9.0-rc.1 (stable: 1.1.0, prerelease: 1.2.0-rc1)"
 	re := regexp.MustCompile(`Outdated with Prerelease available: (.+?) \(stable: ([^,]+), prerelease: ([^\)]+)\)`)
 	matches := re.FindStringSubmatch(response)
 
@@ -317,7 +319,6 @@ func handleCombinedStatus(response string, autoStart bool) {
 
 		log.Printf("Combined status - Current: %s, Stable: %s, Prerelease: %s", currentVersion, stableVersion, prereleaseVersion)
 
-		// Ensure current version has proper format (starts with v if not prerelease)
 		if !strings.HasPrefix(currentVersion, "v") && !strings.HasPrefix(currentVersion, "Prerelease:") {
 			currentVersion = "v" + currentVersion
 		}
@@ -327,7 +328,7 @@ func handleCombinedStatus(response string, autoStart bool) {
 		versionItem.SetTooltip(fmt.Sprintf("%s: %s (stable), %s (prerelease)", updateAvailableTitle, stableVersion, prereleaseVersion))
 
 		// Enable regular update button for stable version
-		updateItem.SetTitle(updateAvailableTitle + " (Stable)")
+		updateItem.SetTitle(updateAvailableTitleWithStableSuffix)
 		updateItem.Enable()
 
 		// Show prerelease notification
@@ -379,8 +380,6 @@ func handlePrereleaseVersion(response string) {
 		return
 	}
 
-	// Use regex to extract versions more reliably
-	// Handle both regular versions (v1.0.0) and prerelease versions (Prerelease: v1.0.0-rc1)
 	re := regexp.MustCompile(`Prerelease available: ([^\s]+) \(current: (v[^\)]+|Prerelease: v[^\)]+)\)`)
 	matches := re.FindStringSubmatch(response)
 	log.Printf("Regex matches: %v (length: %d)", matches, len(matches))
@@ -530,7 +529,7 @@ func sendCommandAndReceive(command string) (string, error) {
 	}
 
 	trimmed := strings.TrimSpace(response)
-	if strings.HasPrefix(trimmed, "ERROR:") {
+	if strings.HasPrefix(trimmed, errorPrefix) {
 		return "", fmt.Errorf("server error: %s", trimmed)
 	}
 
@@ -612,7 +611,7 @@ func startPrereleaseUpdateStream() {
 		prereleaseUpdateItem.SetTitle("Prerelease Update Failed (Connect)")
 		prereleaseUpdateItem.Enable()
 		// Restore regular update button state
-		updateItem.SetTitle(updateAvailableTitle + " (Stable)")
+		updateItem.SetTitle(updateAvailableTitleWithStableSuffix)
 		updateItem.Enable()
 		return
 	}
@@ -637,12 +636,12 @@ func processUpdateStreamResponse(trimmed string, prereleaseUpdateItem *systray.M
 	}
 
 	status := strings.TrimPrefix(trimmed, "UPDATE_PROGRESS: ")
-	if status == "Complete" || status == "Error" || strings.HasPrefix(status, "ERROR:") {
-		if status == "Error" || strings.HasPrefix(status, "ERROR:") {
+	if status == "Complete" || status == "Error" || strings.HasPrefix(status, errorPrefix) {
+		if status == "Error" || strings.HasPrefix(status, errorPrefix) {
 			prereleaseUpdateItem.SetTitle("Prerelease Update Failed")
 			prereleaseUpdateItem.Enable()
 			// Restore regular update button state
-			updateItem.SetTitle(updateAvailableTitle + " (Stable)")
+			updateItem.SetTitle(updateAvailableTitleWithStableSuffix)
 			updateItem.Enable()
 		}
 		return false
@@ -661,7 +660,7 @@ func readUpdateStream(reader *bufio.Reader, prereleaseUpdateItem *systray.MenuIt
 				prereleaseUpdateItem.SetTitle("Prerelease Update Failed (Stream)")
 				prereleaseUpdateItem.Enable()
 				// Restore regular update button state
-				updateItem.SetTitle(updateAvailableTitle + " (Stable)")
+				updateItem.SetTitle(updateAvailableTitleWithStableSuffix)
 				updateItem.Enable()
 			} else {
 				log.Println("Prerelease update stream finished (EOF).")

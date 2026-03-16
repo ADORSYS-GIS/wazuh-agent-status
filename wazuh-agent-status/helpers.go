@@ -18,7 +18,6 @@ func isVersionHigher(online, local string) bool {
 	online = strings.TrimPrefix(online, "v")
 	local = strings.TrimPrefix(local, "v")
 
-	// Split by "-" to separate version from prerelease (e.g., "1.9.0-rc.1" -> ["1.9.0", "rc.1"])
 	onlineBase := strings.Split(online, "-")[0]
 	localBase := strings.Split(local, "-")[0]
 
@@ -44,16 +43,14 @@ func isVersionHigher(online, local string) bool {
 		return len(onlineParts) > len(localParts)
 	}
 
-	// If base versions are identical, stable release (no "-") is higher than prerelease (has "-")
-	// e.g., "1.9.0" > "1.9.0-rc.1"
 	onlineIsPrerelease := strings.Contains(online, "-")
 	localIsPrerelease := strings.Contains(local, "-")
 
 	if onlineIsPrerelease && !localIsPrerelease {
-		return false // online is prerelease, local is stable -> online is NOT higher
+		return false
 	}
 	if !onlineIsPrerelease && localIsPrerelease {
-		return true // online is stable, local is prerelease -> online IS higher
+		return true
 	}
 
 	// Both are prerelease or both are stable with same base version
@@ -61,7 +58,6 @@ func isVersionHigher(online, local string) bool {
 }
 
 func fetchVersionInfo() *VersionInfo {
-	// Create HTTP client with timeout to prevent hanging
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -90,6 +86,43 @@ func fetchVersionInfo() *VersionInfo {
 	return &versionInfo
 }
 
+// extractFirstCommentGroup extracts the first commented line as a group
+func extractFirstCommentGroup(line string) (string, bool) {
+	if !strings.HasPrefix(line, "#") || strings.Contains(line, sourceFileMarker) {
+		return "", false
+	}
+
+	candidate := strings.TrimSpace(strings.TrimPrefix(line, "#"))
+	return candidate, candidate != ""
+}
+
+// extractSourceFileGroup extracts group from source file marker
+func extractSourceFileGroup(line string) (string, bool) {
+	if !strings.Contains(line, sourceFileMarker) {
+		return "", false
+	}
+
+	parts := strings.SplitN(line, sourceFileMarker, 2)
+	if len(parts) != 2 {
+		return "", false
+	}
+
+	pathPart := strings.TrimSpace(parts[1])
+	pathPart, found := strings.CutSuffix(pathPart, "-->")
+	if !found {
+		return "", false
+	}
+
+	pathPart = strings.TrimSpace(pathPart)
+
+	if idx := strings.Index(pathPart, "/"); idx > 0 {
+		group := pathPart[:idx]
+		return group, group != ""
+	}
+
+	return "", false
+}
+
 // getAgentGroups extracts groups from merged.mg file
 func getAgentGroups() ([]string, error) {
 	mergedMgPath, err := getMergedMgPath()
@@ -106,7 +139,7 @@ func getAgentGroups() ([]string, error) {
 
 	var groups []string
 	scanner := bufio.NewScanner(f)
-	firstCommentedLineAdded := false
+	firstCommentAdded := false
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -114,30 +147,20 @@ func getAgentGroups() ([]string, error) {
 			continue
 		}
 
-		// Add first commented line as a group
-		if strings.HasPrefix(line, "#") && !strings.Contains(line, sourceFileMarker) && !firstCommentedLineAdded {
-			candidate := strings.TrimSpace(strings.TrimPrefix(line, "#"))
-			if candidate != "" {
-				groups = append(groups, candidate)
-				firstCommentedLineAdded = true
+		if !firstCommentAdded {
+			if group, ok := extractFirstCommentGroup(line); ok {
+				groups = append(groups, group)
+				firstCommentAdded = true
+				continue
 			}
-			continue
 		}
 
-		// Collect all source file markers
-		if strings.Contains(line, sourceFileMarker) {
-			parts := strings.SplitN(line, sourceFileMarker, 2)
-			if len(parts) == 2 {
-				if before, found := strings.CutSuffix(strings.TrimSpace(parts[1]), "/agent.conf -->"); found {
-					if group := strings.TrimSpace(before); group != "" {
-						groups = append(groups, group)
-					}
-				}
-			}
+		if group, ok := extractSourceFileGroup(line); ok {
+			groups = append(groups, group)
 		}
 	}
-	log.Printf("Extracted groups: %s", groups)
 
+	log.Printf("Extracted groups: %s", groups)
 	return groups, scanner.Err()
 }
 
@@ -189,7 +212,6 @@ func downloadAndSaveFile(url string, filePath string, mod os.FileMode) error {
 	}
 	defer out.Close()
 
-	// Only apply chmod on non-Windows systems
 	if runtime.GOOS != "windows" {
 		if err := os.Chmod(filePath, mod); err != nil {
 			return err
