@@ -2,15 +2,11 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net"
-	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -20,17 +16,29 @@ import (
 )
 
 const (
-	versionURL     = "https://api.github.com/repos/ADORSYS-GIS/wazuh-agent/releases/latest"
-	backendPort    = "50505"
-	backendAddress = "localhost:" + backendPort
+	versionURL           = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/main/versions.json"
+	backendPort          = "50505"
+	backendAddress       = "localhost:" + backendPort
+	sudoCommand          = "/usr/bin/sudo"
+	grepCommand          = "/usr/bin/grep"
+	errorPrefix          = "ERROR:"
+	upToDateStatus       = "Up to date"
+	sourceFileMarker     = "Source file:"
+	powershellExe        = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+	executionPolicyFlag  = "-ExecutionPolicy"
+	cmdFlag              = "-Command"
+	unsupportedOSMessage = "Unsupported OS"
 )
 
 // Version is set at build time via ldflags
 var Version = "dev"
 
-type GitHubRelease struct {
-	TagName    string `json:"tag_name"`
-	Prerelease bool   `json:"prerelease"`
+type VersionInfo struct {
+	Framework struct {
+		Version           string `json:"version"`
+		PrereleaseVersion string `json:"prerelease_version"`
+	} `json:"framework"`
+	PrereleaseTestGroups []string `json:"prerelease_test_groups"`
 }
 
 // Global state and communication channels
@@ -154,18 +162,40 @@ func monitorAgentStatus() {
 
 func checkAndSetVersion() {
 	localVersion := getLocalVersion()
-	onlineVersion, isPrerelease := fetchOnlineVersion()
+	agentGroups, err := getAgentGroups()
+	if err != nil {
+		log.Println("Failed to extract agent groups")
+		return
+	}
 
-	currentVersion := fmt.Sprintf("v%s", localVersion)
-	if localVersion == "Unknown" || onlineVersion == "Unknown" {
-		currentVersion = "Version: Unknown"
-	} else if isPrerelease {
-		currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
-		log.Printf("Skipping upstream prerelease: %s", onlineVersion)
-	} else if isVersionHigher(onlineVersion, localVersion) {
-		currentVersion = fmt.Sprintf("Outdated, v%s", localVersion)
+	versionInfo := fetchVersionInfo()
+
+	// Check if current version is a prerelease (contains "rc")
+	isCurrentPrerelease := strings.Contains(localVersion, "rc")
+
+	var versionPrefix string
+	if isCurrentPrerelease {
+		versionPrefix = fmt.Sprintf("Prerelease: v%s", localVersion)
 	} else {
-		currentVersion = fmt.Sprintf("Up to date, v%s", localVersion)
+		versionPrefix = fmt.Sprintf("v%s", localVersion)
+	}
+
+	currentVersion := versionPrefix
+	if localVersion == "Unknown" || versionInfo == nil {
+		currentVersion = "Version: Unknown"
+	} else {
+		isOutdated := versionInfo.Framework.Version != "" && isVersionHigher(versionInfo.Framework.Version, localVersion)
+		hasPrerelease := versionInfo.Framework.PrereleaseVersion != "" && shouldShowPrerelease(versionInfo, agentGroups) && isVersionHigher(versionInfo.Framework.PrereleaseVersion, localVersion)
+
+		if isOutdated && hasPrerelease {
+			currentVersion = fmt.Sprintf("Outdated with Prerelease available: %s (stable: %s, prerelease: %s)", versionPrefix, versionInfo.Framework.Version, versionInfo.Framework.PrereleaseVersion)
+		} else if isOutdated {
+			currentVersion = fmt.Sprintf("Outdated, %s", versionPrefix)
+		} else if hasPrerelease {
+			currentVersion = fmt.Sprintf("Prerelease available: %s (current: %s)", versionInfo.Framework.PrereleaseVersion, versionPrefix)
+		} else {
+			currentVersion = fmt.Sprintf("%s, %s", upToDateStatus, versionPrefix)
+		}
 	}
 	manager.SetVersion(currentVersion)
 	log.Printf("Version status: %s", currentVersion)
@@ -173,29 +203,11 @@ func checkAndSetVersion() {
 
 // --- SERVER AND CONNECTION HANDLER ---
 
-func getSystemLogFilePath() string {
-	var logDir string
-
-	switch runtime.GOOS {
-	case "linux", "darwin":
-		logDir = "/var/log"
-	case "windows":
-		logDir = "C:\\ProgramData\\wazuh\\logs"
-	default:
-		logDir = "./logs"
-	}
-
-	if runtime.GOOS == "windows" {
-		if err := os.MkdirAll(logDir, 0755); err != nil {
-			log.Fatalf("failed to create log directory: %v", err)
-		}
-	}
-
-	return filepath.Join(logDir, "wazuh-agent-status.log")
-}
-
 func init() {
-	logFilePath := getSystemLogFilePath()
+	logFilePath, err := getSystemLogFilePath()
+	if err != nil {
+		log.Fatalf("Failed to get system log file path: %v", err)
+	}
 
 	log.SetOutput(&lumberjack.Logger{
 		Filename:   logFilePath,
@@ -265,147 +277,88 @@ func handleConnection(conn net.Conn) {
 
 		switch command {
 		case "get-version":
-			checkAndSetVersion() // Check version on demand
-			versionInfo := manager.GetVersion()
-			conn.Write([]byte(fmt.Sprintf("VERSION_CHECK: %s\n", versionInfo)))
+			handleGetVersion(conn)
 
 		case "subscribe-status":
-			ch := notifier.Subscribe(connID)
-
-			// Send initial state immediately
-			status, connection := manager.GetStatus()
-			conn.Write([]byte(fmt.Sprintf("STATUS_UPDATE: %s, %s\n", status, connection)))
-
-			// Push loop
-			for update := range ch {
-				_, err := conn.Write([]byte(update))
-				if err != nil {
-					log.Printf("Error writing update to %s: %v", connID, err)
-					notifier.Unsubscribe(connID)
-					return
-				}
-			}
+			handleSubscribeStatus(conn, connID)
 			return
 
 		case "update":
 			log.Println("Received update command. Starting update stream...")
-			// Update routine runs in a new goroutine and streams progress
-			go func() {
-				// We dial self to open a new dedicated connection for the update stream.
-				updateConn, dialErr := net.DialTimeout("tcp", backendAddress, 5*time.Second)
-				if dialErr != nil {
-					log.Printf("Failed to dial self for update stream: %v", dialErr)
-					conn.Write([]byte("ERROR: Update stream failed to start.\n"))
-					return
-				}
-				defer updateConn.Close()
+			startUpdateStreamAsync(conn, false)
 
-				// Send the dedicated command to initiate the stream
-				fmt.Fprintln(updateConn, "initiate-update-stream")
-
-				// Read the stream response and pipe it to the client's current connection
-				_, copyErr := io.Copy(conn, updateConn)
-				if copyErr != nil && copyErr != io.EOF {
-					log.Printf("Error streaming update logs: %v", copyErr)
-				}
-			}()
+		case "update-prerelease":
+			log.Println("Received prerelease update command. Starting update stream...")
+			startUpdateStreamAsync(conn, true)
 
 		case "initiate-update-stream":
-			// This is the dedicated connection for the update process, passed from the self-dial
-			updateAgent(conn) // updateAgent will write progress and close this conn
+			// This is the dedicated connection for the update process
+			updateAgent(conn, false)
 			log.Println("Update finished and stream closed.")
 
+		case "initiate-prerelease-update-stream":
+			// This is the dedicated connection for the prerelease update process
+			updateAgent(conn, true)
+			log.Println("Prerelease update finished and stream closed.")
+
 		default:
-			conn.Write([]byte(fmt.Sprintf("ERROR: Unknown command: %s\n", command)))
+			conn.Write([]byte(fmt.Sprintf("%s Unknown command: %s\n", errorPrefix, command)))
 		}
 	}
 }
 
-// Run a command as root using sudo
-func runAsRoot(command string, args ...string) (string, error) {
-	cmd := exec.Command("/usr/bin/sudo", append([]string{command}, args...)...)
-	output, err := cmd.CombinedOutput()
-	return string(output), err
+// handleGetVersion processes the get-version command
+func handleGetVersion(conn net.Conn) {
+	checkAndSetVersion() // Check version on demand
+	versionInfo := manager.GetVersion()
+	conn.Write([]byte(fmt.Sprintf("VERSION_CHECK: %s\n", versionInfo)))
 }
 
-// Read local version from embedded file
-func getLocalVersion() string {
-	if runtime.GOOS == "windows" {
-		output, err := os.ReadFile(getVersionFilePath())
+// handleSubscribeStatus processes the subscribe-status command
+func handleSubscribeStatus(conn net.Conn, connID string) {
+	ch := notifier.Subscribe(connID)
+
+	// Send initial state immediately
+	status, connection := manager.GetStatus()
+	conn.Write([]byte(fmt.Sprintf("STATUS_UPDATE: %s, %s\n", status, connection)))
+
+	// Push loop
+	for update := range ch {
+		_, err := conn.Write([]byte(update))
 		if err != nil {
-			log.Printf("Failed to read local version on Windows: %v", err)
-			return "Unknown"
+			log.Printf("Error writing update to %s: %v", connID, err)
+			notifier.Unsubscribe(connID)
+			return
 		}
-		return strings.TrimSpace(string(output))
-	} else {
-		output, err := runAsRoot("cat", getVersionFilePath())
-		if err != nil {
-			log.Printf("Failed to read local version on Linux/macOS: %v", err)
-			return "Unknown"
-		}
-		return strings.TrimSpace(output)
 	}
 }
 
-func isVersionHigher(online, local string) bool {
-	onlineParts := strings.Split(strings.TrimPrefix(online, "v"), ".")
-	localParts := strings.Split(strings.TrimPrefix(local, "v"), ".")
-
-	for i := 0; i < len(onlineParts) && i < len(localParts); i++ {
-		var onlineNum, localNum int
-		fmt.Sscanf(onlineParts[i], "%d", &onlineNum)
-		fmt.Sscanf(localParts[i], "%d", &localNum)
-
-		if onlineNum > localNum {
-			return true
+// startUpdateStreamAsync starts an update stream in a goroutine
+func startUpdateStreamAsync(conn net.Conn, isPrerelease bool) {
+	go func() {
+		updateConn, dialErr := net.DialTimeout("tcp", backendAddress, 5*time.Second)
+		if dialErr != nil {
+			streamType := "update"
+			if isPrerelease {
+				streamType = "prerelease update"
+			}
+			log.Printf("Failed to dial self for %s stream: %v", streamType, dialErr)
+			conn.Write([]byte(fmt.Sprintf("%s %s stream failed to start.\n", errorPrefix, streamType)))
+			return
 		}
-		if onlineNum < localNum {
-			return false
+		defer updateConn.Close()
+
+		// Send the dedicated command to initiate the stream
+		command := "initiate-update-stream"
+		if isPrerelease {
+			command = "initiate-prerelease-update-stream"
 		}
-	}
+		fmt.Fprintln(updateConn, command)
 
-	return len(onlineParts) > len(localParts)
-}
-
-func fetchOnlineVersion() (string, bool) {
-	resp, err := http.Get(versionURL)
-	if err != nil {
-		log.Printf("Failed to fetch online version: %v", err)
-		return "Unknown", false
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("Failed to fetch online version: HTTP %d", resp.StatusCode)
-		return "Unknown", false
-	}
-
-	var release GitHubRelease
-	err = json.NewDecoder(resp.Body).Decode(&release)
-	if err != nil {
-		log.Printf("Failed to parse release: %v", err)
-		return "Unknown", false
-	}
-	log.Printf("Fetched release info: TagName=%s, Prerelease=%v", release.TagName, release.Prerelease)
-
-	if release.TagName == "" {
-		log.Println("No release found")
-		return "Unknown", false
-	}
-
-	return release.TagName, release.Prerelease
-}
-
-// getVersionPath returns version file path based on the OS
-func getVersionFilePath() string {
-	switch os := runtime.GOOS; os {
-	case "linux":
-		return "/var/ossec/etc/version.txt"
-	case "darwin":
-		return "/Library/Ossec/etc/version.txt"
-	case "windows":
-		return "C:\\Program Files (x86)\\ossec-agent\\version.txt"
-	default:
-		return "/var/ossec/etc/version.txt"
-	}
+		// Read the stream response and pipe it to the client's current connection
+		_, copyErr := io.Copy(conn, updateConn)
+		if copyErr != nil && copyErr != io.EOF {
+			log.Printf("Error streaming update logs: %v", copyErr)
+		}
+	}()
 }

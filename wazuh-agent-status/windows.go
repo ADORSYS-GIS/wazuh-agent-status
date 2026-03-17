@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/kardianos/service"
@@ -15,9 +17,8 @@ import (
 
 // Define constants for commonly used literals
 const (
-	powershellExe = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
-	cmdFlag       = "-Command"
-	taskName      = "WazuhAgentUpdate"
+	taskName   = "WazuhAgentUpdate"
+	updateFlag = "-Update"
 )
 
 // Define the program structure for the service
@@ -78,7 +79,13 @@ func checkServiceStatus() (string, string) {
 		status = "Active"
 	}
 
-	connCmd := exec.Command(powershellExe, cmdFlag, "Select-String -Path 'C:\\Program Files (x86)\\ossec-agent\\wazuh-agent.state' -Pattern '^status'")
+	var wazuhStatePath, statePathErr = getWazuhStatePath()
+	if statePathErr != nil {
+		log.Printf("Error getting Wazuh state path: %v", statePathErr)
+		return "Inactive", "Disconnected"
+	}
+
+	connCmd := exec.Command(powershellExe, cmdFlag, fmt.Sprintf("Select-String -Path '%s' -Pattern '^status'", wazuhStatePath))
 	connOutput, connErr := connCmd.CombinedOutput()
 	if connErr != nil {
 		log.Printf("Error checking connection status: %v\n", connErr)
@@ -95,11 +102,11 @@ func checkServiceStatus() (string, string) {
 }
 
 // createScheduledTask creates a Windows scheduled task that will run in the user's context
-func createScheduledTask() error {
+func createScheduledTask(updateExe string) error {
 	// PowerShell script to create a scheduled task
 	psScript := fmt.Sprintf(`
 		$taskName = "%s"
-		$updateExe = "C:\Program Files (x86)\ossec-agent\active-response\bin\adorsys-update.exe"
+		$updateExe = "%s"
 
 		# Check if task already exists
 		$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
@@ -107,8 +114,8 @@ func createScheduledTask() error {
 			Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
 		}
 
-		# Create the action
-		$action = New-ScheduledTaskAction -Execute $updateExe
+		# Create the action to run PowerShell with the script
+		$action = New-ScheduledTaskAction -Execute $updateExe -Argument "%s"
 
 		# Create a trigger that runs immediately
 		$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(2)
@@ -130,9 +137,9 @@ func createScheduledTask() error {
 
 		# Clean up the task after it runs
 		Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-	`, taskName)
+	`, taskName, updateExe, updateFlag)
 
-	cmd := exec.Command(powershellExe, "-ExecutionPolicy", "Bypass", cmdFlag, psScript)
+	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Failed to create scheduled task: %v\nOutput: %s", err, string(output))
@@ -143,7 +150,7 @@ func createScheduledTask() error {
 }
 
 // updateAgent updates the Wazuh agent on Windows and streams progress to the client
-func updateAgent(conn net.Conn) {
+func updateAgent(conn net.Conn, isPrerelease bool) {
 	// The caller (handleConnection) closes the dedicated update stream conn when this function returns
 	defer conn.Close()
 
@@ -154,25 +161,56 @@ func updateAgent(conn net.Conn) {
 	}
 
 	writeUpdate("Starting...")
-	log.Printf("Launching Wazuh agent update via Task Scheduler...\n")
 
-	err := createScheduledTask()
+	// Get the adorsys-update script path
+	updateExe, err := getAdorsysUpdatePath()
 	if err != nil {
-		// Fallback to WMI method if Task Scheduler fails
-		writeUpdate("Task Scheduler failed, trying WMI method...")
-		log.Printf("Task Scheduler failed, trying WMI method...\n")
-		updateAgentViaWMI()
-		writeUpdate("Complete")
+		writeUpdate(fmt.Sprintf("ERROR: Failed to get update script path: %v", err))
+		return
+	}
+
+	if isPrerelease {
+		logFileHandle, err := createLogFile()
+		if err != nil {
+			writeUpdate(fmt.Sprintf("ERROR: Failed to create log file: %v", err))
+			return
+		}
+		defer logFileHandle.Close()
+
+		writeUpdate("Updating to prerelease")
+		logFileHandle.WriteString("Using prerelease update method\n")
+		if err := handlePrereleaseUpdate(logFileHandle); err != nil {
+			log.Printf("Error handling prerelease update: %v", err)
+			logFileHandle.WriteString(fmt.Sprintf("Error handling prerelease update: %v\n", err))
+			writeUpdate("Error")
+			return
+		}
 	} else {
-		writeUpdate("Task Scheduler method succeeded")
-		log.Printf("Wazuh agent update launched successfully via Task Scheduler\n")
-		writeUpdate("Complete")
+		writeUpdate("Updating to stable")
+		if err := handleRegularUpdate(updateExe); err != nil {
+			log.Printf("Error handling regular update: %v", err)
+			writeUpdate("Error")
+			return
+		}
+	}
+
+	log.Println("Wazuh agent updated successfully")
+	writeUpdate("Complete")
+}
+
+// handleRegularUpdate handles the regular update process
+func handleRegularUpdate(updateExe string) error {
+	err := createScheduledTask(updateExe)
+	if err != nil {
+		return updateAgentViaWMI(updateExe)
+	} else {
+		return nil
 	}
 }
 
 // updateAgentViaWMI uses WMI to launch the update in the user's session (fallback method)
-func updateAgentViaWMI() {
-	psScript := `
+func updateAgentViaWMI(updateExe string) error {
+	psScript := fmt.Sprintf(`
 		# Get the active user session
 		$sessions = Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty UserName
 		if ($sessions) {
@@ -180,13 +218,13 @@ func updateAgentViaWMI() {
 			$sessionId = (Get-Process -IncludeUserName | Where-Object {$_.UserName -eq $sessions} | Select-Object -First 1).SessionId
 			if ($sessionId) {
 				# Use WMI to create process in user session
-				$updateExe = "C:\Program Files (x86)\ossec-agent\active-response\bin\adorsys-update.exe"
+				$updateExe = %s
 				
 				# Create process in the user's session
 				$startInfo = ([wmiclass]"\\localhost\root\cimv2:Win32_ProcessStartup").CreateInstance()
 				$startInfo.ShowWindow = 1  # Show window
 				
-				$result = ([wmiclass]"\\localhost\root\cimv2:Win32_Process").Create($updateExe, $null, $startInfo)
+				$result = ([wmiclass]"\\localhost\root\cimv2:Win32_Process").Create("$updateExe %s", $null, $startInfo)
 				
 				if ($result.ReturnValue -eq 0) {
 					Write-Output "Update process started successfully with PID: $($result.ProcessId)"
@@ -199,9 +237,9 @@ func updateAgentViaWMI() {
 		} else {
 			Write-Error "No active user session found"
 		}
-	`
+	`, updateExe, updateFlag)
 
-	cmd := exec.Command(powershellExe, "-ExecutionPolicy", "Bypass", cmdFlag, psScript)
+	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
@@ -209,28 +247,70 @@ func updateAgentViaWMI() {
 		log.Printf("%s\n", errorMessage)
 
 		// Last resort: try direct execution
-		updateAgentDirect()
+		return updateAgentDirect(updateExe)
 	} else {
 		log.Printf("Wazuh agent update launched successfully via WMI\nOutput: %s\n", string(output))
+		return nil
 	}
 }
 
 // updateAgentDirect attempts direct execution (last resort)
-func updateAgentDirect() {
+func updateAgentDirect(updateExe string) error {
 	log.Printf("Attempting direct execution as last resort...\n")
+	psScript := fmt.Sprintf(`
+		$updateExe = %s
+		Start-Process -FilePath $updateExe -ArgumentList "%s" -Verb RunAs -WindowStyle Normal
+	`, updateExe, updateFlag)
 
-	psScript := `
-		$updateExe = "C:\Program Files (x86)\ossec-agent\active-response\bin\adorsys-update.exe"
-		Start-Process -FilePath $updateExe -Verb RunAs -WindowStyle Normal
-	`
-
-	cmd := exec.Command(powershellExe, "-ExecutionPolicy", "Bypass", cmdFlag, psScript)
+	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	err := cmd.Start()
 	if err != nil {
 		log.Printf("Direct execution failed: %v\n", err)
 		log.Printf("All update methods have failed. Manual intervention may be required.\n")
+		return fmt.Errorf("all update methods failed: %w", err)
 	} else {
 		log.Printf("Direct execution initiated\n")
+		return nil
+	}
+}
+
+// handlePrereleaseUpdate handles the prerelease update process for Windows
+func handlePrereleaseUpdate(logFileHandle *os.File) error {
+	versionInfo := fetchVersionInfo()
+	if versionInfo == nil || versionInfo.Framework.PrereleaseVersion == "" {
+		return fmt.Errorf("empty prerelease")
+	}
+
+	// Get the adorsys-update.bat path
+	updateScript, err := getAdorsysUpdatePath()
+	if err != nil {
+		return fmt.Errorf("failed to get update script path: %w", err)
+	}
+
+	// Execute the batch file with -Prerelease flag
+	cmd := exec.Command(updateScript, "-Prerelease")
+	return executePrereleaseScript(cmd, logFileHandle)
+}
+
+// executePrereleaseScript executes the prerelease script and waits for completion
+func executePrereleaseScript(cmd *exec.Cmd, logFileHandle *os.File) error {
+	// Stream stdout and stderr ONLY to the update log file
+	cmd.Stdout = logFileHandle
+	cmd.Stderr = logFileHandle
+
+	// Execute the prerelease script
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("command failed to start: %w", err)
+	}
+
+	logFileHandle.WriteString("Executing script...\n")
+
+	// Wait for the command to finish
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("update failed: %w", err)
+	} else {
+		logFileHandle.WriteString("UPDATE COMPLETED SUCCESSFULLY\n")
+		return nil
 	}
 }
 
@@ -253,4 +333,66 @@ func windowsMain() {
 	if err != nil {
 		log.Fatalf("Failed to run service: %v", err)
 	}
+}
+
+// Windows-specific helper functions
+
+func getSystemLogFilePath() (string, error) {
+	logDir := "C:\\ProgramData\\wazuh\\logs"
+
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create log directory: %v", err)
+	}
+
+	return filepath.Join(logDir, "wazuh-agent-status.log"), nil
+}
+
+func getLocalVersion() string {
+	versionPath, err := getVersionFilePath()
+	if err != nil {
+		log.Printf("Failed to get version file path on Windows: %v", err)
+		return "Unknown"
+	}
+	output, err := os.ReadFile(versionPath)
+	if err != nil {
+		log.Printf("Failed to read local version on Windows: %v", err)
+		return "Unknown"
+	}
+	return strings.TrimSpace(string(output))
+}
+
+func getBasePath() (string, error) {
+	return "C:\\Program Files (x86)\\ossec-agent", nil
+}
+
+func getMergedMgPath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "shared", "merged.mg"), nil
+}
+
+func getVersionFilePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "version.txt"), nil
+}
+
+func getAdorsysUpdatePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "active-response", "bin", "adorsys-update.bat"), nil
+}
+
+func getWazuhStatePath() (string, error) {
+	basePath, err := getBasePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(basePath, "wazuh-agent.state"), nil
 }
