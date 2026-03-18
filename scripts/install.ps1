@@ -27,8 +27,7 @@ $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
 $UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/v$WAS_VERSION/scripts/adorsys-update.bat" }
 $UPDATE_SCRIPT_PATH = if ($null -ne $env:UPDATE_SCRIPT_PATH) { $env:UPDATE_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.bat" }
 
-# $UPDATE_SCRIPT_PS_URL = if ($null -ne $env:UPDATE_SCRIPT_PS_URL) { $env:UPDATE_SCRIPT_PS_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/v$WAS_VERSION/scripts/adorsys-update.ps1" } 
-$UPDATE_SCRIPT_PS_URL = if ($null -ne $env:UPDATE_SCRIPT_PS_URL) { $env:UPDATE_SCRIPT_PS_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/refs/heads/feat/group-based-prerelease-update/scripts/adorsys-update.ps1" }
+$UPDATE_SCRIPT_PS_URL = if ($null -ne $env:UPDATE_SCRIPT_PS_URL) { $env:UPDATE_SCRIPT_PS_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/v$WAS_VERSION/scripts/adorsys-update.ps1" } 
 $UPDATE_SCRIPT_PS_PATH = if ($null -ne $env:UPDATE_SCRIPT_PS_PATH) { $env:UPDATE_SCRIPT_PS_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.ps1" }
 
 # Create necessary directories
