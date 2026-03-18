@@ -1,4 +1,5 @@
 # Wazuh Agent Status
+
 [![Release Client](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/release.yaml/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/release.yaml)
 
 **Wazuh Agent Status** is an application designed to monitor the state of Wazuh agents. This tool provides real-time insights into the operational status of agents, ensuring they are functioning correctly and efficiently.
@@ -21,7 +22,6 @@
 
 - **Connection Health Validation:** Regular checks confirm each agent’s connection integrity, with clear indications for connection loss or re-establishment.
 
-
 ## Installation from code
 
 To install the application, follow these steps:
@@ -35,10 +35,11 @@ To install the application, follow these steps:
    cd wazuh-agent-status
    ```
 3. Install dependencies:
+
    ```bash
    go mod tidy
    go mod download
-   
+
    ### Additional steps for Ubuntu
    sudo apt-get update
    sudo apt-get install -y libayatana-appindicator3-dev
@@ -58,9 +59,11 @@ You can build binaries for different systems using this command:
 > **Note**: Ensure you have a suitable C compiler installed on your system for this to work.
 
 ## Quick Start
+
 After building or installing the binary, you can start the application as follows:
 
 Run the application with:
+
 ```bash
 ./dist/wazuh-agent-status
 ```
@@ -70,18 +73,26 @@ Run the application with:
 Run the following commands to install the app
 
 - ### Ubuntu and macOS
-   1. #### Admin app
-   ```bash
-   curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | PROFILE=admin sh
-   ```
-   
-   2. #### Simple users app
-   ```bash
-   curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | sh
-   ```
+  1.  #### Admin app
+  ```bash
+  curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | PROFILE=admin sh
+  ```
+  2.  #### Simple users app
+  ```bash
+  curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | sh
+  ```
 
+## 📖 Project Documentation
+
+For a detailed look at where we are going and how the system is built, check out our new documentation:
+
+- **[Architecture Overview](docs/architecture.md)**: A "Brains & Face" conceptual view and technical security analysis.
+- **[Improvement Roadmap](docs/roadmap.md)**: A 6-phase strategic plan for security hardening, mass deployment, and performance optimization.
+
+---
 
 After installation, launch the application with:
+
 ```bash
 wazuh-agent-status
 ```
