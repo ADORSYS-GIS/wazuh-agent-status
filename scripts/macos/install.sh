@@ -1,0 +1,249 @@
+#!/bin/sh
+
+# Set shell options
+if [ -n "$BASH_VERSION" ]; then
+    set -euo pipefail
+else
+    set -eu
+fi
+
+PROFILE=${PROFILE:-"user"}
+APP_VERSION=${APP_VERSION:-"0.4.2"}
+
+# Assign app version based on profile
+case "$PROFILE" in
+"admin") WAS_VERSION="$APP_VERSION" ;;
+*) WAS_VERSION="$APP_VERSION-user" ;;
+esac
+
+# macOS-specific configuration
+OS="darwin"
+BIN_DIR="/usr/local/bin"
+WAZUH_ACTIVE_RESPONSE_BIN_DIR="/Library/Ossec/active-response/bin"
+
+ARCH=$(uname -m)
+case "$ARCH" in
+x86_64) ARCH="amd64" ;;
+arm64 | aarch64) ARCH="arm64" ;;
+*) error_exit "Unsupported architecture: $ARCH" ;;
+esac
+
+# Environment Variables with Defaults
+SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
+CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
+WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
+WAZUH_USER=${WAZUH_USER:-"root"}
+
+SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
+CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
+
+SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
+CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
+BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"}
+SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
+CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
+
+ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/refs/tags/v$WAS_VERSION/scripts/adorsys-update.sh"}
+UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
+
+# Text Formatting
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+BOLD='\033[1m'
+NORMAL='\033[0m'
+
+# Logging Utilities
+log() { echo -e "$(date +"%Y-%m-%d %H:%M:%S") $1 $2"; }
+info_message() { log "${BLUE}${BOLD}[INFO]${NORMAL}" "$*"; }
+warn_message() { log "${YELLOW}${BOLD}[WARNING]${NORMAL}" "$*"; }
+error_message() { log "${RED}${BOLD}[ERROR]${NORMAL}" "$*"; }
+success_message() { log "${GREEN}${BOLD}[SUCCESS]${NORMAL}" "$*"; }
+print_step_header() { echo -e "\n${BOLD}===== STEP $1: $2 =====${NORMAL}\n"; }
+
+# Error Handler
+error_exit() {
+    error_message "$1"
+    exit 1
+}
+
+# Command Existence Check
+command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+# Execute with Root Privileges
+maybe_sudo() {
+    if [ "$(id -u)" -ne 0 ]; then
+        command_exists sudo && sudo "$@" || error_exit "This script requires root privileges. Run as root or use sudo."
+    else
+        "$@"
+    fi
+}
+
+sed_alternative() {
+    if command_exists gsed; then
+        gsed "$@"
+    else
+        sed "$@"
+    fi
+}
+
+# General Utility Functions
+create_file() {
+    local filepath="$1"
+    local content="$2"
+    maybe_sudo bash -c "cat > \"$filepath\" <<EOF
+$content
+EOF"
+    info_message "Created file: $filepath"
+}
+
+remove_file() {
+    local filepath="$1"
+    if [ -f "$filepath" ]; then
+        info_message "Removing file: $filepath"
+        maybe_sudo rm -f "$filepath"
+    fi
+}
+
+# macOS Launchd Plist File
+create_launchd_plist_file() {
+    local name="$1"
+    local filepath="$2"
+
+    info_message "Creating plist file for $name..."
+    create_file "$filepath" "
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+    <key>Label</key>
+    <string>com.adorsys.$name</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$BIN_DIR/$name</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>
+"
+    
+    if [ "$name" = "$SERVER_NAME" ]; then
+        info_message "Loading new daemon plist file..."
+        maybe_sudo launchctl bootstrap "system $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
+    else
+        info_message "Loading new agent plist file..."
+        launchctl bootstrap "gui/$(id) $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
+    fi
+    info_message "macOS Launchd plist file created and loaded: $filepath"
+}
+
+unload_plist_file() {
+    local filepath="$1"
+
+    if [ -f "$filepath" ]; then
+        info_message "Unloading previous plist file (if any)..."
+        maybe_sudo launchctl bootout "gui/$(id) $filepath" 2>/dev/null || warn_message "Unloading previous plist file failed: $filepath"
+        info_message "Previous plist file unloaded: $filepath"
+    else
+        warn_message "Plist file: $filepath does not exist. Skipping."
+    fi
+}
+
+# Startup Configurations
+make_server_launch_at_startup() {
+    create_launchd_plist_file "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE"
+}
+
+make_client_launch_at_startup() {
+    create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE"
+}
+
+validate_installation() {
+    # Validate binaries
+    if [ -x "$BIN_DIR/$SERVER_NAME" ]; then
+        success_message "Server binary exists and is executable: $BIN_DIR/$SERVER_NAME."
+    else
+        error_exit "Server binary is missing or not executable: $BIN_DIR/$SERVER_NAME."
+    fi
+
+    if [ -x "$BIN_DIR/$CLIENT_NAME" ]; then
+        success_message "Client binary exists and is executable: $BIN_DIR/$CLIENT_NAME."
+    else
+        error_exit "Client binary is missing or not executable: $BIN_DIR/$CLIENT_NAME."
+    fi
+
+    # Validate service files
+    if [ -f "$SERVER_LAUNCH_AGENT_FILE" ]; then
+        success_message "macOS Launchd server plist exists: $SERVER_LAUNCH_AGENT_FILE."
+    else
+        error_exit "macOS Launchd server plist is missing: $SERVER_LAUNCH_AGENT_FILE."
+    fi
+
+    if [ -f "$CLIENT_LAUNCH_AGENT_FILE" ]; then
+        success_message "macOS Launchd client plist exists: $CLIENT_LAUNCH_AGENT_FILE."
+    else
+        error_exit "macOS Launchd client plist is missing: $CLIENT_LAUNCH_AGENT_FILE."
+    fi
+    
+    # Validate adorsys-update.sh script
+    if maybe_sudo [ -f "$UPDATE_SCRIPT_PATH" ]; then
+        success_message "adorsys-update.sh script exists: $UPDATE_SCRIPT_PATH."
+    else
+        error_exit "adorsys-update.sh script is missing: $UPDATE_SCRIPT_PATH."
+    fi
+
+    success_message "Installation complete!"
+}
+
+# Installation Process
+TEMP_DIR=$(mktemp -d) || error_exit "Failed to create temporary directory"
+trap 'rm -rf "$TEMP_DIR"' EXIT
+
+print_step_header 1 "Binaries Download"
+info_message "Downloading server binary from $SERVER_URL..."
+curl -SL --progress-bar -o "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
+info_message "Downloading client binary $CLIENT_URL..."
+curl -SL --progress-bar -o "$TEMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_URL" || error_exit "Failed to download $CLIENT_BIN_NAME"
+success_message "Binaries downloaded successfully."
+
+print_step_header 2 "Binaries Installation"
+info_message "Create Binary directory $BIN_DIR if it doesn't exist"
+maybe_sudo mkdir -p "$BIN_DIR" || error_exit "Failed to create directory $BIN_DIR"
+info_message "Installing server binary to $BIN_DIR..."
+maybe_sudo mv "$TEMP_DIR/$SERVER_BIN_NAME" "$BIN_DIR/$SERVER_NAME"
+maybe_sudo chmod +x "$BIN_DIR/$SERVER_NAME"
+info_message "Installing client binary to $BIN_DIR..."
+maybe_sudo mv "$TEMP_DIR/$CLIENT_BIN_NAME" "$BIN_DIR/$CLIENT_NAME"
+maybe_sudo chmod +x "$BIN_DIR/$CLIENT_NAME"
+success_message "Binaries installed successfully."
+
+print_step_header 3 "Server Service Configuration"
+make_server_launch_at_startup
+
+print_step_header 4 "Client Service Configuration"
+unload_plist_file "$CLIENT_LAUNCH_AGENT_FILE"
+make_client_launch_at_startup
+
+print_step_header 5 "Download and configure adorsys-update.sh"
+info_message "Downloading adorsys-update.sh..."
+if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
+    maybe_sudo curl -SL --progress-bar -o "$UPDATE_SCRIPT_PATH" "$ADORSYS_UPDATE_SCRIPT_URL" || warn_message "Failed to download adorsys-update.sh"
+    maybe_sudo chmod 750 "$UPDATE_SCRIPT_PATH"
+    
+    # Update WAZUH_MANAGER value in adorsys-update.sh
+    if [ -n "${WAZUH_MANAGER:-}" ]; then
+        info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
+        maybe_sudo sed_alternative -i "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
+    else
+        warn_message "WAZUH_MANAGER variable not set. Skipping update in adorsys-update.sh."
+    fi
+else
+    warn_message "$WAZUH_ACTIVE_RESPONSE_BIN_DIR does not exist, skipping."
+fi
+
+print_step_header 6 "Validating installation and configuration..."
+validate_installation
