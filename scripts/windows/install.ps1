@@ -9,6 +9,7 @@ $WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else {
 $SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
 $CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
 $INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
+$WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "refs/tags/v$WAS_VERSION" }
 
 $APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.2" }
 
@@ -24,10 +25,10 @@ $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
 
-$UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/v$WAS_VERSION/scripts/adorsys-update.bat" }
+$UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/$WAZUH_AGENT_STATUS_REPO_REF/scripts/windows/adorsys-update.bat" }
 $UPDATE_SCRIPT_PATH = if ($null -ne $env:UPDATE_SCRIPT_PATH) { $env:UPDATE_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.bat" }
 
-$UPDATE_SCRIPT_PS_URL = if ($null -ne $env:UPDATE_SCRIPT_PS_URL) { $env:UPDATE_SCRIPT_PS_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/v$WAS_VERSION/scripts/adorsys-update.ps1" } 
+$UPDATE_SCRIPT_PS_URL = if ($null -ne $env:UPDATE_SCRIPT_PS_URL) { $env:UPDATE_SCRIPT_PS_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/$WAZUH_AGENT_STATUS_REPO_REF/scripts/windows/adorsys-update.ps1" } 
 $UPDATE_SCRIPT_PS_PATH = if ($null -ne $env:UPDATE_SCRIPT_PS_PATH) { $env:UPDATE_SCRIPT_PS_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.ps1" }
 
 # Create necessary directories

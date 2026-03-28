@@ -33,6 +33,7 @@ SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
 WAZUH_USER=${WAZUH_USER:-"root"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"refs/tags/v$WAS_VERSION"}
 
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
 DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
@@ -44,8 +45,7 @@ BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/downl
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
 
-ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/refs/heads/refactor/split-linux-macos-scripts/scripts/linux/adorsys-update.sh"}
-# ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/refs/tags/v$WAS_VERSION/scripts/adorsys-update.sh"}
+ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/$WAZUH_AGENT_STATUS_REPO_REF/scripts/linux/adorsys-update.sh"}
 UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
 # Text Formatting

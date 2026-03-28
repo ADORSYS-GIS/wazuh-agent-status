@@ -38,8 +38,9 @@ Set-StrictMode -Version Latest
 # ---- Configuration Variables ----
 $WAZUH_MANAGER           = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $OSSEC_PATH              = "C:\Program Files (x86)\ossec-agent\"
-$VERSION_URL             = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
-$STABLE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/windows-setup-agent-installer/scripts/setup-agent.ps1"
+$VERSION_URL             = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/${WAZUH_AGENT_REPO_REF}/versions.json"
+$STABLE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/${WAZUH_AGENT_REPO_REF}/scripts/windows/setup-agent.ps1"
+$PRERELEASE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v$PRERELEASE_VERSION/scripts/windows/setup-agent.ps1"
 
 # ---- Globals ----
 $ActiveResponsesLogDir = Join-Path $OSSEC_PATH "active-response"
@@ -122,7 +123,7 @@ function Run-Update {
 
     # Determine setup script URL without shadowing the module-level constant
     if ($Prerelease) {
-        $resolvedScriptUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v$PRERELEASE_VERSION/scripts/setup-agent.ps1"
+        $resolvedScriptUrl = $PRERELEASE_SETUP_SCRIPT_URL
         InfoMessage "Using prerelease setup script: $resolvedScriptUrl"
     } else {
         $resolvedScriptUrl = $STABLE_SETUP_SCRIPT_URL

@@ -10,7 +10,8 @@ else
 fi
 
 WAZUH_MANAGER=${WAZUH_MANAGER:-"wazuh.example.com"}
-SCRIPT_URL=${SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/scripts/setup-agent.sh"}
+WAZUH_AGENT_REPO_REF=${WAZUH_AGENT_REPO_REF:-"main"}
+SCRIPT_URL=${SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/${WAZUH_AGENT_REPO_REF}/scripts/linux/setup-agent.sh"}
 
 # Linux-specific constants
 ICON_PATH='/usr/share/pixmaps/wazuh-logo.png'
