@@ -228,7 +228,6 @@ jobs:
         with:
           files: |
             ./dist/**/*
-            ./dist/checksums.sha256
           body: ${{ steps.git_cliff.outputs.content }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
