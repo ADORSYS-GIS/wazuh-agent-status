@@ -202,11 +202,13 @@ jobs:
         with:
           path: ./dist/
 
-      - name: Generate binary checksums
+      - name: Generate checksums
         run: |
-          cd dist
-          find * -type f -exec sha256sum {} + > checksums.sha256
-          cat checksums.sha256
+          # Calculate binary checksums and strip directory prefix
+          find dist -type f -exec sha256sum {} + | sed 's|  dist/[^/]*/|  |' > ${{ env.CLIENT_APP_NAME }}/checksums.sha256
+          # Calculate script checksums and keep paths
+          find scripts -type f -exec sha256sum {} + >> ${{ env.CLIENT_APP_NAME }}/checksums.sha256
+          cat ${{ env.CLIENT_APP_NAME }}/checksums.sha256
 
       - name: Generate release notes (latest only)
         id: git_cliff
@@ -228,32 +230,23 @@ jobs:
         with:
           files: |
             ./dist/**/*
+            ${{ env.CLIENT_APP_NAME }}/checksums.sha256
           body: ${{ steps.git_cliff.outputs.content }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate script checksums
-        id: script_checksums
-        run: |
-          echo "checksums<<EOF" >> $GITHUB_OUTPUT
-          find scripts -type f -exec sha256sum {} + >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: update CHANGELOG.md and checksums"
-          title: "Update Changelog"
+          title: "Update Changelog and Checksums"
           body: |
-            This PR updates the CHANGELOG.md and checksums.
-            - Generated using git-cliff
+            This PR updates the CHANGELOG.md and the unified checksums file.
+            - Generated using git-cliff and sha256sum
+            - Includes both binary and script checksums
             - Triggered by: ${{ github.event_name }}
-
-            ### Scripts Checksums
-            ```
-            ${{ steps.script_checksums.outputs.checksums }}
-            ```
           branch: update-changelog-${{ github.run_id }}
           base: user-main
           delete-branch: true
