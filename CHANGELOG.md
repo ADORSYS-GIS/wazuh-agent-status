@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.2.rc1 - 2026-03-30
+
+[032ca1b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/032ca1b106c959c0b48159d84452ccd798d633b9)...[1f5d641](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1f5d6410e27b78ff8dc420550302ed8b0dd72e81)
+
+### Bug Fixes
+
+- Update PowerShell script URL to use the correct server version ([`465a41b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/465a41b0b57c59f82728ed436abefb32e9f3421e))
+
+### Miscellaneous Tasks
+
+- Update CHANGELOG.md ([`9d0b5be`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9d0b5be59b1d717cd760e98881f655ff5d846f5b))
+- Add checksum generation and update changelog PR ([`87f2ff4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/87f2ff4add67683267f9755eca7a4fc31a73454f))
+- Remove checksum file from release artifacts ([`1f5d641`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1f5d6410e27b78ff8dc420550302ed8b0dd72e81))
+
 ## 0.4.2-user - 2026-03-17
 
 [da26f52](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/da26f524bc245800a465e5cbfe65c468c3c049db)...[032ca1b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/032ca1b106c959c0b48159d84452ccd798d633b9)
