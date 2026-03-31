@@ -11,17 +11,12 @@ fi
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 SERVICE_FILE="/etc/systemd/system/$SERVER_NAME.service"
-SERVER_LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"
-CLIENT_LAUNCH_AGENT_FILE="/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"
 DESKTOP_UNIT_FILE="$HOME/.config/autostart/$CLIENT_NAME.desktop"
 BIN_DIR="/usr/local/bin"
 
-# OS Detection
-case "$(uname)" in
-    Linux) OS="linux"; UPGRADE_SCRIPT_PATH="/var/ossec/active-response/bin/adorsys-update.sh" ;;
-    Darwin) OS="darwin"; UPGRADE_SCRIPT_PATH="/Library/Ossec/active-response/bin/adorsys-update.sh" ;;
-    *) echo "Unsupported operating system: $(uname)" >&2; exit 1 ;;
-esac
+# Linux-specific configuration
+OS="linux"
+UPGRADE_SCRIPT_PATH="/var/ossec/active-response/bin/adorsys-update.sh"
 
 # Define text formatting
 RED='\033[0;31m'
@@ -96,7 +91,7 @@ remove_binaries() {
 
 # Remove Linux systemd service
 remove_systemd_service() {
-    if [ "$OS" = "linux" ] && [ -f "$SERVICE_FILE" ]; then
+    if [ -f "$SERVICE_FILE" ]; then
         info_message "Disabling and removing systemd service..."
         maybe_sudo systemctl stop "$SERVER_NAME" || true
         maybe_sudo systemctl disable "$SERVER_NAME" || true
@@ -104,19 +99,6 @@ remove_systemd_service() {
         maybe_sudo systemctl daemon-reload
     else
         warn_message "Systemd service not found or not running. Skipping."
-    fi
-}
-
-# Remove macOS Launchd plist files
-remove_launchd_service() {
-    local name="$1"
-    local filepath="$2"
-    if [ "$OS" = "darwin" ] && [ -f "$filepath" ]; then
-        info_message "Unloading and removing Launchd plist for $name..."
-        maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
-        remove_file "$filepath"
-    else
-        warn_message "Launchd service for $name not found. Skipping."
     fi
 }
 
@@ -133,16 +115,7 @@ remove_desktop_unit() {
 # Uninstallation Process
 remove_binaries
 remove_file "$UPGRADE_SCRIPT_PATH"
-case "$OS" in
-    linux)
-        remove_systemd_service
-        remove_desktop_unit
-        ;;
-    darwin) 
-        remove_launchd_service "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE"
-        remove_launchd_service "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE"
-        ;;
-    *) echo "Unsupported operating system: $(uname)" >&2; exit 1 ;;
-esac
+remove_systemd_service
+remove_desktop_unit
 
 success_message "Wazuh agent status uninstalled completed successfully."

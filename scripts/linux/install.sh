@@ -16,20 +16,10 @@ case "$PROFILE" in
 *) WAS_VERSION="$APP_VERSION-user" ;;
 esac
 
-# OS and Architecture Detection
-case "$(uname)" in
-Linux)
-    OS="linux"
-    BIN_DIR="/usr/local/bin"
-    WAZUH_ACTIVE_RESPONSE_BIN_DIR="/var/ossec/active-response/bin"
-    ;;
-Darwin)
-    OS="darwin"
-    BIN_DIR="/usr/local/bin"
-    WAZUH_ACTIVE_RESPONSE_BIN_DIR="/Library/Ossec/active-response/bin"
-    ;;
-*) error_exit "Unsupported operating system: $(uname)" ;;
-esac
+# Linux-specific configuration
+OS="linux"
+BIN_DIR="/usr/local/bin"
+WAZUH_ACTIVE_RESPONSE_BIN_DIR="/var/ossec/active-response/bin"
 
 ARCH=$(uname -m)
 case "$ARCH" in
@@ -43,10 +33,9 @@ SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
 WAZUH_USER=${WAZUH_USER:-"root"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"refs/tags/v$WAS_VERSION"}
 
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
-SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
-CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
 DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
 
@@ -56,7 +45,7 @@ BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/downl
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
 
-ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/refs/tags/v$WAS_VERSION/scripts/adorsys-update.sh"}
+ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/$WAZUH_AGENT_STATUS_REPO_REF/scripts/linux/adorsys-update.sh"}
 UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
 # Text Formatting
@@ -173,66 +162,13 @@ X-GNOME-Autostart-enabled=true
     info_message "Desktop autostart file created: $DESKTOP_UNIT_FILE"
 }
 
-# macOS Launchd Plist File
-create_launchd_plist_file() {
-    local name="$1"
-    local filepath="$2"
-
-    info_message "Creating plist file for $name..."
-    create_file "$filepath" "
-<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
-<plist version=\"1.0\">
-<dict>
-    <key>Label</key>
-    <string>com.adorsys.$name</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$BIN_DIR/$name</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-</dict>
-</plist>
-"
-    
-    if [ "$name" = "$SERVER_NAME" ]; then
-        info_message "Loading new daemon plist file..."
-        maybe_sudo launchctl bootstrap "system $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
-    else
-        info_message "Loading new agent plist file..."
-        launchctl bootstrap "gui/$(id) $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
-    fi
-    info_message "macOS Launchd plist file created and loaded: $filepath"
-}
-
-unload_plist_file() {
-    local filepath="$1"
-
-    if [ -f "$filepath" ]; then
-        info_message "Unloading previous plist file (if any)..."
-        maybe_sudo launchctl bootout "gui/$(id) $filepath" 2>/dev/null || warn_message "Unloading previous plist file failed: $filepath"
-        info_message "Previous plist file unloaded: $filepath"
-    else
-        warn_message "Plist file: $filepath does not exist. Skipping."
-    fi
-}
-
 # Startup Configurations
 make_server_launch_at_startup() {
-    case "$OS" in
-    linux) create_service_file && reload_and_enable_service ;;
-    darwin) create_launchd_plist_file "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE" ;;
-    esac
+    create_service_file && reload_and_enable_service
 }
 
 make_client_launch_at_startup() {
-    case "$OS" in
-    linux) create_desktop_unit_file ;;
-    darwin) create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE" ;;
-    esac
+    create_desktop_unit_file
 }
 
 validate_installation() {
@@ -250,35 +186,20 @@ validate_installation() {
     fi
 
     # Validate service files
-    if [ "$OS" = "linux" ]; then
-        if [ -f "$SERVICE_FILE" ]; then
-            success_message "Systemd service file exists: $SERVICE_FILE."
-        else
-            error_exit "Systemd service file is missing: $SERVICE_FILE."
-        fi
+    if [ -f "$SERVICE_FILE" ]; then
+        success_message "Systemd service file exists: $SERVICE_FILE."
+    else
+        error_exit "Systemd service file is missing: $SERVICE_FILE."
+    fi
 
-        systemctl is-enabled "$SERVER_NAME" >/dev/null 2>&1 &&
-            success_message "Systemd service is enabled: $SERVER_NAME." ||
-            error_exit "Systemd service is not enabled: $SERVER_NAME."
+    systemctl is-enabled "$SERVER_NAME" >/dev/null 2>&1 &&
+        success_message "Systemd service is enabled: $SERVER_NAME." ||
+        error_exit "Systemd service is not enabled: $SERVER_NAME."
 
-        if [ -f "$DESKTOP_UNIT_FILE" ]; then
-            success_message "Desktop autostart file exists: $DESKTOP_UNIT_FILE."
-        else
-            error_exit "Desktop autostart file is missing: $DESKTOP_UNIT_FILE."
-        fi
-
-    elif [ "$OS" = "darwin" ]; then
-        if [ -f "$SERVER_LAUNCH_AGENT_FILE" ]; then
-            success_message "macOS Launchd server plist exists: $SERVER_LAUNCH_AGENT_FILE."
-        else
-            error_exit "macOS Launchd server plist is missing: $SERVER_LAUNCH_AGENT_FILE."
-        fi
-
-        if [ -f "$CLIENT_LAUNCH_AGENT_FILE" ]; then
-            success_message "macOS Launchd client plist exists: $CLIENT_LAUNCH_AGENT_FILE."
-        else
-            error_exit "macOS Launchd client plist is missing: $CLIENT_LAUNCH_AGENT_FILE."
-        fi
+    if [ -f "$DESKTOP_UNIT_FILE" ]; then
+        success_message "Desktop autostart file exists: $DESKTOP_UNIT_FILE."
+    else
+        error_exit "Desktop autostart file is missing: $DESKTOP_UNIT_FILE."
     fi
     
     # Validate adorsys-update.sh script
@@ -288,10 +209,7 @@ validate_installation() {
         error_exit "adorsys-update.sh script is missing: $UPDATE_SCRIPT_PATH."
     fi
 
-    case "$OS" in
-    linux) success_message "Installation complete! Restart your system to apply changes for the wazuh agent status." ;;
-    darwin) success_message "Installation complete!" ;;
-    esac
+    success_message "Installation complete! Restart your system to apply changes for the wazuh agent status."
 }
 
 # Installation Process
@@ -320,9 +238,6 @@ print_step_header 3 "Server Service Configuration"
 make_server_launch_at_startup
 
 print_step_header 4 "Client Service Configuration"
-if [ "$OS" = "darwin" ]; then
-    unload_plist_file "$CLIENT_LAUNCH_AGENT_FILE"
-fi
 make_client_launch_at_startup
 
 print_step_header 5 "Download and configure adorsys-update.sh"
