@@ -205,10 +205,10 @@ jobs:
       - name: Generate checksums
         run: |
           # Calculate binary checksums and strip directory prefix
-          find dist -type f -exec sha256sum {} + | sed 's|  dist/[^/]*/|  |' > ${{ env.CLIENT_APP_NAME }}/checksums.sha256
+          find dist -type f -exec sha256sum {} + | sed 's|  dist/[^/]*/|  |' > checksums.sha256
           # Calculate script checksums and keep paths
-          find scripts -type f -exec sha256sum {} + >> ${{ env.CLIENT_APP_NAME }}/checksums.sha256
-          cat ${{ env.CLIENT_APP_NAME }}/checksums.sha256
+          find scripts -type f -exec sha256sum {} + >> checksums.sha256
+          cat checksums.sha256
 
       - name: Generate release notes (latest only)
         id: git_cliff
@@ -230,7 +230,7 @@ jobs:
         with:
           files: |
             ./dist/**/*
-            ${{ env.CLIENT_APP_NAME }}/checksums.sha256
+            checksums.sha256
           body: ${{ steps.git_cliff.outputs.content }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
