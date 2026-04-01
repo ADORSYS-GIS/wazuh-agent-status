@@ -21,10 +21,11 @@ Build a high-performance, cross-platform system tray application in Rust that re
 ## 🎨 Step 3: Tray UI Implementation
 
 - Use the `tray-icon` crate for cross-platform support.
-- Implement the menu items:
-  - ✅ **Status Display** (Green/Gray dot)
-  - 🔄 **Restart Agent**
-  - 🏗️ **Update Agent**
+- Implement the read-only status menu:
+  - 📡 **Agent Status** (e.g., "Active")
+  - 🔌 **Connection** (e.g., "Connected")
+  - ℹ️ **Version** (e.g., "1.8.x")
+  - `---`
   - ❌ **Quit**
 - Use `rust-embed` to pack existing icons/assets into the binary.
 
