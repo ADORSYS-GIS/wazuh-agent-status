@@ -10,7 +10,7 @@ This document analyzes the current Go-based implementation to identify architect
 
 - Protocol: TCP (localhost:50505)
 - Format: Plaintext
-- Pattern: Request/Response
+- Pattern: Subscribe/Push (Status updates)
 
 ---
 
@@ -18,19 +18,27 @@ This document analyzes the current Go-based implementation to identify architect
 
 ```mermaid
 sequenceDiagram
-    Client->>Server: "status"
-    Server->>OS: check service
-    OS->>Server: result
-    Server->>Client: response
+    participant OS as Operating System
+    participant Server as Status Server
+    participant Client as Tray Client
+
+    Server->>OS: Polls every 5s (wazuh-control)
+    OS-->>Server: Status Result
+    Client->>Server: "subscribe-status"
+    Server-->>Client: Initial State
+    Note over Server,Client: Real-time Push Loop
+    Server->>Client: Pushes STATUS_UPDATE when state changes
 ```
 
 ---
 
 ## 4. Server Design
 
-- Uses blocking TCP connections
+- Uses blocking TCP connections (Go `net` package)
 - Command-based dispatch (switch-case)
-- Executes OS commands via `exec`
+- **Platform-Specific Monitoring**:
+  - **Windows**: Checks state via Service Manager (Scm).
+  - **Linux / macOS**: Executes OS commands via `wazuh-control` binary.
 
 ### Issues:
 
@@ -42,14 +50,15 @@ sequenceDiagram
 
 ## 5. Client Design
 
-- Polls server every 5 seconds
+- Subscribes to backend via `subscribe-status`
+- Uses a blocking read loop for real-time pushed updates
 - Uses goroutines for concurrency
 - Minimal local state
 
 ### Issues:
 
-- Constant polling overhead
-- No push-based updates
+- Maintaining long-lived TCP connections without heartbeat (potential silent drops)
+- Plaintext communication
 
 ---
 
@@ -58,9 +67,9 @@ sequenceDiagram
 | Area            | Issue                           |
 | --------------- | ------------------------------- |
 | Security        | No encryption or authentication |
-| Performance     | Frequent polling                |
+| Reliability     | No heartbeat/keep-alive         |
 | Maintainability | Tight coupling                  |
-| Observability   | No logging/audit                |
+| Deployment      | Go runtime/CGO overhead         |
 
 ---
 
@@ -80,11 +89,21 @@ The following metrics were recorded on a standard Linux workstation:
 - **Virtual Size (VSZ)**: ~1.9 GB
 - **Idle CPU Usage**: < 0.1%
 
-> **Note**: These metrics serve as the benchmark for Phase 1 (Client) and Phase 3 (Server) of the Rust migration. Our target is to reduce total RSS for both components to **< 3 MB combined**.
+---
+
+## 8. Logging Infrastructure
+
+Both components maintain their own logs using the `lumberjack` rotation library.
+
+| Platform    | Server Log Path                                    | Client Log Path                                      |
+| ----------- | -------------------------------------------------- | ---------------------------------------------------- |
+| **Linux**   | `/var/log/wazuh-agent-status.log`                  | `~/.wazuh/wazuh-agent-status-client.log`             |
+| **macOS**   | `/var/log/wazuh-agent-status.log`                  | `~/.wazuh/wazuh-agent-status-client.log`             |
+| **Windows** | `C:\ProgramData\wazuh\logs\wazuh-agent-status.log` | `%APPDATA%\wazuh\logs\wazuh-agent-status-client.log` |
 
 ---
 
-## 7. Key Limitations
+## 9. Key Limitations
 
 - No secure communication
 - Inefficient resource usage
