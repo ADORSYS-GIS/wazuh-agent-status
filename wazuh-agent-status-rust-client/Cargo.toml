@@ -1,0 +1,14 @@
+[package]
+name = "wazuh-agent-status-rust-client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tray-icon = "0.19"
+tao = "0.30"
+tokio = { version = "1", features = ["full"] }
+rust-embed = "8"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+anyhow = "1.0"
+image = "0.25" # For icon processing

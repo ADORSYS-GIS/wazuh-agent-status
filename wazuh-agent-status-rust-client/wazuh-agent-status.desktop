@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Wazuh Agent Status
+Exec=wazuh-agent-status-rust-client
+Icon=wazuh-logo
+Comment=Wazuh Agent Status Tray Client
+Terminal=false
+Categories=Utility;Security;
