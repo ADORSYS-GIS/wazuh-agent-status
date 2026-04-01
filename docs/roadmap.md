@@ -12,6 +12,7 @@ This roadmap details the transformation of **Wazuh Agent Status** into a premium
 - **Technical Logic**: We will implement **TLS Encryption** for transport and **JWT/Token-based Authentication** for commands.
 - **Why We Need It**: In an enterprise, security tools are prime targets. Without these, a malicious script could easily "pause" your security monitoring without you knowing.
 - **Market Value**: This allows you to sell the tool as **"Zero-Trust Compliant."**
+- **⚡ Rust Edge**: Rust's `rustls` and `jsonwebtoken` crates provide industry-leading performance and safety for encrypted handshakes, ensuring zero-trust enforcement without slowing down the workstation.
 
 ### 🔏 Code Signing (The Seal of Quality)
 
@@ -19,6 +20,7 @@ This roadmap details the transformation of **Wazuh Agent Status** into a premium
 - **Technical Logic**: Signing binaries with an **Extended Validation (EV) Certificate** and performing **macOS Notarization**.
 - **Why We Need It**: Avoids Windows SmartScreen or macOS Gatekeeper blocks that make external software look like malware.
 - **Market Value**: Essential for **Professionalism and Trust**. Customers won't install a security tool that their OS flags as "dangerous."
+- **⚡ Rust Edge**: The `cargo-dist` toolchain automates binary signing and notarization for Windows and macOS, ensuring a "Green Shield" trust score on every release.
 
 ---
 
@@ -30,6 +32,7 @@ This roadmap details the transformation of **Wazuh Agent Status** into a premium
 - **Technical Logic**: Developing native **MSI (Windows)** and **PKG (macOS)** installers with support for silent flags (`/quiet`, `/qn`).
 - **Why We Need It**: Modern IT departments use tools like **Microsoft Intune** or **Jamf**. They require standard packages that don't need human interaction.
 - **Market Value**: This is a **Scalability** feature. It makes your tool "ready for big business."
+- **⚡ Rust Edge**: `cargo-dist` generates native `.msi` (Windows) and `.pkg` (macOS) installers directly as part of the build pipeline, reducing deployment overhead.
 
 ---
 
@@ -41,6 +44,7 @@ This roadmap details the transformation of **Wazuh Agent Status** into a premium
 - **Technical Logic**: A real-time tail of the `ossec.log` with filtering and keyword highlighting (e.g., ERROR, WARNING).
 - **Why We Need It**: Troubleshooting connection issues currently requires manually searching system folders. This puts the answers at the user's fingertips.
 - **Market Value**: Reduces **Support Costs** (MTTR - Mean Time To Resolution) by empowering users and local admins to fix issues themselves.
+- **⚡ Rust Edge**: Rust's zero-copy asynchronous I/O allows us to stream large log files (`ossec.log`) in real-time with almost **zero CPU overhead**, making the viewer lightweight and responsive.
 
 ### 🩹 Self-Healing (The Auto-Fix)
 
@@ -48,6 +52,7 @@ This roadmap details the transformation of **Wazuh Agent Status** into a premium
 - **Technical Logic**: A background monitoring loop that detects `service stopped` states and triggers a `service start` command using backoff logic.
 - **Why We Need It**: Minimizes protection gaps. You shouldn't have to wait for an IT ticket to be resolved to stay protected.
 - **Market Value**: Provides **"High Availability"** of the security posture.
+- **⚡ Rust Edge**: Rust's deterministic memory management ensures that the background monitoring loop is extremely stable and resilient, even in low-memory situations.
 
 ---
 
@@ -103,5 +108,6 @@ We are adding an intelligent "Resource Guard" to ensure that your security tools
   - **Detection**: If a process (like a web browser or a background task) starts using too much CPU, the app will flag it.
   - **Soft-Fix (Normalization)**: On Linux and macOS, the app can automatically "lower the priority" of the greedy process (using `renice`). This allows other important tasks to run smoothly without killing the user's work.
   - **Notification**: The tray icon will notify the user: _"Google Chrome is using 95% CPU. I've optimized it for you!"_
+- **⚡ Rust Edge**: This is where Rust truly shines. Using the `sysinfo` crate, we can monitor system metrics with **microsecond precision** and **near-zero RAM usage**. Rust's direct access to system calls ensures "Soft-Fixes" are executed with no lag.
 - **Feasibility**: 100% feasible using background process monitoring libraries.
 - **Benefit**: Users often hate security apps because they "slow down the machine." By adding a "Performance Optimizer," you turn the app into something users **want** to keep running.

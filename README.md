@@ -82,12 +82,15 @@ Run the following commands to install the app
   curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | sh
   ```
 
-## 📖 Project Documentation
+## 📖 Documentation Guide
 
-For a detailed look at where we are going and how the system is built, check out our new documentation:
+To understand the project vertically—from the business vision down to the technical code decisions—we recommend reading the documentation in this order:
 
-- **[Architecture Overview](docs/architecture.md)**: A "Brains & Face" conceptual view and technical security analysis.
-- **[Improvement Roadmap](docs/roadmap.md)**: A 6-phase strategic plan for security hardening, mass deployment, and performance optimization.
+1.  **[Improvement Roadmap](docs/roadmap.md)**: Start here to understand the 6-phase strategic vision and the business "why" behind the project.
+2.  **[Architecture Overview](docs/architecture/architecture.md)**: A high-level view of the "Brains & Face" design and the core functional requirements.
+3.  **[Current System Analysis](docs/architecture/current-system-analysis.md)**: A deep dive into the technical debt and limitations of the existing Go implementation.
+4.  **[Rust Migration Proposal](docs/rust-migration-technical-proposal.md)**: The technical strategy and performance targets for transitioning to Rust.
+5.  **[Decision Log (ADRs)](docs/architecture/adr/)**: A chronological record of the specific architectural decisions made along the way.
 
 ---
 
