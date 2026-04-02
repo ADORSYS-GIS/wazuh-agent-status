@@ -25,6 +25,9 @@ Build a high-performance, cross-platform system tray application in Rust that re
   - 📡 **Agent Status** (e.g., "Active")
   - 🔌 **Connection** (e.g., "Connected")
   - ℹ️ **Version** (e.g., "1.8.x")
+  - ⚠️ **Status**: "Outdated" (if local version is old)
+  - 🚀 **Update to Stable** (clickable if outdated)
+  - ✨ **Update to Prerelease** (visible if preview available & agent in test group)
   - ❌ **Quit**
 - Use `rust-embed` to pack existing icons/assets into the binary.
 
@@ -40,7 +43,7 @@ Build a high-performance, cross-platform system tray application in Rust that re
 - **Success Criteria**:
   - RAM usage < 10MB (compared to ~30-50MB).
   - CPU usage remains < 1% during idle.
-  - Zero functional regression (Restart/Update still work).
+  - Zero functional regression (Restart/Update/Prerelease-Update still work).
 
 ---
 

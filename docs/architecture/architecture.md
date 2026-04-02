@@ -28,6 +28,7 @@ By splitting the app this way, we ensure that the "Face" remains responsive and 
 - Display client version
 - Allow restart/update actions
 - Provide auto-update capability
+- Show "Update to Prerelease" menu item if available
 
 ### 3.2 Non-Functional Requirements
 
