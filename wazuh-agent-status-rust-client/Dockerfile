@@ -27,7 +27,9 @@ COPY . .
 
 # Resize icons for best quality in tray/menu BEFORE building (so they are embedded correctly)
 # We use 128x128 for the tray icon to ensure sharpness on High-DPI screens
-RUN convert assets/wazuh-logo.png -resize 128x128 assets/wazuh-logo.png
+RUN convert assets/wazuh-logo.png -resize 128x128 assets/wazuh-logo.png && \
+    convert assets/green-dot.png -resize 24x24 assets/green-dot.png && \
+    convert assets/gray-dot.png -resize 24x24 assets/gray-dot.png
 
 # Build the application in release mode
 RUN cargo build --release
