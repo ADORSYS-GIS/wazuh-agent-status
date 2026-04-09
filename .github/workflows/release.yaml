@@ -5,8 +5,13 @@ on:
     branches:
       - main
       - develop
+      - user-main
     tags:
       - 'v*'
+    paths:
+      - 'wazuh-agent-status-client/**'
+      - 'wazuh-agent-status/**'
+      - '.github/workflows/release.yaml'
 
 env:
   GO_VERSION: 1.22
@@ -163,14 +168,13 @@ jobs:
         run: |
           go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
-
       - name: Upload windows client binaries
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}
           path: |
             ${{ env.CLIENT_APP_NAME }}/dist/
-          
+
       - name: Upload windows server binaries
         uses: actions/upload-artifact@v4
         with:
@@ -235,19 +239,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: update CHANGELOG.md and checksums"
           title: "Update Changelog and Checksums"
+          add-paths: |
+            CHANGELOG.md
+            checksums.sha256
           body: |
             This PR updates the CHANGELOG.md and the unified checksums file.
             - Generated using git-cliff and sha256sum
             - Includes both binary and script checksums
             - Triggered by: ${{ github.event_name }}
           branch: update-changelog-${{ github.run_id }}
-          base: user-main
+          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || 'user-main' }}
           delete-branch: true
           labels: documentation, automated-pr

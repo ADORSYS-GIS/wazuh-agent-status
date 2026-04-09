@@ -1,0 +1,100 @@
+name: Lint and test scripts
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - user-main
+    paths:
+      - 'scripts/**'
+  workflow_dispatch:
+
+env:
+  WAZUH_MANAGER: "127.0.0.1"
+  WAZUH_AGENT_STATUS_REPO_REF: "refactor/split-linux-macos-scripts"
+
+jobs:
+  lint-scripts:
+    name: Lint Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck on bash scripts
+        run: |
+          find scripts -name "*.sh" -type f | xargs shellcheck --severity=warning || true
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Run PSScriptAnalyzer on PowerShell scripts
+        shell: pwsh
+        run: |
+          $results = Get-ChildItem -Path scripts/windows -Filter "*.ps1" -Recurse | ForEach-Object {
+            Invoke-ScriptAnalyzer -Path $_.FullName -Severity Warning,Error
+          }
+          if ($results) {
+            $results | Format-Table -AutoSize
+            Write-Warning "PSScriptAnalyzer found issues"
+          }
+
+  test-scripts:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test scripts (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            sudo env WAZUH_MANAGER="${{ env.WAZUH_MANAGER }}" \
+              WAZUH_AGENT_STATUS_REPO_REF="${{ env.WAZUH_AGENT_STATUS_REPO_REF }}" \
+              bash ./scripts/linux/install.sh
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            sudo env WAZUH_MANAGER="${{ env.WAZUH_MANAGER }}" \
+              WAZUH_AGENT_STATUS_REPO_REF="${{ env.WAZUH_AGENT_STATUS_REPO_REF }}" \
+              bash ./scripts/macos/install.sh
+          fi
+
+      - name: Test scripts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:WAZUH_MANAGER = "${{ env.WAZUH_MANAGER }}"
+          $env:WAZUH_AGENT_STATUS_REPO_REF = "${{ env.WAZUH_AGENT_STATUS_REPO_REF }}"
+          .\scripts\windows\install.ps1
+
+      - name: Generate checksums
+        run: |
+          find scripts -type f -exec sha256sum {} + >> checksums.sha256
+          cat checksums.sha256
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update checksums"
+          title: "Update Checksums"
+          add-paths: |
+            checksums.sha256
+          body: |
+            This PR updates the checksums file.
+            - Generated using sha256sum
+            - Includes both binary and script checksums
+            - Triggered by: ${{ github.event_name }}
+          branch: update-changelog-${{ github.run_id }}
+          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || 'user-main' }}
+          delete-branch: true
+          labels: documentation, automated-pr
