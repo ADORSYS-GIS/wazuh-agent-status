@@ -128,27 +128,43 @@ function Download-And-VerifyFile {
     # If a direct checksum URL is provided, download it and use it as the source of truth
     if (-not [string]::IsNullOrWhiteSpace($ChecksumUrl)) {
         $tempChecksumFile = Join-Path ([System.IO.Path]::GetTempPath()) "checksums-$([System.Guid]::NewGuid().ToString()).sha256"
-        Download-File -Url $ChecksumUrl -Destination $tempChecksumFile -Description "checksum file"
-        $ChecksumFile = $tempChecksumFile
-    }
+        try {
+            Download-File -Url $ChecksumUrl -Destination $tempChecksumFile -Description "checksum file"
+            $ChecksumFile = $tempChecksumFile
 
-    if (-not [string]::IsNullOrWhiteSpace($ChecksumFile) -and (Test-Path -Path $ChecksumFile)) {
-        $expectedHash = (Select-String -Path $ChecksumFile -Pattern $ChecksumPattern).Line.Split(" ")[0].Trim()
-        if (-not [string]::IsNullOrWhiteSpace($expectedHash)) {
-            if (-not (Test-Checksum -FilePath $Destination -ExpectedHash $expectedHash)) {
-                ErrorExit "$FileName checksum verification failed"
+            if (-not [string]::IsNullOrWhiteSpace($ChecksumFile) -and (Test-Path -Path $ChecksumFile)) {
+                $expectedHash = (Select-String -Path $ChecksumFile -Pattern $ChecksumPattern).Line.Split(" ")[0].Trim()
+                if (-not [string]::IsNullOrWhiteSpace($expectedHash)) {
+                    if (-not (Test-Checksum -FilePath $Destination -ExpectedHash $expectedHash)) {
+                        ErrorExit "$FileName checksum verification failed"
+                    }
+                    InfoMessage "$FileName checksum verification passed."
+                } else {
+                    ErrorExit "No checksum found for $FileName in $ChecksumFile using pattern $ChecksumPattern"
+                }
+            } else {
+                ErrorExit "Checksum file not found at $ChecksumFile, cannot verify $FileName"
             }
-            InfoMessage "$FileName checksum verification passed."
-        } else {
-            ErrorExit "No checksum found for $FileName in $ChecksumFile using pattern $ChecksumPattern"
-        }
-
-        # Cleanup temporary checksum file if it was downloaded from a URL
-        if (-not [string]::IsNullOrWhiteSpace($ChecksumUrl) -and (Test-Path -Path $ChecksumFile)) {
-            Remove-Item -Path $ChecksumFile -Force -ErrorAction SilentlyContinue
+        } finally {
+            # Cleanup temporary checksum file if it was created
+            if (Test-Path -Path $tempChecksumFile) {
+                Remove-Item -Path $tempChecksumFile -Force -ErrorAction SilentlyContinue
+            }
         }
     } else {
-        ErrorExit "Checksum file not found at $ChecksumFile, cannot verify $FileName"
+        if (-not [string]::IsNullOrWhiteSpace($ChecksumFile) -and (Test-Path -Path $ChecksumFile)) {
+            $expectedHash = (Select-String -Path $ChecksumFile -Pattern $ChecksumPattern).Line.Split(" ")[0].Trim()
+            if (-not [string]::IsNullOrWhiteSpace($expectedHash)) {
+                if (-not (Test-Checksum -FilePath $Destination -ExpectedHash $expectedHash)) {
+                    ErrorExit "$FileName checksum verification failed"
+                }
+                InfoMessage "$FileName checksum verification passed."
+            } else {
+                ErrorExit "No checksum found for $FileName in $ChecksumFile using pattern $ChecksumPattern"
+            }
+        } else {
+            ErrorExit "Checksum file not found at $ChecksumFile, cannot verify $FileName"
+        }
     }
 
     SuccessMessage "$FileName downloaded and verified successfully."

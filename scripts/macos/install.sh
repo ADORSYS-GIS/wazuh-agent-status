@@ -68,6 +68,9 @@ BIN_DIR="/usr/local/bin"
 WAZUH_ACTIVE_RESPONSE_BIN_DIR="/Library/Ossec/active-response/bin"
 
 ARCH=$(detect_architecture)
+if [[ "$ARCH" != "amd64" ]] && [[ "$ARCH" != "arm64" ]]; then
+    error_exit "Unsupported architecture: $ARCH. Only amd64 and arm64 are supported on macOS."
+fi
 
 # Environment Variables with Defaults
 WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}

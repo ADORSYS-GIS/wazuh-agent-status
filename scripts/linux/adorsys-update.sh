@@ -57,6 +57,12 @@ fi
 
 trap cleanup EXIT
 
+# Enforce amd64 on Linux
+ARCH=$(detect_architecture)
+if [[ "$ARCH" != "amd64" ]]; then
+    error_exit "Unsupported architecture: $ARCH. Only amd64 is supported on Linux."
+fi
+
 # Environment Variables with Defaults
 WAZUH_MANAGER=${WAZUH_MANAGER:-"wazuh.example.com"}
 WAZUH_AGENT_REPO_REF=${WAZUH_AGENT_REPO_REF:-"main"}

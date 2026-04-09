@@ -80,6 +80,9 @@ log() {
 
 # Determine architecture for macOS
 ARCH=$(detect_architecture)
+if [[ "$ARCH" != "amd64" ]] && [[ "$ARCH" != "arm64" ]]; then
+    error_exit "Unsupported architecture: $ARCH. Only amd64 and arm64 are supported on macOS."
+fi
 if [[ "$ARCH" = "amd64" ]]; then
     BIN_FOLDER='/usr/local/bin'
 else

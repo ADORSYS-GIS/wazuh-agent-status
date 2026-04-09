@@ -154,14 +154,29 @@ download_file() {
 
     while [[ "$retry_count" -lt "$max_retries" ]]; do
         if command_exists curl; then
-            if curl -fsSL --retry 3 --retry-delay 2 "$url" | maybe_sudo tee "$dest" > /dev/null; then
-                success_message "$description downloaded successfully"
-                return 0
+            # If running as root, we can use -o directly. Otherwise, we might need sudo tee.
+            if [ "$(id -u)" -eq 0 ]; then
+                if curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$dest"; then
+                    success_message "$description downloaded successfully"
+                    return 0
+                fi
+            else
+                if curl -fsSL --retry 3 --retry-delay 2 "$url" | maybe_sudo tee "$dest" > /dev/null; then
+                    success_message "$description downloaded successfully"
+                    return 0
+                fi
             fi
         elif command_exists wget; then
-            if wget -q --tries=3 --wait=2 -O - "$url" | maybe_sudo tee "$dest" > /dev/null; then
-                success_message "$description downloaded successfully"
-                return 0
+            if [ "$(id -u)" -eq 0 ]; then
+                if wget -q --tries=3 --wait=2 -O "$dest" "$url"; then
+                    success_message "$description downloaded successfully"
+                    return 0
+                fi
+            else
+                if wget -q --tries=3 --wait=2 -O - "$url" | maybe_sudo tee "$dest" > /dev/null; then
+                    success_message "$description downloaded successfully"
+                    return 0
+                fi
             fi
         else
             error_message "Neither curl nor wget is available"
@@ -181,6 +196,7 @@ download_and_verify_file() {
     local dest="$2"
     local pattern="$3"
     local name="${4:-Unknown file}"
+    # Expected checksum file format: "sha256  filename" or "sha256 filename"
     local checksum_url="${5:-${CHECKSUMS_URL:-}}"
     local checksum_file="${6:-${CHECKSUMS_FILE:-}}"
 

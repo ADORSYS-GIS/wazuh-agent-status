@@ -60,7 +60,10 @@ $CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazu
 $INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
 
 # Determine architecture
-$ARCH = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "amd32" }
+if (-not [Environment]::Is64BitOperatingSystem) {
+    ErrorExit "Unsupported architecture: x86 (32-bit). Only amd64 (64-bit) is supported on Windows."
+}
+$ARCH = "amd64"
 $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
