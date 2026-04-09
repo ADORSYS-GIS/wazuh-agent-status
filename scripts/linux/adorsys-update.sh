@@ -68,6 +68,17 @@ LOG_FILE='/var/ossec/logs/active-responses.log'
 UPGRADE_SCRIPT_PATH='/var/ossec/active-response/bin/adorsys-update.sh'
 BIN_FOLDER='/usr/bin'
 
+# Logging override
+log() {
+    local level="$1"
+    shift
+    local message="$*"
+    local timestamp
+    timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    echo -e "${timestamp} ${level} ${message}" >> "${LOG_FILE}"
+    return 0
+}
+
 # --- Start of Centralized User Detection ---
 
 # Get the currently logged-in user
