@@ -1,5 +1,9 @@
 #requires -version 5.1
 
+# Set strict mode for error handling
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
 # ---- Parameters ----
 param(
     [switch]$Prerelease,
@@ -81,6 +85,8 @@ catch {
     Write-Error "Failed to initialize utilities: $($_.Exception.Message)"
     exit 1
 }
+
+EnsureAdmin
 
 # Cleanup bootstrap files on exit
 Register-EngineEvent -SourceIdentifier ([System.Guid]::NewGuid().ToString()) -Action {

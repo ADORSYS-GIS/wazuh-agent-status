@@ -35,6 +35,17 @@ function SuccessMessage {
     Log "[SUCCESS]" $Message "Green"
 }
 
+function ErrorExit {
+    param ([string]$Message)
+    ErrorMessage $Message
+    exit 1
+}
+
+function PrintStep {
+    param ([int]$StepNumber, [string]$Message)
+    Log "[STEP]" "Step ${StepNumber}: $Message"
+}
+
 function Ensure-Directory {
     param (
         [Parameter(Mandatory)]
@@ -142,4 +153,11 @@ function Download-And-VerifyFile {
 
     SuccessMessage "$FileName downloaded and verified successfully."
     return $true
+}
+
+# Ensure the script is running with administrator privileges
+function EnsureAdmin {
+    if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+        ErrorExit "This script requires administrative privileges. Please run it as Administrator."
+    }
 }

@@ -1,8 +1,6 @@
-# Ensure the script is running as administrator
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Error "This script must be run as Administrator."
-    exit 1
-}
+# Set strict mode for error handling
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
 # Configuration
 $APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.2.rc1" }
@@ -53,6 +51,8 @@ catch {
     exit 1
 }
 
+EnsureAdmin
+
 # Default Variables
 $WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
@@ -80,6 +80,104 @@ $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 $BinChecksumsURL = "$BaseURL/checksums.sha256"
 $global:ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
+
+function Validate-Installation {
+    PrintStep 6 "Validating installation and configuration..."
+
+    # Validate server binary
+    if (Test-Path -LiteralPath $SERVER_EXE) {
+        SuccessMessage "Server binary exists: $SERVER_EXE."
+    } else {
+        ErrorExit "Server binary is missing: $SERVER_EXE."
+    }
+
+    # Validate client binary
+    if (Test-Path -LiteralPath $CLIENT_EXE) {
+        SuccessMessage "Client binary exists: $CLIENT_EXE."
+    } else {
+        ErrorExit "Client binary is missing: $CLIENT_EXE."
+    }
+
+    # Validate Windows service
+    try {
+        $service = Get-Service -Name $SERVER_NAME -ErrorAction Stop
+        SuccessMessage "Windows service exists: $SERVER_NAME."
+
+        if ($service.Status -eq 'Running') {
+            SuccessMessage "Windows service is running: $SERVER_NAME."
+        } else {
+            ErrorExit "Windows service is not running: $SERVER_NAME (current status: $($service.Status))."
+        }
+    } catch {
+        ErrorExit "Windows service is missing: $SERVER_NAME."
+    }
+
+    # Validate startup shortcut for client
+    $startupShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$CLIENT_NAME.lnk")
+    if (Test-Path -LiteralPath $startupShortcutPath) {
+        SuccessMessage "Startup shortcut exists: $startupShortcutPath."
+    } else {
+        ErrorExit "Startup shortcut is missing: $startupShortcutPath."
+    }
+
+    # Validate adorsys-update batch script
+    if (Test-Path -LiteralPath $BAT_UPDATE_SCRIPT_PATH) {
+        SuccessMessage "adorsys-update batch script exists: $BAT_UPDATE_SCRIPT_PATH."
+    } else {
+        ErrorExit "adorsys-update batch script is missing: $BAT_UPDATE_SCRIPT_PATH."
+    }
+
+    # Validate adorsys-update PowerShell script
+    if (Test-Path -LiteralPath $PS_UPDATE_SCRIPT_PATH) {
+        SuccessMessage "adorsys-update PowerShell script exists: $PS_UPDATE_SCRIPT_PATH."
+    } else {
+        ErrorExit "adorsys-update PowerShell script is missing: $PS_UPDATE_SCRIPT_PATH."
+    }
+
+    SuccessMessage "Installation validation completed successfully."
+}
+
+function Create-Service {
+    param(
+        [string]$ServiceName,
+        [string]$ExecutablePath,
+        [string]$DisplayName = $null,
+        [string]$Description = $null
+    )
+    $ServiceExists = Get-WmiObject -Class Win32_Service -Filter "Name='$ServiceName'" -ErrorAction SilentlyContinue
+
+    if ($ServiceExists) {
+        InfoMessage "Service $ServiceName already exists. Updating..."
+        Stop-Service -Name $ServiceName -Force
+        sc.exe delete $ServiceName
+        Start-Sleep -Seconds 3
+    }
+
+    InfoMessage "Creating service $ServiceName..."
+    sc.exe create $ServiceName binPath= "`"$ExecutablePath`"" start= auto DisplayName= "`"$DisplayName`"" obj= "LocalSystem"
+    sc.exe description $ServiceName "$Description"
+
+    # Start the service
+    try {
+        Start-Service -Name $ServiceName
+        InfoMessage "Service $ServiceName created and started successfully."
+    } catch {
+        ErrorMessage "Failed to start service $ServiceName. Check service logs for more information."
+    }
+}
+
+function Create-StartupShortcut {
+    param(
+        [string]$ShortcutName,
+        [string]$ExecutablePath
+    )
+    $ShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
+    $WshShell = New-Object -ComObject WScript.Shell
+    $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
+    $Shortcut.TargetPath = $ExecutablePath
+    $Shortcut.Save()
+    InfoMessage "Startup shortcut created: $ShortcutPath."
+}
 
 PrintStep 1 "Stopping existing agent-status service and client processes..."
 try {
@@ -117,8 +215,8 @@ try {
 }
 
 PrintStep 2 "Downloading binaries..."
-Download-AndVerifyFile -Url $ServerURL -Destination "$BIN_DIR\$SERVER_NAME.exe" -ChecksumPattern "$SERVER_NAME-windows-$ARCH.exe" -FileName "$SERVER_NAME" -ChecksumUrl $BinChecksumsURL
-Download-AndVerifyFile -Url $ClientURL -Destination "$BIN_DIR\$CLIENT_NAME.exe" -ChecksumPattern "$CLIENT_NAME-windows-$ARCH.exe" -FileName "$CLIENT_NAME" -ChecksumUrl $BinChecksumsURL
+Download-And-VerifyFile -Url $ServerURL -Destination "$BIN_DIR\$SERVER_NAME.exe" -ChecksumPattern "$SERVER_NAME-windows-$ARCH.exe" -FileName "$SERVER_NAME" -ChecksumUrl $BinChecksumsURL
+Download-And-VerifyFile -Url $ClientURL -Destination "$BIN_DIR\$CLIENT_NAME.exe" -ChecksumPattern "$CLIENT_NAME-windows-$ARCH.exe" -FileName "$CLIENT_NAME" -ChecksumUrl $BinChecksumsURL
 
 # Configure server as a Windows service
 PrintStep 3 "Configuring server service..."
@@ -135,13 +233,13 @@ $UpdateProcesses = Get-Process -Name "adorsys-update" -ErrorAction SilentlyConti
 if ($UpdateProcesses) {
     InfoMessage "adorsys-update.bat is currently running. Downloading to .new file for delayed replacement..."
     $batUpdateScriptNewPath = "$BAT_UPDATE_SCRIPT_PATH.new"
-    Download-AndVerifyFile -Url $BAT_UPDATE_SCRIPT_URL -Destination $batUpdateScriptNewPath -ChecksumPattern "scripts/windows/adorsys-update.bat" -FileName "adorsys-update.bat"
+    Download-And-VerifyFile -Url $BAT_UPDATE_SCRIPT_URL -Destination $batUpdateScriptNewPath -ChecksumPattern "scripts/windows/adorsys-update.bat" -FileName "adorsys-update.bat"
     InfoMessage "New version downloaded to: $batUpdateScriptNewPath"
     InfoMessage "Creating scheduled task to replace script on next reboot..."
 
     # Also download PowerShell script
     $psUpdateScriptNewPath = "$PS_UPDATE_SCRIPT_PATH.new"
-    Download-AndVerifyFile -Url $PS_UPDATE_SCRIPT_URL -Destination $psUpdateScriptNewPath -ChecksumPattern "scripts/windows/adorsys-update.ps1" -FileName "adorsys-update.ps1"
+    Download-And-VerifyFile -Url $PS_UPDATE_SCRIPT_URL -Destination $psUpdateScriptNewPath -ChecksumPattern "scripts/windows/adorsys-update.ps1" -FileName "adorsys-update.ps1"
     InfoMessage "PowerShell version downloaded to: $psUpdateScriptNewPath"
 
     # Create a scheduled task to replace the script after logon
@@ -287,7 +385,7 @@ finally {
     }
 } else {
     InfoMessage "adorsys-update.bat is not running. Downloading directly..."
-    Download-And-VerifyFile -Url $UPDATE_SCRIPT_URL -Destination $UPDATE_SCRIPT_PATH -FileName "adorsys-update.bat" -ChecksumPattern "scripts/windows/adorsys-update.bat" 
+    Download-And-VerifyFile -Url $BAT_UPDATE_SCRIPT_URL -Destination $BAT_UPDATE_SCRIPT_PATH -FileName "adorsys-update.bat" -ChecksumPattern "scripts/windows/adorsys-update.bat" 
     InfoMessage "adorsys-update.ps1 is not running. Downloading directly..."
     Download-And-VerifyFile -Url $PS_UPDATE_SCRIPT_URL -Destination $PS_UPDATE_SCRIPT_PATH -FileName "adorsys-update.ps1" -ChecksumPattern "scripts/windows/adorsys-update.ps1"
 }
