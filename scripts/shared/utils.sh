@@ -24,23 +24,28 @@ log() {
 
 # Logging helpers
 info_message() {
-    log "[INFO]" "$*"
+    log "${BLUE}${BOLD}[INFO]${NORMAL}" "$*"
     return 0
 }
 
 warn_message() {
-    log "[WARNING]" "$*"
+    log "${YELLOW}${BOLD}[WARNING]${NORMAL}" "$*"
     return 0
 }
 
 error_message() {
-    log "[ERROR]" "$*"
+    log "${RED}${BOLD}[ERROR]${NORMAL}" "$*"
     return 0
 }
 
 error_exit() {
     error_message "$*"
     exit 1
+}
+
+success_message() {
+    log "${GREEN}${BOLD}[SUCCESS]${NORMAL}" "$*"
+    return 0
 }
 
 print_step_header() {
@@ -234,4 +239,3 @@ $content
 EOF"
     info_message "Created file: $filepath"
 }
-

@@ -14,7 +14,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.4.2"}
+APP_VERSION=${APP_VERSION:-"0.4.2.rc1"}
 
 # Assign app version based on profile
 case "$PROFILE" in
@@ -201,19 +201,19 @@ validate_installation() {
 
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary from $SERVER_URL..."
-download_and_verify_file "$SERVER_URL" "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_BIN_NAME-linux-amd64" "server binary" || error_exit "Failed to download $SERVER_BIN_NAME"
+download_and_verify_file "$SERVER_URL" "$TMP_DIR/$SERVER_BIN_NAME" "$SERVER_BIN_NAME" "server binary" || error_exit "Failed to download $SERVER_BIN_NAME"
 info_message "Downloading client binary $CLIENT_URL..."
-download_and_verify_file "$CLIENT_URL" "$TEMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_BIN_NAME-linux-amd64" "client binary" || error_exit "Failed to download $CLIENT_BIN_NAME"
+download_and_verify_file "$CLIENT_URL" "$TMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_BIN_NAME" "client binary" || error_exit "Failed to download $CLIENT_BIN_NAME"
 success_message "Binaries downloaded successfully."
 
 print_step_header 2 "Binaries Installation"
 info_message "Create Binary directory $BIN_DIR if it doesn't exist"
 maybe_sudo mkdir -p "$BIN_DIR" || error_exit "Failed to create directory $BIN_DIR"
 info_message "Installing server binary to $BIN_DIR..."
-maybe_sudo mv "$TEMP_DIR/$SERVER_BIN_NAME" "$BIN_DIR/$SERVER_NAME"
+maybe_sudo mv "$TMP_DIR/$SERVER_BIN_NAME" "$BIN_DIR/$SERVER_NAME"
 maybe_sudo chmod +x "$BIN_DIR/$SERVER_NAME"
 info_message "Installing client binary to $BIN_DIR..."
-maybe_sudo mv "$TEMP_DIR/$CLIENT_BIN_NAME" "$BIN_DIR/$CLIENT_NAME"
+maybe_sudo mv "$TMP_DIR/$CLIENT_BIN_NAME" "$BIN_DIR/$CLIENT_NAME"
 maybe_sudo chmod +x "$BIN_DIR/$CLIENT_NAME"
 success_message "Binaries installed successfully."
 

@@ -44,17 +44,17 @@ if ($INSTALL_PROFILE -eq "admin") {
 $WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "refs/tags/v$WAS_VERSION" }
 $WAZUH_AGENT_STATUS_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
-$TEMP_DIR = Join-Path $env:TEMP "wazuh-agent-status-install"
-if (-not (Test-Path $TEMP_DIR)) {
-    New-Item -Path $TEMP_DIR -ItemType Directory | Out-Null
+$TMP_DIR = Join-Path $env:TEMP "wazuh-agent-status-install"
+if (-not (Test-Path $TMP_DIR)) {
+    New-Item -Path $TMP_DIR -ItemType Directory | Out-Null
 }
 
 try {
     $ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
     $UtilsURL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/shared/utils.ps1"
     
-    $global:ChecksumsPath = Join-Path $TEMP_DIR "checksums.sha256"
-    $UtilsPath = Join-Path $TEMP_DIR "utils.ps1"
+    $global:ChecksumsPath = Join-Path $TMP_DIR "checksums.sha256"
+    $UtilsPath = Join-Path $TMP_DIR "utils.ps1"
 
     Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
     Invoke-WebRequest -Uri $UtilsURL -OutFile $UtilsPath -ErrorAction Stop
