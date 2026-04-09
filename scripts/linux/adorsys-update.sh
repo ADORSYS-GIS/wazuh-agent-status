@@ -9,18 +9,64 @@ else
     set -eu
 fi
 
+# OS guard early in the script
+if [[ "$(uname -s)" != "Linux" ]]; then
+    printf "%s\n" "[ERROR] This installation script is intended for Linux systems. Please use the appropriate script for your operating system." >&2
+    exit 1
+fi
+
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"main"}
+WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
+
+# Source shared utilities
+TMP_DIR=$(mktemp -d)
+if ! curl -fsSL "${WAZUH_AGENT_STATUS_REPO_URL}/scripts/shared/utils.sh" -o "$TMP_DIR/utils.sh"; then
+    echo "Failed to download utils.sh"
+    exit 1
+fi
+
+# Function to calculate SHA256 (cross-platform bootstrap)
+calculate_sha256_bootstrap() {
+    local file="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file" | awk '{print $1}'
+    else
+        shasum -a 256 "$file" | awk '{print $1}'
+    fi
+    return 0
+}
+
+# Download checksums and verify utils.sh integrity BEFORE sourcing it
+if ! curl -fsSL "${WAZUH_AGENT_STATUS_REPO_URL}/checksums.sha256" -o "$TMP_DIR/checksums.sha256"; then
+    echo "Failed to download checksums.sha256"
+    exit 1
+fi
+
+EXPECTED_HASH=$(grep "scripts/shared/utils.sh" "$TMP_DIR/checksums.sha256" | awk '{print $1}')
+ACTUAL_HASH=$(calculate_sha256_bootstrap "$TMP_DIR/utils.sh")
+
+if [[ -z "$EXPECTED_HASH" ]] || [[ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]]; then
+    echo "Error: Checksum verification failed for utils.sh" >&2
+    echo "Expected hash: $EXPECTED_HASH" >&2
+    echo "Actual hash: $ACTUAL_HASH" >&2
+    exit 1
+fi
+
+. "$TMP_DIR/utils.sh"
+
+trap cleanup EXIT
+export CHECKSUMS_FILE="$CHECKSUMS_FILE"
+
+# Environment Variables with Defaults
 WAZUH_MANAGER=${WAZUH_MANAGER:-"wazuh.example.com"}
 WAZUH_AGENT_REPO_REF=${WAZUH_AGENT_REPO_REF:-"main"}
-SCRIPT_URL=${SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/${WAZUH_AGENT_REPO_REF}/scripts/linux/setup-agent.sh"}
+WAZUH_AGENT_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$WAZUH_AGENT_REPO_REF"
 
 # Linux-specific constants
 ICON_PATH='/usr/share/pixmaps/wazuh-logo.png'
 LOG_FILE='/var/ossec/logs/active-responses.log'
 UPGRADE_SCRIPT_PATH='/var/ossec/active-response/bin/adorsys-update.sh'
 BIN_FOLDER='/usr/bin'
-
-# Create a temporary directory
-TMP_FOLDER=$(mktemp -d)
 
 # --- Start of Centralized User Detection ---
 
@@ -39,42 +85,6 @@ if [[ -n "$USER" ]]; then
     fi
 fi
 # --- End of Centralized User Detection ---
-
-# Function for logging with timestamp
-log() {
-    local level="$1"
-    shift
-    local message="$*"
-    local timestamp
-    timestamp=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "${timestamp} ${level} ${message}" >> "$LOG_FILE"
-    return 0
-}
-
-# Logging helpers
-info_message() {
-    log "[INFO]" "$*"
-    return 0
-}
-
-warn_message() {
-    log "[WARNING]" "$*"
-    return 0
-}
-
-error_message() {
-    log "[ERROR]" "$*"
-    return 0
-}
-
-cleanup() {
-    if [[ -d "$TMP_FOLDER" ]]; then
-        rm -rf "$TMP_FOLDER"
-    fi
-    return 0
-}
-
-trap cleanup EXIT
 
 if [[ -f "$ICON_PATH" ]]; then
     ICON_ARG="-i $ICON_PATH"
@@ -125,33 +135,29 @@ run_upgrade() {
     info_message "Adding bin directory: $BIN_FOLDER to PATH environment"
     export PATH="$BIN_FOLDER:$PATH"
     info_message "Current PATH: $PATH"
-    info_message "Starting setup. Using temporary directory: $TMP_FOLDER"
+    info_message "Starting setup. Using temporary directory: $TMP_DIR"
 
     # Check for required dependencies
     if ! command -v curl >/dev/null 2>&1; then
-        error_message "curl is required but not installed."
         send_notification "Update failed: curl is missing."
-        exit 1
+        error_exit "curl is required but not installed."
     fi
     if ! command -v bash >/dev/null 2>&1; then
-        error_message "bash is required but not installed."
         send_notification "Update failed: bash is missing."
-        exit 1
+        error_exit "bash is required but not installed."
     fi
 
     info_message "Downloading setup script..."
-    if ! curl -SL -s "$SCRIPT_URL" -o "$TMP_FOLDER/setup-agent.sh" >> "$LOG_FILE"; then
-        error_message "Failed to download setup-agent.sh"
+    if ! download_and_verify_file "${WAZUH_AGENT_REPO_URL}/scripts/linux/setup-agent.sh" "$TMP_DIR/setup-agent.sh" "scripts/linux/setup-agent.sh" "setup-agent.sh" "$WAZUH_AGENT_REPO_URL/checksums.sha256"; then
         send_notification "Update failed: For more details go to file $LOG_FILE"
-        exit 1
+        error_exit "Failed to download setup-agent.sh"
     fi
 
-    chmod +x "$TMP_FOLDER/setup-agent.sh"
+    maybe_sudo chmod +x "$TMP_DIR/setup-agent.sh"
 
-    if ! sudo WAZUH_MANAGER="$WAZUH_MANAGER" bash "$TMP_FOLDER/setup-agent.sh" >> "$LOG_FILE"; then
-        error_message "Failed to setup wazuh agent"
+    if ! maybe_sudo env WAZUH_MANAGER="$WAZUH_MANAGER" bash "$TMP_DIR/setup-agent.sh" >> "$LOG_FILE"; then
         send_notification "Update failed: For more details go to file $LOG_FILE"
-        exit 1
+        error_exit "Failed to setup wazuh agent"
     fi
 
     send_notification "Update completed successfully! Please save your work and reboot your device to complete the update."

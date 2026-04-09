@@ -16,24 +16,60 @@ case "$PROFILE" in
 *) WAS_VERSION="$APP_VERSION-user" ;;
 esac
 
+# Common configuration
+SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
+CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"v0.4.2"}
+WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
+
+# Source shared utilities
+if ! curl -fsSL "${WAZUH_AGENT_STATUS_REPO_URL}/scripts/shared/utils.sh" -o "$TMP_DIR/utils.sh"; then
+    echo "Failed to download utils.sh"
+    exit 1
+fi
+
+# Function to calculate SHA256 (cross-platform bootstrap)
+calculate_sha256_bootstrap() {
+    local file="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file" | awk '{print $1}'
+    else
+        shasum -a 256 "$file" | awk '{print $1}'
+    fi
+    return 0
+}
+
+# Download checksums and verify utils.sh integrity BEFORE sourcing it
+if ! curl -fsSL "${WAZUH_AGENT_STATUS_REPO_URL}/checksums.sha256" -o "$TMP_DIR/checksums.sha256"; then
+    echo "Failed to download checksums.sha256"
+    exit 1
+fi
+
+EXPECTED_HASH=$(grep "scripts/shared/utils.sh" "$TMP_DIR/checksums.sha256" | awk '{print $1}')
+ACTUAL_HASH=$(calculate_sha256_bootstrap "$TMP_DIR/utils.sh")
+
+if [[ -z "$EXPECTED_HASH" ]] || [[ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]]; then
+    echo "Error: Checksum verification failed for utils.sh" >&2
+    echo "Expected hash: $EXPECTED_HASH" >&2
+    echo "Actual hash: $ACTUAL_HASH" >&2
+    exit 1
+fi
+
+. "$TMP_DIR/utils.sh"
+
+trap cleanup EXIT
+export CHECKSUMS_FILE="$CHECKSUMS_FILE"
+
 # macOS-specific configuration
 OS="darwin"
 BIN_DIR="/usr/local/bin"
 WAZUH_ACTIVE_RESPONSE_BIN_DIR="/Library/Ossec/active-response/bin"
 
-ARCH=$(uname -m)
-case "$ARCH" in
-x86_64) ARCH="amd64" ;;
-arm64 | aarch64) ARCH="arm64" ;;
-*) error_exit "Unsupported architecture: $ARCH" ;;
-esac
+ARCH=$(detect_architecture)
 
 # Environment Variables with Defaults
-SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
-CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
 WAZUH_USER=${WAZUH_USER:-"root"}
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"refs/tags/v$WAS_VERSION"}
 
 SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
 CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
@@ -43,61 +79,11 @@ CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
 BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"}
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
+CHECKSUM_URL="$BASE_URL/checksums.sha256"
 
-ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/$WAZUH_AGENT_STATUS_REPO_REF/scripts/macos/adorsys-update.sh"}
+ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"$WAZUH_AGENT_STATUS_REPO_URL/scripts/macos/adorsys-update.sh"}
 UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
-# Text Formatting
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-BOLD='\033[1m'
-NORMAL='\033[0m'
-
-# Logging Utilities
-log() { echo -e "$(date +"%Y-%m-%d %H:%M:%S") $1 $2"; }
-info_message() { log "${BLUE}${BOLD}[INFO]${NORMAL}" "$*"; }
-warn_message() { log "${YELLOW}${BOLD}[WARNING]${NORMAL}" "$*"; }
-error_message() { log "${RED}${BOLD}[ERROR]${NORMAL}" "$*"; }
-success_message() { log "${GREEN}${BOLD}[SUCCESS]${NORMAL}" "$*"; }
-print_step_header() { echo -e "\n${BOLD}===== STEP $1: $2 =====${NORMAL}\n"; }
-
-# Error Handler
-error_exit() {
-    error_message "$1"
-    exit 1
-}
-
-# Command Existence Check
-command_exists() { command -v "$1" >/dev/null 2>&1; }
-
-# Execute with Root Privileges
-maybe_sudo() {
-    if [ "$(id -u)" -ne 0 ]; then
-        command_exists sudo && sudo "$@" || error_exit "This script requires root privileges. Run as root or use sudo."
-    else
-        "$@"
-    fi
-}
-
-sed_alternative() {
-    if command_exists gsed; then
-        gsed "$@"
-    else
-        sed "$@"
-    fi
-}
-
-# General Utility Functions
-create_file() {
-    local filepath="$1"
-    local content="$2"
-    maybe_sudo bash -c "cat > \"$filepath\" <<EOF
-$content
-EOF"
-    info_message "Created file: $filepath"
-}
 
 remove_file() {
     local filepath="$1"
@@ -200,15 +186,11 @@ validate_installation() {
     success_message "Installation complete!"
 }
 
-# Installation Process
-TEMP_DIR=$(mktemp -d) || error_exit "Failed to create temporary directory"
-trap 'rm -rf "$TEMP_DIR"' EXIT
-
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary from $SERVER_URL..."
-curl -SL --progress-bar -o "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
+download_and_verify_file "$SERVER_URL" "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_BIN_NAME-darwin-$ARCH" "server binary" || error_exit "Failed to download $SERVER_BIN_NAME"
 info_message "Downloading client binary $CLIENT_URL..."
-curl -SL --progress-bar -o "$TEMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_URL" || error_exit "Failed to download $CLIENT_BIN_NAME"
+download_and_verify_file "$CLIENT_URL" "$TEMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_BIN_NAME-darwin-$ARCH" "client binary" || error_exit "Failed to download $CLIENT_BIN_NAME"
 success_message "Binaries downloaded successfully."
 
 print_step_header 2 "Binaries Installation"
@@ -232,13 +214,13 @@ make_client_launch_at_startup
 print_step_header 5 "Download and configure adorsys-update.sh"
 info_message "Downloading adorsys-update.sh..."
 if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
-    maybe_sudo curl -SL --progress-bar -o "$UPDATE_SCRIPT_PATH" "$ADORSYS_UPDATE_SCRIPT_URL" || warn_message "Failed to download adorsys-update.sh"
+    download_and_verify_file "$ADORSYS_UPDATE_SCRIPT_URL" "$UPDATE_SCRIPT_PATH" "scripts/macos/adorsys-update.sh" "adorsys-update.sh script" "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256" || warn_message "Failed to download adorsys-update.sh"
     maybe_sudo chmod 750 "$UPDATE_SCRIPT_PATH"
     
     # Update WAZUH_MANAGER value in adorsys-update.sh
     if [ -n "${WAZUH_MANAGER:-}" ]; then
         info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
-        maybe_sudo sed_alternative -i "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
+        maybe_sudo sed_inplace "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
     else
         warn_message "WAZUH_MANAGER variable not set. Skipping update in adorsys-update.sh."
     fi

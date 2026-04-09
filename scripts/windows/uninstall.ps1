@@ -1,136 +1,60 @@
-# Define variables used in the uninstallation script
-$SERVER_NAME =  "wazuh-agent-status" 
-$CLIENT_NAME =  "wazuh-agent-status-client"
+# Configuration
+$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.2.rc1" }
+
+if ($INSTALL_PROFILE -eq "admin") {
+    $WAS_VERSION = $APP_VERSION
+} else {
+    $WAS_VERSION = "$APP_VERSION-user"
+}
+$WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "refs/tags/v$WAS_VERSION" }
+$WAZUH_AGENT_STATUS_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
+
+$TEMP_DIR = Join-Path $env:TEMP "wazuh-agent-status-install"
+if (-not (Test-Path $TEMP_DIR)) {
+    New-Item -Path $TEMP_DIR -ItemType Directory | Out-Null
+}
+
+try {
+    $ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
+    $UtilsURL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/shared/utils.ps1"
+    
+    $global:ChecksumsPath = Join-Path $TEMP_DIR "checksums.sha256"
+    $UtilsPath = Join-Path $TEMP_DIR "utils.ps1"
+
+    Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
+    Invoke-WebRequest -Uri $UtilsURL -OutFile $UtilsPath -ErrorAction Stop
+
+    # Verification function (bootstrap)
+    function Get-FileChecksum-Bootstrap {
+        param([string]$FilePath)
+        return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
+    }
+
+    $ExpectedHash = (Select-String -Path $ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0]
+    $ActualHash = Get-FileChecksum-Bootstrap -FilePath $UtilsPath
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedHash) -or ($ActualHash -ne $ExpectedHash.ToLower())) {
+        Write-Error "Checksum verification failed for utils.ps1"
+        Write-Error "Expected: $ExpectedHash"
+        Write-Error "Got:      $ActualHash"
+        exit 1
+    }
+
+    . $UtilsPath
+}
+catch {
+    Write-Error "Failed to initialize utilities: $($_.Exception.Message)"
+    exit 1
+}
+
+# Environment Variables with Defaults
+$SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
+$CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
 $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
 $UPDATE_SCRIPT_PATH = "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.bat"
 
-
-
-function Log {
-    param (
-        [string]$Level,
-        [string]$Message,
-        [string]$Color = "White"  # Default color
-    )
-    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "$Timestamp $Level $Message" -ForegroundColor $Color
-}
-
-# Logging helpers with colors
-function InfoMessage {
-    param ([string]$Message)
-    Log "[INFO]" $Message "White"
-}
-
-function WarnMessage {
-    param ([string]$Message)
-    Log "[WARNING]" $Message "Yellow"
-}
-
-function ErrorMessage {
-    param ([string]$Message)
-    Log "[ERROR]" $Message "Red"
-}
-
-function SuccessMessage {
-    param ([string]$Message)
-    Log "[SUCCESS]" $Message "Green"
-}
-
-function PrintStep {
-    param (
-        [int]$StepNumber,
-        [string]$Message
-    )
-    Log "[STEP]" "Step ${StepNumber}: $Message" "White"
-}
-
-# Exit script with an error message
-function ErrorExit {
-    param ([string]$Message)
-    ErrorMessage $Message
-    exit 1
-}
-
-
-function Remove-File {
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$FilePath
-    )
-    InfoMessage "Removing '$FilePath'"
-    try {
-        if (Test-Path -Path $FilePath) {
-            Remove-Item -Path $FilePath -Force -ErrorAction Stop
-            InfoMessage "File '$FilePath' has been successfully removed." 
-        } else {
-            WarnMessage "File '$FilePath' does not exist."
-        }
-    } catch {
-        ErrorMessage "An error occurred while trying to remove the file: $_"
-    }
-}
-
-
-function Remove-Service {
-    param (
-        [Parameter(Mandatory=$true)]
-        [string]$ServiceName
-    )
-
-    # Check if the service exists
-    $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
-
-    if ($service) {
-        # Stop the service if it's running
-        if ($service.Status -eq 'Running') {
-            
-            Stop-Service -Name $ServiceName -Force
-        }
-
-        # Remove the service using sc.exe
-        sc.exe delete $ServiceName | Out-Null
-
-        InfoMessage "Service '$ServiceName' has been removed successfully."
-    } else {
-        WarnMessage "Service '$ServiceName' not found."
-    }
-}
-
-
-function Remove-StartupShortcut {
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$ShortcutName
-    )
-
-
-    # Check if the process is running
-    $process = Get-Process -Name $ShortcutName -ErrorAction SilentlyContinue
-
-    if ($process) {
-        InfoMessage "Process '$ShortcutName' is running. Stopping it..."
-        Stop-Process -Name $ShortcutName -Force
-        InfoMessage "Process '$ShortcutName' has been stopped."
-    }
-    else {
-        WarnMessage "Process '$ShortcutName' is not running. Skipping..."
-    }
-    # Define full path of the shortcut
-
-    InfoMessage "Removing Shortcut '$ShortcutName' from Startup..."
-    $ShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
-    
-    # Check if the shortcut exists and remove it
-    if (Test-Path $ShortcutPath) {
-        Remove-Item -Path $ShortcutPath -Force
-        InfoMessage "Shortcut '$ShortcutName' removed from Startup."
-    } else {
-        WarnMessage "Shortcut '$ShortcutName' not found in Startup."
-    }
-}
 
 
 function Remove-Binaries {

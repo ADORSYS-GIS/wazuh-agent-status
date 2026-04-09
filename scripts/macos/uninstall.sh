@@ -7,69 +7,56 @@ else
     set -eu
 fi
 
+# Common configuration
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"v0.4.2"}
+WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
+
+# Source shared utilities
+if ! curl -fsSL "${WAZUH_AGENT_STATUS_REPO_URL}/scripts/shared/utils.sh" -o "$TMP_DIR/utils.sh"; then
+    echo "Failed to download utils.sh"
+    exit 1
+fi
+
+# Function to calculate SHA256 (cross-platform bootstrap)
+calculate_sha256_bootstrap() {
+    local file="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file" | awk '{print $1}'
+    else
+        shasum -a 256 "$file" | awk '{print $1}'
+    fi
+    return 0
+}
+
+# Download checksums and verify utils.sh integrity BEFORE sourcing it
+if ! curl -fsSL "${WAZUH_AGENT_STATUS_REPO_URL}/checksums.sha256" -o "$TMP_DIR/checksums.sha256"; then
+    echo "Failed to download checksums.sha256"
+    exit 1
+fi
+
+EXPECTED_HASH=$(grep "scripts/shared/utils.sh" "$TMP_DIR/checksums.sha256" | awk '{print $1}')
+ACTUAL_HASH=$(calculate_sha256_bootstrap "$TMP_DIR/utils.sh")
+
+if [[ -z "$EXPECTED_HASH" ]] || [[ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]]; then
+    echo "Error: Checksum verification failed for utils.sh" >&2
+    echo "Expected hash: $EXPECTED_HASH" >&2
+    echo "Actual hash: $ACTUAL_HASH" >&2
+    exit 1
+fi
+
+. "$TMP_DIR/utils.sh"
+
+trap cleanup EXIT
+export CHECKSUMS_FILE="$CHECKSUMS_FILE"
+
 # Environment Variables with Defaults
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 SERVER_LAUNCH_AGENT_FILE="/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"
 CLIENT_LAUNCH_AGENT_FILE="/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"
 BIN_DIR="/usr/local/bin"
-
-# macOS-specific configuration
 OS="darwin"
 UPGRADE_SCRIPT_PATH="/Library/Ossec/active-response/bin/adorsys-update.sh"
-
-# Define text formatting
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-BOLD='\033[1m'
-NORMAL='\033[0m'
-
-# Function for logging with timestamp
-log() {
-    local LEVEL="$1"
-    shift
-    local MESSAGE="$*"
-    local TIMESTAMP
-    TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "${TIMESTAMP} ${LEVEL} ${MESSAGE}"
-}
-
-# Logging helpers
-info_message() {
-    log "${BLUE}${BOLD}[INFO]${NORMAL}" "$*"
-}
-
-warn_message() {
-    log "${YELLOW}${BOLD}[WARNING]${NORMAL}" "$*"
-}
-
-error_message() {
-    log "${RED}${BOLD}[ERROR]${NORMAL}" "$*"
-}
-
-success_message() {
-    log "${GREEN}${BOLD}[SUCCESS]${NORMAL}" "$*"
-}
-
-print_step() {
-    log "${BLUE}${BOLD}[STEP]${NORMAL}" "$1: $2"
-}
-
-# Check if sudo is available or if the script is run as root
-maybe_sudo() {
-    if [ "$(id -u)" -ne 0 ]; then
-        if command -v sudo >/dev/null 2>&1; then
-            sudo "$@"
-        else
-            error_message "This script requires root privileges. Please run with sudo or as root."
-            exit 1
-        fi
-    else
-        "$@"
-    fi
-}
 
 # Remove file if it exists
 remove_file() {
