@@ -47,6 +47,7 @@ jobs:
           }
 
   test-scripts:
+    needs: lint-scripts
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -54,6 +55,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Create Wazuh active-response directory (Linux CI)
+        if: runner.os == 'Linux'
+        run: sudo mkdir -p /var/ossec/active-response/bin
 
       - name: Test scripts (Linux/macOS)
         if: runner.os != 'Windows'
@@ -76,25 +81,29 @@ jobs:
           $env:WAZUH_AGENT_STATUS_REPO_REF = "${{ env.WAZUH_AGENT_STATUS_REPO_REF }}"
           .\scripts\windows\install.ps1
 
+  update-checksums:
+    name: Update checksums.sha256
+    needs: test-scripts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Generate checksums
         run: |
-          find scripts -type f -exec sha256sum {} + >> checksums.sha256
+          find scripts -type f -exec sha256sum {} + > checksums.sha256
           cat checksums.sha256
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update checksums"
-          title: "Update Checksums"
-          add-paths: |
-            checksums.sha256
-          body: |
-            This PR updates the checksums file.
-            - Generated using sha256sum
-            - Includes both binary and script checksums
-            - Triggered by: ${{ github.event_name }}
-          branch: update-changelog-${{ github.run_id }}
-          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || 'user-main' }}
-          delete-branch: true
-          labels: documentation, automated-pr
+      - name: Commit updated checksums to PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add checksums.sha256
+          git diff --staged --quiet || git commit -m "chore: update checksums.sha256"
+          git push origin HEAD:${{ github.head_ref }}
