@@ -99,6 +99,11 @@ remove_file() {
     return 0
 }
 
+sed_inplace() {
+    maybe_sudo sed -i '' "$@" 2>/dev/null || true
+    return $?
+}
+
 # macOS Launchd Plist File
 create_launchd_plist_file() {
     local name="$1"

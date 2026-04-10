@@ -49,13 +49,16 @@ success_message() {
 }
 
 print_step_header() {
-    echo -e "\n${BOLD}===== STEP $1: $2 =====${NORMAL}\n"
+    local step_number="$1"
+    local step_name="$2"
+    echo -e "\n${BOLD}===== STEP $step_number: $step_name =====${NORMAL}\n"
     return 0
 }
 
 # Check if a command exists
 command_exists() {
-    command -v "$1" >/dev/null 2>&1
+    local command="$1"
+    command -v "$command" >/dev/null 2>&1
     return 0
 }
 
@@ -71,41 +74,32 @@ detect_architecture() {
             echo "arm64"
             ;;
         *)
-            error_message "Unsupported architecture: $arch"
-            exit 1
+            error_exit "Unsupported architecture: $arch"
             ;;
     esac
 }
 
 # Check if sudo is available or if the script is run as root
 maybe_sudo() {
-    if [ "$(id -u)" -ne 0 ]; then
+    if [[ "$(id -u)" -ne 0 ]]; then
         if command_exists sudo; then
             sudo "$@"
         else
-            error_message "This script requires root privileges. Please run with sudo or as root."
-            exit 1
+            error_exit "This script requires root privileges. Please run with sudo or as root."
         fi
     else
         "$@"
     fi
 }
 
-# Portable sed inplace
-sed_inplace() {
-    if [[ "$(uname -s)" == "Darwin" ]]; then
-        maybe_sudo sed -i '' "$@" 2>/dev/null || true
-    else
-        maybe_sudo sed -i "$@" 2>/dev/null || true
-    fi
-}
-
 remove_file() {
     local filepath="$1"
-    if [ -f "$filepath" ]; then
+    if [[ -f "$filepath" ]]; then
         info_message "Removing file: $filepath"
         maybe_sudo rm -f "$filepath"
+        return $?
     fi
+    return 0
 }
 
 calculate_sha256() {
@@ -167,7 +161,7 @@ download_file() {
                 fi
             fi
         elif command_exists wget; then
-            if [ "$(id -u)" -eq 0 ]; then
+            if [[ "$(id -u)" -eq 0 ]]; then
                 if wget -q --tries=3 --wait=2 -O "$dest" "$url"; then
                     success_message "$description downloaded successfully"
                     return 0
@@ -241,9 +235,11 @@ download_and_verify_file() {
 # Cleanup function (can be overridden by caller)
 cleanup() {
     info_message "Cleaning up temporary files..."
-    if [ -n "${TMP_DIR:-}" ] && [ -d "$TMP_DIR" ]; then
-        rm -rf "$TMP_DIR"
+    if [[ -n "${TMP_DIR:-}" ]] && [[ -d "${TMP_DIR}" ]]; then
+        rm -rf "${TMP_DIR}"
+        return $?
     fi
+    return 0
 }
 
 # Create file
@@ -254,4 +250,5 @@ create_file() {
 $content
 EOF"
     info_message "Created file: $filepath"
+    return 0
 }

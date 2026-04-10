@@ -163,6 +163,11 @@ make_client_launch_at_startup() {
     return 0
 }
 
+sed_inplace() {
+    maybe_sudo sed -i "$@" 2>/dev/null || true
+    return $?
+}
+
 validate_installation() {
     # Validate binaries
     if [[ -x "$BIN_DIR/$SERVER_NAME" ]]; then
