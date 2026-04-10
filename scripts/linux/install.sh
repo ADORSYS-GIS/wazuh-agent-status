@@ -201,9 +201,9 @@ validate_installation() {
 
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary from $SERVER_URL..."
-download_and_verify_file "$SERVER_URL" "$TMP_DIR/$SERVER_BIN_NAME" "$SERVER_BIN_NAME" "server binary" || error_exit "Failed to download $SERVER_BIN_NAME"
+download_and_verify_file "$SERVER_URL" "$TMP_DIR/$SERVER_BIN_NAME" "$SERVER_BIN_NAME" "server binary" "$CHECKSUM_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
 info_message "Downloading client binary $CLIENT_URL..."
-download_and_verify_file "$CLIENT_URL" "$TMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_BIN_NAME" "client binary" || error_exit "Failed to download $CLIENT_BIN_NAME"
+download_and_verify_file "$CLIENT_URL" "$TMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_BIN_NAME" "client binary" "$CHECKSUM_URL" || error_exit "Failed to download $CLIENT_BIN_NAME"
 success_message "Binaries downloaded successfully."
 
 print_step_header 2 "Binaries Installation"
