@@ -149,7 +149,7 @@ download_file() {
     while [[ "$retry_count" -lt "$max_retries" ]]; do
         if command_exists curl; then
             # If running as root, we can use -o directly. Otherwise, we might need sudo tee.
-            if [ "$(id -u)" -eq 0 ]; then
+            if [[ "$(id -u)" -eq 0 ]]; then
                 if curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$dest"; then
                     success_message "$description downloaded successfully"
                     return 0
