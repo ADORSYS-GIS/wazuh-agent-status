@@ -60,6 +60,10 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo mkdir -p /var/ossec/active-response/bin
 
+      - name: Create Wazuh active-response directory (MacOS CI)
+        if: runner.os == 'MacOS'
+        run: sudo mkdir -p /Library/Ossec/active-response/bin
+
       - name: Test scripts (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
