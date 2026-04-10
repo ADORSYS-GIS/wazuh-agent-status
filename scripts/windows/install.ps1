@@ -5,6 +5,8 @@ $ErrorActionPreference = "Stop"
 # Configuration
 $APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.2.rc1" }
 
+$INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
+
 if ($INSTALL_PROFILE -eq "admin") {
     $WAS_VERSION = $APP_VERSION
 } else {
@@ -57,7 +59,6 @@ EnsureAdmin
 $WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
 $CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
-$INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
 
 # Determine architecture
 if (-not [Environment]::Is64BitOperatingSystem) {
