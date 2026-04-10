@@ -92,10 +92,11 @@ UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
 remove_file() {
     local filepath="$1"
-    if [ -f "$filepath" ]; then
+    if [[ -f "$filepath" ]]; then
         info_message "Removing file: $filepath"
         maybe_sudo rm -f "$filepath"
     fi
+    return 0
 }
 
 # macOS Launchd Plist File
@@ -123,7 +124,7 @@ create_launchd_plist_file() {
 </plist>
 "
     
-    if [ "$name" = "$SERVER_NAME" ]; then
+    if [[ "$name" = "$SERVER_NAME" ]]; then
         info_message "Loading new daemon plist file..."
         maybe_sudo launchctl bootstrap "system $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
     else
@@ -131,51 +132,55 @@ create_launchd_plist_file() {
         launchctl bootstrap "gui/$(id) $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
     fi
     info_message "macOS Launchd plist file created and loaded: $filepath"
+    return 0
 }
 
 unload_plist_file() {
     local filepath="$1"
 
-    if [ -f "$filepath" ]; then
+    if [[ -f "$filepath" ]]; then
         info_message "Unloading previous plist file (if any)..."
         maybe_sudo launchctl bootout "gui/$(id) $filepath" 2>/dev/null || warn_message "Unloading previous plist file failed: $filepath"
         info_message "Previous plist file unloaded: $filepath"
     else
         warn_message "Plist file: $filepath does not exist. Skipping."
     fi
+    return 0
 }
 
 # Startup Configurations
 make_server_launch_at_startup() {
     create_launchd_plist_file "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE"
+    return 0
 }
 
 make_client_launch_at_startup() {
     create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE"
+    return 0
 }
 
 validate_installation() {
     # Validate binaries
-    if [ -x "$BIN_DIR/$SERVER_NAME" ]; then
+    if [[ -x "$BIN_DIR/$SERVER_NAME" ]]; then
         success_message "Server binary exists and is executable: $BIN_DIR/$SERVER_NAME."
     else
         error_exit "Server binary is missing or not executable: $BIN_DIR/$SERVER_NAME."
     fi
 
-    if [ -x "$BIN_DIR/$CLIENT_NAME" ]; then
+    if [[ -x "$BIN_DIR/$CLIENT_NAME" ]]; then
         success_message "Client binary exists and is executable: $BIN_DIR/$CLIENT_NAME."
     else
         error_exit "Client binary is missing or not executable: $BIN_DIR/$CLIENT_NAME."
     fi
 
     # Validate service files
-    if [ -f "$SERVER_LAUNCH_AGENT_FILE" ]; then
+    if [[ -f "$SERVER_LAUNCH_AGENT_FILE" ]]; then
         success_message "macOS Launchd server plist exists: $SERVER_LAUNCH_AGENT_FILE."
     else
         error_exit "macOS Launchd server plist is missing: $SERVER_LAUNCH_AGENT_FILE."
     fi
 
-    if [ -f "$CLIENT_LAUNCH_AGENT_FILE" ]; then
+    if [[ -f "$CLIENT_LAUNCH_AGENT_FILE" ]]; then
         success_message "macOS Launchd client plist exists: $CLIENT_LAUNCH_AGENT_FILE."
     else
         error_exit "macOS Launchd client plist is missing: $CLIENT_LAUNCH_AGENT_FILE."
@@ -189,13 +194,14 @@ validate_installation() {
     fi
 
     success_message "Installation complete!"
+    return 0
 }
 
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary from $SERVER_URL..."
-download_and_verify_file "$SERVER_URL" "$TMP_DIR/$SERVER_BIN_NAME" "$SERVER_BIN_NAME" "server binary" || error_exit "Failed to download $SERVER_BIN_NAME"
+download_and_verify_file "$SERVER_URL" "$TMP_DIR/$SERVER_BIN_NAME" "$SERVER_BIN_NAME" "server binary" "$CHECKSUM_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
 info_message "Downloading client binary $CLIENT_URL..."
-download_and_verify_file "$CLIENT_URL" "$TMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_BIN_NAME" "client binary" || error_exit "Failed to download $CLIENT_BIN_NAME"
+download_and_verify_file "$CLIENT_URL" "$TMP_DIR/$CLIENT_BIN_NAME" "$CLIENT_BIN_NAME" "client binary" "$CHECKSUM_URL" || error_exit "Failed to download $CLIENT_BIN_NAME"
 success_message "Binaries downloaded successfully."
 
 print_step_header 2 "Binaries Installation"
@@ -223,7 +229,7 @@ if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     maybe_sudo chmod 750 "$UPDATE_SCRIPT_PATH"
     
     # Update WAZUH_MANAGER value in adorsys-update.sh
-    if [ -n "${WAZUH_MANAGER:-}" ]; then
+    if [[ -n "${WAZUH_MANAGER:-}" ]]; then
         info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
         maybe_sudo sed_inplace "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
     else

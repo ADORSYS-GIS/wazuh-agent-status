@@ -115,6 +115,7 @@ User=$WAZUH_USER
 WantedBy=multi-user.target
 "
     info_message "Systemd service file created: $SERVICE_FILE"
+    return 0
 }
 
 reload_and_enable_service() {
@@ -128,6 +129,7 @@ reload_and_enable_service() {
     maybe_sudo systemctl start "$SERVER_NAME"
 
     info_message "Systemd service enabled and started."
+    return 0
 }
 
 # Desktop Unit File Creation
@@ -147,33 +149,36 @@ Type=Application
 X-GNOME-Autostart-enabled=true
 "
     info_message "Desktop autostart file created: $DESKTOP_UNIT_FILE"
+    return 0
 }
 
 # Startup Configurations
 make_server_launch_at_startup() {
     create_service_file && reload_and_enable_service
+    return 0
 }
 
 make_client_launch_at_startup() {
     create_desktop_unit_file
+    return 0
 }
 
 validate_installation() {
     # Validate binaries
-    if [ -x "$BIN_DIR/$SERVER_NAME" ]; then
+    if [[ -x "$BIN_DIR/$SERVER_NAME" ]]; then
         success_message "Server binary exists and is executable: $BIN_DIR/$SERVER_NAME."
     else
         error_exit "Server binary is missing or not executable: $BIN_DIR/$SERVER_NAME."
     fi
 
-    if [ -x "$BIN_DIR/$CLIENT_NAME" ]; then
+    if [[ -x "$BIN_DIR/$CLIENT_NAME" ]]; then
         success_message "Client binary exists and is executable: $BIN_DIR/$CLIENT_NAME."
     else
         error_exit "Client binary is missing or not executable: $BIN_DIR/$CLIENT_NAME."
     fi
 
     # Validate service files
-    if [ -f "$SERVICE_FILE" ]; then
+    if [[ -f "$SERVICE_FILE" ]]; then
         success_message "Systemd service file exists: $SERVICE_FILE."
     else
         error_exit "Systemd service file is missing: $SERVICE_FILE."
@@ -183,7 +188,7 @@ validate_installation() {
         success_message "Systemd service is enabled: $SERVER_NAME." ||
         error_exit "Systemd service is not enabled: $SERVER_NAME."
 
-    if [ -f "$DESKTOP_UNIT_FILE" ]; then
+    if [[ -f "$DESKTOP_UNIT_FILE" ]]; then
         success_message "Desktop autostart file exists: $DESKTOP_UNIT_FILE."
     else
         error_exit "Desktop autostart file is missing: $DESKTOP_UNIT_FILE."
@@ -197,6 +202,7 @@ validate_installation() {
     fi
 
     success_message "Installation complete! Restart your system to apply changes for the wazuh agent status."
+    return 0
 }
 
 print_step_header 1 "Binaries Download"
@@ -230,7 +236,7 @@ if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     maybe_sudo chmod 750 "$UPDATE_SCRIPT_PATH"
     
     # Update WAZUH_MANAGER value in adorsys-update.sh
-    if [ -n "${WAZUH_MANAGER:-}" ]; then
+    if [[ -n "${WAZUH_MANAGER:-}" ]]; then
         info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
         maybe_sudo sed_inplace "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
     else

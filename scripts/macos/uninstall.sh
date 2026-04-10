@@ -68,6 +68,7 @@ remove_file() {
     else
         warn_message "File not found: $filepath. Skipping."
     fi
+    return 0
 }
 
 # Remove binary files
@@ -75,19 +76,21 @@ remove_binaries() {
     info_message "Removing binaries from $BIN_DIR..."
     remove_file "$BIN_DIR/$SERVER_NAME"
     remove_file "$BIN_DIR/$CLIENT_NAME"
+    return 0
 }
 
 # Remove macOS Launchd plist files
 remove_launchd_service() {
     local name="$1"
     local filepath="$2"
-    if [ -f "$filepath" ]; then
+    if [[ -f "$filepath" ]]; then
         info_message "Unloading and removing Launchd plist for $name..."
         maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
         remove_file "$filepath"
     else
         warn_message "Launchd service for $name not found. Skipping."
     fi
+    return 0
 }
 
 # Uninstallation Process

@@ -74,6 +74,7 @@ remove_file() {
     else
         warn_message "File not found: $filepath. Skipping."
     fi
+    return 0
 }
 
 # Remove binary files
@@ -81,11 +82,12 @@ remove_binaries() {
     info_message "Removing binaries from $BIN_DIR..."
     remove_file "$BIN_DIR/$SERVER_NAME"
     remove_file "$BIN_DIR/$CLIENT_NAME"
+    return 0
 }
 
 # Remove Linux systemd service
 remove_systemd_service() {
-    if [ -f "$SERVICE_FILE" ]; then
+    if [[ -f "$SERVICE_FILE" ]]; then
         info_message "Disabling and removing systemd service..."
         maybe_sudo systemctl stop "$SERVER_NAME" || true
         maybe_sudo systemctl disable "$SERVER_NAME" || true
@@ -94,16 +96,18 @@ remove_systemd_service() {
     else
         warn_message "Systemd service not found or not running. Skipping."
     fi
+    return 0
 }
 
 # Remove Linux desktop unit file for autostart
 remove_desktop_unit() {
-    if [ -f "$DESKTOP_UNIT_FILE" ]; then
+    if [[ -f "$DESKTOP_UNIT_FILE" ]]; then
         info_message "Removing desktop unit file for autostart..."
         remove_file "$DESKTOP_UNIT_FILE"
     else
         warn_message "Desktop unit file not found. Skipping."
     fi
+    return 0
 }
 
 # Uninstallation Process
