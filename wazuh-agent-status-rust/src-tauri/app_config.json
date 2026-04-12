@@ -1,0 +1,26 @@
+{
+  "brand": {
+    "name": "Wazuh Agent Status",
+    "company": "ADORSYS",
+    "logo_path": "icons/icon.png",
+    "theme": {
+        "primary_color": "#00aaff",
+        "secondary_color": "#ffffff",
+        "dark_mode": true
+    }
+  },
+  "endpoints": {
+    "version_url": "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/main/versions.json",
+    "backend_port": 50505
+  },
+  "features": {
+    "self_healing": true,
+    "log_streaming": true,
+    "os_updates_check": true
+  },
+  "wazuh": {
+    "linux_base_path": "/var/ossec",
+    "macos_base_path": "/Library/Ossec",
+    "windows_base_path": "C:\\Program Files (x86)\\ossec-agent"
+  }
+}
