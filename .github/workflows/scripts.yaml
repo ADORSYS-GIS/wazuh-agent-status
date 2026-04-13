@@ -28,13 +28,11 @@ jobs:
       - name: Run ShellCheck on bash scripts
         run: |
           find scripts -name "*.sh" -type f | xargs shellcheck --severity=warning || true
-
       - name: Install PSScriptAnalyzer
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
-
       - name: Run PSScriptAnalyzer on PowerShell scripts
         shell: pwsh
         run: |
@@ -46,48 +44,9 @@ jobs:
             Write-Warning "PSScriptAnalyzer found issues"
           }
 
-  test-scripts:
-    needs: lint-scripts
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-
-      - name: Create Wazuh active-response directory (Linux CI)
-        if: runner.os == 'Linux'
-        run: sudo mkdir -p /var/ossec/active-response/bin
-
-      - name: Create Wazuh active-response directory (MacOS CI)
-        if: runner.os == 'MacOS'
-        run: sudo mkdir -p /Library/Ossec/active-response/bin
-
-      - name: Test scripts (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: |
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
-            sudo env WAZUH_MANAGER="${{ env.WAZUH_MANAGER }}" \
-              WAZUH_AGENT_STATUS_REPO_REF="${{ env.WAZUH_AGENT_STATUS_REPO_REF }}" \
-              bash ./scripts/linux/install.sh
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            sudo env WAZUH_MANAGER="${{ env.WAZUH_MANAGER }}" \
-              WAZUH_AGENT_STATUS_REPO_REF="${{ env.WAZUH_AGENT_STATUS_REPO_REF }}" \
-              bash ./scripts/macos/install.sh
-          fi
-
-      - name: Test scripts (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $env:WAZUH_MANAGER = "${{ env.WAZUH_MANAGER }}"
-          $env:WAZUH_AGENT_STATUS_REPO_REF = "${{ env.WAZUH_AGENT_STATUS_REPO_REF }}"
-          .\scripts\windows\install.ps1
-
   update-checksums:
     name: Update checksums.sha256
-    needs: test-scripts
+    needs: lint-scripts
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     permissions:
@@ -104,12 +63,51 @@ jobs:
           find scripts -type f -exec sha256sum {} + > checksums.sha256
           cat checksums.sha256
 
-      - name: Commit updated checksums to PR branch
-        env:
-          HEAD_REF: ${{ github.head_ref }}
+      - name: Commit updated checksums
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add checksums.sha256
-          git diff --staged --quiet || git commit -m "chore: update checksums.sha256"
-          git push origin HEAD:${HEAD_REF}
+          git diff --cached --quiet || git commit -m "chore: update checksums.sha256"
+          git push
+
+  test-scripts:
+    name: Test Scripts
+    needs: update-checksums
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Create Wazuh active-response directory (Linux CI)
+        if: runner.os == 'Linux'
+        run: sudo mkdir -p /var/ossec/active-response/bin
+
+      - name: Create Wazuh active-response directory (MacOS CI)
+        if: runner.os == 'macOS'
+        run: sudo mkdir -p /Library/Ossec/active-response/bin
+
+      - name: Test scripts (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            sudo env \
+              WAZUH_MANAGER="${{ env.WAZUH_MANAGER }}" \
+              WAZUH_AGENT_STATUS_REPO_REF="${{ env.WAZUH_AGENT_STATUS_REPO_REF }}" \
+              bash ./scripts/linux/install.sh
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            sudo env \
+              WAZUH_MANAGER="${{ env.WAZUH_MANAGER }}" \
+              WAZUH_AGENT_STATUS_REPO_REF="${{ env.WAZUH_AGENT_STATUS_REPO_REF }}" \
+              bash ./scripts/macos/install.sh
+          fi
+      - name: Test scripts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:WAZUH_MANAGER = "${{ env.WAZUH_MANAGER }}"
+          $env:WAZUH_AGENT_STATUS_REPO_REF = "${{ env.WAZUH_AGENT_STATUS_REPO_REF }}"
+          .\scripts\windows\install.ps1
