@@ -234,14 +234,15 @@ jobs:
             echo "No changes to commit"
           fi
       
-      - name: Upload windows server binaries
+      - name: Upload Checksums
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           path: checksums.sha256
 
   release:
     name: Release
-    permissions: write-all
+    permissions:
+      contents: write
     needs:
       - update-changelog-and-checksums
     runs-on: ubuntu-latest

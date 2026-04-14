@@ -77,6 +77,7 @@ detect_architecture() {
             error_exit "Unsupported architecture: $arch"
             ;;
     esac
+    return 0
 }
 
 # Check if sudo is available or if the script is run as root
@@ -89,7 +90,9 @@ maybe_sudo() {
         fi
     else
         "$@"
+        return $?
     fi
+    return 0
 }
 
 remove_file() {
