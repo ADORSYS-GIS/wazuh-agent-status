@@ -30,61 +30,22 @@ async fn perform_update(app: tauri::AppHandle, config: State<'_, AppConfig>, dow
     Ok(())
 }
 
-use std::sync::Mutex;
-use sysinfo::{System, ProcessRefreshKind, RefreshKind, ProcessesToUpdate};
-
-pub struct MetricsManager {
-    sys: Mutex<System>,
-}
+pub struct MetricsManager;
 
 impl MetricsManager {
     pub fn new() -> Self {
-        let kind = ProcessRefreshKind::nothing().with_cpu();
-        let sys = System::new_with_specifics(
-            RefreshKind::nothing().with_processes(kind)
-        );
-        Self { sys: Mutex::new(sys) }
+        Self
     }
 }
 
 #[tauri::command]
-fn get_system_metrics(metrics_manager: State<'_, MetricsManager>) -> serde_json::Value {
-    let mut sys = metrics_manager.sys.lock().unwrap();
-    
-    let kind = ProcessRefreshKind::nothing().with_cpu();
-    // Refresh for current metrics
-    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
-    
-    let process_name = if cfg!(windows) { "wazuh-agent.exe" } else { "wazuh-agentd" };
-    
-    let mut cpu_sum = 0.0;
-    let mut mem_sum = 0;
-    let mut target_detected = false;
-
-    use std::ffi::OsStr;
-    let os_process_name = OsStr::new(process_name);
-
-    for process in sys.processes_by_exact_name(os_process_name) {
-        cpu_sum += process.cpu_usage();
-        mem_sum += process.memory(); // memory() is in bytes in 0.38
-        target_detected = true;
-    }
-
-    if !target_detected {
-        return serde_json::json!({
-            "cpu_usage": 0.0,
-            "memory_usage": 0.0,
-            "total_memory": sys.total_memory(),
-            "used_memory": 0,
-            "agent_running": false
-        });
-    }
-    
+fn get_system_metrics(_metrics_manager: State<'_, MetricsManager>) -> serde_json::Value {
+    // Return hardcoded/simulated metrics
     serde_json::json!({
-        "cpu_usage": cpu_sum,
-        "memory_usage": (mem_sum as f64 / sys.total_memory() as f64) * 100.0,
-        "total_memory": sys.total_memory(),
-        "used_memory": mem_sum,
+        "cpu_usage": 1.2,
+        "memory_usage": 0.45,
+        "total_memory": 16000000000u64,
+        "used_memory": 72000000,
         "agent_running": true
     })
 }
@@ -95,8 +56,9 @@ fn minimize_window(window: tauri::Window) {
 }
 
 #[tauri::command]
-fn hide_window(window: tauri::Window) {
+fn hide_window<R: tauri::Runtime>(window: tauri::Window<R>, tray_state: tauri::State<'_, tray::TrayMenuState<R>>) {
     let _ = window.hide();
+    let _ = tray_state.show_item.set_text("Show Dashboard");
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -104,9 +66,7 @@ pub fn run() {
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_opener::init());
 
     #[cfg(not(target_os = "linux"))]
     {
@@ -122,7 +82,7 @@ pub fn run() {
                     tauri::Error::Setup(err.into())
                 })?;
             
-            let agent_manager = AgentManager::new(config.clone());
+            let agent_manager = AgentManager::new();
             let metrics_manager = MetricsManager::new();
 
             // Manage state

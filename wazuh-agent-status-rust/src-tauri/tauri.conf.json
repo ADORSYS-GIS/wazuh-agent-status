@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "Wazuh Agent Dashboard",
-        "width": 370,
-        "height": 550,
+        "width": 380,
+        "height": 540,
         "visible": false,
         "resizable": false,
         "minimizable": true,
