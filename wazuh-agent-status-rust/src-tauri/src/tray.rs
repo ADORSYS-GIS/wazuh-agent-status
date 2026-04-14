@@ -41,8 +41,9 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         let _ = window.hide();
                         let _ = show_i.set_text("Show Dashboard");
                     } else {
+                        // Positioner requires tray position to be set by on_tray_icon_event
                         #[cfg(not(target_os = "linux"))]
-                        let _ = window.as_ref().window().move_window(Position::TrayCenter);
+                        let _ = window.move_window(Position::TrayCenter);
                         
                         let _ = window.set_decorations(true);
                         let _ = window.unminimize();
@@ -55,6 +56,10 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
             _ => {}
         })
         .on_tray_icon_event(move |tray: &tauri::tray::TrayIcon<R>, event| {
+            // Update positioner with tray coordinates for non-linux systems
+            #[cfg(not(target_os = "linux"))]
+            let _ = tauri_plugin_positioner::on_tray_event(tray.app_handle(), &event);
+
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
@@ -69,7 +74,7 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         let _ = show_i_tray.set_text("Show Dashboard");
                     } else {
                         #[cfg(not(target_os = "linux"))]
-                        let _ = window.as_ref().window().move_window(Position::TrayCenter);
+                        let _ = window.move_window(Position::TrayCenter);
                         
                         let _ = window.set_decorations(true);
                         let _ = window.unminimize();
