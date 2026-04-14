@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/Inter-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
 :root {
   --primary: #00aaff;
   /* These are now driven by AppConfig to support Whitelabeling */
