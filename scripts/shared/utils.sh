@@ -59,7 +59,7 @@ print_step_header() {
 command_exists() {
     local command="$1"
     command -v "$command" >/dev/null 2>&1
-    return 0
+    return $?
 }
 
 # Detect system architecture
