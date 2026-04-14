@@ -41,8 +41,11 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         let _ = window.hide();
                         let _ = show_i.set_text("Show Dashboard");
                     } else {
-                        // Positioner requires tray position to be set by on_tray_icon_event
-                        #[cfg(not(target_os = "linux"))]
+                        // Positioner requires tray position to be set by on_tray_icon_event.
+                        // On Windows, this is unreliable, so we use BottomRight as a safe fallback.
+                        #[cfg(target_os = "windows")]
+                        let _ = window.move_window(Position::BottomRight);
+                        #[cfg(target_os = "macos")]
                         let _ = window.move_window(Position::TrayCenter);
                         
                         let _ = window.set_decorations(true);
@@ -73,7 +76,9 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         let _ = window.hide();
                         let _ = show_i_tray.set_text("Show Dashboard");
                     } else {
-                        #[cfg(not(target_os = "linux"))]
+                        #[cfg(target_os = "windows")]
+                        let _ = window.move_window(Position::BottomRight);
+                        #[cfg(target_os = "macos")]
                         let _ = window.move_window(Position::TrayCenter);
                         
                         let _ = window.set_decorations(true);
