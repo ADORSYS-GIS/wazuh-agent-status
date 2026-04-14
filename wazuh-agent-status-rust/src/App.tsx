@@ -43,6 +43,12 @@ function AppLoading() {
 const STATUS_POLL_MS = 5_000;
 const STORAGE_KEY_VIEW = "wazuh_active_view";
 
+function safeRandom(): number {
+  const array = new Uint32Array(1);
+  window.crypto.getRandomValues(array);
+  return array[0] / (0xffffffff + 1);
+}
+
 function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [agentStatus, setAgentStatus] = useState<AgentStatus>(DEFAULT_STATUS);
@@ -68,11 +74,11 @@ function App() {
 
     const metricsTimer = setInterval(() => {
       invoke<SystemMetrics>("get_system_metrics").then((data) => {
-        const flutter = (Math.random() - 0.5) * 0.2;
+        const flutter = (safeRandom() - 0.5) * 0.2;
         setMetrics({
           ...data,
           cpu_usage: Math.max(0, data.cpu_usage + flutter),
-          memory_usage: Math.max(0, data.memory_usage + (Math.random() - 0.5) * 0.1),
+          memory_usage: Math.max(0, data.memory_usage + (safeRandom() - 0.5) * 0.1),
         });
       }).catch(console.error);
     }, 2000);
