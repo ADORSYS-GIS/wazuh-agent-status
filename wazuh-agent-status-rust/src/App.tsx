@@ -45,7 +45,7 @@ const STORAGE_KEY_VIEW = "wazuh_active_view";
 
 function safeRandom(): number {
   const array = new Uint32Array(1);
-  window.crypto.getRandomValues(array);
+  globalThis.crypto.getRandomValues(array);
   return array[0] / (0xffffffff + 1);
 }
 
@@ -115,11 +115,9 @@ function App() {
     "--primary-metallic": `linear-gradient(135deg, ${primaryColor}, #ffffff44, ${primaryColor})` 
   } as CSSProperties;
 
-  const indicatorTop = activeView === "status" 
-    ? "34px" 
-    : activeView === "updates" 
-      ? "94px" 
-      : "154px";
+  const indicatorTop = (
+    { status: "34px", updates: "94px", settings: "154px" } as Record<View, string>
+  )[activeView];
 
   return (
     <div className="app-wrapper" style={cssVars}>
