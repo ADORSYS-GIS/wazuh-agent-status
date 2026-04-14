@@ -405,7 +405,6 @@ body {
 
 /* Skeleton Loading */
 .skeleton {
-  background: var(--card-bg);
   border-radius: 12px;
   background: linear-gradient(
     90deg, 

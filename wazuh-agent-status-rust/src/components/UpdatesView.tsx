@@ -4,7 +4,7 @@ interface UpdatesViewProps {
   updateInfo: UpdateInfo | null;
 }
 
-export function UpdatesView({ updateInfo }: UpdatesViewProps) {
+export function UpdatesView({ updateInfo }: Readonly<UpdatesViewProps>) {
   return (
     <div className="view-container">
       <div className="subtitle">Version Control</div>

@@ -109,14 +109,18 @@ function App() {
     "--primary-metallic": `linear-gradient(135deg, ${primaryColor}, #ffffff44, ${primaryColor})` 
   } as CSSProperties;
 
+  const indicatorTop = activeView === "status" 
+    ? "34px" 
+    : activeView === "updates" 
+      ? "94px" 
+      : "154px";
+
   return (
     <div className="app-wrapper" style={cssVars}>
       <nav className="sidebar">
         <div 
           className="nav-indicator" 
-          style={{ 
-            top: activeView === "status" ? "34px" : activeView === "updates" ? "94px" : "154px" 
-          }} 
+          style={{ top: indicatorTop }} 
         />
         
         <div className="tooltip-container">

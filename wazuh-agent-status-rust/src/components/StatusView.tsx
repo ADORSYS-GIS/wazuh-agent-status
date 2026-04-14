@@ -5,7 +5,7 @@ interface StatusViewProps {
   metrics: SystemMetrics;
 }
 
-export function StatusView({ agentStatus, metrics }: StatusViewProps) {
+export function StatusView({ agentStatus, metrics }: Readonly<StatusViewProps>) {
   return (
     <div className="view-container">
       <div className="subtitle">Real-time Activity</div>

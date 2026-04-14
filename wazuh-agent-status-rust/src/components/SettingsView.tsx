@@ -4,7 +4,7 @@ interface SettingsViewProps {
   config: AppConfig;
 }
 
-export function SettingsView({ config }: SettingsViewProps) {
+export function SettingsView({ config }: Readonly<SettingsViewProps>) {
   return (
     <div className="view-container">
       <div className="subtitle">Branding</div>
