@@ -6,12 +6,15 @@ use tauri::{
 #[cfg(not(target_os = "linux"))]
 use tauri_plugin_positioner::{WindowExt, Position};
 
+
+#[allow(dead_code)]
 pub struct TrayMenuState<R: Runtime> {
     pub show_item: MenuItem<R>,
 }
 
 pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     let show_i = MenuItem::with_id(app, "show", "Show Dashboard", true, None::<&str>)?;
+    let show_i_state = show_i.clone();
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
 
@@ -22,7 +25,6 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     let icon = tauri::image::Image::new_owned(rgba.into_raw(), width, height);
 
     let show_i_tray = show_i.clone();
-    let show_i_state = show_i.clone();
     
     let _ = TrayIconBuilder::with_id("wazuh-status-v1")
         .tooltip("Wazuh Agent Status")
@@ -42,6 +44,7 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         #[cfg(not(target_os = "linux"))]
                         let _ = window.as_ref().window().move_window(Position::TrayCenter);
                         
+                        let _ = window.set_decorations(true);
                         let _ = window.unminimize();
                         let _ = window.show();
                         let _ = window.set_focus();
@@ -68,6 +71,7 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         #[cfg(not(target_os = "linux"))]
                         let _ = window.as_ref().window().move_window(Position::TrayCenter);
                         
+                        let _ = window.set_decorations(true);
                         let _ = window.unminimize();
                         let _ = window.show();
                         let _ = window.set_focus();
@@ -78,7 +82,8 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         })
         .build(app)?;
 
-    // Store state for commands to use
+
+    // Store state for window event sync
     app.manage(TrayMenuState { show_item: show_i_state });
 
     Ok(())

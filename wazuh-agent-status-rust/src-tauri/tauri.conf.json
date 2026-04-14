@@ -13,20 +13,18 @@
     "windows": [
       {
         "title": "Wazuh Agent Dashboard",
-        "width": 380,
-        "height": 540,
+        "width": 400,
+        "height": 580,
         "visible": false,
         "resizable": false,
         "minimizable": true,
         "maximizable": false,
-        "decorations": false,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "devtools": false
+        "decorations": true,
+        "alwaysOnTop": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ipc: http://localhost:*"
     }
   },
   "bundle": {

@@ -5457,6 +5457,7 @@ dependencies = [
 name = "wazuh-agent-status"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "image",
  "serde",
  "serde_json",

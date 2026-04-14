@@ -14,6 +14,10 @@
   --warning: #fbbf24;
   --border: rgba(255, 255, 255, 0.08);
   --titlebar-height: 32px;
+  --sidebar-width: 64px;
+  --nav-item-size: 40px;
+  --transition-fast: 0.2s ease;
+  --transition-smooth: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -33,91 +37,19 @@ body {
   border-radius: 0;
   /* Let OS handle corner clipping if possible, or keep sharp for premium look */
 }
-
-/* Custom Titlebar */
-.titlebar {
-  height: var(--titlebar-height);
-  background: var(--sidebar-bg);
-  display: flex;
-  align-items: center;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  border-bottom: 1px solid var(--border);
-  overflow: hidden;
-}
-
-.titlebar-drag-region {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 88px;
-  bottom: 0;
-  z-index: 1;
-}
-
-.titlebar-content {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  padding-left: 12px;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.titlebar-title {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-dim);
-}
-
-.titlebar-actions {
-  display: flex;
-  height: 100%;
-  z-index: 10;
-}
-
-.titlebar-button {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  width: 44px;
-  height: 100%;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--text-dim);
-  pointer-events: auto;
-  background: transparent;
-  border: none;
-  outline: none;
-}
-
-.titlebar-button:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-}
-
-.titlebar-button.close:hover {
-  background-color: #e81123;
-  color: white;
-}
-
 .app-wrapper {
   display: flex;
-  height: calc(100vh - var(--titlebar-height));
-  margin-top: var(--titlebar-height);
+  height: 100vh;
 }
 
 /* Sidebar */
 .sidebar {
-  width: 64px;
+  width: var(--sidebar-width);
   background-color: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 0;
+  padding: 32px 0 24px 0;
   gap: 20px;
   border-right: 1px solid var(--border);
   position: relative;
@@ -137,6 +69,7 @@ body {
   border: none;
   outline: none;
   padding: 0;
+  pointer-events: auto;
 }
 
 .nav-item:hover {
@@ -177,7 +110,7 @@ body {
 /* Main Content */
 .main-content {
   flex: 1;
-  padding: 20px;
+  padding: 40px 28px 48px 28px;
   display: flex;
   flex-direction: column;
   background-color: var(--bg);
@@ -212,7 +145,7 @@ body {
 }
 
 .header {
-  margin-bottom: 20px;
+  margin-bottom: 32px;
 }
 
 .title {
@@ -238,7 +171,7 @@ body {
 }
 
 .section-title--spaced {
-  margin-top: 24px;
+  margin-top: 40px;
 }
 
 .card {
@@ -248,7 +181,7 @@ body {
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -469,6 +402,79 @@ body {
 }
 
 /* Animation */
+
+/* Skeleton Loading */
+.skeleton {
+  background: var(--card-bg);
+  border-radius: 12px;
+  background: linear-gradient(
+    90deg, 
+    var(--card-bg) 25%, 
+    rgba(255, 255, 255, 0.05) 50%, 
+    var(--card-bg) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s infinite linear;
+}
+
+@keyframes skeletonPulse {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.skeleton-text {
+  height: 14px;
+  width: 60%;
+  margin-bottom: 8px;
+}
+
+.skeleton-title {
+  height: 24px;
+  width: 40%;
+  margin-bottom: 24px;
+}
+
+/* Tooltip */
+.tooltip-container {
+  position: relative;
+}
+
+.tooltip {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-8px);
+  background: #1e293b;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  border: 1px solid var(--border);
+  z-index: 100;
+}
+
+.tooltip::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: #1e293b;
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.tooltip-container:hover .tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
 
 .view-container {
   animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
