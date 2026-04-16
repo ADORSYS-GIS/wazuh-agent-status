@@ -5,6 +5,8 @@ $ErrorActionPreference = "Stop"
 # Configuration
 $APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.2.rc1" }
 
+$INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
+
 if ($INSTALL_PROFILE -eq "admin") {
     $WAS_VERSION = $APP_VERSION
 } else {
