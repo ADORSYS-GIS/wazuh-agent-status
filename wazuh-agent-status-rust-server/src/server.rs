@@ -58,17 +58,26 @@ async fn handle_connection(
     mut socket: TcpStream,
     manager: Arc<AgentManager>,
 ) -> tokio::io::Result<()> {
+    // ── Robustness: Max 2KB per command line to prevent DoS ───────────────────
+    const MAX_LINE_LENGTH: usize = 2048;
+
     let (reader, mut writer) = socket.split();
     let mut reader = BufReader::new(reader);
     let mut line = String::new();
 
     loop {
         line.clear();
-        if reader.read_line(&mut line).await? == 0 {
+        
+        // Read until newline with a cap on total bytes read
+        let mut handle = reader.take(MAX_LINE_LENGTH as u64);
+        if handle.read_line(&mut line).await? == 0 {
             break; // Client closed connection
         }
+        reader = handle.into_inner();
 
         let command = line.trim().to_string();
+        if command.is_empty() { continue; }
+        
         info!(command = %command, "Command received");
 
         match command.as_str() {

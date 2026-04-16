@@ -58,6 +58,13 @@ impl Config {
         let mut cfg = Self::default();
 
         if let Ok(addr) = std::env::var("WAZUH_STATUS_ADDR") {
+            // Security check: Warn if binding to non-localhost (as there's no auth)
+            if !addr.contains("localhost") && !addr.contains("127.0.0.1") && !addr.contains("[::1]") {
+                warn!(
+                    addr = %addr, 
+                    "WARNING: Server is binding to a public interface without authentication. Ensure it is protected by a firewall."
+                );
+            }
             cfg.listen_addr = addr;
         }
 

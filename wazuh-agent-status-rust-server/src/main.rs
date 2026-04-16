@@ -3,25 +3,15 @@
 //! Run with `--version` / `-v` to print the build version and exit.
 //! All other configuration is via environment variables (see [`crate::config::Config`]).
 
-mod config;
-mod errors;
-mod group_extractor;
-mod manager;
-mod models;
-mod server;
-mod status_provider;
-mod updater;
-mod version_utils;
-
 use std::sync::Arc;
 
 use tracing::{error, info};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
-use crate::config::{AgentPaths, Config};
-use crate::manager::AgentManager;
-use crate::server::TcpServer;
+use wazuh_agent_status_rust_server::config::{AgentPaths, Config};
+use wazuh_agent_status_rust_server::manager::AgentManager;
+use wazuh_agent_status_rust_server::server::TcpServer;
 
 #[cfg(target_os = "windows")]
 use windows_service::{
