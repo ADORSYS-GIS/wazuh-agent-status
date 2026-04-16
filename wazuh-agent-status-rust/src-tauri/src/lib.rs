@@ -34,6 +34,10 @@ pub fn run() {
                 app.handle().plugin(tauri_plugin_positioner::init())?;
             }
 
+            // Hide dock icon on macOS
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
             // Initialize Managers
             let config = AppConfig::load(app.handle())
                 .map_err(|e| anyhow::anyhow!(e))
