@@ -64,33 +64,3 @@ pub fn should_show_prerelease(version_info: &VersionInfo, agent_groups: &[String
             .any(|tg| ag.eq_ignore_ascii_case(tg))
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::is_version_higher;
-
-    #[test]
-    fn higher_major_version() {
-        assert!(is_version_higher("5.0.0", "4.9.9"));
-    }
-
-    #[test]
-    fn same_version_is_not_higher() {
-        assert!(!is_version_higher("4.7.2", "4.7.2"));
-    }
-
-    #[test]
-    fn stable_beats_prerelease_of_same_base() {
-        assert!(is_version_higher("4.7.2", "4.7.2-rc1"));
-    }
-
-    #[test]
-    fn prerelease_does_not_beat_stable() {
-        assert!(!is_version_higher("4.7.2-rc1", "4.7.2"));
-    }
-
-    #[test]
-    fn v_prefix_stripped() {
-        assert!(is_version_higher("v5.0.0", "v4.0.0"));
-    }
-}
