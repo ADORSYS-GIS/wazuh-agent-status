@@ -1,74 +1,96 @@
+//! Version comparison and remote manifest fetching utilities.
+
+use reqwest::Client;
+use std::time::Duration;
+
 use crate::models::VersionInfo;
 
+/// Returns `true` if `online` is a higher version than `local`.
+///
+/// Handles `v`-prefix stripping, pre-release suffixes, and segment-length
+/// differences (e.g. `4.7` vs `4.7.2`).
 pub fn is_version_higher(online: &str, local: &str) -> bool {
     let online = online.trim_start_matches('v');
-    let local = local.trim_start_matches('v');
+    let local  = local.trim_start_matches('v');
 
     let online_base = online.split('-').next().unwrap_or(online);
-    let local_base = local.split('-').next().unwrap_or(local);
+    let local_base  = local.split('-').next().unwrap_or(local);
 
-    let online_parts: Vec<&str> = online_base.split('.').collect();
-    let local_parts: Vec<&str> = local_base.split('.').collect();
+    let online_parts: Vec<u32> = online_base.split('.').map(|p| p.parse().unwrap_or(0)).collect();
+    let local_parts:  Vec<u32> = local_base.split('.').map(|p| p.parse().unwrap_or(0)).collect();
 
-    for i in 0..std::cmp::min(online_parts.len(), local_parts.len()) {
-        let online_num: u32 = online_parts[i].parse().unwrap_or(0);
-        let local_num: u32 = local_parts[i].parse().unwrap_or(0);
-
-        if online_num > local_num {
-            return true;
-        }
-        if online_num < local_num {
-            return false;
-        }
+    let len = online_parts.len().max(local_parts.len());
+    for i in 0..len {
+        let o = *online_parts.get(i).unwrap_or(&0);
+        let l = *local_parts.get(i).unwrap_or(&0);
+        if o > l { return true; }
+        if o < l { return false; }
     }
 
-    if online_parts.len() != local_parts.len() {
-        return online_parts.len() > local_parts.len();
-    }
-
-    let online_is_prerelease = online.contains('-');
-    let local_is_prerelease = local.contains('-');
-
-    if online_is_prerelease && !local_is_prerelease {
-        return false;
-    }
-    if !online_is_prerelease && local_is_prerelease {
-        return true;
-    }
-
-    false
+    // Same base — stable beats prerelease
+    let online_is_pre = online.contains('-');
+    let local_is_pre  = local.contains('-');
+    matches!((online_is_pre, local_is_pre), (false, true))
 }
 
+/// Fetch and deserialise the remote [`VersionInfo`] manifest.
+///
+/// Returns `None` on any network or parse failure (errors are logged at warn
+/// level internally by the caller).
 pub async fn fetch_version_info(url: &str) -> Option<VersionInfo> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
+    let client = Client::builder()
+        .timeout(Duration::from_secs(10))
         .build()
         .ok()?;
 
-    match client.get(url).send().await {
-        Ok(resp) => {
-            if resp.status().is_success() {
-                resp.json::<VersionInfo>().await.ok()
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
+    let resp = client.get(url).send().await.ok()?;
+    if !resp.status().is_success() {
+        return None;
     }
+    resp.json::<VersionInfo>().await.ok()
 }
 
+/// Returns `true` if any of the agent's groups matches a prerelease test group
+/// in the manifest (case-insensitive).
 pub fn should_show_prerelease(version_info: &VersionInfo, agent_groups: &[String]) -> bool {
     if version_info.prerelease_test_groups.is_empty() || agent_groups.is_empty() {
         return false;
     }
 
-    for agent_group in agent_groups {
-        for test_group in &version_info.prerelease_test_groups {
-            if agent_group.to_lowercase() == test_group.to_lowercase() {
-                return true;
-            }
-        }
+    agent_groups.iter().any(|ag| {
+        version_info
+            .prerelease_test_groups
+            .iter()
+            .any(|tg| ag.eq_ignore_ascii_case(tg))
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_version_higher;
+
+    #[test]
+    fn higher_major_version() {
+        assert!(is_version_higher("5.0.0", "4.9.9"));
     }
 
-    false
+    #[test]
+    fn same_version_is_not_higher() {
+        assert!(!is_version_higher("4.7.2", "4.7.2"));
+    }
+
+    #[test]
+    fn stable_beats_prerelease_of_same_base() {
+        assert!(is_version_higher("4.7.2", "4.7.2-rc1"));
+    }
+
+    #[test]
+    fn prerelease_does_not_beat_stable() {
+        assert!(!is_version_higher("4.7.2-rc1", "4.7.2"));
+    }
+
+    #[test]
+    fn v_prefix_stripped() {
+        assert!(is_version_higher("v5.0.0", "v4.0.0"));
+    }
 }
