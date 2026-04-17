@@ -13,9 +13,11 @@
 
 use std::sync::Arc;
 
+use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, mpsc};
+use tokio::time::timeout;
 use tracing::{info, warn, error};
 
 use crate::manager::AgentManager;
@@ -31,13 +33,12 @@ pub struct TcpServer {
 
 impl TcpServer {
     /// Create a new server bound to `addr` using the provided `manager`.
-    /// 
-    /// The server will cap concurrent connections at 50 to ensure production stability.
     pub fn new(addr: String, manager: Arc<AgentManager>) -> Self {
+        let max_conns = manager.config().max_connections;
         Self { 
             addr, 
             manager,
-            limit: Arc::new(tokio::sync::Semaphore::new(50)),
+            limit: Arc::new(tokio::sync::Semaphore::new(max_conns)),
         }
     }
 
@@ -48,22 +49,29 @@ impl TcpServer {
         info!(addr = %self.addr, "Server listening");
 
         loop {
-            // Reserve a connection slot before accepting
-            let permit = Arc::clone(&self.limit)
-                .acquire_owned()
-                .await
-                .map_err(|_| tokio::io::Error::new(tokio::io::ErrorKind::Other, "Semaphore closed"))?;
-
             let (socket, peer_addr) = listener.accept().await?;
             info!(peer = %peer_addr, "Accepted connection");
 
+            // Acquire permit AFTER accept so we don't block the listener loop.
+            // This also allows us to drop the connection gracefully if we're full.
+            let permit = match Arc::clone(&self.limit).try_acquire_owned() {
+                Ok(p) => p,
+                Err(_) => {
+                    let limit = self.manager.config().max_connections;
+                    warn!(peer = %peer_addr, "Server full (limit {}); dropping connection", limit);
+                    continue; 
+                }
+            };
+
             let manager = Arc::clone(&self.manager);
             tokio::spawn(async move {
-                // The permit is moved into the task and dropped when the task finishes, 
-                // effectively releasing the connection slot.
                 let _permit = permit;
+
+                // Enable TCP keepalives to detect dead/ghost peers faster
+                let _ = socket.set_nodelay(true);
+                
                 if let Err(e) = handle_connection(socket, manager).await {
-                    error!(error = %e, "Connection handler error");
+                    error!(error = %e, peer = %peer_addr, "Connection handler error");
                 }
             });
         }
@@ -78,6 +86,7 @@ async fn handle_connection(
 ) -> tokio::io::Result<()> {
     // ── Robustness: Max 2KB per command line to prevent DoS ───────────────────
     const MAX_LINE_LENGTH: usize = 2048;
+    const IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 
     let (reader, mut writer) = socket.split();
     let mut reader = BufReader::new(reader);
@@ -86,24 +95,41 @@ async fn handle_connection(
     loop {
         line.clear();
         
-        // Read until newline with a cap on total bytes read
-        let mut handle = reader.take(MAX_LINE_LENGTH as u64);
-        if handle.read_line(&mut line).await? == 0 {
+        // Wrap the read operation in a timeout to prevent leaked/hung connections.
+        let read_result = timeout(IDLE_TIMEOUT, async {
+            let mut handle = (&mut reader).take(MAX_LINE_LENGTH as u64);
+            let bytes = handle.read_line(&mut line).await?;
+            Ok::<usize, tokio::io::Error>(bytes)
+        }).await;
+
+        let bytes = match read_result {
+            Ok(Ok(n)) => n,
+            Ok(Err(e)) => return Err(e),
+            Err(_) => {
+                warn!("Connection timed out after {}s of inactivity", IDLE_TIMEOUT.as_secs());
+                let _ = writer.write_all(b"ERROR: Connection idle timeout\n").await;
+                let _ = writer.flush().await;
+                break;
+            }
+        };
+
+        if bytes == 0 {
             break; // Client closed connection
         }
-        reader = handle.into_inner();
 
-        let command = line.trim().to_string();
+        // Lenient command parsing: lowercase and treat space/underscore as hyphen.
+        let command = line.trim()
+            .to_lowercase()
+            .replace([' ', '_'], "-");
+
         if command.is_empty() { continue; }
         
-        info!(command = %command, "Command received");
+        info!(command = %command, raw = %line.trim(), "Command received");
 
         match command.as_str() {
             // ── Version query ─────────────────────────────────────────────────
             "get-version" => {
-                info!("Processing get-version command...");
                 let status = manager.get_version_status().await;
-                info!(status = %status, "Version check complete; sending response");
                 writer
                     .write_all(format!("VERSION_CHECK: {status}\n").as_bytes())
                     .await?;
@@ -132,6 +158,7 @@ async fn handle_connection(
             unknown => {
                 let msg = format!("ERROR: Unknown command: {unknown}\n");
                 writer.write_all(msg.as_bytes()).await?;
+                writer.flush().await?;
             }
         }
     }

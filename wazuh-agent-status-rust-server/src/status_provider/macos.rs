@@ -36,23 +36,35 @@ impl MacosStatusProvider {
             .map(|base| base.join("bin/wazuh-control"))
             .unwrap_or_else(|| std::path::PathBuf::from("/Library/Ossec/bin/wazuh-control"));
 
-        if let Ok(output) = Command::new(control_path)
-            .arg("status")
-            .output() 
-        {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            if stdout.contains("wazuh-agentd is running") {
-                return true;
+        // 1. Primary check: official wazuh-control utility
+        match Command::new(&control_path).arg("status").output() {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if stdout.contains("wazuh-agentd is running") {
+                    return true;
+                }
+                // If wazuh-control ran successfully but didn't say it's running, 
+                // trust it and return false instead of falling back.
+                if output.status.success() || stdout.contains("wazuh-agentd is stopped") {
+                    return false;
+                }
+            }
+            Err(_) => {
+                // wazuh-control not found or failed to spawn; proceed to fallback
             }
         }
-        
-        // Fallback: Check if the PID file exists and the process in it is alive
+
+        // 2. Fallback: Check if the PID file exists and the process in it is actually wazuh-agentd.
+        // This prevents false positives from stale PID files where the PID was reused.
         self.read_pid()
             .map(|pid| {
                 Command::new("ps")
-                    .args(["-p", &pid.to_string()])
+                    .args(["-p", &pid.to_string(), "-o", "comm="])
                     .output()
-                    .map(|o| o.status.success())
+                    .map(|o| {
+                        let comm = String::from_utf8_lossy(&o.stdout);
+                        o.status.success() && comm.contains("wazuh-agentd")
+                    })
                     .unwrap_or(false)
             })
             .unwrap_or(false)
