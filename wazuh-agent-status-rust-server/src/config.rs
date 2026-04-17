@@ -26,6 +26,7 @@ const DEFAULT_VERSION_CACHE_TTL_SECS: u64 = 1_800;
 /// | Field               | Env var                                  | Default            |
 /// |---------------------|------------------------------------------|--------------------|
 /// | `listen_addr`       | `WAZUH_STATUS_ADDR`                      | `0.0.0.0:50505`    |
+/// | `log_file`          | `WAZUH_STATUS_LOG_FILE`                  | `/var/log/...`     |
 /// | `poll_interval`     | `WAZUH_STATUS_POLL_INTERVAL_SECS`        | `5`                |
 /// | `version_url`       | `WAZUH_STATUS_VERSION_URL`               | GitHub manifest    |
 /// | `version_cache_ttl` | `WAZUH_STATUS_VERSION_CACHE_TTL_SECS`    | `1800`             |
@@ -168,6 +169,11 @@ impl AgentPaths {
     /// Exposed as a stand-alone method so the logging system can be
     /// initialised before a full [`AgentPaths`] instance is built.
     pub fn log_file_path() -> PathBuf {
+        // Allow override via environment variable
+        if let Ok(val) = std::env::var("WAZUH_STATUS_LOG_FILE") {
+            return PathBuf::from(val);
+        }
+
         #[cfg(target_os = "windows")]
         return PathBuf::from(r"C:\ProgramData\wazuh\logs\wazuh-agent-status.log");
 

@@ -51,12 +51,18 @@ impl StatusProvider for WindowsStatusProvider {
 
     fn get_connection_status(&self) -> Result<ConnectionStatus> {
         // Direct file read — no PowerShell needed.
-        let content = fs::read_to_string(&self.paths.state_file).map_err(|e| {
-            ServerError::PlatformError(format!(
-                "Cannot read state file {}: {e}",
-                self.paths.state_file.display()
-            ))
-        })?;
+        let content = match fs::read_to_string(&self.paths.state_file) {
+            Ok(c) => c,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(ConnectionStatus::Disconnected);
+            }
+            Err(e) => {
+                return Err(ServerError::PlatformError(format!(
+                    "Cannot read state file {}: {e}",
+                    self.paths.state_file.display()
+                )));
+            }
+        };
 
         if content.contains("status='connected'") {
             Ok(ConnectionStatus::Connected)

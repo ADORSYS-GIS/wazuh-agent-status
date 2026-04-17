@@ -22,6 +22,7 @@ pub enum ConnectionStatus {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VersionInfo {
     pub framework: FrameworkVersion,
+    #[serde(alias = "prerelease_test_grouops", default)]
     pub prerelease_test_groups: Vec<String>,
 }
 

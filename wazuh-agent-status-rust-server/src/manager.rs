@@ -138,6 +138,7 @@ impl AgentManager {
         }
 
         // 2. Fetch fresh data
+        info!("Fetching fresh version manifest from {}", self.config.version_url);
         let (new_info, is_fallback) = match fetch_version_info(&self.config.version_url).await {
             Some(info) => (Some(info), false),
             None => {

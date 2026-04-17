@@ -14,7 +14,6 @@
 //! After that, no `sudo` is needed at runtime.
 
 use std::fs;
-use std::path::Path;
 
 use crate::config::AgentPaths;
 use crate::errors::{Result, ServerError};
@@ -32,11 +31,28 @@ impl LinuxStatusProvider {
     }
 
     /// Determine whether the `wazuh-agentd` process is alive by:
-    /// 1. Reading the PID from the daemon's PID file.
-    /// 2. Checking whether `/proc/<pid>` exists (Linux kernel guarantee).
+    /// 1. Running `/var/ossec/bin/wazuh-control status`
+    /// 2. Looking for "is running" in the output.
     fn is_agent_running(&self) -> bool {
+        let control_path = self.paths.state_file.parent() // var/run/
+            .and_then(|p| p.parent())                    // var/
+            .and_then(|p| p.parent())                    // base/
+            .map(|base| base.join("bin/wazuh-control"))
+            .unwrap_or_else(|| std::path::PathBuf::from("/var/ossec/bin/wazuh-control"));
+
+        if let Ok(output) = std::process::Command::new(control_path)
+            .arg("status")
+            .output() 
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if stdout.contains("wazuh-agentd is running") {
+                return true;
+            }
+        }
+        
+        // Fallback: Check if the PID file exists and the process in it is alive
         self.read_pid()
-            .map(|pid| Path::new(&format!("/proc/{pid}")).exists())
+            .map(|pid| std::path::Path::new(&format!("/proc/{pid}")).exists())
             .unwrap_or(false)
     }
 
@@ -58,12 +74,19 @@ impl StatusProvider for LinuxStatusProvider {
     }
 
     fn get_connection_status(&self) -> Result<ConnectionStatus> {
-        let content = fs::read_to_string(&self.paths.state_file).map_err(|e| {
-            ServerError::PlatformError(format!(
-                "Cannot read state file {}: {e}",
-                self.paths.state_file.display()
-            ))
-        })?;
+        let content = match fs::read_to_string(&self.paths.state_file) {
+            Ok(c) => c,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // Agent stopped — correctly reflect as Disconnected
+                return Ok(ConnectionStatus::Disconnected);
+            }
+            Err(e) => {
+                return Err(ServerError::PlatformError(format!(
+                    "Cannot read state file {}: {e}",
+                    self.paths.state_file.display()
+                )));
+            }
+        };
 
         if content.contains("status='connected'") {
             Ok(ConnectionStatus::Connected)

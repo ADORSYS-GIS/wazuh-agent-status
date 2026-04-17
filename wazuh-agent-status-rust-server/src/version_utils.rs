@@ -47,7 +47,13 @@ pub async fn fetch_version_info(url: &str) -> Option<VersionInfo> {
     if !resp.status().is_success() {
         return None;
     }
-    resp.json::<VersionInfo>().await.ok()
+    match resp.json::<VersionInfo>().await {
+        Ok(info) => Some(info),
+        Err(e) => {
+            tracing::warn!("Failed to parse version manifest JSON: {e}");
+            None
+        }
+    }
 }
 
 /// Returns `true` if any of the agent's groups matches a prerelease test group
