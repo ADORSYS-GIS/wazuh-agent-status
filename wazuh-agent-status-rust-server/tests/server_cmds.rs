@@ -74,6 +74,7 @@ async fn setup_test_server() -> (Arc<AgentManager>, String) {
 
     let config = Arc::new(Config {
         listen_addr: addr_str.clone(),
+        max_connections: 20,
         ..Config::default()
     });
     let paths = Arc::new(AgentPaths::native());

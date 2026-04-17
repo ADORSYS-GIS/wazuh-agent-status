@@ -20,9 +20,6 @@ use windows_service::{
 };
 
 #[cfg(target_os = "windows")]
-use tokio::sync::oneshot;
-
-#[cfg(target_os = "windows")]
 define_windows_service!(ffi_service_main, windows_service_main);
 
 #[tokio::main]
