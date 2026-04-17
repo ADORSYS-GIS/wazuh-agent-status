@@ -118,15 +118,15 @@ async fn handle_connection(
         }
 
         // Lenient command parsing: lowercase and treat space/underscore as hyphen.
-        let command = line.trim()
-            .to_lowercase()
+        let raw_command = line.trim();
+        let normalized = raw_command.to_lowercase()
             .replace([' ', '_'], "-");
 
-        if command.is_empty() { continue; }
+        if normalized.is_empty() { continue; }
         
-        info!(command = %command, raw = %line.trim(), "Command received");
+        info!(command = %normalized, raw = %raw_command, "Command received");
 
-        match command.as_str() {
+        match normalized.as_str() {
             // ── Version query ─────────────────────────────────────────────────
             "get-version" => {
                 let status = manager.get_version_status().await;
@@ -155,8 +155,8 @@ async fn handle_connection(
             }
 
             // ── Unknown ───────────────────────────────────────────────────────
-            unknown => {
-                let msg = format!("ERROR: Unknown command: {unknown}\n");
+            _ => {
+                let msg = format!("ERROR: Unknown command: {raw_command}\n");
                 writer.write_all(msg.as_bytes()).await?;
                 writer.flush().await?;
             }
