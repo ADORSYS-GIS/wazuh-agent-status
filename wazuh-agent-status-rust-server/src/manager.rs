@@ -193,8 +193,8 @@ fn compute_version_status(
     agent_groups: &[String],
     online: &VersionInfo,
 ) -> String {
-    if local_version == "Unknown" {
-        return "Version: Unknown".to_string();
+    if local_version == "Unknown" || local_version == "Not Installed" {
+        return format!("Version: {local_version}");
     }
 
     let is_current_prerelease = local_version.contains("rc");
