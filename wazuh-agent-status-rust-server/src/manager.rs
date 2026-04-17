@@ -77,6 +77,11 @@ impl AgentManager {
     }
 
     // ── State access ──────────────────────────────────────────────────────────
+    
+    /// Return the runtime configuration.
+    pub fn config(&self) -> Arc<Config> {
+        Arc::clone(&self.config)
+    }
 
     /// Return a snapshot of the current local agent state.
     pub async fn get_state(&self) -> AgentState {

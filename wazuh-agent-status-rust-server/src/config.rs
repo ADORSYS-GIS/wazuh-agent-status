@@ -40,6 +40,8 @@ pub struct Config {
     pub version_url: String,
     /// How long a remote version check result is cached before re-fetching.
     pub version_cache_ttl: Duration,
+    /// Maximum concurrent client connections allowed.
+    pub max_connections: usize,
 }
 
 impl Default for Config {
@@ -49,6 +51,7 @@ impl Default for Config {
             poll_interval:     Duration::from_secs(DEFAULT_POLL_INTERVAL_SECS),
             version_url:       DEFAULT_VERSION_URL.to_string(),
             version_cache_ttl: Duration::from_secs(DEFAULT_VERSION_CACHE_TTL_SECS),
+            max_connections:   3,
         }
     }
 }
@@ -89,6 +92,17 @@ impl Config {
                 Ok(secs) => cfg.version_cache_ttl = Duration::from_secs(secs),
                 Err(_) => warn!(
                     env_var = "WAZUH_STATUS_VERSION_CACHE_TTL_SECS",
+                    value = %raw,
+                    "Invalid value; using default"
+                ),
+            }
+        }
+
+        if let Ok(raw) = std::env::var("WAZUH_STATUS_MAX_CONNECTIONS") {
+            match raw.parse::<usize>() {
+                Ok(n) => cfg.max_connections = n,
+                Err(_) => warn!(
+                    env_var = "WAZUH_STATUS_MAX_CONNECTIONS",
                     value = %raw,
                     "Invalid value; using default"
                 ),

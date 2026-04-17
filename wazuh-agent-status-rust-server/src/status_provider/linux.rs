@@ -40,17 +40,26 @@ impl LinuxStatusProvider {
             .map(|base| base.join("bin/wazuh-control"))
             .unwrap_or_else(|| std::path::PathBuf::from("/var/ossec/bin/wazuh-control"));
 
-        if let Ok(output) = std::process::Command::new(control_path)
-            .arg("status")
-            .output() 
-        {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            if stdout.contains("wazuh-agentd is running") {
-                return true;
+        // 1. Primary check: official wazuh-control utility
+        match std::process::Command::new(&control_path).arg("status").output() {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if stdout.contains("wazuh-agentd is running") {
+                    return true;
+                }
+                // If wazuh-control ran successfully but didn't say it's running, 
+                // trust it and return false instead of falling back.
+                if output.status.success() || stdout.contains("wazuh-agentd is stopped") {
+                    return false;
+                }
+            }
+            Err(_) => {
+                // wazuh-control not found or failed to spawn; proceed to fallback
             }
         }
         
-        // Fallback: Check if the PID file exists and the process in it is alive
+        // 2. Fallback: Check if the PID file exists and the process in it is alive.
+        // We check /proc/{pid} which is fast on Linux.
         self.read_pid()
             .map(|pid| std::path::Path::new(&format!("/proc/{pid}")).exists())
             .unwrap_or(false)
