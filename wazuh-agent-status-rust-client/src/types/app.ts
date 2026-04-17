@@ -22,11 +22,6 @@ export interface AppConfig {
     features: FeaturesConfig;
 }
 
-export interface UpdateInfo {
-    current_version: string;
-    latest_version: string;
-    update_available: boolean;
-    download_url: string;
-}
+// Removed UpdateInfo — version status is now a string from server
 
 export type View = "status" | "updates" | "settings";

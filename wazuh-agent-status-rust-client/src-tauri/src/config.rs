@@ -29,24 +29,7 @@ pub struct AppConfig {
     pub features: FeaturesConfig,
 }
 
-#[derive(Debug, Serialize, Clone)]
-pub struct UpdateCheckResult {
-    pub current_version: String,
-    pub latest_version: String,
-    pub update_available: bool,
-    pub download_url: String,
-}
-
 impl AppConfig {
-    pub async fn check_for_updates(&self) -> Result<UpdateCheckResult, String> {
-        Ok(UpdateCheckResult {
-            current_version: env!("CARGO_PKG_VERSION").to_string(),
-            latest_version: env!("CARGO_PKG_VERSION").to_string(),
-            update_available: false,
-            download_url: "".to_string(),
-        })
-    }
-
     pub async fn apply_update(&self, _download_url: String) -> Result<(), String> {
         Ok(())
     }

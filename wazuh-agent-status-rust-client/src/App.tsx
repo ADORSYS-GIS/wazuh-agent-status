@@ -2,7 +2,7 @@ import { useState, useEffect, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
-import type { AppConfig, UpdateInfo, View } from "./types/app";
+import type { AppConfig, View } from "./types/app";
 import type { AgentStatus, SystemMetrics } from "./types/agent";
 
 import { IconHome, IconShield, IconSettings } from "./components/Icons";
@@ -15,12 +15,15 @@ import { SettingsView } from "./components/SettingsView";
 const DEFAULT_STATUS: AgentStatus = {
   status: "Unknown",
   connection: "Disconnected",
-  agent_version: "Unknown",
+  version: "Unknown",
+  groups: [],
 };
 
 const DEFAULT_METRICS: SystemMetrics = {
   cpu_usage: 0,
   memory_usage: 0,
+  total_memory: 0,
+  used_memory: 0,
   agent_running: false,
 };
 
@@ -40,20 +43,14 @@ function AppLoading() {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
-const STATUS_POLL_MS = 5_000;
+const STATUS_POLL_MS = 2_000;
 const STORAGE_KEY_VIEW = "wazuh_active_view";
-
-function safeRandom(): number {
-  const array = new Uint32Array(1);
-  globalThis.crypto.getRandomValues(array);
-  return array[0] / (0xffffffff + 1);
-}
 
 function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [agentStatus, setAgentStatus] = useState<AgentStatus>(DEFAULT_STATUS);
   const [metrics, setMetrics] = useState<SystemMetrics>(DEFAULT_METRICS);
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<View>(() => {
     return (localStorage.getItem(STORAGE_KEY_VIEW) as View) || "status";
   });
@@ -63,30 +60,20 @@ function App() {
   }, [activeView]);
 
   useEffect(() => {
+    // Initial data fetch
     invoke<AppConfig>("get_config").then(setConfig).catch(console.error);
-    invoke<UpdateInfo>("check_for_updates").then(setUpdateInfo).catch(console.error);
-    invoke<AgentStatus>("get_agent_status").then(setAgentStatus).catch(console.error);
-    invoke<SystemMetrics>("get_system_metrics").then(setMetrics).catch(console.error);
-
-    const statusTimer = setInterval(() => {
+    invoke<string>("check_for_updates").then(setUpdateInfo).catch(console.error);
+    
+    // Polling logic for real-time data
+    const refreshData = () => {
       invoke<AgentStatus>("get_agent_status").then(setAgentStatus).catch(console.error);
-    }, STATUS_POLL_MS);
-
-    const metricsTimer = setInterval(() => {
-      invoke<SystemMetrics>("get_system_metrics").then((data) => {
-        const flutter = (safeRandom() - 0.5) * 0.2;
-        setMetrics({
-          ...data,
-          cpu_usage: Math.max(0, data.cpu_usage + flutter),
-          memory_usage: Math.max(0, data.memory_usage + (safeRandom() - 0.5) * 0.1),
-        });
-      }).catch(console.error);
-    }, 2000);
-
-    return () => {
-      clearInterval(statusTimer);
-      clearInterval(metricsTimer);
+      invoke<SystemMetrics>("get_system_metrics").then(setMetrics).catch(console.error);
     };
+
+    refreshData();
+    const statusTimer = setInterval(refreshData, STATUS_POLL_MS);
+
+    return () => clearInterval(statusTimer);
   }, []);
 
   useEffect(() => {

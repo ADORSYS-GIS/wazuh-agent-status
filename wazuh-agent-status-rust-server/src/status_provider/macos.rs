@@ -10,22 +10,21 @@
 //! sudo dseditgroup -o edit -a <service-user> -t user ossec
 //! ```
 
-use std::fs;
-use std::process::Command;
-
-use crate::config::AgentPaths;
-use crate::errors::{Result, ServerError};
-use crate::group_extractor;
-use crate::models::{AgentStatus, ConnectionStatus};
-use crate::status_provider::StatusProvider;
+use sysinfo::System;
 
 pub struct MacosStatusProvider {
     paths: AgentPaths,
+    sys:   std::sync::Mutex<System>,
 }
 
 impl MacosStatusProvider {
     pub fn new(paths: AgentPaths) -> Self {
-        Self { paths }
+        let mut sys = System::new();
+        sys.refresh_all();
+        Self { 
+            paths,
+            sys: std::sync::Mutex::new(sys),
+        }
     }
 
     /// Determine whether `wazuh-agentd` is alive by running `wazuh-control status`.
@@ -120,5 +119,31 @@ impl StatusProvider for MacosStatusProvider {
             Ok(groups) => Ok(groups),
             Err(_) => Ok(Vec::new()), // No groups if agent is not installed
         }
+    }
+
+    fn get_system_metrics(&self) -> Result<crate::models::SystemMetrics> {
+        let mut sys = self.sys.lock().map_err(|_| {
+            ServerError::PlatformError("Failed to lock system metrics".to_string())
+        })?;
+
+        sys.refresh_memory_all();
+        sys.refresh_cpu_all();
+
+        let total_memory = sys.total_memory();
+        let used_memory  = sys.used_memory();
+        let memory_usage = if total_memory > 0 {
+            used_memory as f32 / total_memory as f32
+        } else {
+            0.0
+        };
+
+        let cpu_usage = sys.global_cpu_usage();
+
+        Ok(crate::models::SystemMetrics {
+            cpu_usage,
+            memory_usage,
+            total_memory,
+            used_memory,
+        })
     }
 }

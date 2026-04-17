@@ -14,6 +14,7 @@ pub trait StatusProvider: Send + Sync {
     fn get_connection_status(&self) -> Result<ConnectionStatus>;
     fn get_agent_version(&self) -> Result<String>;
     fn get_agent_groups(&self) -> Result<Vec<String>>;
+    fn get_system_metrics(&self) -> Result<crate::models::SystemMetrics>;
 
     /// Compose a full [`AgentState`] from the individual methods.
     ///
@@ -25,6 +26,7 @@ pub trait StatusProvider: Send + Sync {
             connection: self.get_connection_status()?,
             version:    self.get_agent_version()?,
             groups:     self.get_agent_groups()?,
+            metrics:    self.get_system_metrics()?,
         })
     }
 }

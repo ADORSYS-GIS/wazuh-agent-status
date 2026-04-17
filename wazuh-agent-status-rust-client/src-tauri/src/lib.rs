@@ -8,19 +8,7 @@ use agent::AgentManager;
 use tauri::Manager;
 use anyhow::Context;
 
-pub struct MetricsManager;
-
-impl MetricsManager {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for MetricsManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// Removed MetricsManager — metrics are now handled by AgentManager
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -44,12 +32,10 @@ pub fn run() {
                 .context("Failed to load application configuration")?;
             
             let agent_manager = AgentManager::new();
-            let metrics_manager = MetricsManager::new();
 
             // Manage state
             app.manage(config);
             app.manage(agent_manager);
-            app.manage(metrics_manager);
 
             tray::setup_tray(app.handle())
                 .context("Failed to initialize system tray")?;

@@ -1,21 +1,22 @@
 //! Linux status provider — reads Wazuh agent state directly from the file
 //! system without requiring `sudo`.
 
-use std::fs;
-
-use crate::config::AgentPaths;
-use crate::errors::{Result, ServerError};
-use crate::group_extractor;
-use crate::models::{AgentStatus, ConnectionStatus};
-use crate::status_provider::StatusProvider;
+use sysinfo::{CpuRefreshKind, MemoryRefreshKind, System};
 
 pub struct LinuxStatusProvider {
     paths: AgentPaths,
+    sys:   std::sync::Mutex<System>,
 }
 
 impl LinuxStatusProvider {
     pub fn new(paths: AgentPaths) -> Self {
-        Self { paths }
+        let mut sys = System::new();
+        // Initial refresh so we have something for first poll
+        sys.refresh_all();
+        Self { 
+            paths,
+            sys: std::sync::Mutex::new(sys),
+        }
     }
 
     /// Determine whether the `wazuh-agentd` process is alive by:
@@ -104,5 +105,32 @@ impl StatusProvider for LinuxStatusProvider {
             Ok(groups) => Ok(groups),
             Err(_) => Ok(Vec::new()), // No groups if agent is not installed
         }
+    }
+
+    fn get_system_metrics(&self) -> Result<crate::models::SystemMetrics> {
+        let mut sys = self.sys.lock().map_err(|_| {
+            ServerError::PlatformError("Failed to lock system metrics".to_string())
+        })?;
+
+        // Selective refresh for performance
+        sys.refresh_memory_all();
+        sys.refresh_cpu_all();
+
+        let total_memory = sys.total_memory();
+        let used_memory  = sys.used_memory();
+        let memory_usage = if total_memory > 0 {
+            used_memory as f32 / total_memory as f32
+        } else {
+            0.0
+        };
+
+        let cpu_usage = sys.global_cpu_usage();
+
+        Ok(crate::models::SystemMetrics {
+            cpu_usage,
+            memory_usage,
+            total_memory,
+            used_memory,
+        })
     }
 }

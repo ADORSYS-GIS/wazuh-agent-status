@@ -1,5 +1,5 @@
 {
-  "name": "wazuh-agent-status",
+  "name": "wazuh-agent-status-rust-client",
   "private": true,
   "version": "0.1.0",
   "type": "module",

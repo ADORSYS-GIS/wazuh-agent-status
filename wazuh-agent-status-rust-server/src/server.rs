@@ -182,10 +182,9 @@ where
 {
     // Send current state immediately so the client isn't left waiting.
     let state = manager.get_state().await;
+    let json = serde_json::to_string(&state).unwrap_or_default();
     writer
-        .write_all(
-            format!("STATUS_UPDATE: {:?}, {:?}\n", state.status, state.connection).as_bytes(),
-        )
+        .write_all(format!("STATUS_UPDATE: {json}\n").as_bytes())
         .await?;
 
     let mut rx = manager.subscribe();
@@ -196,10 +195,8 @@ where
             result = rx.recv() => {
                 match result {
                     Ok(state) => {
-                        let msg = format!(
-                            "STATUS_UPDATE: {:?}, {:?}\n",
-                            state.status, state.connection
-                        );
+                        let json = serde_json::to_string(&state).unwrap_or_default();
+                        let msg = format!("STATUS_UPDATE: {json}\n");
                         if let Err(e) = writer.write_all(msg.as_bytes()).await {
                             warn!(error = %e, "Failed to write status update; dropping client");
                             break;

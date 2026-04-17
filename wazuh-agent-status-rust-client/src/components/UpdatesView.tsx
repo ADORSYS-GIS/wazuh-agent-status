@@ -1,7 +1,5 @@
-import type { UpdateInfo } from "../types/app";
-
 interface UpdatesViewProps {
-  updateInfo: UpdateInfo | null;
+  updateInfo: string | null;
 }
 
 export function UpdatesView({ updateInfo }: Readonly<UpdatesViewProps>) {
@@ -13,8 +11,8 @@ export function UpdatesView({ updateInfo }: Readonly<UpdatesViewProps>) {
       <div className="card">
         <div className="card-info">
           <div className="card-label">App Status</div>
-          <div className="card-value">Up to date</div>
-          <p className="card-sub">Version {updateInfo?.current_version ?? "—"}</p>
+          <div className="card-value">{updateInfo ?? "Checking..."}</div>
+          <p className="card-sub">Wazuh deployment manifest versioning</p>
         </div>
       </div>
 

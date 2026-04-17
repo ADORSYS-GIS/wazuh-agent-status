@@ -33,9 +33,18 @@ export function StatusView({ agentStatus, metrics }: Readonly<StatusViewProps>) 
         <div className="card">
           <div className="card-info">
             <div className="card-label">Agent Version</div>
-            <div className="card-value">{agentStatus.agent_version}</div>
+            <div className="card-value">{agentStatus.version}</div>
           </div>
         </div>
+
+        {agentStatus.groups.length > 0 && (
+          <div className="card">
+            <div className="card-info">
+              <div className="card-label">Assigned Groups</div>
+              <div className="card-value">{agentStatus.groups.join(", ")}</div>
+            </div>
+          </div>
+        )}
       </section>
 
       {metrics.agent_running && (
@@ -44,7 +53,7 @@ export function StatusView({ agentStatus, metrics }: Readonly<StatusViewProps>) 
           <div className="metrics-row">
             <div className="metric-box">
               <div className="metric-label">
-                <span>Agent CPU</span>
+                <span>System CPU</span>
                 <span>{metrics.cpu_usage.toFixed(1)}%</span>
               </div>
               <div className="progress-track">
@@ -53,11 +62,11 @@ export function StatusView({ agentStatus, metrics }: Readonly<StatusViewProps>) 
             </div>
             <div className="metric-box">
               <div className="metric-label">
-                <span>Agent RAM</span>
-                <span>{metrics.memory_usage.toFixed(2)}%</span>
+                <span>System RAM</span>
+                <span>{(metrics.memory_usage * 100).toFixed(1)}%</span>
               </div>
               <div className="progress-track">
-                <div className="progress-thumb" style={{ width: `${Math.min(metrics.memory_usage, 100)}%` }} />
+                <div className="progress-thumb" style={{ width: `${Math.min(metrics.memory_usage * 100, 100)}%` }} />
               </div>
             </div>
           </div>
