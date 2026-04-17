@@ -3,9 +3,8 @@ name: Rust CI/CD Pipeline
 # Trigger on pushes and pull requests to main and develop branches
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
 
 # Environment variables
 env:
@@ -18,7 +17,7 @@ jobs:
     name: CI (${{ matrix.os }} ${{ matrix.rust }})
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false  # Continue other jobs even if one fails
+      fail-fast: false # Continue other jobs even if one fails
       matrix:
         include:
           # Linux with stable Rust
@@ -141,8 +140,8 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    needs: ci  # Run after CI jobs complete
-    
+    needs: ci # Run after CI jobs complete
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -190,7 +189,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
