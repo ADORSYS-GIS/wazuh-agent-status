@@ -4,8 +4,7 @@ use tauri::{
     AppHandle, Manager, Runtime,
 };
 #[cfg(not(target_os = "linux"))]
-use tauri_plugin_positioner::{WindowExt, Position};
-
+use tauri_plugin_positioner::{Position, WindowExt};
 
 #[allow(dead_code)]
 pub struct TrayMenuState<R: Runtime> {
@@ -25,7 +24,7 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     let icon = tauri::image::Image::new_owned(rgba.into_raw(), width, height);
 
     let show_i_tray = show_i.clone();
-    
+
     let _ = TrayIconBuilder::with_id("wazuh-status-v1")
         .tooltip("Wazuh Agent Status")
         .icon(icon)
@@ -47,7 +46,7 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         let _ = window.move_window(Position::BottomRight);
                         #[cfg(target_os = "macos")]
                         let _ = window.move_window(Position::TrayCenter);
-                        
+
                         let _ = window.set_decorations(true);
                         let _ = window.unminimize();
                         let _ = window.show();
@@ -67,11 +66,12 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
                 ..
-            } = event {
+            } = event
+            {
                 let app = tray.app_handle();
                 if let Some(window) = app.get_webview_window("main") {
                     let is_visible = window.is_visible().unwrap_or(false);
-                    
+
                     if is_visible {
                         let _ = window.hide();
                         let _ = show_i_tray.set_text("Show Dashboard");
@@ -80,7 +80,7 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         let _ = window.move_window(Position::BottomRight);
                         #[cfg(target_os = "macos")]
                         let _ = window.move_window(Position::TrayCenter);
-                        
+
                         let _ = window.set_decorations(true);
                         let _ = window.unminimize();
                         let _ = window.show();
@@ -92,9 +92,10 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         })
         .build(app)?;
 
-
     // Store state for window event sync
-    app.manage(TrayMenuState { show_item: show_i_state });
+    app.manage(TrayMenuState {
+        show_item: show_i_state,
+    });
 
     Ok(())
 }

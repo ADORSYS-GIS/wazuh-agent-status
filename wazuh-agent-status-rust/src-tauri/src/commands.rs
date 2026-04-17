@@ -1,6 +1,6 @@
-use tauri::{State, AppHandle};
-use crate::config::{AppConfig, UpdateCheckResult};
 use crate::agent::{AgentManager, AgentStatus};
+use crate::config::{AppConfig, UpdateCheckResult};
+use tauri::{AppHandle, State};
 
 #[tauri::command]
 pub fn get_agent_status(manager: State<'_, AgentManager>) -> AgentStatus {
@@ -18,7 +18,11 @@ pub async fn check_for_updates(config: State<'_, AppConfig>) -> Result<UpdateChe
 }
 
 #[tauri::command]
-pub async fn perform_update(app: AppHandle, config: State<'_, AppConfig>, download_url: String) -> Result<(), String> {
+pub async fn perform_update(
+    app: AppHandle,
+    config: State<'_, AppConfig>,
+    download_url: String,
+) -> Result<(), String> {
     config.apply_update(download_url).await?;
     app.restart();
     #[allow(unreachable_code)]

@@ -1,12 +1,12 @@
-mod config;
 mod agent;
-mod tray;
 mod commands;
+mod config;
+mod tray;
 
-use config::AppConfig;
 use agent::AgentManager;
-use tauri::Manager;
 use anyhow::Context;
+use config::AppConfig;
+use tauri::Manager;
 
 pub struct MetricsManager;
 
@@ -42,7 +42,7 @@ pub fn run() {
             let config = AppConfig::load(app.handle())
                 .map_err(|e| anyhow::anyhow!(e))
                 .context("Failed to load application configuration")?;
-            
+
             let agent_manager = AgentManager::new();
             let metrics_manager = MetricsManager::new();
 
@@ -51,21 +51,21 @@ pub fn run() {
             app.manage(agent_manager);
             app.manage(metrics_manager);
 
-            tray::setup_tray(app.handle())
-                .context("Failed to initialize system tray")?;
-            
+            tray::setup_tray(app.handle()).context("Failed to initialize system tray")?;
+
             Ok(())
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let _ = window.hide();
-                
+
                 // Sync tray menu text
                 let app_handle = window.app_handle();
-                if let Some(tray_state) = app_handle.try_state::<tray::TrayMenuState<tauri::Wry>>() {
+                if let Some(tray_state) = app_handle.try_state::<tray::TrayMenuState<tauri::Wry>>()
+                {
                     let _ = tray_state.show_item.set_text("Show Dashboard");
                 }
-                
+
                 api.prevent_close();
             }
         })

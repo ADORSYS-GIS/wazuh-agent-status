@@ -50,11 +50,13 @@ impl AppConfig {
     pub async fn apply_update(&self, _download_url: String) -> Result<(), String> {
         Ok(())
     }
-    
+
     pub fn load(app: &tauri::AppHandle) -> Result<Self, String> {
         use tauri::Manager;
-        
-        let config_path = app.path().resolve("app_config.json", tauri::path::BaseDirectory::AppConfig)
+
+        let config_path = app
+            .path()
+            .resolve("app_config.json", tauri::path::BaseDirectory::AppConfig)
             .map_err(|e| format!("Failed to resolve config path: {}", e))?;
 
         if !config_path.exists() {
@@ -64,17 +66,17 @@ impl AppConfig {
             }
             return Err(format!("Config file not found at {:?}", config_path));
         }
-        
+
         Self::load_from_path(config_path)
     }
 
     fn load_from_path(path: std::path::PathBuf) -> Result<Self, String> {
         let config_str = fs::read_to_string(&path)
             .map_err(|e| format!("Failed to read config file at {:?}: {}", path, e))?;
-            
+
         let config: AppConfig = serde_json::from_str(&config_str)
             .map_err(|e| format!("Failed to parse config file: {}", e))?;
-            
+
         Ok(config)
     }
 }
