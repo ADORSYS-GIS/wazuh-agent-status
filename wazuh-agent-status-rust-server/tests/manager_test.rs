@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use wazuh_agent_status_rust_server::config::{AgentPaths, Config};
 use wazuh_agent_status_rust_server::manager::AgentManager;
-use wazuh_agent_status_rust_server::models::{AgentStatus, ConnectionStatus};
+use wazuh_agent_status_rust_server::models::{AgentStatus, ConnectionStatus, SystemMetrics};
 use wazuh_agent_status_rust_server::status_provider::StatusProvider;
 use wazuh_agent_status_rust_server::errors::Result;
 
@@ -22,6 +22,9 @@ impl StatusProvider for MockProvider {
     }
     fn get_agent_groups(&self) -> Result<Vec<String>> {
         Ok(vec!["test".to_string()])
+    }
+    fn get_system_metrics(&self) -> Result<SystemMetrics> {
+        Ok(SystemMetrics::default())
     }
 }
 

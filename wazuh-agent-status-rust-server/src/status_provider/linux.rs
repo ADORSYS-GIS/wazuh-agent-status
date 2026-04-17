@@ -1,7 +1,14 @@
 //! Linux status provider — reads Wazuh agent state directly from the file
 //! system without requiring `sudo`.
 
-use sysinfo::{CpuRefreshKind, MemoryRefreshKind, System};
+use std::fs;
+use sysinfo::System;
+
+use crate::config::AgentPaths;
+use crate::errors::{Result, ServerError};
+use crate::group_extractor;
+use crate::models::{AgentStatus, ConnectionStatus};
+use crate::status_provider::StatusProvider;
 
 pub struct LinuxStatusProvider {
     paths: AgentPaths,
@@ -113,7 +120,7 @@ impl StatusProvider for LinuxStatusProvider {
         })?;
 
         // Selective refresh for performance
-        sys.refresh_memory_all();
+        sys.refresh_memory();
         sys.refresh_cpu_all();
 
         let total_memory = sys.total_memory();

@@ -10,7 +10,15 @@
 //! sudo dseditgroup -o edit -a <service-user> -t user ossec
 //! ```
 
+use std::fs;
+use std::process::Command;
 use sysinfo::System;
+
+use crate::config::AgentPaths;
+use crate::errors::{Result, ServerError};
+use crate::group_extractor;
+use crate::models::{AgentStatus, ConnectionStatus};
+use crate::status_provider::StatusProvider;
 
 pub struct MacosStatusProvider {
     paths: AgentPaths,
@@ -126,7 +134,7 @@ impl StatusProvider for MacosStatusProvider {
             ServerError::PlatformError("Failed to lock system metrics".to_string())
         })?;
 
-        sys.refresh_memory_all();
+        sys.refresh_memory();
         sys.refresh_cpu_all();
 
         let total_memory = sys.total_memory();

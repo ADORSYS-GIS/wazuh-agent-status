@@ -1,7 +1,6 @@
 //! Core data models shared across the server.
 
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 /// Running state of the local Wazuh agent daemon.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -19,6 +18,7 @@ pub enum ConnectionStatus {
     Unknown,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VersionInfo {
     pub framework: FrameworkVersion,
     #[serde(alias = "prerelease_test_grouops", default)]
