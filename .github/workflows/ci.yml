@@ -1,0 +1,230 @@
+name: Rust CI/CD Pipeline
+
+# Trigger on pushes and pull requests to main and develop branches
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+# Environment variables
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Main CI job with matrix strategy for different operating systems
+  ci:
+    name: CI (${{ matrix.os }} ${{ matrix.rust }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false  # Continue other jobs even if one fails
+      matrix:
+        include:
+          # Linux with stable Rust
+          - os: ubuntu-latest
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+          # macOS with stable Rust (Intel)
+          - os: macos-13
+            rust: stable
+            target: x86_64-apple-darwin
+          # macOS with stable Rust (Apple Silicon)
+          - os: macos-14
+            rust: stable
+            target: aarch64-apple-darwin
+          # Windows with stable Rust
+          - os: windows-latest
+            rust: stable
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      # Checkout the repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install Rust toolchain with caching
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+          components: rustfmt, clippy
+
+      # Cache Rust dependencies and build artifacts for performance
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            wazuh-agent-status-rust/src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # Install system dependencies for Linux
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libayatana-appindicator3-dev \
+            libdbusmenu-glib-dev \
+            libgtk-3-dev \
+            libharfbuzz-dev \
+            libpango1.0-dev \
+            libcairo2-dev \
+            libgdk-pixbuf2.0-dev \
+            libatk1.0-dev \
+            pkg-config \
+            libssl-dev
+
+      # Install system dependencies for macOS
+      - name: Install system dependencies (macOS)
+        if: startsWith(matrix.os, 'macos-')
+        run: |
+          brew install gtk+3 pkg-config
+
+      # Install system dependencies for Windows
+      - name: Install system dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install -y gtk-runtime
+
+      # Rust formatting check - fails if code is not properly formatted
+      - name: Check Rust formatting
+        run: |
+          cd wazuh-agent-status-rust/src-tauri
+          cargo fmt -- --check
+
+      # Rust linting with Clippy - warnings treated as errors
+      - name: Run Clippy lints
+        run: |
+          cd wazuh-agent-status-rust/src-tauri
+          cargo clippy --all-targets --all-features -- -D warnings
+
+      # Security audit for dependencies
+      - name: Security audit with cargo-audit
+        run: |
+          cd wazuh-agent-status-rust/src-tauri
+          cargo install cargo-audit
+          cargo audit
+
+      # Dependency license checking with cargo-deny
+      - name: Check dependencies with cargo-deny
+        run: |
+          cd wazuh-agent-status-rust/src-tauri
+          cargo install cargo-deny
+          cargo deny check
+
+      # Build validation - ensures the project compiles successfully
+      - name: Build project
+        run: |
+          cd wazuh-agent-status-rust/src-tauri
+          cargo build --verbose --target ${{ matrix.target }}
+
+      # Run tests with verbose output
+      - name: Run tests
+        run: |
+          cd wazuh-agent-status-rust/src-tauri
+          cargo test --verbose --target ${{ matrix.target }}
+
+      # Build release version for additional validation
+      - name: Build release version
+        run: |
+          cd wazuh-agent-status-rust/src-tauri
+          cargo build --release --verbose --target ${{ matrix.target }}
+
+  # Code coverage job (runs only on Ubuntu to avoid duplication)
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: ci  # Run after CI jobs complete
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libayatana-appindicator3-dev \
+            libdbusmenu-glib-dev \
+            libgtk-3-dev \
+            libharfbuzz-dev \
+            libpango1.0-dev \
+            libcairo2-dev \
+            libgdk-pixbuf2.0-dev \
+            libatk1.0-dev \
+            pkg-config \
+            libssl-dev
+
+      - name: Generate coverage report
+        run: |
+          cd wazuh-agent-status-rust/src-tauri
+          cargo llvm-cov --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./wazuh-agent-status-rust/src-tauri/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  # Integration tests job
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libayatana-appindicator3-dev \
+            libdbusmenu-glib-dev \
+            libgtk-3-dev \
+            libharfbuzz-dev \
+            libpango1.0-dev \
+            libcairo2-dev \
+            libgdk-pixbuf2.0-dev \
+            libatk1.0-dev \
+            pkg-config \
+            libssl-dev
+
+      - name: Install Node.js dependencies
+        run: |
+          cd wazuh-agent-status-rust
+          npm ci
+
+      - name: Build Tauri app
+        run: |
+          cd wazuh-agent-status-rust
+          npm run tauri build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-app-linux
+          path: wazuh-agent-status-rust/src-tauri/target/release/bundle/deb/
