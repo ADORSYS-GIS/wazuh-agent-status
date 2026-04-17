@@ -50,6 +50,10 @@ async fn run_stable_update(
     send_progress(tx, "Updating to stable").await;
 
     let script = &paths.update_script;
+    if !script.exists() {
+        anyhow::bail!("Update script not found at {}. Ensure the Wazuh agent is correctly installed.", script.display());
+    }
+
     let mut child = Command::new(script)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

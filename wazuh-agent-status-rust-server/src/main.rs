@@ -20,6 +20,9 @@ use windows_service::{
 };
 
 #[cfg(target_os = "windows")]
+use tokio::sync::oneshot;
+
+#[cfg(target_os = "windows")]
 define_windows_service!(ffi_service_main, windows_service_main);
 
 #[tokio::main]
@@ -36,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
         // Try to run as a service. If it fails (e.g. run from console),
         // we fall back to the normal main loop below.
         if let Err(e) = service_dispatcher::start("WazuhAgentStatus", ffi_service_main) {
-            // Check if error is "not running in a service context"
+            // Check if error is "not running in a service context" (1063)
             if !e.to_string().contains("1063") {
                 error!("Windows service dispatcher failed: {:?}", e);
             }
@@ -46,11 +49,20 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    // ── Normal Main Execution ────────────────────────────────────────────────
-    run_server().await
+    // ── Normal Main Execution (Console) ──────────────────────────────────────
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    
+    // Spawn a task to handle Ctrl+C for console mode
+    tokio::spawn(async move {
+        if let Ok(()) = tokio::signal::ctrl_c().await {
+            let _ = tx.send(());
+        }
+    });
+
+    run_server(rx).await
 }
 
-async fn run_server() -> anyhow::Result<()> {
+async fn run_server(mut shutdown_rx: tokio::sync::oneshot::Receiver<()>) -> anyhow::Result<()> {
     // ── Logging setup ─────────────────────────────────────────────────────────
     let log_file = AgentPaths::log_file_path();
     let log_dir  = log_file.parent().unwrap_or(std::path::Path::new("/tmp"));
@@ -85,7 +97,7 @@ async fn run_server() -> anyhow::Result<()> {
     // ── Manager ───────────────────────────────────────────────────────────────
     let manager = Arc::new(AgentManager::new(Arc::clone(&config), Arc::clone(&paths)));
 
-    // Background polling task (local-only, no network)
+    // Background polling task
     let polling_manager = Arc::clone(&manager);
     tokio::spawn(async move {
         polling_manager.start_polling().await;
@@ -100,7 +112,7 @@ async fn run_server() -> anyhow::Result<()> {
                 error!(error = %e, "Server error");
             }
         }
-        _ = tokio::signal::ctrl_c() => {
+        _ = &mut shutdown_rx => {
             info!("Shutdown signal received");
         }
     }
@@ -111,11 +123,17 @@ async fn run_server() -> anyhow::Result<()> {
 
 #[cfg(target_os = "windows")]
 fn windows_service_main(_arguments: Vec<std::ffi::OsString>) {
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let tx_arc = Arc::new(std::sync::Mutex::new(Some(tx)));
+
     let event_handler = move |control_event| -> service_control_handler::ServiceControlHandlerResult {
         match control_event {
-            ServiceControl::Stop => {
-                // Signal graceful shutdown here if we had a global signal.
-                // For simplicity, we just exit, which Windows handles correctly.
+            ServiceControl::Stop | ServiceControl::Shutdown => {
+                if let Ok(mut tx_opt) = tx_arc.lock() {
+                    if let Some(tx) = tx_opt.take() {
+                        let _ = tx.send(());
+                    }
+                }
                 service_control_handler::ServiceControlHandlerResult::NoError
             }
             ServiceControl::Interrogate => service_control_handler::ServiceControlHandlerResult::NoError,
@@ -128,28 +146,29 @@ fn windows_service_main(_arguments: Vec<std::ffi::OsString>) {
         Err(_) => return,
     };
 
-    let next_status = ServiceStatus {
+    let _ = status_handle.set_service_status(ServiceStatus {
         service_type: ServiceType::OWN_PROCESS,
         current_state: windows_service::service::ServiceState::Running,
-        controls_accepted: ServiceControlAccept::STOP,
+        controls_accepted: ServiceControlAccept::STOP | ServiceControlAccept::SHUTDOWN,
         exit_code: ServiceExitCode::Win32(0),
         checkpoint: 0,
         wait_hint: std::time::Duration::default(),
         process_id: None,
-    };
-
-    if let Err(_) = status_handle.set_service_status(next_status) {
-        return;
-    }
-
-    // Run the server in a separate thread because main loop is blocking
-    std::thread::spawn(|| {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        if let Err(e) = rt.block_on(run_server()) {
-            error!("Windows Service error: {:?}", e);
-        }
     });
 
-    // In a real service, you'd wait on a shutdown channel here.
-    // For now, this is enough to keep the service "Running" in SCM.
+    // Run the server in the main thread (blocking until shutdown)
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    if let Err(e) = rt.block_on(run_server(rx)) {
+        error!("Windows Service error: {:?}", e);
+    }
+
+    let _ = status_handle.set_service_status(ServiceStatus {
+        service_type: ServiceType::OWN_PROCESS,
+        current_state: windows_service::service::ServiceState::Stopped,
+        controls_accepted: ServiceControlAccept::empty(),
+        exit_code: ServiceExitCode::Win32(0),
+        checkpoint: 0,
+        wait_hint: std::time::Duration::default(),
+        process_id: None,
+    });
 }

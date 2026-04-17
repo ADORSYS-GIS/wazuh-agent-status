@@ -24,3 +24,15 @@ fn test_prerelease_does_not_beat_stable() {
 fn test_v_prefix_stripped() {
     assert!(is_version_higher("v5.0.0", "v4.0.0"));
 }
+
+#[test]
+fn test_uneven_parts() {
+    assert!(is_version_higher("4.7.2.1", "4.7.2"));
+    assert!(!is_version_higher("4.7", "4.7.1"));
+}
+
+#[test]
+fn test_non_numeric_graceful_handling() {
+    // Should parse as 0 according to implementation (unwrap_or(0))
+    assert!(!is_version_higher("4.x.2", "4.1.2"));
+}

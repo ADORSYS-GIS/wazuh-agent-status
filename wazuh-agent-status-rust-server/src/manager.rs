@@ -19,6 +19,8 @@ use crate::version_utils::{fetch_version_info, is_version_higher, should_show_pr
 struct VersionCache {
     /// The human-readable status string sent to clients.
     status: String,
+    /// The raw manifest data (stored for re-computation if local version changes).
+    info: VersionInfo,
     /// When this cache entry was populated.
     fetched_at: Instant,
 }
@@ -42,16 +44,31 @@ pub struct AgentManager {
 }
 
 impl AgentManager {
+    /// Create a new manager using the native status provider for the current OS.
+    #[must_use]
     pub fn new(config: Arc<Config>, paths: Arc<AgentPaths>) -> Self {
-        let (tx, _) = broadcast::channel(128);
         let provider = Box::new(crate::status_provider::native_provider(
             paths.as_ref().clone(),
         ));
+        Self::new_custom(config, paths, provider)
+    }
+
+    /// Create a new manager with a custom status provider.
+    ///
+    /// This is a professional extension point that also facilitates integration 
+    /// testing without polluting the production logic with test hooks.
+    #[must_use]
+    pub fn new_custom(
+        config: Arc<Config>,
+        paths: Arc<AgentPaths>,
+        provider: Box<dyn StatusProvider>,
+    ) -> Self {
+        let (tx, _) = broadcast::channel(128);
         let updater = NativeUpdater::new(Arc::clone(&paths), config.version_url.clone());
 
         Self {
-            state:         Arc::new(RwLock::new(AgentState::default())),
-            notifier:      tx,
+            state: Arc::new(RwLock::new(AgentState::default())),
+            notifier: tx,
             provider,
             updater,
             version_cache: RwLock::new(None),
@@ -67,6 +84,10 @@ impl AgentManager {
     }
 
     /// Subscribe to state-change notifications.
+    /// 
+    /// Each subscriber gets their own [`broadcast::Receiver`]. The channel
+    /// has a capacity of 128 updates; slow clients will receive a 
+    /// [`broadcast::error::RecvError::Lagged`] if they fall behind.
     pub fn subscribe(&self) -> broadcast::Receiver<AgentState> {
         self.notifier.subscribe()
     }
@@ -103,33 +124,56 @@ impl AgentManager {
     /// Results are cached for `config.version_cache_ttl` to avoid hammering
     /// the remote manifest endpoint.
     pub async fn get_version_status(&self) -> String {
-        // Fast path — return cached value if still fresh.
+        let now = Instant::now();
+        let current_state = self.get_state().await;
+
+        // 1. Try to return fresh cached value
         {
             let cache = self.version_cache.read().await;
             if let Some(c) = &*cache {
-                if c.fetched_at.elapsed() < self.config.version_cache_ttl {
+                if now.duration_since(c.fetched_at) < self.config.version_cache_ttl {
                     return c.status.clone();
                 }
             }
         }
 
-        // Slow path — fetch fresh data.
-        let current_state = self.get_state().await;
-        let status = match fetch_version_info(&self.config.version_url).await {
-            Some(info) => compute_version_status(&current_state.version, &current_state.groups, &info),
+        // 2. Fetch fresh data
+        let (new_info, is_fallback) = match fetch_version_info(&self.config.version_url).await {
+            Some(info) => (Some(info), false),
             None => {
-                warn!("Failed to fetch remote version manifest");
-                "Version: Unknown (network error)".to_string()
+                // Fallback: use last known good info if available
+                let cache = self.version_cache.read().await;
+                (cache.as_ref().map(|c| c.info.clone()), true)
             }
         };
 
-        let mut cache = self.version_cache.write().await;
-        *cache = Some(VersionCache {
-            status: status.clone(),
-            fetched_at: Instant::now(),
-        });
+        match new_info {
+            Some(info) => {
+                let status = compute_version_status(&current_state.version, &current_state.groups, &info);
+                let final_status = if is_fallback {
+                    format!("{status} (cached)")
+                } else {
+                    status
+                };
 
-        status
+                let mut cache = self.version_cache.write().await;
+                *cache = Some(VersionCache {
+                    status: final_status.clone(),
+                    info,
+                    fetched_at: if is_fallback { 
+                        // Keep old timestamp to force retry later
+                        self.version_cache.read().await.as_ref().map(|c| c.fetched_at).unwrap_or(now)
+                    } else { 
+                        now 
+                    },
+                });
+                final_status
+            }
+            None => {
+                warn!("Failed to fetch remote version manifest and no cache available");
+                "Version: Unknown (network error)".to_string()
+            }
+        }
     }
 
     // ── Update ────────────────────────────────────────────────────────────────
