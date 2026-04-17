@@ -1,11 +1,11 @@
 use tauri::{State, AppHandle};
 use crate::config::AppConfig;
-use crate::agent::{AgentManager, AgentStatus};
+use crate::agent::{AgentManager, AgentState, AgentStatus};
 use std::sync::Arc;
 
 #[tauri::command]
-pub fn get_agent_status(manager: State<'_, Arc<AgentManager>>) -> AgentStatus {
-    manager.get_state().status
+pub fn get_agent_status(manager: State<'_, Arc<AgentManager>>) -> AgentState {
+    manager.get_state()
 }
 
 #[tauri::command]
