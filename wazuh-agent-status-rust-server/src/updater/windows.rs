@@ -43,7 +43,11 @@ async fn run_stable_update(
 ) -> anyhow::Result<()> {
     send_progress(tx, "Updating to stable").await;
 
-    let script = paths.update_script.to_string_lossy().into_owned();
+    let script_path = &paths.update_script;
+    if !script_path.exists() {
+        anyhow::bail!("Wazuh update script not found at {}. Ensure the agent is installed.", script_path.display());
+    }
+    let script = script_path.to_string_lossy().into_owned();
 
     if run_scheduled_task(&script).await.is_ok() {
         return Ok(());

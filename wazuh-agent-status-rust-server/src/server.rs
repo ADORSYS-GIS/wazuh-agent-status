@@ -25,11 +25,20 @@ use crate::manager::AgentManager;
 pub struct TcpServer {
     addr: String,
     manager: Arc<AgentManager>,
+    /// Limits concurrent connections to prevent resource exhaustion.
+    limit: Arc<tokio::sync::Semaphore>,
 }
 
 impl TcpServer {
+    /// Create a new server bound to `addr` using the provided `manager`.
+    /// 
+    /// The server will cap concurrent connections at 50 to ensure production stability.
     pub fn new(addr: String, manager: Arc<AgentManager>) -> Self {
-        Self { addr, manager }
+        Self { 
+            addr, 
+            manager,
+            limit: Arc::new(tokio::sync::Semaphore::new(50)),
+        }
     }
 
     /// Accept connections in a loop.  Each connection is handled in its own
@@ -39,11 +48,20 @@ impl TcpServer {
         info!(addr = %self.addr, "Server listening");
 
         loop {
+            // Reserve a connection slot before accepting
+            let permit = Arc::clone(&self.limit)
+                .acquire_owned()
+                .await
+                .map_err(|_| tokio::io::Error::new(tokio::io::ErrorKind::Other, "Semaphore closed"))?;
+
             let (socket, peer_addr) = listener.accept().await?;
             info!(peer = %peer_addr, "Accepted connection");
 
             let manager = Arc::clone(&self.manager);
             tokio::spawn(async move {
+                // The permit is moved into the task and dropped when the task finishes, 
+                // effectively releasing the connection slot.
+                let _permit = permit;
                 if let Err(e) = handle_connection(socket, manager).await {
                     error!(error = %e, "Connection handler error");
                 }
