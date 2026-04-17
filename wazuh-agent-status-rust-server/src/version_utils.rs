@@ -1,6 +1,5 @@
 //! Version comparison and remote manifest fetching utilities.
 
-use reqwest::Client;
 use std::time::Duration;
 
 use crate::models::VersionInfo;
@@ -38,21 +37,15 @@ pub fn is_version_higher(online: &str, local: &str) -> bool {
 /// Returns `None` on any network or parse failure (errors are logged at warn
 /// level internally by the caller).
 pub async fn fetch_version_info(url: &str) -> Option<VersionInfo> {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-        .ok()?;
-
-    let resp = client.get(url).send().await.ok()?;
-    if !resp.status().is_success() {
-        return None;
-    }
-    match resp.json::<VersionInfo>().await {
-        Ok(info) => Some(info),
-        Err(e) => {
-            tracing::warn!("Failed to parse version manifest JSON: {e}");
-            None
-        }
+    match crate::http::fetch_bytes(url, Duration::from_secs(10)).await {
+        Ok(bytes) => match serde_json::from_slice::<VersionInfo>(&bytes) {
+            Ok(info) => Some(info),
+            Err(e) => {
+                tracing::warn!("Failed to parse version manifest JSON: {e}");
+                None
+            }
+        },
+        Err(_) => None,
     }
 }
 

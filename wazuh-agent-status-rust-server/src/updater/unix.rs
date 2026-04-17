@@ -135,20 +135,9 @@ async fn stream_output(child: &mut tokio::process::Child, tx: &mpsc::Sender<Stri
     }
 }
 
-/// Download `url` to `dest` using reqwest.
+/// Download `url` to `dest` using the shared HTTP utility.
 async fn download_file(url: &str, dest: &std::path::Path) -> anyhow::Result<()> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()?;
-
-    let bytes = client
-        .get(url)
-        .send()
-        .await?
-        .error_for_status()?
-        .bytes()
-        .await?;
-
+    let bytes = crate::http::fetch_bytes(url, std::time::Duration::from_secs(60)).await?;
     tokio::fs::write(dest, &bytes).await?;
     Ok(())
 }

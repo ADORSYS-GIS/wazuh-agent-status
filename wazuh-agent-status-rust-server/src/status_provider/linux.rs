@@ -1,17 +1,5 @@
 //! Linux status provider — reads Wazuh agent state directly from the file
 //! system without requiring `sudo`.
-//!
-//! # Permission model
-//!
-//! All files under `/var/ossec` that this provider reads are owned by the
-//! `ossec` group with group-read (`g+r`) permissions.  Add the user that runs
-//! this server to the `ossec` group once at deployment time:
-//!
-//! ```bash
-//! sudo usermod -aG ossec <service-user>
-//! ```
-//!
-//! After that, no `sudo` is needed at runtime.
 
 use std::fs;
 

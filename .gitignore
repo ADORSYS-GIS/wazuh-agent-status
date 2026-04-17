@@ -26,3 +26,5 @@ go.work.sum
 
 # Output directories or files
 target/
+node_modules/
+gen/

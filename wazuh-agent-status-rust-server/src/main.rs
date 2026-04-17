@@ -24,10 +24,30 @@ define_windows_service!(ffi_service_main, windows_service_main);
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // ── CLI: --version / -v ───────────────────────────────────────────────────
-    if std::env::args().any(|a| a == "--version" || a == "-v") {
-        println!("{}", env!("CARGO_PKG_VERSION"));
-        return Ok(());
+    // ── CLI Argument Parsing ─────────────────────────────────────────────────
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 {
+        match args[1].as_str() {
+            "--version" | "-v" => {
+                println!("{}", env!("CARGO_PKG_VERSION"));
+                return Ok(());
+            }
+            "--help" | "-h" => {
+                println!("Wazuh Agent Status Server v{}\n", env!("CARGO_PKG_VERSION"));
+                println!("Usage: wazuh-agent-status-rust-server [OPTIONS]\n");
+                println!("Options:");
+                println!("  -v, --version    Print version and exit");
+                println!("  -h, --help       Print this help message and exit\n");
+                println!("Configuration is via environment variables.");
+                return Ok(());
+            }
+            unknown => {
+                anyhow::bail!(
+                    "Unknown argument: '{}'\nUse --help to see available options.",
+                    unknown
+                );
+            }
+        }
     }
 
     // ── Windows Service Check ────────────────────────────────────────────────
