@@ -101,10 +101,13 @@ async fn handle_connection(
         match command.as_str() {
             // ── Version query ─────────────────────────────────────────────────
             "get-version" => {
+                info!("Processing get-version command...");
                 let status = manager.get_version_status().await;
+                info!(status = %status, "Version check complete; sending response");
                 writer
                     .write_all(format!("VERSION_CHECK: {status}\n").as_bytes())
                     .await?;
+                writer.flush().await?;
             }
 
             // ── Status subscription ───────────────────────────────────────────

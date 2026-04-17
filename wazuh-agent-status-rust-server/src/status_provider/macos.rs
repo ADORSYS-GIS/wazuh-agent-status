@@ -28,9 +28,25 @@ impl MacosStatusProvider {
         Self { paths }
     }
 
-    /// Determine whether `wazuh-agentd` is alive by reading its PID file
-    /// and querying `ps -p <pid>` — no `sudo` required.
+    /// Determine whether `wazuh-agentd` is alive by running `wazuh-control status`.
     fn is_agent_running(&self) -> bool {
+        let control_path = self.paths.state_file.parent() // var/run/
+            .and_then(|p| p.parent())                    // var/
+            .and_then(|p| p.parent())                    // base/
+            .map(|base| base.join("bin/wazuh-control"))
+            .unwrap_or_else(|| std::path::PathBuf::from("/Library/Ossec/bin/wazuh-control"));
+
+        if let Ok(output) = Command::new(control_path)
+            .arg("status")
+            .output() 
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if stdout.contains("wazuh-agentd is running") {
+                return true;
+            }
+        }
+        
+        // Fallback: Check if the PID file exists and the process in it is alive
         self.read_pid()
             .map(|pid| {
                 Command::new("ps")
@@ -59,12 +75,19 @@ impl StatusProvider for MacosStatusProvider {
     }
 
     fn get_connection_status(&self) -> Result<ConnectionStatus> {
-        let content = fs::read_to_string(&self.paths.state_file).map_err(|e| {
-            ServerError::PlatformError(format!(
-                "Cannot read state file {}: {e}",
-                self.paths.state_file.display()
-            ))
-        })?;
+        let content = match fs::read_to_string(&self.paths.state_file) {
+            Ok(c) => c,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // Agent stopped — correctly reflect as Disconnected
+                return Ok(ConnectionStatus::Disconnected);
+            }
+            Err(e) => {
+                return Err(ServerError::PlatformError(format!(
+                    "Cannot read state file {}: {e}",
+                    self.paths.state_file.display()
+                )));
+            }
+        };
 
         if content.contains("status='connected'") {
             Ok(ConnectionStatus::Connected)
