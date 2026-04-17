@@ -97,17 +97,16 @@ impl StatusProvider for MacosStatusProvider {
     }
 
     fn get_agent_version(&self) -> Result<String> {
-        let raw = fs::read_to_string(&self.paths.version_file).map_err(|e| {
-            ServerError::PlatformError(format!(
-                "Cannot read version file {}: {e}",
-                self.paths.version_file.display()
-            ))
-        })?;
-        Ok(raw.trim().to_string())
+        match fs::read_to_string(&self.paths.version_file) {
+            Ok(raw) => Ok(raw.trim().to_string()),
+            Err(_) => Ok("Not Installed".to_string()),
+        }
     }
 
     fn get_agent_groups(&self) -> Result<Vec<String>> {
-        group_extractor::extract_groups(&self.paths.merged_mg)
-            .map_err(|e| ServerError::PlatformError(e.to_string()))
+        match group_extractor::extract_groups(&self.paths.merged_mg) {
+            Ok(groups) => Ok(groups),
+            Err(_) => Ok(Vec::new()), // No groups if agent is not installed
+        }
     }
 }
