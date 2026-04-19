@@ -78,7 +78,8 @@ jobs:
             libgdk-pixbuf2.0-dev \
             libatk1.0-dev \
             pkg-config \
-            libssl-dev
+            libssl-dev \
+            libwebkit2gtk-4.1-dev
 
       # Install system dependencies for macOS
       - name: Install system dependencies (macOS)
