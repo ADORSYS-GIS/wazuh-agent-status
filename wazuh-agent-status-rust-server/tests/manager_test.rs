@@ -20,6 +20,10 @@ impl StatusProvider for MockProvider {
     fn get_agent_version(&self) -> Result<String> {
         Ok("4.7.2".to_string())
     }
+
+    fn get_tray_version(&self) -> Result<String> {
+        Ok("1.8.0".to_string())
+    }
     fn get_agent_groups(&self) -> Result<Vec<String>> {
         Ok(vec!["test".to_string()])
     }

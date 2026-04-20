@@ -4,7 +4,7 @@ use wazuh_agent_status_rust_server::config::Config;
 #[test]
 fn test_default_config() {
     let cfg = Config::default();
-    assert_eq!(cfg.listen_addr, "0.0.0.0:50505");
+    assert_eq!(cfg.listen_addr, "0.0.0.0:50506");
     assert_eq!(cfg.poll_interval, Duration::from_secs(5));
 }
 

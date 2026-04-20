@@ -13,7 +13,7 @@ use tracing::warn;
 const DEFAULT_VERSION_URL: &str =
     "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/main/versions.json";
 const DEFAULT_POLL_INTERVAL_SECS: u64 = 5;
-const DEFAULT_LISTEN_ADDR: &str = "0.0.0.0:50505";
+const DEFAULT_LISTEN_ADDR: &str = "0.0.0.0:50506";
 /// Cache remote version checks for 30 minutes to avoid hammering GitHub.
 const DEFAULT_VERSION_CACHE_TTL_SECS: u64 = 1_800;
 
@@ -123,12 +123,12 @@ impl Config {
 pub struct AgentPaths {
     /// Agent state file — used to determine the connection status.
     pub state_file: PathBuf,
-    /// Installed agent version file.
+    /// Installed agent version file (JSON).
+    pub version_json: PathBuf,
+    /// Tray application version file.
     pub version_file: PathBuf,
     /// Group policy merged configuration file.
     pub merged_mg: PathBuf,
-    /// Adorsys auto-update script / executable.
-    pub update_script: PathBuf,
     /// Daemon PID file (UNIX only; empty on Windows).
     pub pid_file: PathBuf,
 }
@@ -142,8 +142,8 @@ impl AgentPaths {
             Self {
                 state_file:    base.join("var/run/wazuh-agentd.state"),
                 version_file:  base.join("etc/version.txt"),
+                version_json:  base.join("VERSION.json"),
                 merged_mg:     base.join("etc/shared/merged.mg"),
-                update_script: base.join("active-response/bin/adorsys-update.sh"),
                 pid_file:      base.join("var/run/wazuh-agentd.pid"),
             }
         }
@@ -154,8 +154,8 @@ impl AgentPaths {
             Self {
                 state_file:    base.join("var/run/wazuh-agentd.state"),
                 version_file:  base.join("etc/version.txt"),
+                version_json:  base.join("VERSION.json"),
                 merged_mg:     base.join("etc/shared/merged.mg"),
-                update_script: base.join("active-response/bin/adorsys-update.sh"),
                 pid_file:      base.join("var/run/wazuh-agentd.pid"),
             }
         }
@@ -166,8 +166,8 @@ impl AgentPaths {
             Self {
                 state_file:    base.join("wazuh-agent.state"),
                 version_file:  base.join("version.txt"),
+                version_json:  base.join("VERSION.json"),
                 merged_mg:     base.join(r"shared\merged.mg"),
-                update_script: base.join(r"active-response\bin\adorsys-update.bat"),
                 pid_file:      PathBuf::new(), // not applicable on Windows
             }
         }

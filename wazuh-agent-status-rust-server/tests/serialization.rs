@@ -6,6 +6,7 @@ fn test_agent_state_serialization() {
         status: AgentStatus::Active,
         connection: ConnectionStatus::Connected,
         version: "4.7.2".to_string(),
+        tray_version: "1.8.0".to_string(),
         groups: vec!["default".to_string(), "linux".to_string()],
         metrics: SystemMetrics::default(),
     };
@@ -14,6 +15,7 @@ fn test_agent_state_serialization() {
     assert!(json.contains("\"status\":\"Active\""));
     assert!(json.contains("\"connection\":\"Connected\""));
     assert!(json.contains("\"version\":\"4.7.2\""));
+    assert!(json.contains("\"tray_version\":\"1.8.0\""));
     assert!(json.contains("\"metrics\""));
 }
 
@@ -23,6 +25,7 @@ fn test_agent_state_deserialization() {
         "status": "Inactive",
         "connection": "Disconnected",
         "version": "4.6.0",
+        "tray_version": "1.7.0",
         "groups": ["test"],
         "metrics": {
             "cpu_usage": 0.0,
@@ -36,4 +39,5 @@ fn test_agent_state_deserialization() {
     assert_eq!(state.status, AgentStatus::Inactive);
     assert_eq!(state.connection, ConnectionStatus::Disconnected);
     assert_eq!(state.version, "4.6.0");
+    assert_eq!(state.tray_version, "1.7.0");
 }

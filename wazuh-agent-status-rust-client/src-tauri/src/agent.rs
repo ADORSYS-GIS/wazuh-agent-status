@@ -29,6 +29,7 @@ pub struct AgentState {
     pub status: AgentStatus,
     pub connection: ConnectionStatus,
     pub version: String,
+    pub tray_version: String,
     pub groups: Vec<String>,
     pub metrics: SystemMetrics,
 }
@@ -36,11 +37,12 @@ pub struct AgentState {
 impl Default for AgentState {
     fn default() -> Self {
         Self {
-            status:     AgentStatus::Unknown,
-            connection: ConnectionStatus::Unknown,
-            version:    "Unknown".to_string(),
-            groups:     Vec::new(),
-            metrics:    SystemMetrics {
+            status:       AgentStatus::Unknown,
+            connection:   ConnectionStatus::Unknown,
+            version:      "Unknown".to_string(),
+            tray_version: "Unknown".to_string(),
+            groups:       Vec::new(),
+            metrics:      SystemMetrics {
                 cpu_usage:    0.0,
                 memory_usage: 0.0,
                 total_memory: 0,
@@ -75,7 +77,7 @@ impl AgentManager {
         self.state_rx.borrow().clone()
     }
 
-    pub async fn check_updates(&self) -> anyhow::Result<String> {
+    pub async fn check_updates(&self) -> anyhow::Result<serde_json::Value> {
         let mut stream = tokio::net::TcpStream::connect("127.0.0.1:50506").await?;
         use tokio::io::{AsyncWriteExt, AsyncBufReadExt};
         stream.write_all(b"get-version\n").await?;
@@ -83,11 +85,12 @@ impl AgentManager {
         let mut reader = tokio::io::BufReader::new(stream);
         let mut line = String::new();
         if reader.read_line(&mut line).await? > 0 {
-            if let Some(status) = line.strip_prefix("VERSION_CHECK: ") {
-                return Ok(status.trim().to_string());
+            if let Some(json) = line.strip_prefix("VERSION_CHECK: ") {
+                let parsed: serde_json::Value = serde_json::from_str(json.trim())?;
+                return Ok(parsed);
             }
         }
-        Err(anyhow::anyhow!("Failed to get version from server"))
+        Err(anyhow::anyhow!("Failed to get update info from server"))
     }
 }
 

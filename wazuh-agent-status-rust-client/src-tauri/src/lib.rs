@@ -59,8 +59,7 @@ pub fn run() {
             commands::get_agent_status,
             commands::get_config,
             commands::get_system_metrics,
-            commands::check_for_updates,
-            commands::perform_update
+            commands::check_for_updates
         ])
         .run(tauri::generate_context!());
 

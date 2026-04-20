@@ -30,10 +30,6 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub async fn apply_update(&self, _download_url: String) -> Result<(), String> {
-        Ok(())
-    }
-    
     pub fn load(app: &tauri::AppHandle) -> Result<Self, String> {
         use tauri::Manager;
         

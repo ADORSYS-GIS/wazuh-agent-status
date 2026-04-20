@@ -40,10 +40,8 @@ body {
   color: var(--text);
   overflow: hidden;
   user-select: none;
-  border: 1px solid var(--border);
-  box-shadow: inset 0 0 100px rgba(0, 170, 255, 0.05), 0 0 20px rgba(0, 170, 255, 0.1);
-  border-radius: 0;
-  /* Let OS handle corner clipping if possible, or keep sharp for premium look */
+  width: 100vw;
+  height: 100vh;
 }
 .app-wrapper {
   display: flex;
@@ -53,6 +51,7 @@ body {
 /* Sidebar */
 .sidebar {
   width: var(--sidebar-width);
+  height: 100vh;
   background-color: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
@@ -61,6 +60,7 @@ body {
   gap: 20px;
   border-right: 1px solid var(--border);
   position: relative;
+  flex-shrink: 0;
 }
 
 .nav-item {
@@ -96,6 +96,32 @@ body {
   box-shadow: 0 0 20px rgba(0, 170, 255, 0.4);
 }
 
+.sidebar-logo {
+  padding: 32px 16px 20px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.sidebar-logo img {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.nav-items {
+  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
 .nav-indicator {
   position: absolute;
   left: 0;
@@ -103,8 +129,9 @@ body {
   height: 20px;
   background: var(--primary);
   border-radius: 0 4px 4px 0;
-  box-shadow: 0 0 10px var(--primary);
+  box-shadow: 0 0 12px var(--primary);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 5;
 }
 
 .sidebar-bottom {
@@ -112,12 +139,53 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.nav-item {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  position: relative;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.nav-item.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 0 20px rgba(0, 170, 255, 0.4);
+}
+
+.notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background-color: var(--error);
+  border-radius: 50%;
+  border: 2px solid var(--sidebar-bg);
+  box-shadow: 0 0 6px var(--error);
 }
 
 /* Main Content */
 .main-content {
   flex: 1;
+  min-width: 0;
   padding: 40px 28px 48px 28px;
   display: flex;
   flex-direction: column;
@@ -199,6 +267,7 @@ body {
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
+  min-height: fit-content;
 }
 
 .card::before {
@@ -488,6 +557,7 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
+  max-width: 100%;
 }
 
 @keyframes slideUp {
@@ -500,4 +570,34 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.update-button {
+  background: var(--primary-metallic);
+  background-size: 200% 100%;
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 170, 255, 0.3);
+  animation: shimmer 3s linear infinite;
+}
+
+.update-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 170, 255, 0.4);
+}
+
+.auto-badge {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }

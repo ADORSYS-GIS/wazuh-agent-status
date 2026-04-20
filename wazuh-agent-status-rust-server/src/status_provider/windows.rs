@@ -79,9 +79,22 @@ impl StatusProvider for WindowsStatusProvider {
     }
 
     fn get_agent_version(&self) -> Result<String> {
+        // Try VERSION.json first
+        if let Ok(content) = fs::read_to_string(&self.paths.version_json) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
+                    return Ok(v.to_string());
+                }
+            }
+        }
+
+        Ok("Unknown".to_string())
+    }
+
+    fn get_tray_version(&self) -> Result<String> {
         match fs::read_to_string(&self.paths.version_file) {
             Ok(raw) => Ok(raw.trim().to_string()),
-            Err(_) => Ok("Not Installed".to_string()),
+            Err(_) => Ok("Unknown".to_string()),
         }
     }
 
@@ -97,24 +110,42 @@ impl StatusProvider for WindowsStatusProvider {
             ServerError::PlatformError("Failed to lock system metrics".to_string())
         })?;
 
+        sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
         sys.refresh_memory();
         sys.refresh_cpu_all();
 
-        let total_memory = sys.total_memory();
-        let used_memory  = sys.used_memory();
-        let memory_usage = if total_memory > 0 {
-            used_memory as f32 / total_memory as f32
+        let mut total_cpu: f32 = 0.0;
+        let mut total_rss: u64 = 0;
+        let mut found = false;
+
+        for process in sys.processes().values() {
+            let name = process.name().to_string_lossy();
+            if crate::status_provider::WINDOWS_AGENT_PROCESSES.contains(&name.as_ref()) {
+                total_cpu += process.cpu_usage();
+                total_rss += process.memory();
+                found = true;
+            }
+        }
+
+        let cpu_count = sys.cpus().len() as f32;
+        let cpu_usage = if found && cpu_count > 0.0 {
+            total_cpu / cpu_count
         } else {
             0.0
         };
 
-        let cpu_usage = sys.global_cpu_usage();
+        let total_memory = sys.total_memory();
+        let memory_usage = if total_memory > 0 {
+            total_rss as f32 / total_memory as f32
+        } else {
+            0.0
+        };
 
         Ok(crate::models::SystemMetrics {
             cpu_usage,
             memory_usage,
             total_memory,
-            used_memory,
+            used_memory: total_rss,
         })
     }
 }

@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
 import type { AppConfig, View } from "./types/app";
-import type { AgentStatus, SystemMetrics } from "./types/agent";
+import type { AgentStatus, SystemMetrics, UpdateStatus } from "./types/agent";
 
 import { IconHome, IconShield, IconSettings } from "./components/Icons";
 import { StatusView } from "./components/StatusView";
@@ -16,6 +16,7 @@ const DEFAULT_STATUS: AgentStatus = {
   status: "Unknown",
   connection: "Disconnected",
   version: "Unknown",
+  tray_version: "Unknown",
   groups: [],
 };
 
@@ -50,7 +51,7 @@ function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [agentStatus, setAgentStatus] = useState<AgentStatus>(DEFAULT_STATUS);
   const [metrics, setMetrics] = useState<SystemMetrics>(DEFAULT_METRICS);
-  const [updateInfo, setUpdateInfo] = useState<string | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateStatus | null>(null);
   const [activeView, setActiveView] = useState<View>(() => {
     return (localStorage.getItem(STORAGE_KEY_VIEW) as View) || "status";
   });
@@ -62,7 +63,7 @@ function App() {
   useEffect(() => {
     // Initial data fetch
     invoke<AppConfig>("get_config").then(setConfig).catch(console.error);
-    invoke<string>("check_for_updates").then(setUpdateInfo).catch(console.error);
+    invoke<UpdateStatus>("check_for_updates").then(setUpdateInfo).catch(console.error);
     
     // Polling logic for real-time data
     const refreshData = () => {
@@ -103,48 +104,55 @@ function App() {
   } as CSSProperties;
 
   const indicatorTop = (
-    { status: "34px", updates: "94px", settings: "154px" } as Record<View, string>
+    { status: "10px", updates: "70px", settings: "130px" } as Record<View, string>
   )[activeView];
 
   return (
     <div className="app-wrapper" style={cssVars}>
       <nav className="sidebar">
-        <div 
-          className="nav-indicator" 
-          style={{ top: indicatorTop }} 
-        />
-        
-        <div className="tooltip-container">
-          <button
-            className={`nav-item ${activeView === "status" ? "active" : ""}`}
-            onClick={() => setActiveView("status")}
-            aria-label="Overview"
-          >
-            <IconHome />
-          </button>
-          <span className="tooltip">Overview</span>
+        <div className="sidebar-logo">
+          <img src="/adorsys-logo.png" alt="Adorsys" />
         </div>
 
-        <div className="tooltip-container">
-          <button
-            className={`nav-item ${activeView === "updates" ? "active" : ""}`}
-            onClick={() => setActiveView("updates")}
-            aria-label="Health & Updates"
-          >
-            <IconShield />
-          </button>
-          <span className="tooltip">Health & Updates</span>
-        </div>
+        <div className="nav-items" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div 
+            className="nav-indicator" 
+            style={{ top: indicatorTop }} 
+          />
+          
+          <div className="tooltip-container">
+            <button
+              className={`nav-item ${activeView === "status" ? "active" : ""}`}
+              onClick={() => setActiveView("status")}
+              aria-label="Overview"
+            >
+              <IconHome />
+            </button>
+            <span className="tooltip">Overview</span>
+          </div>
 
-        <div className="tooltip-container">
-          <button
-            className={`nav-item ${activeView === "settings" ? "active" : ""}`}
-            onClick={() => setActiveView("settings")}
-            aria-label="Settings"
-          >
-            <IconSettings />
-          </button>
-          <span className="tooltip">Settings</span>
+          <div className="tooltip-container">
+            <button
+              className={`nav-item ${activeView === "updates" ? "active" : ""}`}
+              onClick={() => setActiveView("updates")}
+              aria-label="Health & Updates"
+            >
+              <IconShield />
+              {updateInfo?.has_updates && <span className="notification-dot" />}
+            </button>
+            <span className="tooltip">Health & Updates</span>
+          </div>
+
+          <div className="tooltip-container">
+            <button
+              className={`nav-item ${activeView === "settings" ? "active" : ""}`}
+              onClick={() => setActiveView("settings")}
+              aria-label="Settings"
+            >
+              <IconSettings />
+            </button>
+            <span className="tooltip">Settings</span>
+          </div>
         </div>
 
         <div className="sidebar-bottom">
@@ -155,7 +163,7 @@ function App() {
       <main className="main-content">
         {activeView === "status" && <StatusView agentStatus={agentStatus} metrics={metrics} />}
         {activeView === "updates" && <UpdatesView updateInfo={updateInfo} />}
-        {activeView === "settings" && <SettingsView config={config} />}
+        {activeView === "settings" && <SettingsView config={config} agentStatus={agentStatus} />}
       </main>
     </div>
   );

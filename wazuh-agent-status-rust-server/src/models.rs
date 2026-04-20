@@ -18,10 +18,13 @@ pub enum ConnectionStatus {
     Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionInfo {
-    pub framework: FrameworkVersion,
-    #[serde(alias = "prerelease_test_grouops", default)]
+    /// Wazuh agent core versioning.
+    pub wazuh: FrameworkVersion,
+    /// Tray application versioning.
+    pub tray: FrameworkVersion,
+    #[serde(alias = "prerelease_test_groups", default)]
     pub prerelease_test_groups: Vec<String>,
 }
 
@@ -46,10 +49,35 @@ impl Default for SystemMetrics {
 }
 
 /// Version numbers within the online manifest.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrameworkVersion {
     pub version: String,
     pub prerelease_version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum UpdateState {
+    UpToDate,
+    Outdated,
+    PrereleaseAvailable,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComponentUpdate {
+    pub name: String,
+    pub current_version: String,
+    pub latest_version: String,
+    pub state: UpdateState,
+    pub can_update: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateStatus {
+    pub wazuh: ComponentUpdate,
+    pub tray: ComponentUpdate,
+    pub has_updates: bool,
 }
 
 /// Complete local state of the Wazuh agent, polled on each tick.
@@ -63,6 +91,8 @@ pub struct AgentState {
     pub connection: ConnectionStatus,
     /// Locally installed agent version string (e.g. `"4.7.2"`).
     pub version: String,
+    /// Tray application version string.
+    pub tray_version: String,
     /// Agent group memberships parsed from `merged.mg`.
     pub groups: Vec<String>,
     /// System performance indicators.
@@ -72,11 +102,12 @@ pub struct AgentState {
 impl Default for AgentState {
     fn default() -> Self {
         Self {
-            status:     AgentStatus::Unknown,
-            connection: ConnectionStatus::Unknown,
-            version:    "Unknown".to_string(),
-            groups:     Vec::new(),
-            metrics:    SystemMetrics::default(),
+            status:       AgentStatus::Unknown,
+            connection:   ConnectionStatus::Unknown,
+            version:      "Unknown".to_string(),
+            tray_version: "Unknown".to_string(),
+            groups:       Vec::new(),
+            metrics:      SystemMetrics::default(),
         }
     }
 }

@@ -36,7 +36,7 @@ impl LinuxStatusProvider {
             .map(|base| base.join("bin/wazuh-control"))
             .unwrap_or_else(|| std::path::PathBuf::from("/var/ossec/bin/wazuh-control"));
 
-        // 1. Primary check: official wazuh-control utility
+        // Primary check: official wazuh-control utility
         match std::process::Command::new(&control_path).arg("status").output() {
             Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
@@ -50,22 +50,11 @@ impl LinuxStatusProvider {
                 }
             }
             Err(_) => {
-                // wazuh-control not found or failed to spawn; proceed to fallback
+                // wazuh-control not found or failed to spawn
             }
         }
         
-        // 2. Fallback: Check if the PID file exists and the process in it is alive.
-        // We check /proc/{pid} which is fast on Linux.
-        self.read_pid()
-            .map(|pid| std::path::Path::new(&format!("/proc/{pid}")).exists())
-            .unwrap_or(false)
-    }
-
-    /// Parse the numeric PID from the daemon's PID file.
-    fn read_pid(&self) -> Option<u32> {
-        fs::read_to_string(&self.paths.pid_file)
-            .ok()
-            .and_then(|s| s.trim().parse().ok())
+        false
     }
 }
 
@@ -101,9 +90,50 @@ impl StatusProvider for LinuxStatusProvider {
     }
 
     fn get_agent_version(&self) -> Result<String> {
+        // 1. Try VERSION.json first
+        if let Ok(content) = fs::read_to_string(&self.paths.version_json) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
+                    let version = v.to_string();
+                    tracing::info!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
+                    return Ok(version);
+                }
+            }
+        }
+
+        // 2. Fallback to wazuh-control info
+        let control_path = self.paths.state_file.parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .map(|base| base.join("bin/wazuh-control"))
+            .unwrap_or_else(|| std::path::PathBuf::from("/var/ossec/bin/wazuh-control"));
+
+        if let Ok(output) = std::process::Command::new(&control_path).arg("info").output() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                if let Some(v) = line.strip_prefix("WAZUH_VERSION=\"") {
+                    let version = v.trim_matches('"').trim_start_matches('v').to_string();
+                    tracing::info!(version = %version, "Read agent version from wazuh-control info");
+                    return Ok(version);
+                }
+            }
+        }
+
+        tracing::warn!("Failed to detect Wazuh agent version via VERSION.json or wazuh-control");
+        Ok("Unknown".to_string())
+    }
+
+    fn get_tray_version(&self) -> Result<String> {
         match fs::read_to_string(&self.paths.version_file) {
-            Ok(raw) => Ok(raw.trim().to_string()),
-            Err(_) => Ok("Not Installed".to_string()),
+            Ok(raw) => {
+                let v = raw.trim().to_string();
+                tracing::info!(version = %v, path = %self.paths.version_file.display(), "Read tray app version");
+                Ok(v)
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, path = %self.paths.version_file.display(), "Failed to read tray version");
+                Ok("Unknown".to_string())
+            }
         }
     }
 
@@ -119,25 +149,48 @@ impl StatusProvider for LinuxStatusProvider {
             ServerError::PlatformError("Failed to lock system metrics".to_string())
         })?;
 
-        // Selective refresh for performance
+        // Refresh all processes to find the Wazuh ones
+        sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
         sys.refresh_memory();
-        sys.refresh_cpu_all();
+        sys.refresh_cpu_all(); // Ensure core information is fresh for delta calculation
 
-        let total_memory = sys.total_memory();
-        let used_memory  = sys.used_memory();
-        let memory_usage = if total_memory > 0 {
-            used_memory as f32 / total_memory as f32
+        let mut total_cpu: f32 = 0.0;
+        let mut total_rss: u64 = 0;
+        let mut found_names = Vec::new();
+
+        for process in sys.processes().values() {
+            let name = process.name().to_string_lossy();
+            if crate::status_provider::UNIX_AGENT_PROCESSES.contains(&name.as_ref()) {
+                let p_cpu = process.cpu_usage();
+                total_cpu += p_cpu;
+                total_rss += process.memory();
+                found_names.push(format!("{} ({:.1}%)", name, p_cpu));
+            }
+        }
+
+        if !found_names.is_empty() {
+            tracing::debug!("Found Wazuh processes: {}", found_names.join(", "));
+        }
+
+        let cpu_count = sys.cpus().len() as f32;
+        let cpu_usage = if !found_names.is_empty() && cpu_count > 0.0 {
+            total_cpu / cpu_count
         } else {
             0.0
         };
 
-        let cpu_usage = sys.global_cpu_usage();
+        let total_memory = sys.total_memory();
+        let memory_usage = if total_memory > 0 {
+            total_rss as f32 / total_memory as f32
+        } else {
+            0.0
+        };
 
         Ok(crate::models::SystemMetrics {
             cpu_usage,
             memory_usage,
             total_memory,
-            used_memory,
+            used_memory: total_rss,
         })
     }
 }
