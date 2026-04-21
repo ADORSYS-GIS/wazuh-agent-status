@@ -38,7 +38,7 @@ export function UpdatesView({ updateInfo }: Readonly<UpdatesViewProps>) {
       )}
 
       <div className="section-title section-title--spaced" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        Self-Healing
+        <span>Self-Healing</span>
         <span style={{ 
           background: 'rgba(34, 197, 94, 0.15)', 
           color: '#4ade80', 
@@ -68,7 +68,7 @@ interface UpdateCardProps {
   description: string;
 }
 
-function UpdateCard({ component, isAutoUpdate, description }: UpdateCardProps) {
+function UpdateCard({ component, isAutoUpdate, description }: Readonly<UpdateCardProps>) {
   const isOutdated = component.state === "outdated" || component.state === "prereleaseavailable";
 
   return (
