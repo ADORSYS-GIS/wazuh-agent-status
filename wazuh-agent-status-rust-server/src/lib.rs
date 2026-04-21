@@ -1,0 +1,12 @@
+//! Library core for the Wazuh Agent Status server.
+
+pub mod config;
+pub mod errors;
+pub mod group_extractor;
+pub mod http;
+pub mod manager;
+pub mod models;
+pub mod server;
+pub mod status_provider;
+pub mod updater;
+pub mod version_utils;
