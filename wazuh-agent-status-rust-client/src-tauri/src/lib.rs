@@ -31,7 +31,7 @@ pub fn run() {
                 .map_err(|e| anyhow::anyhow!(e))
                 .context("Failed to load application configuration")?;
             
-            let agent_manager = AgentManager::new();
+            let agent_manager = AgentManager::new(config.server_addr.clone());
 
             // Manage state
             app.manage(config);

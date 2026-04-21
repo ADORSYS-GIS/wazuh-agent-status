@@ -25,6 +25,7 @@ pub struct FeaturesConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
+    pub server_addr: String,
     pub brand: BrandConfig,
     pub features: FeaturesConfig,
 }

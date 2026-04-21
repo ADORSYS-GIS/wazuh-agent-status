@@ -54,23 +54,30 @@ impl Default for AgentState {
 
 pub struct AgentManager {
     state_rx: watch::Receiver<AgentState>,
+    server_addr: String,
 }
 
 impl AgentManager {
-    pub fn new() -> Arc<Self> {
+    pub fn new(default_addr: String) -> Arc<Self> {
         let (state_tx, state_rx) = watch::channel(AgentState::default());
+        
+        // Environment variable override takes precedence
+        let server_addr = std::env::var("WAZUH_SERVER_ADDR")
+            .unwrap_or_else(|_| default_addr);
+            
+        let addr_for_loop = server_addr.clone();
         
         // Spawn background task to keep the state in sync with the server
         tauri::async_runtime::spawn(async move {
             loop {
-                if let Err(e) = run_sync_loop(state_tx.clone()).await {
-                    eprintln!("Server sync loop error: {}; retrying in 5s", e);
+                if let Err(e) = run_sync_loop(addr_for_loop.clone(), state_tx.clone()).await {
+                    eprintln!("Server sync loop error for {}: {}; retrying in 5s", addr_for_loop, e);
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
             }
         });
 
-        Arc::new(Self { state_rx })
+        Arc::new(Self { state_rx, server_addr })
     }
 
     pub fn get_state(&self) -> AgentState {
@@ -78,7 +85,7 @@ impl AgentManager {
     }
 
     pub async fn check_updates(&self) -> anyhow::Result<serde_json::Value> {
-        let mut stream = tokio::net::TcpStream::connect("127.0.0.1:50506").await?;
+        let mut stream = tokio::net::TcpStream::connect(&self.server_addr).await?;
         use tokio::io::{AsyncWriteExt, AsyncBufReadExt};
         stream.write_all(b"get-version\n").await?;
 
@@ -90,13 +97,13 @@ impl AgentManager {
                 return Ok(parsed);
             }
         }
-        Err(anyhow::anyhow!("Failed to get update info from server"))
+        Err(anyhow::anyhow!("Failed to get update info from server at {}", self.server_addr))
     }
 }
 
-async fn run_sync_loop(tx: tokio::sync::watch::Sender<AgentState>) -> anyhow::Result<()> {
-    // Connect to server (default addr)
-    let stream = tokio::net::TcpStream::connect("127.0.0.1:50506").await?;
+async fn run_sync_loop(addr: String, tx: tokio::sync::watch::Sender<AgentState>) -> anyhow::Result<()> {
+    // Connect to server
+    let stream = tokio::net::TcpStream::connect(&addr).await?;
     let (reader, mut writer) = tokio::io::split(stream);
     let mut reader = tokio::io::BufReader::new(reader);
 

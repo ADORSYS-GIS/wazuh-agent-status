@@ -1,4 +1,5 @@
 {
+  "server_addr": "127.0.0.1:50505",
   "brand": {
     "name": "Wazuh Agent Status",
     "company": "adorsys",

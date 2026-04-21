@@ -13,7 +13,7 @@ use tracing::warn;
 const DEFAULT_VERSION_URL: &str =
     "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/main/versions.json";
 const DEFAULT_POLL_INTERVAL_SECS: u64 = 5;
-const DEFAULT_LISTEN_ADDR: &str = "0.0.0.0:50506";
+const DEFAULT_LISTEN_ADDR: &str = "0.0.0.0:50505";
 /// Cache remote version checks for 30 minutes to avoid hammering GitHub.
 const DEFAULT_VERSION_CACHE_TTL_SECS: u64 = 1_800;
 
