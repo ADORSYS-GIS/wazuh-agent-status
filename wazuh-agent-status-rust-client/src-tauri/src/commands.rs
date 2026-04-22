@@ -9,7 +9,7 @@ pub fn get_agent_status(manager: State<'_, Arc<AgentManager>>) -> AgentState {
 }
 
 #[tauri::command]
-pub fn get_config(config: State<'_, AppConfig>) -> AppConfig {
+pub fn get_config(config: State<'_, Arc<AppConfig>>) -> Arc<AppConfig> {
     config.inner().clone()
 }
 

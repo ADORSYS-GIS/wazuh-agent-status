@@ -2,7 +2,10 @@ mod config;
 mod agent;
 mod tray;
 mod commands;
+mod tls_utils;
+mod secret_store;
 
+use std::sync::Arc;
 use config::AppConfig;
 use agent::AgentManager;
 use tauri::Manager;
@@ -13,7 +16,14 @@ use anyhow::Context;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let result = tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(tauri_plugin_log::Builder::new()
+            .level(log::LevelFilter::Info) // Only show Info and above by default
+            .filter(|metadata| {
+                // Silence very chatty external crates
+                !metadata.target().starts_with("rustls") && 
+                !metadata.target().starts_with("tokio_util")
+            })
+            .build())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Setup positioner only on non-linux
@@ -31,10 +41,19 @@ pub fn run() {
                 .map_err(|e| anyhow::anyhow!(e))
                 .context("Failed to load application configuration")?;
             
-            let agent_manager = AgentManager::new(config.server_addr.clone());
+            let config = Arc::new(config);
+            
+            // Initialize Secret Store
+            let secret_store = Arc::new(secret_store::FileSecretStore::new(
+                std::path::PathBuf::from(&config.ca_cert_path),
+                std::path::PathBuf::from(&config.client_cert_path),
+                std::path::PathBuf::from(&config.client_key_path),
+            ));
+
+            let agent_manager = AgentManager::new(Arc::clone(&config), Arc::clone(&secret_store) as Arc<dyn secret_store::SecretStore>);
 
             // Manage state
-            app.manage(config);
+            app.manage(Arc::clone(&config));
             app.manage(agent_manager);
 
             tray::setup_tray(app.handle())

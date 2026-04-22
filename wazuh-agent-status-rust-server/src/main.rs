@@ -5,13 +5,15 @@
 
 use std::sync::Arc;
 
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 use wazuh_agent_status_rust_server::config::{AgentPaths, Config};
 use wazuh_agent_status_rust_server::manager::AgentManager;
+use wazuh_agent_status_rust_server::secret_store::{FileSecretStore, SecretStore};
 use wazuh_agent_status_rust_server::server::TcpServer;
+use wazuh_agent_status_rust_server::tls;
 
 #[cfg(target_os = "windows")]
 use windows_service::{
@@ -114,14 +116,51 @@ async fn run_server(mut shutdown_rx: tokio::sync::oneshot::Receiver<()>) -> anyh
     // ── Manager ───────────────────────────────────────────────────────────────
     let manager = Arc::new(AgentManager::new(Arc::clone(&config), Arc::clone(&paths)));
 
+    // ── mTLS Acceptor ─────────────────────────────────────────────────────────
+    let secret_store = FileSecretStore::new(
+        config.ca_cert_path.clone(),
+        config.server_cert_path.clone(),
+        config.server_key_path.clone(),
+    );
+
+    let acceptor = match tls::build_mtls_acceptor(&secret_store) {
+        Ok(a) => a,
+        Err(e) => {
+            error!(error = %e, "Failed to build mTLS acceptor; check cert paths and permissions");
+            anyhow::bail!("Security violation: mTLS is required but certificates failed to load: {}", e);
+        }
+    };
+
     // Background polling task
     let polling_manager = Arc::clone(&manager);
     tokio::spawn(async move {
         polling_manager.start_polling().await;
     });
 
+    // ── Certificate Expiration Monitor ────────────────────────────────────────
+    let monitor_store = Arc::new(secret_store);
+    let monitor_store_inner = Arc::clone(&monitor_store);
+    tokio::spawn(async move {
+        loop {
+            match monitor_store_inner.check_expiration() {
+                Ok(Some(remaining)) => {
+                    let days = remaining.as_secs() / 86400;
+                    if days < 30 {
+                        warn!(days_remaining = days, "Security Alert: Certificate is close to expiration!");
+                    } else {
+                        info!(days_remaining = days, "Certificate status: OK");
+                    }
+                }
+                Ok(None) => warn!("Security Alert: Certificate is already expired or invalid!"),
+                Err(e) => error!(error = %e, "Failed to check certificate expiration"),
+            }
+            // Check once every 24 hours
+            tokio::time::sleep(std::time::Duration::from_secs(86400)).await;
+        }
+    });
+
     // ── TCP Server + graceful shutdown ────────────────────────────────────────
-    let server = TcpServer::new(config.listen_addr.clone(), Arc::clone(&manager));
+    let server = TcpServer::new(config.listen_addr.clone(), Arc::clone(&manager), acceptor);
 
     tokio::select! {
         res = server.start() => {

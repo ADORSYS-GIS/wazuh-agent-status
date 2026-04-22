@@ -42,6 +42,12 @@ pub struct Config {
     pub version_cache_ttl: Duration,
     /// Maximum concurrent client connections allowed.
     pub max_connections: usize,
+    /// Path to the CA certificate for client authentication.
+    pub ca_cert_path: PathBuf,
+    /// Path to the server's own certificate.
+    pub server_cert_path: PathBuf,
+    /// Path to the server's private key.
+    pub server_key_path: PathBuf,
 }
 
 impl Default for Config {
@@ -52,6 +58,9 @@ impl Default for Config {
             version_url:       DEFAULT_VERSION_URL.to_string(),
             version_cache_ttl: Duration::from_secs(DEFAULT_VERSION_CACHE_TTL_SECS),
             max_connections:   3,
+            ca_cert_path:      AgentPaths::native().ca_cert,
+            server_cert_path:  AgentPaths::native().server_cert,
+            server_key_path:   AgentPaths::native().server_key,
         }
     }
 }
@@ -109,6 +118,16 @@ impl Config {
             }
         }
 
+        if let Ok(path) = std::env::var("WAZUH_STATUS_CA_CERT") {
+            cfg.ca_cert_path = PathBuf::from(path);
+        }
+        if let Ok(path) = std::env::var("WAZUH_STATUS_SERVER_CERT") {
+            cfg.server_cert_path = PathBuf::from(path);
+        }
+        if let Ok(path) = std::env::var("WAZUH_STATUS_SERVER_KEY") {
+            cfg.server_key_path = PathBuf::from(path);
+        }
+
         cfg
     }
 }
@@ -131,6 +150,12 @@ pub struct AgentPaths {
     pub merged_mg: PathBuf,
     /// Daemon PID file (UNIX only; empty on Windows).
     pub pid_file: PathBuf,
+    /// Root CA certificate.
+    pub ca_cert: PathBuf,
+    /// Server certificate.
+    pub server_cert: PathBuf,
+    /// Server private key.
+    pub server_key: PathBuf,
 }
 
 impl AgentPaths {
@@ -145,6 +170,9 @@ impl AgentPaths {
                 version_json:  base.join("VERSION.json"),
                 merged_mg:     base.join("etc/shared/merged.mg"),
                 pid_file:      base.join("var/run/wazuh-agentd.pid"),
+                ca_cert:       base.join("etc/certs/ca.pem"),
+                server_cert:   base.join("etc/certs/server.pem"),
+                server_key:    base.join("etc/certs/server.key"),
             }
         }
 
@@ -157,6 +185,9 @@ impl AgentPaths {
                 version_json:  base.join("VERSION.json"),
                 merged_mg:     base.join("etc/shared/merged.mg"),
                 pid_file:      base.join("var/run/wazuh-agentd.pid"),
+                ca_cert:       base.join("etc/certs/ca.pem"),
+                server_cert:   base.join("etc/certs/server.pem"),
+                server_key:    base.join("etc/certs/server.key"),
             }
         }
 
@@ -169,6 +200,9 @@ impl AgentPaths {
                 version_json:  base.join("VERSION.json"),
                 merged_mg:     base.join(r"shared\merged.mg"),
                 pid_file:      PathBuf::new(), // not applicable on Windows
+                ca_cert:       base.join(r"certs\ca.pem"),
+                server_cert:   base.join(r"certs\server.pem"),
+                server_key:    base.join(r"certs\server.key"),
             }
         }
 

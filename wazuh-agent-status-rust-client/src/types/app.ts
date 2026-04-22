@@ -18,10 +18,12 @@ export interface FeaturesConfig {
 }
 
 export interface AppConfig {
+    server_addr: string;
+    ca_cert_path: string;
+    client_cert_path: string;
+    client_key_path: string;
     brand: BrandConfig;
     features: FeaturesConfig;
 }
-
-// Removed UpdateInfo — version status is now a string from server
 
 export type View = "status" | "updates" | "settings";

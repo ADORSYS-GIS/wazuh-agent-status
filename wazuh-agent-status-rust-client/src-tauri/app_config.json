@@ -1,5 +1,8 @@
 {
-  "server_addr": "127.0.0.1:50505",
+  "server_addr": "127.0.0.1:50506",
+  "ca_cert_path": "/home/adorsys/adorsys/wazuh/wazuh-agent-status/wazuh-agent-status-rust-server/tests/resources/certs/ca.pem",
+  "client_cert_path": "/home/adorsys/adorsys/wazuh/wazuh-agent-status/wazuh-agent-status-rust-server/tests/resources/certs/client.pem",
+  "client_key_path": "/home/adorsys/adorsys/wazuh/wazuh-agent-status/wazuh-agent-status-rust-server/tests/resources/certs/client.key",
   "brand": {
     "name": "Wazuh Agent Status",
     "company": "adorsys",
