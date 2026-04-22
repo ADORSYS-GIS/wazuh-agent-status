@@ -7,6 +7,7 @@ pub mod http;
 pub mod manager;
 pub mod models;
 pub mod server;
+pub mod tls;
+pub mod secret_store;
 pub mod status_provider;
-pub mod updater;
 pub mod version_utils;

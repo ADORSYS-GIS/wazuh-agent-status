@@ -1,0 +1,21 @@
+{
+  "server_addr": "127.0.0.1:50506",
+  "ca_cert_path": "/home/adorsys/adorsys/wazuh/wazuh-agent-status/wazuh-agent-status-rust-server/tests/resources/certs/ca.pem",
+  "client_cert_path": "/home/adorsys/adorsys/wazuh/wazuh-agent-status/wazuh-agent-status-rust-server/tests/resources/certs/client.pem",
+  "client_key_path": "/home/adorsys/adorsys/wazuh/wazuh-agent-status/wazuh-agent-status-rust-server/tests/resources/certs/client.key",
+  "brand": {
+    "name": "Wazuh Agent Status",
+    "company": "adorsys",
+    "logo_path": "adorsys-logo.png",
+    "theme": {
+        "primary_color": "#00aaff",
+        "secondary_color": "#ffffff",
+        "dark_mode": true
+    }
+  },
+  "features": {
+    "self_healing": true,
+    "log_streaming": true,
+    "os_updates_check": true
+  }
+}

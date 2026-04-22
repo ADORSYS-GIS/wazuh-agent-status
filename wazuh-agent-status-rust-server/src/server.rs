@@ -6,18 +6,15 @@
 //! |--------------------------------------|----------------------------------|
 //! | `get-version`                        | `VERSION_CHECK: <status>`        |
 //! | `subscribe-status`                   | streaming `STATUS_UPDATE: …`     |
-//! | `update`                             | streaming `UPDATE_PROGRESS: …`   |
-//! | `update-prerelease`                  | streaming `UPDATE_PROGRESS: …`   |
-//! | `initiate-update-stream`             | streaming `UPDATE_PROGRESS: …`   |
-//! | `initiate-prerelease-update-stream`  | streaming `UPDATE_PROGRESS: …`   |
 
 use std::sync::Arc;
 
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{broadcast, mpsc};
+use tokio::net::TcpListener;
+use tokio::sync::broadcast;
 use tokio::time::timeout;
+use tokio_rustls::TlsAcceptor;
 use tracing::{info, warn, error};
 
 use crate::manager::AgentManager;
@@ -29,16 +26,19 @@ pub struct TcpServer {
     manager: Arc<AgentManager>,
     /// Limits concurrent connections to prevent resource exhaustion.
     limit: Arc<tokio::sync::Semaphore>,
+    /// TLS acceptor for mTLS.
+    acceptor: TlsAcceptor,
 }
 
 impl TcpServer {
-    /// Create a new server bound to `addr` using the provided `manager`.
-    pub fn new(addr: String, manager: Arc<AgentManager>) -> Self {
+    /// Create a new server bound to `addr` using the provided `manager` and `acceptor`.
+    pub fn new(addr: String, manager: Arc<AgentManager>, acceptor: TlsAcceptor) -> Self {
         let max_conns = manager.config().max_connections;
         Self { 
             addr, 
             manager,
             limit: Arc::new(tokio::sync::Semaphore::new(max_conns)),
+            acceptor,
         }
     }
 
@@ -64,11 +64,23 @@ impl TcpServer {
             };
 
             let manager = Arc::clone(&self.manager);
+            let acceptor = self.acceptor.clone();
             tokio::spawn(async move {
                 let _permit = permit;
 
+                // ── TLS Handshake ───────────────────────────────────────────
+                let socket = match acceptor.accept(socket).await {
+                    Ok(s) => s,
+                    Err(e) => {
+                        warn!(error = %e, peer = %peer_addr, "TLS handshake failed");
+                        return;
+                    }
+                };
+
                 // Enable TCP keepalives to detect dead/ghost peers faster
-                let _ = socket.set_nodelay(true);
+                // Note: tokio-rustls TlsStream doesn't have set_nodelay; 
+                // it's already set on the underlying socket before accept in start loop if needed,
+                // but we'll stick to basic stream handling for now.
                 
                 if let Err(e) = handle_connection(socket, manager).await {
                     error!(error = %e, peer = %peer_addr, "Connection handler error");
@@ -80,15 +92,18 @@ impl TcpServer {
 
 // ── Connection handler ────────────────────────────────────────────────────────
 
-async fn handle_connection(
-    mut socket: TcpStream,
+async fn handle_connection<S>(
+    socket: S,
     manager: Arc<AgentManager>,
-) -> tokio::io::Result<()> {
+) -> tokio::io::Result<()> 
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
     // ── Robustness: Max 2KB per command line to prevent DoS ───────────────────
     const MAX_LINE_LENGTH: usize = 2048;
     const IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 
-    let (reader, mut writer) = socket.split();
+    let (reader, mut writer) = tokio::io::split(socket);
     let mut reader = BufReader::new(reader);
     let mut line = String::new();
 
@@ -107,7 +122,7 @@ async fn handle_connection(
             Ok(Err(e)) => return Err(e),
             Err(_) => {
                 warn!("Connection timed out after {}s of inactivity", IDLE_TIMEOUT.as_secs());
-                let _ = writer.write_all(b"ERROR: Connection idle timeout\n").await;
+                let _ = tokio::io::AsyncWriteExt::write_all(&mut writer, b"ERROR: Connection idle timeout\n").await;
                 let _ = writer.flush().await;
                 break;
             }
@@ -130,10 +145,11 @@ async fn handle_connection(
             // ── Version query ─────────────────────────────────────────────────
             "get-version" => {
                 let status = manager.get_version_status().await;
-                writer
-                    .write_all(format!("VERSION_CHECK: {status}\n").as_bytes())
-                    .await?;
-                writer.flush().await?;
+                let json = serde_json::to_string(&status).unwrap_or_else(|_| "{}".to_string());
+                info!(status = ?status, "Version check complete; sending response");
+                let msg = format!("VERSION_CHECK: {json}\n");
+                tokio::io::AsyncWriteExt::write_all(&mut writer, msg.as_bytes()).await?;
+                tokio::io::AsyncWriteExt::flush(&mut writer).await?;
             }
 
             // ── Status subscription ───────────────────────────────────────────
@@ -142,28 +158,17 @@ async fn handle_connection(
                 break; // Subscription ended — close connection
             }
 
-            // ── Update commands (regular) ─────────────────────────────────────
-            "update" | "initiate-update-stream" => {
-                stream_update(&mut writer, &manager, false).await?;
-                break; // Update stream finished — close connection
-            }
-
-            // ── Update commands (prerelease) ──────────────────────────────────
-            "update-prerelease" | "initiate-prerelease-update-stream" => {
-                stream_update(&mut writer, &manager, true).await?;
-                break; // Update stream finished — close connection
-            }
-
             // ── Unknown ───────────────────────────────────────────────────────
             _ => {
                 let msg = format!("ERROR: Unknown command: {raw_command}\n");
-                writer.write_all(msg.as_bytes()).await?;
-                writer.flush().await?;
+                let _ = tokio::io::AsyncWriteExt::write_all(&mut writer, msg.as_bytes()).await;
+                let _ = tokio::io::AsyncWriteExt::flush(&mut writer).await;
             }
         }
     }
 
-    info!("Connection closed");
+    let _ = writer.shutdown().await;
+    info!("Connection closed gracefully");
     Ok(())
 }
 
@@ -182,11 +187,10 @@ where
 {
     // Send current state immediately so the client isn't left waiting.
     let state = manager.get_state().await;
-    writer
-        .write_all(
-            format!("STATUS_UPDATE: {:?}, {:?}\n", state.status, state.connection).as_bytes(),
-        )
-        .await?;
+    let json = serde_json::to_string(&state).unwrap_or_default();
+    let msg = format!("STATUS_UPDATE: {json}\n");
+    tokio::io::AsyncWriteExt::write_all(writer, msg.as_bytes()).await?;
+    tokio::io::AsyncWriteExt::flush(writer).await?;
 
     let mut rx = manager.subscribe();
 
@@ -196,14 +200,13 @@ where
             result = rx.recv() => {
                 match result {
                     Ok(state) => {
-                        let msg = format!(
-                            "STATUS_UPDATE: {:?}, {:?}\n",
-                            state.status, state.connection
-                        );
-                        if let Err(e) = writer.write_all(msg.as_bytes()).await {
+                        let json = serde_json::to_string(&state).unwrap_or_default();
+                        let msg = format!("STATUS_UPDATE: {json}\n");
+                        if let Err(e) = tokio::io::AsyncWriteExt::write_all(writer, msg.as_bytes()).await {
                             warn!(error = %e, "Failed to write status update; dropping client");
                             break;
                         }
+                        let _ = tokio::io::AsyncWriteExt::flush(writer).await;
                     }
                     Err(broadcast::error::RecvError::Lagged(n)) => {
                         warn!(missed = n, "Client lagged; some updates were dropped");
@@ -218,43 +221,6 @@ where
                     Ok(_) => {} // Ignore any heartbeat bytes
                     Err(_) => break, // Client disconnected
                 }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Kick off an update and pipe `UPDATE_PROGRESS: …` lines back to the client
-/// until the update finishes.
-async fn stream_update<W>(
-    writer: &mut W,
-    manager: &AgentManager,
-    prerelease: bool,
-) -> tokio::io::Result<()>
-where
-    W: AsyncWriteExt + Unpin,
-{
-    let (tx, mut rx) = mpsc::channel::<String>(32);
-
-    // Spawn the update so we can simultaneously stream its output.
-    let manager_ref = manager;
-    let update_fut = manager_ref.run_update(prerelease, tx);
-    tokio::pin!(update_fut);
-
-    loop {
-        tokio::select! {
-            // Drive the update to completion
-            () = &mut update_fut => {
-                // Drain any remaining messages
-                while let Ok(msg) = rx.try_recv() {
-                    writer.write_all(msg.as_bytes()).await?;
-                }
-                break;
-            }
-            // Forward progress messages to client as they arrive
-            Some(msg) = rx.recv() => {
-                writer.write_all(msg.as_bytes()).await?;
             }
         }
     }
