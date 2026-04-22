@@ -8,12 +8,15 @@ use agent::AgentManager;
 use tauri::Manager;
 use anyhow::Context;
 
-// Removed MetricsManager — metrics are now handled by AgentManager
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let result = tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .level_for("tao", log::LevelFilter::Off)
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Setup positioner only on non-linux

@@ -29,3 +29,4 @@ tauri-plugin-positioner = { version = "2.3.1", features = ["tray-icon"] }
 tokio = { version = "1", features = ["full"] }
 thiserror = "2.0"
 tracing = "0.1"
+log = "0.4"
