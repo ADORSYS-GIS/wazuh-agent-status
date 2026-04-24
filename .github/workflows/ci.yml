@@ -1,5 +1,5 @@
 # CI Pipeline for wazuh-agent-status Rust Components
-# 
+#
 # Purpose: Ensure code quality, readability, and correctness for all Rust code
 # Triggers: Every push and pull request to main/develop branches
 #
@@ -12,15 +12,15 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'wazuh-agent-status-rust/**'
-      - 'wazuh-agent-status-rust-server/**'
-      - '.github/workflows/ci.yml'
+      - "wazuh-agent-status-rust/**"
+      - "wazuh-agent-status-rust-server/**"
+      - ".github/workflows/ci.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - 'wazuh-agent-status-rust/**'
-      - 'wazuh-agent-status-rust-server/**'
-      - '.github/workflows/ci.yml'
+      - "wazuh-agent-status-rust/**"
+      - "wazuh-agent-status-rust-server/**"
+      - ".github/workflows/ci.yml"
 
 # Minimal permissions for security - only read access to repository contents
 permissions:
@@ -50,13 +50,13 @@ jobs:
     defaults:
       run:
         working-directory: ./wazuh-agent-status-rust-server
-    
+
     steps:
       # -------------------------------------------------------------------------
       # Step 1: Checkout source code with full history for accurate analysis
       # -------------------------------------------------------------------------
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -66,7 +66,7 @@ jobs:
       # actions-rs/toolchain (which is unmaintained)
       # -------------------------------------------------------------------------
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-action@b8714d8bfae3bee53527f5f7b0754b4c093d6393 # stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt, clippy
@@ -80,7 +80,7 @@ jobs:
       # This significantly reduces CI time (often 50-70% faster on subsequent runs)
       # -------------------------------------------------------------------------
       - name: Cache Cargo dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@82a82a6a0c4ac1b525331a01d34d632b295e8ae4 # v2.7.0
         with:
           workspaces: |
             wazuh-agent-status-rust-server
@@ -135,10 +135,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
 
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-action@b8714d8bfae3bee53527f5f7b0754b4c093d6393 # stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt, clippy
@@ -160,7 +160,7 @@ jobs:
             patchelf
 
       - name: Cache Cargo dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@82a82a6a0c4ac1b525331a01d34d632b295e8ae4 # v2.7.0
         with:
           workspaces: |
             wazuh-agent-status-rust/src-tauri
@@ -190,28 +190,28 @@ jobs:
     env:
       # Require documentation for all public items
       RUSTDOCFLAGS: "-D warnings"
-    
+
     strategy:
       matrix:
         component:
-          - { dir: 'wazuh-agent-status-rust-server', name: 'Server' }
-          - { dir: 'wazuh-agent-status-rust/src-tauri', name: 'Client' }
-    
+          - { dir: "wazuh-agent-status-rust-server", name: "Server" }
+          - { dir: "wazuh-agent-status-rust/src-tauri", name: "Client" }
+
     defaults:
       run:
         working-directory: ./${{ matrix.component.dir }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
 
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-action@b8714d8bfae3bee53527f5f7b0754b4c093d6393 # stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Cache Cargo dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@82a82a6a0c4ac1b525331a01d34d632b295e8ae4 # v2.7.0
         with:
           workspaces: ${{ matrix.component.dir }}
           key: docs-${{ matrix.component.name }}-${{ runner.os }}
@@ -223,4 +223,3 @@ jobs:
       # -------------------------------------------------------------------------
       - name: Check documentation
         run: cargo doc --no-deps --document-private-items
-
