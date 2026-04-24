@@ -8,7 +8,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 $WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
 $CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
-$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0-rc" }
+$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0-rc.1" }
 $WAS_VERSION = $APP_VERSION
 
 # Determine architecture and operating system
