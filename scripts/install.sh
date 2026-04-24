@@ -156,6 +156,7 @@ setup_secure_environment() {
     SUDOERS_CONTENT="$WAZUH_USER ALL=(ALL) NOPASSWD: $UPDATE_SCRIPT_PATH, /var/ossec/bin/wazuh-control"
     create_file "$SUDOERS_FILE" "$SUDOERS_CONTENT"
     maybe_sudo chmod 440 "$SUDOERS_FILE"
+    return 0
 }
 
 # General Utility Functions
