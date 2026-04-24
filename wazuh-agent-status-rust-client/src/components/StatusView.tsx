@@ -1,4 +1,5 @@
 import type { AgentStatus, SystemMetrics } from "../types/agent";
+import { formatBytes } from "../utils/format";
 
 interface StatusViewProps {
   agentStatus: AgentStatus;
@@ -45,7 +46,7 @@ export function StatusView({ agentStatus, metrics }: Readonly<StatusViewProps>) 
             <div className="metric-box">
               <div className="metric-label">
                 <span>Agent CPU</span>
-                <span>{metrics.cpu_usage.toFixed(1)}%</span>
+                <span>{metrics.cpu_usage.toFixed(2)}%</span>
               </div>
               <div className="progress-track">
                 <div className="progress-thumb" style={{ width: `${Math.min(metrics.cpu_usage, 100)}%` }} />
@@ -54,7 +55,7 @@ export function StatusView({ agentStatus, metrics }: Readonly<StatusViewProps>) 
             <div className="metric-box">
               <div className="metric-label">
                 <span>Agent RAM</span>
-                <span>{(metrics.memory_usage * 100).toFixed(1)}%</span>
+                <span>{formatBytes(metrics.used_memory)} / {formatBytes(metrics.total_memory)}</span>
               </div>
               <div className="progress-track">
                 <div className="progress-thumb" style={{ width: `${Math.min(metrics.memory_usage * 100, 100)}%` }} />
