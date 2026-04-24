@@ -1,14 +1,90 @@
-import type { UpdateStatus, ComponentUpdate } from "../types/agent";
+import { useState, useEffect, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import type { UpdateStatus, ComponentUpdate, AgentStatus } from "../types/agent";
 
 interface UpdatesViewProps {
   updateInfo: UpdateStatus | null;
+  agentStatus: AgentStatus;
 }
 
-export function UpdatesView({ updateInfo }: Readonly<UpdatesViewProps>) {
+export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewProps>) {
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "running" | "success" | "error">("idle");
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unlisten = listen<string>("update-log", (event) => {
+      setLogs((prev) => [...prev, event.payload]);
+      if (event.payload.includes("[SUCCESS]")) setUpdateStatus("success");
+      if (event.payload.includes("[FAILURE]")) setUpdateStatus("error");
+    });
+
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
+
+  const handleUpdate = async (isPrerelease: boolean) => {
+    setLogs(["Starting orchestrated update..."]);
+    setIsUpdating(true);
+    setUpdateStatus("running");
+    try {
+      await invoke("start_update", { isPrerelease });
+    } catch (error) {
+      setLogs((prev) => [...prev, `[ERROR] Failed to start update: ${error}`]);
+      setUpdateStatus("error");
+    }
+  };
+
   return (
     <div className="view-container">
       <div className="subtitle">Security & Versions</div>
       <h2 className="header title">Health & Updates</h2>
+
+      {isUpdating && (
+        <div className="card update-overlay" style={{ background: "var(--bg)", border: "1px solid var(--border)", marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <span style={{ fontWeight: 600 }}>Update in Progress</span>
+            <span style={{ 
+              color: updateStatus === "success" ? "var(--success)" : updateStatus === "error" ? "var(--warning)" : "var(--accent)" 
+            }}>
+              {updateStatus.toUpperCase()}
+            </span>
+          </div>
+          <div className="log-container" style={{ 
+            background: "#000", 
+            padding: "10px", 
+            borderRadius: "6px", 
+            fontSize: "11px", 
+            fontFamily: "monospace", 
+            maxHeight: "150px", 
+            overflowY: "auto",
+            border: "1px solid #333"
+          }}>
+            {logs.map((log, i) => (
+              <div key={i} style={{ color: log.includes("[ERROR]") || log.includes("[FAILURE]") ? "#f87171" : "#d1d5db" }}>
+                {log}
+              </div>
+            ))}
+            <div ref={logEndRef} />
+          </div>
+          {updateStatus !== "running" && (
+            <button 
+              className="update-button" 
+              style={{ marginTop: "12px", width: "100%" }}
+              onClick={() => { setIsUpdating(false); setLogs([]); setUpdateStatus("idle"); }}
+            >
+              Dismiss
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="section-title">Deployment Manifest</div>
       <p className="hint-text" style={{ marginBottom: "20px" }}>
@@ -19,13 +95,16 @@ export function UpdatesView({ updateInfo }: Readonly<UpdatesViewProps>) {
         <>
           <UpdateCard 
             component={updateInfo.wazuh} 
-            isAutoUpdate={true} 
             description="Wazuh security framework core services."
+            onUpdate={() => {}} 
+            isBusy={isUpdating}
+            readOnly={true}
           />
           <UpdateCard 
             component={updateInfo.tray} 
-            isAutoUpdate={false} 
-            description="Tray application interface."
+            description="Unified Status Agent orchestrator. Handles global system updates."
+            onUpdate={() => handleUpdate(updateInfo.wazuh.state === "prereleaseavailable" || updateInfo.tray.state === "prereleaseavailable")}
+            isBusy={isUpdating}
           />
         </>
       ) : (
@@ -40,19 +119,19 @@ export function UpdatesView({ updateInfo }: Readonly<UpdatesViewProps>) {
       <div className="section-title section-title--spaced" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span>Self-Healing</span>
         <span style={{ 
-          background: 'rgba(34, 197, 94, 0.15)', 
-          color: '#4ade80', 
+          background: agentStatus.self_healing_enabled ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 88, 12, 0.15)', 
+          color: agentStatus.self_healing_enabled ? '#4ade80' : '#fb923c', 
           padding: '4px 10px', 
           borderRadius: '12px', 
           fontSize: '11px', 
           fontWeight: 700, 
           textTransform: 'uppercase',
           letterSpacing: '0.05em',
-          border: '1px solid rgba(34, 197, 94, 0.2)',
+          border: agentStatus.self_healing_enabled ? '1px solid rgba(34, 197, 94, 0.2)' : '1px solid rgba(234, 88, 12, 0.2)',
           display: 'inline-flex',
           alignItems: 'center'
         }}>
-          Active
+          {agentStatus.self_healing_enabled ? 'Active' : 'Disabled'}
         </span>
       </div>
       <p className="hint-text">
@@ -64,12 +143,14 @@ export function UpdatesView({ updateInfo }: Readonly<UpdatesViewProps>) {
 
 interface UpdateCardProps {
   component: ComponentUpdate;
-  isAutoUpdate: boolean;
   description: string;
+  onUpdate: () => void;
+  isBusy?: boolean;
+  readOnly?: boolean;
 }
 
-function UpdateCard({ component, isAutoUpdate, description }: Readonly<UpdateCardProps>) {
-  const isOutdated = component.state === "outdated" || component.state === "prereleaseavailable";
+function UpdateCard({ component, description, onUpdate, isBusy, readOnly }: Readonly<UpdateCardProps>) {
+  const isOutdated = !readOnly && (component.state === "outdated" || component.state === "prereleaseavailable");
 
   return (
     <div className="card" style={{ flexDirection: "column", alignItems: "flex-start", gap: "10px", height: "auto", minHeight: "110px", padding: "18px" }}>
@@ -77,22 +158,17 @@ function UpdateCard({ component, isAutoUpdate, description }: Readonly<UpdateCar
         <div className="card-info">
           <div className="card-label">{component.name}</div>
           <div className="card-value" style={{ color: isOutdated ? "var(--warning)" : "var(--success)" }}>
-            {isOutdated ? `Update Available (v${component.latest_version})` : `Up to date (v${component.current_version})`}
+            {isOutdated ? `Update Available (v${component.latest_version})` : `Version: v${component.current_version}`}
           </div>
         </div>
-        {isOutdated && !isAutoUpdate && (
-          <button className="update-button">Update Now</button>
+        {isOutdated && !isBusy && (
+          <button className="update-button" onClick={onUpdate}>Update Now</button>
         )}
-        {isAutoUpdate && isOutdated && (
-          <div className="auto-badge">Auto-updating...</div>
+        {isBusy && isOutdated && (
+          <div className="auto-badge">Processing...</div>
         )}
       </div>
       <p className="card-sub" style={{ margin: 0 }}>{description}</p>
-      {isAutoUpdate && (
-        <p className="hint-text" style={{ padding: 0, marginTop: "4px", fontSize: "0.7rem", opacity: 0.8 }}>
-          TODO: Implement server-side Agent auto-orchestration.
-        </p>
-      )}
     </div>
   );
 }

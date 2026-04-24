@@ -57,6 +57,12 @@ impl StatusProvider for WindowsStatusProvider {
     }
 
     fn get_connection_status(&self) -> Result<ConnectionStatus> {
+        // Optimization: If the agent service is stopped, it's definitely disconnected
+        // regardless of what the stale state file says.
+        if !matches!(self.get_agent_status()?, AgentStatus::Active) {
+            return Ok(ConnectionStatus::Disconnected);
+        }
+
         // Direct file read — no PowerShell needed.
         let content = match fs::read_to_string(&self.paths.state_file) {
             Ok(c) => c,

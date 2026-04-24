@@ -20,12 +20,27 @@ pub enum ConnectionStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionInfo {
-    /// Wazuh agent core versioning.
-    pub wazuh: FrameworkVersion,
-    /// Tray application versioning.
-    pub tray: FrameworkVersion,
+    /// Mapping of component versions
+    pub components: std::collections::HashMap<String, ComponentVersion>,
+    /// Global framework versioning
+    pub framework: FrameworkVersion,
     #[serde(alias = "prerelease_test_groups", default)]
     pub prerelease_test_groups: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComponentVersion {
+    pub version: String,
+    #[serde(default)]
+    pub prerelease_version: String,
+}
+
+/// Version numbers within the online manifest for the framework (tray app).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrameworkVersion {
+    pub version: String,
+    #[serde(default)]
+    pub prerelease_version: String,
 }
 
 /// Real-time system performance indicators.
@@ -48,12 +63,6 @@ impl Default for SystemMetrics {
     }
 }
 
-/// Version numbers within the online manifest.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FrameworkVersion {
-    pub version: String,
-    pub prerelease_version: String,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -97,17 +106,20 @@ pub struct AgentState {
     pub groups: Vec<String>,
     /// System performance indicators.
     pub metrics: SystemMetrics,
+    /// Whether self-healing is currently active on the server.
+    pub self_healing_enabled: bool,
 }
 
 impl Default for AgentState {
     fn default() -> Self {
         Self {
-            status:       AgentStatus::Unknown,
-            connection:   ConnectionStatus::Unknown,
-            version:      "Unknown".to_string(),
-            tray_version: "Unknown".to_string(),
-            groups:       Vec::new(),
-            metrics:      SystemMetrics::default(),
+            status:               AgentStatus::Unknown,
+            connection:           ConnectionStatus::Unknown,
+            version:              "Unknown".to_string(),
+            tray_version:         "Unknown".to_string(),
+            groups:               Vec::new(),
+            metrics:              SystemMetrics::default(),
+            self_healing_enabled: true,
         }
     }
 }
