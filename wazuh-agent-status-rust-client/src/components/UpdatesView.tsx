@@ -10,13 +10,13 @@ interface UpdatesViewProps {
 
 export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewProps>) {
   const [isUpdating, setIsUpdating] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<{ id: string; text: string }[]>([]);
   const [updateStatus, setUpdateStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unlisten = listen<string>("update-log", (event) => {
-      setLogs((prev) => [...prev, event.payload]);
+      setLogs((prev) => [...prev, { id: crypto.randomUUID(), text: event.payload }]);
       if (event.payload.includes("[SUCCESS]")) setUpdateStatus("success");
       if (event.payload.includes("[FAILURE]")) setUpdateStatus("error");
     });
@@ -31,16 +31,23 @@ export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewPro
   }, [logs]);
 
   const handleUpdate = async (isPrerelease: boolean) => {
-    setLogs(["Starting orchestrated update..."]);
+    setLogs([{ id: crypto.randomUUID(), text: "Starting orchestrated update..." }]);
     setIsUpdating(true);
     setUpdateStatus("running");
     try {
       await invoke("start_update", { isPrerelease });
     } catch (error) {
-      setLogs((prev) => [...prev, `[ERROR] Failed to start update: ${error}`]);
+      setLogs((prev) => [...prev, { id: crypto.randomUUID(), text: `[ERROR] Failed to start update: ${error}` }]);
       setUpdateStatus("error");
     }
   };
+
+  const getUpdateStatusColor = () => {
+    if (updateStatus === "success") return "var(--success)";
+    if (updateStatus === "error") return "var(--warning)";
+    return "var(--accent)";
+  };
+  const statusColor = getUpdateStatusColor();
 
   return (
     <div className="view-container">
@@ -51,9 +58,7 @@ export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewPro
         <div className="card update-overlay" style={{ background: "var(--bg)", border: "1px solid var(--border)", marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <span style={{ fontWeight: 600 }}>Update in Progress</span>
-            <span style={{ 
-              color: updateStatus === "success" ? "var(--success)" : updateStatus === "error" ? "var(--warning)" : "var(--accent)" 
-            }}>
+            <span style={{ color: statusColor }}>
               {updateStatus.toUpperCase()}
             </span>
           </div>
@@ -67,9 +72,9 @@ export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewPro
             overflowY: "auto",
             border: "1px solid #333"
           }}>
-            {logs.map((log, i) => (
-              <div key={i} style={{ color: log.includes("[ERROR]") || log.includes("[FAILURE]") ? "#f87171" : "#d1d5db" }}>
-                {log}
+            {logs.map((log) => (
+              <div key={log.id} style={{ color: log.text.includes("[ERROR]") || log.text.includes("[FAILURE]") ? "#f87171" : "#d1d5db" }}>
+                {log.text}
               </div>
             ))}
             <div ref={logEndRef} />
