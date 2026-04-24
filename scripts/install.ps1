@@ -8,21 +8,15 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 $WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
 $CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
-$INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
-
-$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.2" }
-
-if ($INSTALL_PROFILE -eq "admin") {
-    $WAS_VERSION = $APP_VERSION
-} else {
-    $WAS_VERSION = "$APP_VERSION-user"
-}
+$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0-rc" }
+$WAS_VERSION = $APP_VERSION
 
 # Determine architecture and operating system
 $ARCH = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "amd32" }
 $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
+$MIGRATION_MARKER = "C:\ProgramData\$SERVER_NAME\.migrated_from_go"
 
 $UPDATE_SCRIPT_URL = if ($null -ne $env:UPDATE_SCRIPT_URL) { $env:UPDATE_SCRIPT_URL } else { "https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/v$WAS_VERSION/scripts/adorsys-update.bat" }
 $UPDATE_SCRIPT_PATH = if ($null -ne $env:UPDATE_SCRIPT_PATH) { $env:UPDATE_SCRIPT_PATH } else { "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.bat" }
@@ -175,39 +169,43 @@ $BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 
-PrintStep 1 "Stopping existing agent-status service and client processes..."
-try {
-    # Stop the service if it exists
-    $Service = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
-    if ($Service) {
-        if ($Service.Status -eq 'Running') {
-            InfoMessage "Stopping $SERVER_NAME service..."
-            Stop-Service -Name $SERVER_NAME -Force -ErrorAction Stop
-            InfoMessage "Service $SERVER_NAME stopped successfully."
+PrintStep 1 "Checking migration status..."
+if (Test-Path -LiteralPath $MIGRATION_MARKER) {
+    InfoMessage "System already migrated from Go. Skipping legacy cleanup."
+} else {
+    PrintStep 1 "Stopping existing legacy Go processes..."
+    try {
+        # Stop the service if it exists
+        $Service = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
+        if ($Service) {
+            if ($Service.Status -eq 'Running') {
+                InfoMessage "Stopping $SERVER_NAME service..."
+                Stop-Service -Name $SERVER_NAME -Force -ErrorAction Stop
+                InfoMessage "Service $SERVER_NAME stopped successfully."
+            } else {
+                InfoMessage "Service $SERVER_NAME is not running."
+            }
         } else {
-            InfoMessage "Service $SERVER_NAME is not running."
+            InfoMessage "Service $SERVER_NAME does not exist."
         }
-    } else {
-        InfoMessage "Service $SERVER_NAME does not exist."
-    }
 
-    # Stop any running client processes
-    $ClientProcesses = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
-    if ($ClientProcesses) {
-        InfoMessage "Stopping $CLIENT_NAME processes..."
-        $ClientProcesses | ForEach-Object {
-            Stop-Process -Id $_.Id -Force
+        # Stop any running client processes
+        $ClientProcesses = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
+        if ($ClientProcesses) {
+            InfoMessage "Stopping $CLIENT_NAME processes..."
+            $ClientProcesses | ForEach-Object {
+                Stop-Process -Id $_.Id -Force
+            }
+            InfoMessage "All $CLIENT_NAME processes stopped successfully."
+        } else {
+            InfoMessage "No running $CLIENT_NAME processes found."
         }
-        InfoMessage "All $CLIENT_NAME processes stopped successfully."
-    } else {
-        InfoMessage "No running $CLIENT_NAME processes found."
-    }
 
-    # Wait a moment for processes to fully terminate
-    Start-Sleep -Seconds 2
-} catch {
-    WarnMessage "Error while stopping existing services/processes: $($_.Exception.Message)"
-    WarnMessage "Continuing with installation..."
+        Start-Sleep -Seconds 2
+    } catch {
+        WarnMessage "Error while stopping existing services/processes: $($_.Exception.Message)"
+        WarnMessage "Continuing with installation..."
+    }
 }
 
 PrintStep 2 "Downloading binaries..."
@@ -385,6 +383,11 @@ finally {
     InfoMessage "adorsys-update.ps1 is not running. Downloading directly..."
     Download-File -Url $UPDATE_SCRIPT_PS_URL -OutputPath $UPDATE_SCRIPT_PS_PATH
 }
+
+# Create migration marker
+$MarkerDir = Split-Path -Path $MIGRATION_MARKER -Parent
+if (-not (Test-Path $MarkerDir)) { New-Item -Path $MarkerDir -ItemType Directory -Force | Out-Null }
+if (-not (Test-Path $MIGRATION_MARKER)) { New-Item -Path $MIGRATION_MARKER -ItemType File -Force | Out-Null }
 
 PrintStep 6 "Validating installation and configuration..."
 Validate-Installation

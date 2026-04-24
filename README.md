@@ -22,9 +22,9 @@
 
 - **Connection Health Validation:** Regular checks confirm each agent’s connection integrity, with clear indications for connection loss or re-establishment.
 
-## Installation from code
+## Installation from source
 
-To install the application, follow these steps:
+To build the application from source, follow these steps:
 
 1. Clone the repository:
    ```bash
@@ -34,50 +34,35 @@ To install the application, follow these steps:
    ```bash
    cd wazuh-agent-status
    ```
-3. Install dependencies:
+3. Install Rust (if not already installed) via [rustup.rs](https://rustup.rs/).
+4. Install Node.js for the Tauri client.
 
-   ```bash
-   go mod tidy
-   go mod download
+### Build the Server
+```bash
+cd wazuh-agent-status-rust-server
+cargo build --release
+```
 
-   ### Additional steps for Ubuntu
-   sudo apt-get update
-   sudo apt-get install -y libayatana-appindicator3-dev
-   ```
-
-## Building Binaries
-
-You can build binaries for different systems using this command:
-
-- Cross Platform build For Linux, macOS and Windows:
-  ```bash
-    GOOS=linux GOARCH=amd64 go build -o dist/wazuh-agent-status-linux
-    GOOS=darwin GOARCH=amd64 go build -o dist/wazuh-agent-status-macos
-    GOOS=windows GOARCH=amd64 go build -o dist/wazuh-agent-status-windows
-  ```
-
-> **Note**: Ensure you have a suitable C compiler installed on your system for this to work.
+### Build the Client (Tray App)
+```bash
+cd wazuh-agent-status-rust-client
+npm install
+npm run tauri build
+```
 
 ## Quick Start
 
-After building or installing the binary, you can start the application as follows:
-
-Run the application with:
+After building, you can start the server as follows:
 
 ```bash
-./dist/wazuh-agent-status
+sudo ./target/release/wazuh-agent-status-rust-server
 ```
 
-### Alternative Installation
+## Automated Installation
 
-Run the following commands to install the app
+Run the following command to install the app using the official script:
 
-- ### Ubuntu and macOS
-  1.  #### Admin app
-  ```bash
-  curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | PROFILE=admin sh
-  ```
-  2.  #### Simple users app
+- ### Linux, macOS, and Windows
   ```bash
   curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | sh
   ```
@@ -86,16 +71,12 @@ Run the following commands to install the app
 
 To understand the project vertically—from the business vision down to the technical code decisions—we recommend reading the documentation in this order:
 
-1.  **[Improvement Roadmap](docs/roadmap.md)**: Start here to understand the 6-phase strategic vision and the business "why" behind the project.
-2.  **[Architecture Overview](docs/architecture/architecture.md)**: A high-level view of the "Brains & Face" design and the core functional requirements.
-3.  **[Current System Analysis](docs/architecture/current-system-analysis.md)**: A deep dive into the technical debt and limitations of the existing Go implementation.
-4.  **[Rust Migration Proposal](docs/rust-migration-technical-proposal.md)**: The technical strategy and performance targets for transitioning to Rust.
-5.  **[Decision Log (ADRs)](docs/architecture/adr/)**: A chronological record of the specific architectural decisions made along the way.
+1.  **[Improvement Roadmap](docs/roadmap.md)**: Start here to understand the 6-phase strategic vision.
+2.  **[Architecture Overview](docs/architecture/architecture.md)**: A high-level view of the "Brains & Face" design.
+3.  **[Rust Migration Technical Proposal](docs/rust-migration-technical-proposal.md)**: Detailed strategy for the Rust transition.
+4.  **[Self-Healing Design](docs/architecture/adr/self-healing.md)**: Details on the reactive health orchestration.
+5.  **[Decision Log (ADRs)](docs/architecture/adr/)**: A record of architectural decisions.
 
 ---
 
-After installation, launch the application with:
-
-```bash
-wazuh-agent-status
-```
+After installation, the server runs as a background service, and the client starts automatically on login.

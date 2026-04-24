@@ -7,14 +7,8 @@ else
     set -eu
 fi
 
-PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.4.2"}
-
-# Assign app version based on profile
-case "$PROFILE" in
-"admin") WAS_VERSION="$APP_VERSION" ;;
-*) WAS_VERSION="$APP_VERSION-user" ;;
-esac
+APP_VERSION=${APP_VERSION:-"0.5.0-rc"}
+WAS_VERSION="$APP_VERSION"
 
 # OS and Architecture Detection
 case "$(uname)" in
@@ -42,21 +36,22 @@ esac
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
-WAZUH_USER=${WAZUH_USER:-"root"}
+WAZUH_USER=${WAZUH_USER:-"wazuh-status"}
 
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
 SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
 CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
+MIGRATION_MARKER="/usr/local/etc/$SERVER_NAME/.migrated_from_go"
 DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
 
 SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
 CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
-BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"}
+BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/latest/download"}
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
 
-ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/refs/tags/v$WAS_VERSION/scripts/adorsys-update.sh"}
+ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"https://raw.githubusercontent.com/ADORSYS-GIS/$SERVER_NAME/main/scripts/adorsys-update.sh"}
 UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
 # Text Formatting
@@ -101,6 +96,68 @@ sed_alternative() {
     fi
 }
 
+# Legacy Go Cleanup
+cleanup_legacy_system() {
+    if [ -f "$MIGRATION_MARKER" ]; then
+        info_message "Migration already completed. Skipping legacy cleanup."
+        return 0
+    fi
+    print_step_header 0 "Legacy Go Cleanup"
+    info_message "Detecting legacy Go components..."
+    
+    # 1. Stop and Disable the old service (if it exists)
+    if command_exists systemctl; then
+        if systemctl is-active --quiet "$SERVER_NAME" 2>/dev/null; then
+            info_message "Stopping legacy service: $SERVER_NAME"
+            maybe_sudo systemctl stop "$SERVER_NAME" || true
+        fi
+        if systemctl is-enabled --quiet "$SERVER_NAME" 2>/dev/null; then
+            info_message "Disabling legacy service: $SERVER_NAME"
+            maybe_sudo systemctl disable "$SERVER_NAME" || true
+        fi
+    fi
+    
+    # 2. Kill any lingering Go processes
+    info_message "Killing lingering Go processes ($SERVER_NAME, $CLIENT_NAME)..."
+    maybe_sudo killall "$SERVER_NAME" 2>/dev/null || true
+    maybe_sudo killall "$CLIENT_NAME" 2>/dev/null || true
+    
+    # 3. macOS: Unload legacy launchd plists
+    if [ "$OS" = "darwin" ]; then
+        info_message "Unloading legacy macOS launchd services..."
+        maybe_sudo launchctl unload "$SERVER_LAUNCH_AGENT_FILE" 2>/dev/null || true
+        maybe_sudo launchctl unload "$CLIENT_LAUNCH_AGENT_FILE" 2>/dev/null || true
+        remove_file "$SERVER_LAUNCH_AGENT_FILE"
+        remove_file "$CLIENT_LAUNCH_AGENT_FILE"
+    fi
+
+    # 4. Remove old desktop entries
+    if [ -f "$DESKTOP_UNIT_FILE" ]; then
+        info_message "Removing legacy desktop entry: $DESKTOP_UNIT_FILE"
+        remove_file "$DESKTOP_UNIT_FILE"
+    fi
+
+    info_message "Legacy cleanup complete."
+}
+
+# Secure environment setup
+setup_secure_environment() {
+    print_step_header 0 "Secure Environment Setup"
+    info_message "Creating $WAZUH_USER user if it doesn't exist..."
+    if ! id "$WAZUH_USER" >/dev/null 2>&1; then
+        maybe_sudo useradd -r -s /usr/sbin/nologin "$WAZUH_USER" || true
+    fi
+    
+    info_message "Adding $WAZUH_USER to wazuh group..."
+    maybe_sudo usermod -aG wazuh "$WAZUH_USER" || true
+    
+    info_message "Configuring sudoers permissions..."
+    SUDOERS_FILE="/etc/sudoers.d/$WAZUH_USER"
+    SUDOERS_CONTENT="$WAZUH_USER ALL=(ALL) NOPASSWD: $UPDATE_SCRIPT_PATH, /var/ossec/bin/wazuh-control"
+    create_file "$SUDOERS_FILE" "$SUDOERS_CONTENT"
+    maybe_sudo chmod 440 "$SUDOERS_FILE"
+}
+
 # General Utility Functions
 create_file() {
     local filepath="$1"
@@ -127,13 +184,14 @@ create_service_file() {
     info_message "Creating a new systemd service file..."
     create_file "$SERVICE_FILE" "
 [Unit]
-Description=Wazuh Agent Status daemon
+Description=Wazuh Agent Status daemon (Rust)
 After=network.target
 
 [Service]
 ExecStart=$BIN_DIR/$SERVER_NAME
 Restart=always
 User=$WAZUH_USER
+Group=wazuh
 
 [Install]
 WantedBy=multi-user.target
@@ -298,6 +356,12 @@ validate_installation() {
 TEMP_DIR=$(mktemp -d) || error_exit "Failed to create temporary directory"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
+# Step 0: Cleanup Legacy
+cleanup_legacy_system
+
+# Step 0.5: Setup Secure Environment
+setup_secure_environment
+
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary from $SERVER_URL..."
 curl -SL --progress-bar -o "$TEMP_DIR/$SERVER_BIN_NAME" "$SERVER_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
@@ -341,6 +405,10 @@ if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
 else
     warn_message "$WAZUH_ACTIVE_RESPONSE_BIN_DIR does not exist, skipping."
 fi
+
+# Create migration marker
+maybe_sudo mkdir -p "$(dirname "$MIGRATION_MARKER")"
+maybe_sudo touch "$MIGRATION_MARKER"
 
 print_step_header 6 "Validating installation and configuration..."
 validate_installation

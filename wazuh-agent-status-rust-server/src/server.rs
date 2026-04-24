@@ -254,7 +254,7 @@ where
 }
 
 /// Compatibility helper: dials the server's own listener to start a streaming
-/// update session. This mirrors the Go implementation's behavior.
+/// update session.
 async fn start_update_stream_async(manager: &AgentManager, is_prerelease: bool) {
     let listen_addr = manager.config().listen_addr.clone();
     

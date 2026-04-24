@@ -120,13 +120,16 @@ remove_launchd_service() {
     fi
 }
 
-# Remove Linux desktop unit file for autostart
-remove_desktop_unit() {
-    if [ -f "$DESKTOP_UNIT_FILE" ]; then
-        info_message "Removing desktop unit file for autostart..."
-        remove_file "$DESKTOP_UNIT_FILE"
-    else
-        warn_message "Desktop unit file not found. Skipping."
+# Remove Linux secure environment
+remove_secure_environment() {
+    if [ "$OS" = "linux" ]; then
+        info_message "Removing sudoers configuration..."
+        remove_file "/etc/sudoers.d/wazuh-status"
+        
+        info_message "Removing wazuh-status user (optional - but recommended for full clean)..."
+        # We don't necessarily want to delete the user if they might have files, 
+        # but for a full uninstall we should at least note it.
+        # maybe_sudo userdel wazuh-status || true
     fi
 }
 
@@ -137,6 +140,7 @@ case "$OS" in
     linux)
         remove_systemd_service
         remove_desktop_unit
+        remove_secure_environment
         ;;
     darwin) 
         remove_launchd_service "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE"
