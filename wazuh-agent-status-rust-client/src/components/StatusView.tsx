@@ -55,7 +55,7 @@ export function StatusView({ agentStatus, metrics }: Readonly<StatusViewProps>) 
             <div className="metric-box">
               <div className="metric-label">
                 <span>Agent RAM</span>
-                <span>{formatBytes(metrics.used_memory)} / {formatBytes(metrics.total_memory)}</span>
+                <span>{formatBytes(metrics.used_memory)}</span>
               </div>
               <div className="progress-track">
                 <div className="progress-thumb" style={{ width: `${Math.min(metrics.memory_usage * 100, 100)}%` }} />
