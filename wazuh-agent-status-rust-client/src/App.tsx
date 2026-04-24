@@ -18,6 +18,7 @@ const DEFAULT_STATUS: AgentStatus = {
   version: "Unknown",
   tray_version: "Unknown",
   groups: [],
+  self_healing_enabled: true,
 };
 
 const DEFAULT_METRICS: SystemMetrics = {
@@ -162,7 +163,7 @@ function App() {
 
       <main className="main-content">
         {activeView === "status" && <StatusView agentStatus={agentStatus} metrics={metrics} />}
-        {activeView === "updates" && <UpdatesView updateInfo={updateInfo} />}
+        {activeView === "updates" && <UpdatesView updateInfo={updateInfo} agentStatus={agentStatus} />}
         {activeView === "settings" && <SettingsView config={config} agentStatus={agentStatus} />}
       </main>
     </div>

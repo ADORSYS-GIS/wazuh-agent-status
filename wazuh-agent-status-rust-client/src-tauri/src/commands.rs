@@ -1,4 +1,4 @@
-use tauri::State;
+use tauri::{State, Emitter};
 use crate::config::AppConfig;
 use crate::agent::{AgentManager, AgentState, AgentStatus};
 use std::sync::Arc;
@@ -29,4 +29,21 @@ pub fn get_system_metrics(manager: State<'_, Arc<AgentManager>>) -> serde_json::
         "used_memory": state.metrics.used_memory,
         "agent_running": matches!(state.status, AgentStatus::Active)
     })
+}
+
+#[tauri::command]
+pub async fn start_update(
+    window: tauri::Window,
+    manager: State<'_, Arc<AgentManager>>,
+    is_prerelease: bool
+) -> Result<(), String> {
+    let mut rx = manager.run_update(is_prerelease).await.map_err(|e| e.to_string())?;
+    
+    tauri::async_runtime::spawn(async move {
+        while let Some(line) = rx.recv().await {
+            let _ = window.emit("update-log", line);
+        }
+    });
+
+    Ok(())
 }

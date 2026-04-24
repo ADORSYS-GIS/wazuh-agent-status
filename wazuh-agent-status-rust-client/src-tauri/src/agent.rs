@@ -32,6 +32,7 @@ pub struct AgentState {
     pub tray_version: String,
     pub groups: Vec<String>,
     pub metrics: SystemMetrics,
+    pub self_healing_enabled: bool,
 }
 
 impl Default for AgentState {
@@ -48,6 +49,7 @@ impl Default for AgentState {
                 total_memory: 0,
                 used_memory:  0,
             },
+            self_healing_enabled: true,
         }
     }
 }
@@ -98,6 +100,55 @@ impl AgentManager {
             }
         }
         Err(anyhow::anyhow!("Failed to get update info from server at {}", self.server_addr))
+    }
+
+    pub async fn run_update(&self, is_prerelease: bool) -> anyhow::Result<tokio::sync::mpsc::Receiver<String>> {
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
+        let server_addr = self.server_addr.clone();
+
+        tokio::spawn(async move {
+            let mut stream = match tokio::net::TcpStream::connect(&server_addr).await {
+                Ok(s) => s,
+                Err(e) => {
+                    let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to connect to server: {e}")).await;
+                    return;
+                }
+            };
+
+            use tokio::io::{AsyncWriteExt, AsyncBufReadExt};
+            let cmd = if is_prerelease { "update-prerelease\n" } else { "update\n" };
+            if let Err(e) = stream.write_all(cmd.as_bytes()).await {
+                let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to send update command: {e}")).await;
+                return;
+            }
+
+            // The 'update' command in the server triggers a background self-dial update stream.
+            // However, it's actually easier for the client to just call 'initiate-update-stream' directly
+            // if we want to pipe the logs back to the UI.
+            // Let's call initiate-update-stream on a new connection.
+            
+            let stream = match tokio::net::TcpStream::connect(&server_addr).await {
+                Ok(s) => s,
+                Err(e) => {
+                    let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to connect for logs: {e}")).await;
+                    return;
+                }
+            };
+            let (reader, mut writer) = tokio::io::split(stream);
+            let mut reader = tokio::io::BufReader::new(reader);
+            
+            let stream_cmd = if is_prerelease { "initiate-prerelease-update-stream\n" } else { "initiate-update-stream\n" };
+            let _ = writer.write_all(stream_cmd.as_bytes()).await;
+
+            let mut line = String::new();
+            while let Ok(n) = reader.read_line(&mut line).await {
+                if n == 0 { break; }
+                let _ = tx.send(line.trim().to_string()).await;
+                line.clear();
+            }
+        });
+
+        Ok(rx)
     }
 }
 

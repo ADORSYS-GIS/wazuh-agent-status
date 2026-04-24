@@ -75,10 +75,15 @@ impl StatusProvider for MacosStatusProvider {
     }
 
     fn get_connection_status(&self) -> Result<ConnectionStatus> {
+        // Optimization: If the agent service is stopped, it's definitely disconnected
+        // regardless of what the stale state file says.
+        if !self.is_agent_running() {
+            return Ok(ConnectionStatus::Disconnected);
+        }
+
         let content = match fs::read_to_string(&self.paths.state_file) {
             Ok(c) => c,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                // Agent stopped — correctly reflect as Disconnected
                 return Ok(ConnectionStatus::Disconnected);
             }
             Err(e) => {
