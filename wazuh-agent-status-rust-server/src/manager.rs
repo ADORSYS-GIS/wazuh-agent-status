@@ -4,21 +4,20 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use tokio::sync::{broadcast, mpsc, RwLock};
+use tokio::sync::{broadcast, RwLock};
 use tokio::time;
 use tracing::{info, warn};
 
 use crate::config::{AgentPaths, Config};
-use crate::models::{AgentState, VersionInfo};
+use crate::models::{AgentState, ComponentUpdate, UpdateStatus, VersionInfo};
 use crate::status_provider::StatusProvider;
-use crate::updater::NativeUpdater;
-use crate::version_utils::{fetch_version_info, is_version_higher, should_show_prerelease};
+use crate::version_utils::fetch_version_info;
 
 // ── Version cache ─────────────────────────────────────────────────────────────
 
 struct VersionCache {
-    /// The human-readable status string sent to clients.
-    status: String,
+    /// The structured update status sent to clients.
+    status: UpdateStatus,
     /// The raw manifest data (stored for re-computation if local version changes).
     info: VersionInfo,
     /// When this cache entry was populated.
@@ -35,8 +34,6 @@ pub struct AgentManager {
     notifier: broadcast::Sender<AgentState>,
     /// Platform-specific local status reader.
     provider: Box<dyn StatusProvider>,
-    /// Update orchestrator.
-    updater: NativeUpdater,
     /// Cached result of the last remote version check.
     version_cache: RwLock<Option<VersionCache>>,
     /// Runtime configuration.
@@ -60,17 +57,15 @@ impl AgentManager {
     #[must_use]
     pub fn new_custom(
         config: Arc<Config>,
-        paths: Arc<AgentPaths>,
+        _paths: Arc<AgentPaths>,
         provider: Box<dyn StatusProvider>,
     ) -> Self {
         let (tx, _) = broadcast::channel(128);
-        let updater = NativeUpdater::new(Arc::clone(&paths), config.version_url.clone());
 
         Self {
             state: Arc::new(RwLock::new(AgentState::default())),
             notifier: tx,
             provider,
-            updater,
             version_cache: RwLock::new(None),
             config,
         }
@@ -128,7 +123,7 @@ impl AgentManager {
     ///
     /// Results are cached for `config.version_cache_ttl` to avoid hammering
     /// the remote manifest endpoint.
-    pub async fn get_version_status(&self) -> String {
+    pub async fn get_version_status(&self) -> UpdateStatus {
         let now = Instant::now();
         let current_state = self.get_state().await;
 
@@ -155,77 +150,111 @@ impl AgentManager {
 
         match new_info {
             Some(info) => {
-                let status = compute_version_status(&current_state.version, &current_state.groups, &info);
-                let final_status = if is_fallback {
-                    format!("{status} (cached)")
-                } else {
-                    status
+                let wazuh_update = compute_component_update(
+                    "Wazuh Agent",
+                    &current_state.version,
+                    &current_state.groups,
+                    &info.wazuh,
+                    &info.prerelease_test_groups,
+                );
+
+                let tray_update = compute_component_update(
+                    "Tray App",
+                    &current_state.tray_version,
+                    &[], // No pre-release groups for tray app yet
+                    &info.tray,
+                    &[],
+                );
+
+                let has_updates = wazuh_update.can_update || tray_update.can_update;
+                let status = UpdateStatus {
+                    wazuh: wazuh_update,
+                    tray: tray_update,
+                    has_updates,
                 };
 
                 let mut cache = self.version_cache.write().await;
                 *cache = Some(VersionCache {
-                    status: final_status.clone(),
+                    status: status.clone(),
                     info,
-                    fetched_at: if is_fallback { 
-                        // Keep old timestamp to force retry later
+                    fetched_at: if is_fallback {
                         self.version_cache.read().await.as_ref().map(|c| c.fetched_at).unwrap_or(now)
-                    } else { 
-                        now 
+                    } else {
+                        now
                     },
                 });
-                final_status
+                status
             }
             None => {
                 warn!("Failed to fetch remote version manifest and no cache available");
-                "Version: Unknown (network error)".to_string()
+                UpdateStatus {
+                    wazuh: ComponentUpdate {
+                        name: "Wazuh Agent".to_string(),
+                        current_version: current_state.version,
+                        latest_version: "Unknown".to_string(),
+                        state: crate::models::UpdateState::Unknown,
+                        can_update: false,
+                    },
+                    tray: ComponentUpdate {
+                        name: "Tray App".to_string(),
+                        current_version: current_state.tray_version,
+                        latest_version: "Unknown".to_string(),
+                        state: crate::models::UpdateState::Unknown,
+                        can_update: false,
+                    },
+                    has_updates: false,
+                }
             }
         }
     }
+}
 
-    // ── Update ────────────────────────────────────────────────────────────────
+fn compute_component_update(
+    name: &str,
+    local_version: &str,
+    agent_groups: &[String],
+    online: &crate::models::FrameworkVersion,
+    prerelease_groups: &[String],
+) -> crate::models::ComponentUpdate {
+    if local_version == "Unknown" || local_version == "Not Installed" {
+        return crate::models::ComponentUpdate {
+            name: name.to_string(),
+            current_version: local_version.to_string(),
+            latest_version: online.version.clone(),
+            state: crate::models::UpdateState::Unknown,
+            can_update: false,
+        };
+    }
 
-    /// Kick off an agent update and stream `UPDATE_PROGRESS: <msg>` strings
-    /// through `tx`.
-    pub async fn run_update(&self, prerelease: bool, tx: mpsc::Sender<String>) {
-        self.updater.run_update(prerelease, tx).await;
+    let is_outdated = !online.version.is_empty()
+        && crate::version_utils::is_version_higher(&online.version, local_version);
+
+    let has_prerelease = !online.prerelease_version.is_empty()
+        && should_show_prerelease_for_component(prerelease_groups, agent_groups)
+        && crate::version_utils::is_version_higher(&online.prerelease_version, local_version);
+
+    let (state, latest, can_update) = if is_outdated {
+        (crate::models::UpdateState::Outdated, online.version.clone(), true)
+    } else if has_prerelease {
+        (crate::models::UpdateState::PrereleaseAvailable, online.prerelease_version.clone(), true)
+    } else {
+        (crate::models::UpdateState::UpToDate, online.version.clone(), false)
+    };
+
+    crate::models::ComponentUpdate {
+        name: name.to_string(),
+        current_version: local_version.to_string(),
+        latest_version: latest,
+        state,
+        can_update,
     }
 }
 
-// ── Version status computation ────────────────────────────────────────────────
-
-fn compute_version_status(
-    local_version: &str,
-    agent_groups: &[String],
-    online: &VersionInfo,
-) -> String {
-    if local_version == "Unknown" || local_version == "Not Installed" {
-        return format!("Version: {local_version}");
+fn should_show_prerelease_for_component(manifest_groups: &[String], agent_groups: &[String]) -> bool {
+    if manifest_groups.is_empty() || agent_groups.is_empty() {
+        return false;
     }
-
-    let is_current_prerelease = local_version.contains("rc");
-    let version_prefix = if is_current_prerelease {
-        format!("Prerelease: v{local_version}")
-    } else {
-        format!("v{local_version}")
-    };
-
-    let is_outdated = !online.framework.version.is_empty()
-        && is_version_higher(&online.framework.version, local_version);
-
-    let has_prerelease = !online.framework.prerelease_version.is_empty()
-        && should_show_prerelease(online, agent_groups)
-        && is_version_higher(&online.framework.prerelease_version, local_version);
-
-    match (is_outdated, has_prerelease) {
-        (true, true) => format!(
-            "Outdated with Prerelease available: {} (stable: {}, prerelease: {})",
-            version_prefix, online.framework.version, online.framework.prerelease_version
-        ),
-        (true, false) => format!("Outdated, {version_prefix}"),
-        (false, true) => format!(
-            "Prerelease available: {} (current: {})",
-            online.framework.prerelease_version, version_prefix
-        ),
-        (false, false) => format!("Up to date, {version_prefix}"),
-    }
+    agent_groups.iter().any(|ag| {
+        manifest_groups.iter().any(|tg| ag.eq_ignore_ascii_case(tg))
+    })
 }

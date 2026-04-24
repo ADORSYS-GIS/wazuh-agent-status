@@ -6,17 +6,13 @@
 //! |--------------------------------------|----------------------------------|
 //! | `get-version`                        | `VERSION_CHECK: <status>`        |
 //! | `subscribe-status`                   | streaming `STATUS_UPDATE: …`     |
-//! | `update`                             | streaming `UPDATE_PROGRESS: …`   |
-//! | `update-prerelease`                  | streaming `UPDATE_PROGRESS: …`   |
-//! | `initiate-update-stream`             | streaming `UPDATE_PROGRESS: …`   |
-//! | `initiate-prerelease-update-stream`  | streaming `UPDATE_PROGRESS: …`   |
 
 use std::sync::Arc;
 
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::broadcast;
 use tokio::time::timeout;
 use tracing::{info, warn, error};
 
@@ -130,8 +126,10 @@ async fn handle_connection(
             // ── Version query ─────────────────────────────────────────────────
             "get-version" => {
                 let status = manager.get_version_status().await;
+                let json = serde_json::to_string(&status).unwrap_or_else(|_| "{}".to_string());
+                info!(status = ?status, "Version check complete; sending response");
                 writer
-                    .write_all(format!("VERSION_CHECK: {status}\n").as_bytes())
+                    .write_all(format!("VERSION_CHECK: {json}\n").as_bytes())
                     .await?;
                 writer.flush().await?;
             }
@@ -140,18 +138,6 @@ async fn handle_connection(
             "subscribe-status" => {
                 subscribe_status(&mut reader, &mut writer, &manager).await?;
                 break; // Subscription ended — close connection
-            }
-
-            // ── Update commands (regular) ─────────────────────────────────────
-            "update" | "initiate-update-stream" => {
-                stream_update(&mut writer, &manager, false).await?;
-                break; // Update stream finished — close connection
-            }
-
-            // ── Update commands (prerelease) ──────────────────────────────────
-            "update-prerelease" | "initiate-prerelease-update-stream" => {
-                stream_update(&mut writer, &manager, true).await?;
-                break; // Update stream finished — close connection
             }
 
             // ── Unknown ───────────────────────────────────────────────────────
@@ -182,10 +168,9 @@ where
 {
     // Send current state immediately so the client isn't left waiting.
     let state = manager.get_state().await;
+    let json = serde_json::to_string(&state).unwrap_or_default();
     writer
-        .write_all(
-            format!("STATUS_UPDATE: {:?}, {:?}\n", state.status, state.connection).as_bytes(),
-        )
+        .write_all(format!("STATUS_UPDATE: {json}\n").as_bytes())
         .await?;
 
     let mut rx = manager.subscribe();
@@ -196,10 +181,8 @@ where
             result = rx.recv() => {
                 match result {
                     Ok(state) => {
-                        let msg = format!(
-                            "STATUS_UPDATE: {:?}, {:?}\n",
-                            state.status, state.connection
-                        );
+                        let json = serde_json::to_string(&state).unwrap_or_default();
+                        let msg = format!("STATUS_UPDATE: {json}\n");
                         if let Err(e) = writer.write_all(msg.as_bytes()).await {
                             warn!(error = %e, "Failed to write status update; dropping client");
                             break;
@@ -218,43 +201,6 @@ where
                     Ok(_) => {} // Ignore any heartbeat bytes
                     Err(_) => break, // Client disconnected
                 }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Kick off an update and pipe `UPDATE_PROGRESS: …` lines back to the client
-/// until the update finishes.
-async fn stream_update<W>(
-    writer: &mut W,
-    manager: &AgentManager,
-    prerelease: bool,
-) -> tokio::io::Result<()>
-where
-    W: AsyncWriteExt + Unpin,
-{
-    let (tx, mut rx) = mpsc::channel::<String>(32);
-
-    // Spawn the update so we can simultaneously stream its output.
-    let manager_ref = manager;
-    let update_fut = manager_ref.run_update(prerelease, tx);
-    tokio::pin!(update_fut);
-
-    loop {
-        tokio::select! {
-            // Drive the update to completion
-            () = &mut update_fut => {
-                // Drain any remaining messages
-                while let Ok(msg) = rx.try_recv() {
-                    writer.write_all(msg.as_bytes()).await?;
-                }
-                break;
-            }
-            // Forward progress messages to client as they arrive
-            Some(msg) = rx.recv() => {
-                writer.write_all(msg.as_bytes()).await?;
             }
         }
     }

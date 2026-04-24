@@ -2,7 +2,20 @@
 
 use crate::config::AgentPaths;
 use crate::errors::Result;
-use crate::models::{AgentState, AgentStatus, ConnectionStatus};
+use crate::models::{AgentState, AgentStatus, ConnectionStatus, SystemMetrics};
+
+pub const UNIX_AGENT_PROCESSES: &[&str] = &[
+    "wazuh-agentd",
+    "wazuh-modulesd",
+    "wazuh-logcollector",
+    "wazuh-syscheckd",
+    "wazuh-execd",
+];
+
+pub const WINDOWS_AGENT_PROCESSES: &[&str] = &[
+    "Wazuh.exe",
+    "wazuh-agentd.exe",
+];
 
 /// Abstraction over platform-specific Wazuh agent status retrieval.
 ///
@@ -13,7 +26,12 @@ pub trait StatusProvider: Send + Sync {
     fn get_agent_status(&self) -> Result<AgentStatus>;
     fn get_connection_status(&self) -> Result<ConnectionStatus>;
     fn get_agent_version(&self) -> Result<String>;
+    /// Get the version of the tray application.
+    fn get_tray_version(&self) -> Result<String>;
+    /// Get groups assigned to this agent.
     fn get_agent_groups(&self) -> Result<Vec<String>>;
+    /// Get system-wide performance metrics.
+    fn get_system_metrics(&self) -> Result<SystemMetrics>;
 
     /// Compose a full [`AgentState`] from the individual methods.
     ///
@@ -21,10 +39,12 @@ pub trait StatusProvider: Send + Sync {
     /// on-demand operation handled by [`crate::manager::AgentManager`].
     fn get_partial_state(&self) -> Result<AgentState> {
         Ok(AgentState {
-            status:     self.get_agent_status()?,
-            connection: self.get_connection_status()?,
-            version:    self.get_agent_version()?,
-            groups:     self.get_agent_groups()?,
+            status:       self.get_agent_status()?,
+            connection:   self.get_connection_status()?,
+            version:      self.get_agent_version()?,
+            tray_version: self.get_tray_version()?,
+            groups:       self.get_agent_groups()?,
+            metrics:      self.get_system_metrics()?,
         })
     }
 }
