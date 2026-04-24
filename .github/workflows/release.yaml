@@ -14,7 +14,8 @@ on:
       - '.github/workflows/release.yaml'
 
 env:
-  GO_VERSION: 1.22
+  SERVER_DIR: wazuh-agent-status-rust-server
+  CLIENT_DIR: wazuh-agent-status-rust-client
   CLIENT_APP_NAME: wazuh-agent-status-client
   SERVER_APP_NAME: wazuh-agent-status
 
@@ -38,48 +39,48 @@ jobs:
             echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Set up Go
-        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libayatana-appindicator3-dev \
-            libdbusmenu-glib-dev \
-            libgtk-3-dev \
-            libharfbuzz-dev \
-            libpango1.0-dev \
-            libcairo2-dev \
-            libgdk-pixbuf2.0-dev \
-            libatk1.0-dev
+          sudo apt-get install -y libsoup-3.0-dev libwebkit2gtk-4.0-dev
 
-      - name: Build client binary
+      - name: Build Rust Server
         run: |
-          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+          cd ${{ env.SERVER_DIR }}
+          cargo build --release
+          mkdir -p ../dist
+          cp target/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
-      - name: Build server binary
+      - name: Build Tauri Client (Tray App)
         run: |
-          GOOS=linux GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+          cd ${{ env.CLIENT_DIR }}
+          npm install
+          npm run tauri build
+          # Rename to match installer expectations
+          cp src-tauri/target/release/wazuh-agent-status ../dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Upload Linux client binaries
         if: ${{ !env.ACT }} 
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
-          path: |
-            ${{ env.CLIENT_APP_NAME }}/dist/
+          path: dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
           
       - name: Upload Linux server binaries
         if: ${{ !env.ACT }} 
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
-          path: | 
-            ${{ env.SERVER_APP_NAME }}/dist/
-          
+          path: dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+
   build-macos:
     name: Build for macOS (AMD64, ARM64)
     runs-on: ${{ matrix.os }}
@@ -90,7 +91,6 @@ jobs:
             arch: amd64
           - os: macos-latest
             arch: arm64
-
     steps:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -104,44 +104,51 @@ jobs:
             echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
           fi
 
+<<<<<<< HEAD
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+=======
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+>>>>>>> 04e6e0f (docs: update agent enrollment documentation and images with release configuration adjustments)
         with:
-          go-version: ${{ env.GO_VERSION }}
+          node-version: 20
 
-      - name: Install MacOS Dependencies
-        run: |
-          brew install gtk+3
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Build client binary for macOS (${{ matrix.arch }})
+      - name: Build Rust Server
         run: |
-          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
+          cd ${{ env.SERVER_DIR }}
+          cargo build --release
+          mkdir -p ../dist
+          cp target/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
 
-      - name: Build server binary for macOS (${{ matrix.arch }})
+      - name: Build Tauri Client (Tray App)
         run: |
-          GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
+          cd ${{ env.CLIENT_DIR }}
+          npm install
+          npm run tauri build
+          cp src-tauri/target/release/wazuh-agent-status ../dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Upload MacOS client binaries
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
-          path: |
-            ${{ env.CLIENT_APP_NAME }}/dist/
+          path: dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
           
       - name: Upload MacOS server binaries
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
-          path: |
-            ${{ env.SERVER_APP_NAME }}/dist/
-       
+          path: dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
+
   build-windows:
     name: Build for Windows AMD64
     runs-on: windows-latest
     strategy:
       matrix:
         arch: [amd64]
-
     steps:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -155,38 +162,43 @@ jobs:
           else
             echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
           fi
-      - name: Set up Go
-        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
-          
-      - name: Build client binary for windows
-        run: |
-          go build -C ./${{ env.CLIENT_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}' -H=windowsgui" -o ./dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
+          node-version: 20
 
-      - name: Build server binary for windows
-        run: |
-          go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
 
+      - name: Build Rust Server
+        run: |
+          cd ${{ env.SERVER_DIR }}
+          cargo build --release
+          if not exist ..\dist mkdir ..\dist
+          copy target\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
+        shell: cmd
+
+      - name: Build Tauri Client (Tray App)
+        shell: bash
+        run: |
+          cd ${{ env.CLIENT_DIR }}
+          npm install
+          npm run tauri build
+          cp src-tauri/target/release/wazuh-agent-status.exe ../dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
       - name: Upload windows client binaries
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}
-          path: |
-            ${{ env.CLIENT_APP_NAME }}/dist/
-
+          path: dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
       - name: Upload windows server binaries
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}
-          path: |
-            ${{ env.SERVER_APP_NAME }}/dist/
-  
-  update-changelog-and-checksums:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
+          path: dist/${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
+
+  release:
+    name: Release
+    permissions: write-all
     needs:
       - build-linux
       - build-macos
@@ -262,6 +274,13 @@ jobs:
         with:
           path: ./dist/
 
+      - name: Generate checksums
+        run: |
+          # Calculate binary checksums and strip directory prefix
+          find dist -type f -exec sha256sum {} + | sed 's|  dist/[^/]*/|  |' > checksums.sha256
+          # Calculate script checksums and keep paths
+          find scripts -type f -exec sha256sum {} + >> checksums.sha256
+          cat checksums.sha256
       - name: Generate release notes (latest only)
         id: git_cliff
         uses: orhun/git-cliff-action@c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72
@@ -284,10 +303,27 @@ jobs:
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
         with:
           files: |
-            ./dist/**/*
+            dist/**/*
+            checksums.sha256
           body: ${{ steps.git_cliff.outputs.content }}
           prerelease: ${{ steps.prerelease.outputs.PRERELEASE }}
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           name: Release ${{ steps.get_version.outputs.VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update CHANGELOG.md and checksums"
+          title: "Update Changelog and Checksums"
+          body: |
+            This PR updates the CHANGELOG.md and the unified checksums file.
+            - Generated using git-cliff and sha256sum
+            - Includes both binary and script checksums
+            - Triggered by: ${{ github.event_name }}
+          branch: update-changelog-${{ github.run_id }}
+          base: user-main
+          delete-branch: true
+          labels: documentation, automated-pr
