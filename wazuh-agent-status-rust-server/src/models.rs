@@ -123,3 +123,42 @@ impl Default for AgentState {
         }
     }
 }
+
+/// A single line from the ossec.log file, structured for streaming to clients.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogLine {
+    /// The raw, unmodified text of the log line.
+    pub raw: String,
+    /// Inferred severity level based on line content.
+    pub level: LogLevel,
+}
+
+/// Severity levels inferred from ossec.log content.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum LogLevel {
+    Error,
+    Warning,
+    Info,
+    Debug,
+    Unknown,
+}
+
+impl LogLine {
+    /// Create a new LogLine by analysing the raw text for known keywords.
+    pub fn from_raw(raw: String) -> Self {
+        let upper = raw.to_uppercase();
+        let level = if upper.contains("ERROR") || upper.contains("CRITICAL") || upper.contains("FATAL") {
+            LogLevel::Error
+        } else if upper.contains("WARNING") || upper.contains("WARN") {
+            LogLevel::Warning
+        } else if upper.contains("DEBUG") {
+            LogLevel::Debug
+        } else if upper.contains("INFO") {
+            LogLevel::Info
+        } else {
+            LogLevel::Unknown
+        };
+        Self { raw, level }
+    }
+}

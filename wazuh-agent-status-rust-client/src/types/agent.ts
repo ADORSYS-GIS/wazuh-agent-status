@@ -30,3 +30,10 @@ export interface SystemMetrics {
     used_memory: number;
     agent_running: boolean;
 }
+
+export type LogLevel = "ERROR" | "WARNING" | "INFO" | "DEBUG" | "UNKNOWN";
+
+export interface LogLine {
+    raw: string;
+    level: LogLevel;
+}

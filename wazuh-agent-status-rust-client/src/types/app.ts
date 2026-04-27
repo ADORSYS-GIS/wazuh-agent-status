@@ -24,4 +24,4 @@ export interface AppConfig {
 
 // Removed UpdateInfo — version status is now a string from server
 
-export type View = "status" | "updates" | "settings";
+export type View = "status" | "logs" | "updates" | "settings";
