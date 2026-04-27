@@ -5,8 +5,9 @@ import "./App.css";
 import type { AppConfig, View } from "./types/app";
 import type { AgentStatus, SystemMetrics, UpdateStatus } from "./types/agent";
 
-import { IconHome, IconShield, IconSettings } from "./components/Icons";
+import { IconHome, IconLogs, IconShield, IconSettings } from "./components/Icons";
 import { StatusView } from "./components/StatusView";
+import { LogsView } from "./components/LogsView";
 import { UpdatesView } from "./components/UpdatesView";
 import { SettingsView } from "./components/SettingsView";
 
@@ -105,7 +106,7 @@ function App() {
   } as CSSProperties;
 
   const indicatorTop = (
-    { status: "10px", updates: "70px", settings: "130px" } as Record<View, string>
+    { status: "10px", logs: "70px", updates: "130px", settings: "190px" } as Record<View, string>
   )[activeView];
 
   return (
@@ -130,6 +131,17 @@ function App() {
               <IconHome />
             </button>
             <span className="tooltip">Overview</span>
+          </div>
+
+          <div className="tooltip-container">
+            <button
+              className={`nav-item ${activeView === "logs" ? "active" : ""}`}
+              onClick={() => setActiveView("logs")}
+              aria-label="Logs"
+            >
+              <IconLogs />
+            </button>
+            <span className="tooltip">Logs</span>
           </div>
 
           <div className="tooltip-container">
@@ -163,6 +175,7 @@ function App() {
 
       <main className="main-content">
         {activeView === "status" && <StatusView agentStatus={agentStatus} metrics={metrics} />}
+        {activeView === "logs" && <LogsView />}
         {activeView === "updates" && <UpdatesView updateInfo={updateInfo} agentStatus={agentStatus} />}
         {activeView === "settings" && <SettingsView config={config} agentStatus={agentStatus} />}
       </main>

@@ -9,12 +9,12 @@ use tokio::time;
 use tracing::{info, warn};
 
 use crate::config::{AgentPaths, Config};
-use crate::models::{AgentState, ComponentUpdate, UpdateStatus, VersionInfo};
+use crate::models::{AgentState, ComponentUpdate, LogLine, UpdateStatus, VersionInfo};
 use crate::status_provider::StatusProvider;
 use crate::version_utils::fetch_version_info;
 use tokio::process::Command;
 use std::process::Stdio;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader};
 use tokio::sync::mpsc;
 
 // ── Version cache ─────────────────────────────────────────────────────────────
@@ -256,6 +256,54 @@ impl AgentManager {
                 }
                 Err(e) => {
                     let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to start update script (check sudoers): {e}")).await;
+                }
+            }
+        });
+
+        rx
+    }
+
+    // ── Log streaming ─────────────────────────────────────────────────────────
+
+    /// Open `ossec.log`, seek to the end, and stream new lines as they are
+    /// appended.  Returns an [`mpsc::Receiver`] that yields structured
+    /// [`LogLine`] values until the file is closed or the client disconnects.
+    pub async fn stream_logs(&self) -> mpsc::Receiver<LogLine> {
+        let (tx, rx) = mpsc::channel(256);
+        let log_path = self.paths.ossec_log.clone();
+
+        tokio::spawn(async move {
+            let file = match tokio::fs::File::open(&log_path).await {
+                Ok(f) => f,
+                Err(e) => {
+                    let _ = tx.send(LogLine::from_raw(format!("[ERROR] Cannot open log file: {e}"))).await;
+                    return;
+                }
+            };
+
+            let mut reader = BufReader::new(file);
+            // Jump to end so we only stream *new* lines (real-time tail).
+            if let Err(e) = reader.seek(std::io::SeekFrom::End(0)).await {
+                let _ = tx.send(LogLine::from_raw(format!("[ERROR] Cannot seek log file: {e}"))).await;
+                return;
+            }
+
+            let mut lines = reader.lines();
+            loop {
+                match lines.next_line().await {
+                    Ok(Some(line)) => {
+                        if tx.send(LogLine::from_raw(line)).await.is_err() {
+                            break; // Client disconnected
+                        }
+                    }
+                    Ok(None) => {
+                        // EOF — wait briefly for new data to be appended.
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                    }
+                    Err(e) => {
+                        let _ = tx.send(LogLine::from_raw(format!("[ERROR] Failed to read log line: {e}"))).await;
+                        break;
+                    }
                 }
             }
         });

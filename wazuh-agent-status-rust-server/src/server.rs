@@ -140,6 +140,12 @@ async fn handle_connection(
                 break; // Subscription ended — close connection
             }
 
+            // ── Log streaming ─────────────────────────────────────────────────
+            "subscribe-logs" => {
+                handle_log_stream(&mut writer, &manager).await?;
+                break;
+            }
+
             // ── Update triggers (compatible with Go protocol) ─────────────────
             "update" => {
                 start_update_stream_async(&manager, false).await;
@@ -245,6 +251,30 @@ where
     while let Some(line) = rx.recv().await {
         if let Err(e) = writer.write_all(format!("{line}\n").as_bytes()).await {
             warn!(error = %e, "Failed to write update log to client; stopping stream");
+            break;
+        }
+        let _ = writer.flush().await;
+    }
+
+    Ok(())
+}
+
+/// Handle a `subscribe-logs` session: tail `ossec.log` in real-time and
+/// pipe structured JSON lines back to the client.
+async fn handle_log_stream<W>(
+    writer: &mut W,
+    manager: &AgentManager,
+) -> tokio::io::Result<()>
+where
+    W: AsyncWriteExt + Unpin,
+{
+    let mut rx = manager.stream_logs().await;
+
+    while let Some(log_line) = rx.recv().await {
+        let json = serde_json::to_string(&log_line).unwrap_or_default();
+        let msg = format!("LOG_LINE: {json}\n");
+        if let Err(e) = writer.write_all(msg.as_bytes()).await {
+            warn!(error = %e, "Failed to write log line to client; stopping stream");
             break;
         }
         let _ = writer.flush().await;

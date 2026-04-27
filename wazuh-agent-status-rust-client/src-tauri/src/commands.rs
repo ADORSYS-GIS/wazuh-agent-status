@@ -47,3 +47,19 @@ pub async fn start_update(
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn start_log_stream(
+    window: tauri::Window,
+    manager: State<'_, Arc<AgentManager>>,
+) -> Result<(), String> {
+    let mut rx = manager.stream_logs().await.map_err(|e| e.to_string())?;
+
+    tauri::async_runtime::spawn(async move {
+        while let Some(line) = rx.recv().await {
+            let _ = window.emit("log-line", line);
+        }
+    });
+
+    Ok(())
+}
