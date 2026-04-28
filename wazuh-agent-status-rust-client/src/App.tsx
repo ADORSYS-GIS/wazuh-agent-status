@@ -1,9 +1,10 @@
-import { useState, useEffect, type CSSProperties } from "react";
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 
 import type { AppConfig, View } from "./types/app";
-import type { AgentStatus, SystemMetrics, UpdateStatus } from "./types/agent";
+import type { AgentStatus, SystemMetrics, UpdateStatus, LogLine } from "./types/agent";
 
 import { IconHome, IconLogs, IconShield, IconSettings } from "./components/Icons";
 import { StatusView } from "./components/StatusView";
@@ -58,6 +59,51 @@ function App() {
     return (localStorage.getItem(STORAGE_KEY_VIEW) as View) || "status";
   });
 
+  // Global log stream state (persists across navigation)
+  const [logs, setLogs] = useState<LogLine[]>([]);
+  const [isLogStreaming, setIsLogStreaming] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
+  const unlistenRef = useRef<(() => void) | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearLogTimeout = useCallback(() => {
+    if (timeoutRef.current) { window.clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+  }, []);
+
+  const startLogStream = useCallback(async () => {
+    if (isLogStreaming) return;
+    setIsLogStreaming(true);
+    setLogError(null);
+    setLogs([]);
+    clearLogTimeout();
+
+    const unlisten = await listen<string>("log-line", (event) => {
+      clearLogTimeout();
+      try {
+        const parsed: LogLine = JSON.parse(event.payload);
+        setLogs((prev) => [...prev, parsed]);
+      } catch {
+        setLogs((prev) => [...prev, { raw: event.payload, level: "UNKNOWN" }]);
+      }
+      timeoutRef.current = window.setTimeout(() => {
+        setLogError("Idle timeout — no logs received for 5s. Server may be down.");
+        setIsLogStreaming(false);
+      }, 5000);
+    });
+
+    unlistenRef.current = unlisten;
+    invoke("start_log_stream").catch((e) => {
+      setLogError(`Failed to start log stream: ${e}`);
+      setIsLogStreaming(false);
+    });
+  }, [isLogStreaming, clearLogTimeout]);
+
+  const stopLogStream = useCallback(() => {
+    clearLogTimeout();
+    if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
+    setIsLogStreaming(false);
+  }, [clearLogTimeout]);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_VIEW, activeView);
   }, [activeView]);
@@ -66,7 +112,7 @@ function App() {
     // Initial data fetch
     invoke<AppConfig>("get_config").then(setConfig).catch(console.error);
     invoke<UpdateStatus>("check_for_updates").then(setUpdateInfo).catch(console.error);
-    
+
     // Polling logic for real-time data
     const refreshData = () => {
       invoke<AgentStatus>("get_agent_status").then(setAgentStatus).catch(console.error);
@@ -76,8 +122,12 @@ function App() {
     refreshData();
     const statusTimer = setInterval(refreshData, STATUS_POLL_MS);
 
-    return () => clearInterval(statusTimer);
-  }, []);
+    return () => {
+      clearInterval(statusTimer);
+      clearLogTimeout();
+      if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
+    };
+  }, [clearLogTimeout]);
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
@@ -175,7 +225,16 @@ function App() {
 
       <main className="main-content">
         {activeView === "status" && <StatusView agentStatus={agentStatus} metrics={metrics} />}
-        {activeView === "logs" && <LogsView />}
+        {activeView === "logs" && (
+          <LogsView
+            logs={logs}
+            isStreaming={isLogStreaming}
+            error={logError}
+            onStart={startLogStream}
+            onStop={stopLogStream}
+            onClear={() => setLogs([])}
+          />
+        )}
         {activeView === "updates" && <UpdatesView updateInfo={updateInfo} agentStatus={agentStatus} />}
         {activeView === "settings" && <SettingsView config={config} agentStatus={agentStatus} />}
       </main>

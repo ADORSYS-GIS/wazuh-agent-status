@@ -273,6 +273,21 @@ impl AgentManager {
         let log_path = self.paths.ossec_log.clone();
 
         tokio::spawn(async move {
+            const HISTORY: usize = 50;
+
+            // Send last N historical lines so the UI isn't empty on first connect.
+            if let Ok(content) = tokio::fs::read_to_string(&log_path).await {
+                let mut hist: Vec<&str> = Vec::with_capacity(HISTORY);
+                for line in content.lines() {
+                    hist.push(line);
+                    if hist.len() > HISTORY { hist.remove(0); }
+                }
+                for line in hist {
+                    if tx.send(LogLine::from_raw(line.to_string())).await.is_err() { return; }
+                }
+            }
+
+            // Re-open and tail from EOF for live lines.
             let file = match tokio::fs::File::open(&log_path).await {
                 Ok(f) => f,
                 Err(e) => {
@@ -280,9 +295,7 @@ impl AgentManager {
                     return;
                 }
             };
-
             let mut reader = BufReader::new(file);
-            // Jump to end so we only stream *new* lines (real-time tail).
             if let Err(e) = reader.seek(std::io::SeekFrom::End(0)).await {
                 let _ = tx.send(LogLine::from_raw(format!("[ERROR] Cannot seek log file: {e}"))).await;
                 return;
