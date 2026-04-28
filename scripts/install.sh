@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Set shell options
 if [ -n "$BASH_VERSION" ]; then
@@ -44,10 +44,36 @@ CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
 WAZUH_USER=${WAZUH_USER:-"root"}
 
+get_real_user() {
+    # If SUDO_USER is set, trust it
+    if [ -n "${SUDO_USER:-}" ]; then
+        echo "$SUDO_USER"
+        return
+    fi
+
+    # Walk up the process tree to find the first non-root login user
+    local pid=$$
+    while [ "$pid" -ne 1 ]; do
+        pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+        local user
+        user=$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')
+        if [ -n "$user" ] && [ "$user" != "root" ]; then
+            echo "$user"
+            return
+        fi
+    done
+
+    # Last resort: current user
+    id -un
+}
+
+REAL_USER=$(get_real_user)
+REAL_HOME=$(eval echo "~$REAL_USER")
+
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
 SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
 CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
-DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$HOME/.config/autostart"}
+DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"${REAL_HOME}/.config/autostart"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
 
 SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
@@ -98,6 +124,17 @@ sed_alternative() {
         gsed "$@"
     else
         sed "$@"
+    fi
+}
+
+# Runs a shell function with root privileges by injecting its definition into a sudo bash -c call
+maybe_sudo_fn() {
+    local fn="$1"; shift
+    if [ "$(id -u)" -ne 0 ]; then
+        command_exists sudo || error_exit "This script requires root privileges. Run as root or use sudo."
+        sudo bash -c "$(declare -f command_exists "$fn"); $fn \"\$@\"" -- "$@"
+    else
+        "$fn" "$@"
     fi
 }
 
@@ -326,7 +363,7 @@ fi
 make_client_launch_at_startup
 
 print_step_header 5 "Download and configure adorsys-update.sh"
-info_message "Downloading adorsys-update.sh from $ADORSYS_UPDATE_SCRIPT_URL -> $UPDATE_SCRIPT_PATH..."
+info_message "Downloading adorsys-update.sh..."
 if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     maybe_sudo curl -SL --progress-bar -o "$UPDATE_SCRIPT_PATH" "$ADORSYS_UPDATE_SCRIPT_URL" || warn_message "Failed to download adorsys-update.sh"
     maybe_sudo chmod 750 "$UPDATE_SCRIPT_PATH"
@@ -334,7 +371,7 @@ if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     # Update WAZUH_MANAGER value in adorsys-update.sh
     if [ -n "${WAZUH_MANAGER:-}" ]; then
         info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
-        maybe_sudo sed_alternative -i "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
+        maybe_sudo_fn sed_alternative -i "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\"$WAZUH_MANAGER\"/" "$UPDATE_SCRIPT_PATH"
     else
         warn_message "WAZUH_MANAGER variable not set. Skipping update in adorsys-update.sh."
     fi
