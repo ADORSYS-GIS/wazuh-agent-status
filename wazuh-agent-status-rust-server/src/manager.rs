@@ -275,15 +275,26 @@ impl AgentManager {
         tokio::spawn(async move {
             const HISTORY: usize = 50;
 
+            // Verify file exists before attempting anything.
+            if !tokio::fs::try_exists(&log_path).await.unwrap_or(false) {
+                let _ = tx.send(LogLine::from_raw(format!("[ERROR] Log file not found: {}", log_path.display()))).await;
+                return;
+            }
+
             // Send last N historical lines so the UI isn't empty on first connect.
-            if let Ok(content) = tokio::fs::read_to_string(&log_path).await {
-                let mut hist: Vec<&str> = Vec::with_capacity(HISTORY);
-                for line in content.lines() {
-                    hist.push(line);
-                    if hist.len() > HISTORY { hist.remove(0); }
+            match tokio::fs::read_to_string(&log_path).await {
+                Ok(content) => {
+                    let mut hist: Vec<&str> = Vec::with_capacity(HISTORY);
+                    for line in content.lines() {
+                        hist.push(line);
+                        if hist.len() > HISTORY { hist.remove(0); }
+                    }
+                    for line in hist {
+                        if tx.send(LogLine::from_raw(line.to_string())).await.is_err() { return; }
+                    }
                 }
-                for line in hist {
-                    if tx.send(LogLine::from_raw(line.to_string())).await.is_err() { return; }
+                Err(e) => {
+                    let _ = tx.send(LogLine::from_raw(format!("[WARNING] Could not read history (file may be locked): {e}"))).await;
                 }
             }
 
@@ -291,7 +302,7 @@ impl AgentManager {
             let file = match tokio::fs::File::open(&log_path).await {
                 Ok(f) => f,
                 Err(e) => {
-                    let _ = tx.send(LogLine::from_raw(format!("[ERROR] Cannot open log file: {e}"))).await;
+                    let _ = tx.send(LogLine::from_raw(format!("[ERROR] Cannot open log file for tailing: {e}"))).await;
                     return;
                 }
             };

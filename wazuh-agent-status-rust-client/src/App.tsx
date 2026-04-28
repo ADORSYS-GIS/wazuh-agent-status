@@ -64,31 +64,20 @@ function App() {
   const [isLogStreaming, setIsLogStreaming] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
   const unlistenRef = useRef<(() => void) | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearLogTimeout = useCallback(() => {
-    if (timeoutRef.current) { window.clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-  }, []);
 
   const startLogStream = useCallback(async () => {
     if (isLogStreaming) return;
     setIsLogStreaming(true);
     setLogError(null);
     setLogs([]);
-    clearLogTimeout();
 
     const unlisten = await listen<string>("log-line", (event) => {
-      clearLogTimeout();
       try {
         const parsed: LogLine = JSON.parse(event.payload);
         setLogs((prev) => [...prev, parsed]);
       } catch {
         setLogs((prev) => [...prev, { raw: event.payload, level: "UNKNOWN" }]);
       }
-      timeoutRef.current = window.setTimeout(() => {
-        setLogError("Idle timeout — no logs received for 5s. Server may be down.");
-        setIsLogStreaming(false);
-      }, 5000);
     });
 
     unlistenRef.current = unlisten;
@@ -96,13 +85,12 @@ function App() {
       setLogError(`Failed to start log stream: ${e}`);
       setIsLogStreaming(false);
     });
-  }, [isLogStreaming, clearLogTimeout]);
+  }, [isLogStreaming]);
 
   const stopLogStream = useCallback(() => {
-    clearLogTimeout();
     if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
     setIsLogStreaming(false);
-  }, [clearLogTimeout]);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_VIEW, activeView);
@@ -124,10 +112,9 @@ function App() {
 
     return () => {
       clearInterval(statusTimer);
-      clearLogTimeout();
       if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
     };
-  }, [clearLogTimeout]);
+  }, []);
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
