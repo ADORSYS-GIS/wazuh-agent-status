@@ -200,7 +200,7 @@ impl AgentPaths {
                 pid_file:      PathBuf::new(), // not applicable on Windows
                 update_script: base.join("adorsys-update.bat"),
                 wazuh_control: base.join("wazuh-control.exe"), // Placeholder for Windows
-                ossec_log:     ossec_log_override.unwrap_or_else(|| base.join(r"logs\ossec.log")),
+                ossec_log:     ossec_log_override.unwrap_or_else(|| base.join(r"ossec.log")),
             }
         }
 
