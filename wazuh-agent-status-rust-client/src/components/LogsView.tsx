@@ -1,50 +1,18 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { useState, useEffect, useRef } from "react";
 import type { LogLine } from "../types/agent";
 
-export function LogsView() {
-  const [logs, setLogs] = useState<LogLine[]>([]);
+interface LogsViewProps {
+  logs: LogLine[];
+  isStreaming: boolean;
+  error: string | null;
+  onStart: () => void;
+  onStop: () => void;
+  onClear: () => void;
+}
+
+export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }: LogsViewProps) {
   const [filter, setFilter] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
-  const unlistenRef = useRef<(() => void) | null>(null);
-
-  const startStream = useCallback(async () => {
-    if (isStreaming) return;
-    setIsStreaming(true);
-    setLogs([]);
-
-    const unlisten = await listen<string>("log-line", (event) => {
-      try {
-        const parsed: LogLine = JSON.parse(event.payload);
-        setLogs((prev) => [...prev, parsed]);
-      } catch {
-        setLogs((prev) => [...prev, { raw: event.payload, level: "UNKNOWN" }]);
-      }
-    });
-
-    unlistenRef.current = unlisten;
-    invoke("start_log_stream").catch((e) => {
-      setLogs((prev) => [...prev, { raw: `[ERROR] Failed to start log stream: ${e}`, level: "ERROR" }]);
-      setIsStreaming(false);
-    });
-  }, [isStreaming]);
-
-  const stopStream = useCallback(() => {
-    if (unlistenRef.current) {
-      unlistenRef.current();
-      unlistenRef.current = null;
-    }
-    setIsStreaming(false);
-  }, []);
-
-  useEffect(() => {
-    startStream();
-    return () => {
-      stopStream();
-    };
-  }, []);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -97,7 +65,7 @@ export function LogsView() {
         />
         <button
           className="update-button"
-          onClick={isStreaming ? stopStream : startStream}
+          onClick={isStreaming ? onStop : onStart}
           style={{ padding: "8px 16px", fontSize: "13px" }}
         >
           {isStreaming ? "Stop" : "Stream"}
@@ -118,9 +86,14 @@ export function LogsView() {
           lineHeight: 1.5,
         }}
       >
+        {error && (
+          <div style={{ color: "#f87171", textAlign: "center", padding: "12px", marginBottom: "8px", background: "#450a0a", borderRadius: "4px", fontWeight: 600 }}>
+            {error}
+          </div>
+        )}
         {filteredLogs.length === 0 ? (
           <div style={{ color: "#6b7280", textAlign: "center", padding: "20px" }}>
-            {isStreaming ? "Waiting for log lines..." : "Stream stopped."}
+            {isStreaming ? "Waiting for log lines..." : error ? null : "Click Stream to start."}
           </div>
         ) : (
           filteredLogs.map((log, i) => (
@@ -153,7 +126,7 @@ export function LogsView() {
         </span>
         <button
           className="update-button"
-          onClick={() => setLogs([])}
+          onClick={onClear}
           style={{ padding: "6px 12px", fontSize: "12px" }}
         >
           Clear
