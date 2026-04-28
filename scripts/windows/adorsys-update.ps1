@@ -1,5 +1,9 @@
 #requires -version 5.1
 
+# Set strict mode for error handling
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
 # ---- Parameters ----
 param(
     [switch]$Prerelease,
@@ -33,20 +37,77 @@ if (-not $IsAdmin) {
     }
 }
 
+# Configuration
+$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.2.rc1" }
+
+if ($INSTALL_PROFILE -eq "admin") {
+    $WAS_VERSION = $APP_VERSION
+} else {
+    $WAS_VERSION = "$APP_VERSION-user"
+}
+$WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "refs/tags/v$WAS_VERSION" }
+$WAZUH_AGENT_STATUS_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
+
+$TMP_DIR = Join-Path $env:TEMP "wazuh-agent-status-install"
+if (-not (Test-Path $TMP_DIR)) {
+    New-Item -Path $TMP_DIR -ItemType Directory | Out-Null
+}
+
+try {
+    $ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
+    $UtilsURL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/shared/utils.ps1"
+    
+    $global:ChecksumsPath = Join-Path $TMP_DIR "checksums.sha256"
+    $UtilsPath = Join-Path $TMP_DIR "utils.ps1"
+
+    Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
+    Invoke-WebRequest -Uri $UtilsURL -OutFile $UtilsPath -ErrorAction Stop
+
+    # Verification function (bootstrap)
+    function Get-FileChecksum-Bootstrap {
+        param([string]$FilePath)
+        return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
+    }
+
+    $ExpectedHash = (Select-String -Path $ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0]
+    $ActualHash = Get-FileChecksum-Bootstrap -FilePath $UtilsPath
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedHash) -or ($ActualHash -ne $ExpectedHash.ToLower())) {
+        Write-Error "Checksum verification failed for utils.ps1"
+        Write-Error "Expected: $ExpectedHash"
+        Write-Error "Got:      $ActualHash"
+        exit 1
+    }
+
+    . $UtilsPath
+}
+catch {
+    Write-Error "Failed to initialize utilities: $($_.Exception.Message)"
+    exit 1
+}
+
+EnsureAdmin
+
+# Cleanup bootstrap files on exit
+Register-EngineEvent -SourceIdentifier ([System.Guid]::NewGuid().ToString()) -Action {
+    Remove-Item -Path $TMP_DIR -Recurse -Force -ErrorAction SilentlyContinue
+} | Out-Null
+
 Set-StrictMode -Version Latest
 
 # ---- Configuration Variables ----
 $WAZUH_MANAGER           = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $OSSEC_PATH              = "C:\Program Files (x86)\ossec-agent\"
-$VERSION_URL             = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/agent-status-prerelease-update/versions.json"
-$STABLE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/feat/windows-setup-agent-installer/scripts/setup-agent.ps1"
+$WAZUH_AGENT_REPO_REF    = if ($env:WAZUH_AGENT_REPO_REF) { $env:WAZUH_AGENT_REPO_REF } else { "main" }
+$VERSION_URL             = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/${WAZUH_AGENT_REPO_REF}/versions.json"
+$STABLE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/${WAZUH_AGENT_REPO_REF}/scripts/windows/setup-agent.ps1"
 
 # ---- Globals ----
 $ActiveResponsesLogDir = Join-Path $OSSEC_PATH "active-response"
 $LogPath               = Join-Path $ActiveResponsesLogDir "active-responses.log"
 $PRERELEASE_VERSION    = $null
 
-# ---- Logging ----
+# ---- Logging Override ----
 function Append-Log {
     param(
         [string]$Message,
@@ -84,11 +145,6 @@ function Append-Log {
     Write-Host $line
 }
 
-function InfoMessage    { param([string]$Message) Append-Log $Message "INFO"    }
-function WarningMessage { param([string]$Message) Append-Log $Message "WARNING" }
-function SuccessMessage { param([string]$Message) Append-Log $Message "SUCCESS" }
-function ErrorMessage   { param([string]$Message) Append-Log $Message "ERROR"   }
-
 # ---- Helper: clean up a temp file unconditionally ----
 function Remove-TempFile {
     param([string]$Path)
@@ -122,7 +178,7 @@ function Run-Update {
 
     # Determine setup script URL without shadowing the module-level constant
     if ($Prerelease) {
-        $resolvedScriptUrl = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v$PRERELEASE_VERSION/scripts/setup-agent.ps1"
+        $resolvedScriptUrl = $PRERELEASE_SETUP_SCRIPT_URL
         InfoMessage "Using prerelease setup script: $resolvedScriptUrl"
     } else {
         $resolvedScriptUrl = $STABLE_SETUP_SCRIPT_URL

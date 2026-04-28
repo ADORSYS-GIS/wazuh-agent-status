@@ -5,8 +5,13 @@ on:
     branches:
       - main
       - develop
+      - user-main
     tags:
       - 'v*'
+    paths:
+      - 'wazuh-agent-status-client/**'
+      - 'wazuh-agent-status/**'
+      - '.github/workflows/release.yaml'
 
 env:
   GO_VERSION: 1.22
@@ -22,7 +27,7 @@ jobs:
         arch: [amd64]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Set version
         id: set_version
@@ -34,7 +39,7 @@ jobs:
           fi
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -61,7 +66,7 @@ jobs:
 
       - name: Upload Linux client binaries
         if: ${{ !env.ACT }} 
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
           path: |
@@ -69,7 +74,7 @@ jobs:
           
       - name: Upload Linux server binaries
         if: ${{ !env.ACT }} 
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
           path: | 
@@ -88,7 +93,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Set version
         id: set_version
@@ -100,7 +105,7 @@ jobs:
           fi
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -117,14 +122,14 @@ jobs:
           GOOS=darwin GOARCH=${{ matrix.arch }} go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Upload MacOS client binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
           path: |
             ${{ env.CLIENT_APP_NAME }}/dist/
           
       - name: Upload MacOS server binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
           path: |
@@ -139,7 +144,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Set version
         id: set_version
@@ -151,7 +156,7 @@ jobs:
             echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
           fi
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version: ${{ env.GO_VERSION }}
           
@@ -163,33 +168,88 @@ jobs:
         run: |
           go build -C ./${{ env.SERVER_APP_NAME }} -ldflags="-X 'main.Version=${{ steps.set_version.outputs.version }}'" -o ./dist/${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
-
       - name: Upload windows client binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}
           path: |
             ${{ env.CLIENT_APP_NAME }}/dist/
-          
+
       - name: Upload windows server binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}
           path: |
             ${{ env.SERVER_APP_NAME }}/dist/
-          
-  release:
-    name: Release
-    permissions: write-all
+  
+  update-changelog-and-checksums:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     needs:
       - build-linux
       - build-macos
       - build-windows
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: "0"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          path: ./dist/
+
+      - name: Configure git user
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Generate checksums
+        run: |
+          # Calculate binary checksums and strip directory prefix
+          find dist -type f -exec sha256sum {} + | sed 's|  dist/[^/]*/|  |' > checksums.sha256
+          # Calculate script checksums and keep paths
+          find scripts -type f -exec sha256sum {} + >> checksums.sha256
+          cat checksums.sha256
+
+      - name: Generate full CHANGELOG.md
+        uses: orhun/git-cliff-action@c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72
+        with:
+          config: cliff.toml
+          args: --output CHANGELOG.md
+          
+      - name: Commit and push changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            git add CHANGELOG.md checksums.sha256
+            git commit -m "docs: update CHANGELOG.md and checksums [skip ci]"
+            git push origin ${{ github.head_ref || github.ref_name }}
+          else
+            echo "No changes to commit"
+          fi
+      
+      - name: Upload Checksums
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          path: checksums.sha256
+
+  release:
+    name: Release
+    permissions:
+      contents: write
+    needs:
+      - update-changelog-and-checksums
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
 
@@ -198,56 +258,36 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           path: ./dist/
 
-      - name: Generate checksums
-        run: |
-          # Calculate binary checksums and strip directory prefix
-          find dist -type f -exec sha256sum {} + | sed 's|  dist/[^/]*/|  |' > ${{ env.CLIENT_APP_NAME }}/checksums.sha256
-          # Calculate script checksums and keep paths
-          find scripts -type f -exec sha256sum {} + >> ${{ env.CLIENT_APP_NAME }}/checksums.sha256
-          cat ${{ env.CLIENT_APP_NAME }}/checksums.sha256
-
       - name: Generate release notes (latest only)
         id: git_cliff
-        uses: orhun/git-cliff-action@v4
+        uses: orhun/git-cliff-action@c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72
         with:
           config: cliff.toml
           args: --latest --strip header
         env:
-          OUTPUT: /tmp/release-notes.md 
+          OUTPUT: /tmp/release-notes.md
 
-      - name: Generate full CHANGELOG.md
-        uses: orhun/git-cliff-action@v4
-        with:
-          config: cliff.toml
-          args: --output CHANGELOG.md
+      - name: Determine prerelease
+        id: prerelease
+        run: |
+          if [[ "${GITHUB_REF#refs/tags/}" == *"rc"* ]]; then
+            echo "PRERELEASE=true" >> $GITHUB_OUTPUT
+          else
+            echo "PRERELEASE=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
         with:
           files: |
             ./dist/**/*
-            ${{ env.CLIENT_APP_NAME }}/checksums.sha256
           body: ${{ steps.git_cliff.outputs.content }}
+          prerelease: ${{ steps.prerelease.outputs.PRERELEASE }}
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update CHANGELOG.md and checksums"
-          title: "Update Changelog and Checksums"
-          body: |
-            This PR updates the CHANGELOG.md and the unified checksums file.
-            - Generated using git-cliff and sha256sum
-            - Includes both binary and script checksums
-            - Triggered by: ${{ github.event_name }}
-          branch: update-changelog-${{ github.run_id }}
-          base: user-main
-          delete-branch: true
-          labels: documentation, automated-pr

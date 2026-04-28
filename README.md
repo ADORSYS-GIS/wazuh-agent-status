@@ -72,15 +72,27 @@ Run the application with:
 
 Run the following commands to install the app
 
-- ### Ubuntu and macOS
-  1.  #### Admin app
-  ```bash
-  curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | PROFILE=admin sh
-  ```
-  2.  #### Simple users app
-  ```bash
-  curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/install.sh | sh
-  ```
+- ### Ubuntu (Linux)
+   1. #### Admin app
+   ```bash
+   curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/linux/install.sh | PROFILE=admin sh
+   ```
+   
+   2. #### Simple users app
+   ```bash
+   curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/linux/install.sh | sh
+   ```
+
+- ### macOS
+   1. #### Admin app
+   ```bash
+   curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/macos/install.sh | PROFILE=admin sh
+   ```
+   
+   2. #### Simple users app
+   ```bash
+   curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/macos/install.sh | sh
+   ```
 
 ## 📖 Documentation Guide
 
