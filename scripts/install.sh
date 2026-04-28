@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set shell options
-if [ -n "$BASH_VERSION" ]; then
+if [[ -n "$BASH_VERSION" ]]; then
     set -euo pipefail
 else
     set -eu
@@ -46,18 +46,18 @@ WAZUH_USER=${WAZUH_USER:-"root"}
 
 get_real_user() {
     # If SUDO_USER is set, trust it
-    if [ -n "${SUDO_USER:-}" ]; then
+    if [[ -n "${SUDO_USER:-}" ]]; then
         echo "$SUDO_USER"
         return
     fi
 
     # Walk up the process tree to find the first non-root login user
     local pid=$$
-    while [ "$pid" -ne 1 ]; do
+    while [[ "$pid" -ne 1 ]]; do
         pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
         local user
         user=$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')
-        if [ -n "$user" ] && [ "$user" != "root" ]; then
+        if [[ -n "$user" ]] && [[ "$user" != "root" ]]; then
             echo "$user"
             return
         fi
@@ -112,7 +112,7 @@ command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 # Execute with Root Privileges
 maybe_sudo() {
-    if [ "$(id -u)" -ne 0 ]; then
+    if [[ "$(id -u)" -ne 0 ]]; then
         command_exists sudo && sudo "$@" || error_exit "This script requires root privileges. Run as root or use sudo."
     else
         "$@"
@@ -130,7 +130,7 @@ sed_alternative() {
 # Runs a shell function with root privileges by injecting its definition into a sudo bash -c call
 maybe_sudo_fn() {
     local fn="$1"; shift
-    if [ "$(id -u)" -ne 0 ]; then
+    if [[ "$(id -u)" -ne 0 ]]; then
         command_exists sudo || error_exit "This script requires root privileges. Run as root or use sudo."
         sudo bash -c "$(declare -f command_exists "$fn"); $fn \"\$@\"" -- "$@"
     else
@@ -150,7 +150,7 @@ EOF"
 
 remove_file() {
     local filepath="$1"
-    if [ -f "$filepath" ]; then
+    if [[ -f "$filepath" ]]; then
         info_message "Removing file: $filepath"
         maybe_sudo rm -f "$filepath"
     fi
@@ -235,7 +235,7 @@ create_launchd_plist_file() {
 </plist>
 "
     
-    if [ "$name" = "$SERVER_NAME" ]; then
+    if [[ "$name" = "$SERVER_NAME" ]]; then
         info_message "Loading new daemon plist file..."
         maybe_sudo launchctl bootstrap "system $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
     else
@@ -248,7 +248,7 @@ create_launchd_plist_file() {
 unload_plist_file() {
     local filepath="$1"
 
-    if [ -f "$filepath" ]; then
+    if [[ -f "$filepath" ]]; then
         info_message "Unloading previous plist file (if any)..."
         maybe_sudo launchctl bootout "gui/$(id) $filepath" 2>/dev/null || warn_message "Unloading previous plist file failed: $filepath"
         info_message "Previous plist file unloaded: $filepath"
@@ -274,21 +274,21 @@ make_client_launch_at_startup() {
 
 validate_installation() {
     # Validate binaries
-    if [ -x "$BIN_DIR/$SERVER_NAME" ]; then
+    if [[ -x "$BIN_DIR/$SERVER_NAME" ]]; then
         success_message "Server binary exists and is executable: $BIN_DIR/$SERVER_NAME."
     else
         error_exit "Server binary is missing or not executable: $BIN_DIR/$SERVER_NAME."
     fi
 
-    if [ -x "$BIN_DIR/$CLIENT_NAME" ]; then
+    if [[ -x "$BIN_DIR/$CLIENT_NAME" ]]; then
         success_message "Client binary exists and is executable: $BIN_DIR/$CLIENT_NAME."
     else
         error_exit "Client binary is missing or not executable: $BIN_DIR/$CLIENT_NAME."
     fi
 
     # Validate service files
-    if [ "$OS" = "linux" ]; then
-        if [ -f "$SERVICE_FILE" ]; then
+    if [[ "$OS" = "linux" ]]; then
+        if [[ -f "$SERVICE_FILE" ]]; then
             success_message "Systemd service file exists: $SERVICE_FILE."
         else
             error_exit "Systemd service file is missing: $SERVICE_FILE."
@@ -298,20 +298,20 @@ validate_installation() {
             success_message "Systemd service is enabled: $SERVER_NAME." ||
             error_exit "Systemd service is not enabled: $SERVER_NAME."
 
-        if [ -f "$DESKTOP_UNIT_FILE" ]; then
+        if [[ -f "$DESKTOP_UNIT_FILE" ]]; then
             success_message "Desktop autostart file exists: $DESKTOP_UNIT_FILE."
         else
             error_exit "Desktop autostart file is missing: $DESKTOP_UNIT_FILE."
         fi
 
-    elif [ "$OS" = "darwin" ]; then
-        if [ -f "$SERVER_LAUNCH_AGENT_FILE" ]; then
+    elif [[ "$OS" = "darwin" ]]; then
+        if [[ -f "$SERVER_LAUNCH_AGENT_FILE" ]]; then
             success_message "macOS Launchd server plist exists: $SERVER_LAUNCH_AGENT_FILE."
         else
             error_exit "macOS Launchd server plist is missing: $SERVER_LAUNCH_AGENT_FILE."
         fi
 
-        if [ -f "$CLIENT_LAUNCH_AGENT_FILE" ]; then
+        if [[ -f "$CLIENT_LAUNCH_AGENT_FILE" ]]; then
             success_message "macOS Launchd client plist exists: $CLIENT_LAUNCH_AGENT_FILE."
         else
             error_exit "macOS Launchd client plist is missing: $CLIENT_LAUNCH_AGENT_FILE."
@@ -357,7 +357,7 @@ print_step_header 3 "Server Service Configuration"
 make_server_launch_at_startup
 
 print_step_header 4 "Client Service Configuration"
-if [ "$OS" = "darwin" ]; then
+if [[ "$OS" = "darwin" ]]; then
     unload_plist_file "$CLIENT_LAUNCH_AGENT_FILE"
 fi
 make_client_launch_at_startup
@@ -369,7 +369,7 @@ if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     maybe_sudo chmod 750 "$UPDATE_SCRIPT_PATH"
     
     # Update WAZUH_MANAGER value in adorsys-update.sh
-    if [ -n "${WAZUH_MANAGER:-}" ]; then
+    if [[ -n "${WAZUH_MANAGER:-}" ]]; then
         info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
         maybe_sudo_fn sed_alternative -i "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\"$WAZUH_MANAGER\"/" "$UPDATE_SCRIPT_PATH"
     else
