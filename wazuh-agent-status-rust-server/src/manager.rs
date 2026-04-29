@@ -127,25 +127,54 @@ impl AgentManager {
                         if should_attempt {
                             info!("Self-healing: Wazuh agent is inactive. Attempting restart...");
                             last_healing_attempt = Some(now);
-                            
-                            let control_path = self.paths.wazuh_control.clone();
-                            tokio::spawn(async move {
-                                let mut cmd = Command::new("sudo");
-                                cmd.arg(control_path).arg("restart");
-                                
-                                match cmd.output().await {
-                                    Ok(o) => {
-                                        if o.status.success() {
-                                            info!("Self-healing: Restart command executed successfully");
-                                        } else {
-                                            warn!("Self-healing: Restart command failed with exit code {}: {}", 
-                                                o.status.code().unwrap_or(-1),
-                                                String::from_utf8_lossy(&o.stderr));
-                                        }
-                                    },
-                                    Err(e) => warn!("Self-healing: Failed to spawn restart command: {e}"),
-                                }
-                            });
+
+                            #[cfg(not(target_os = "windows"))]
+                            {
+                                let control_path = self.paths.wazuh_control.clone();
+                                tokio::spawn(async move {
+                                    let mut cmd = Command::new("sudo");
+                                    cmd.arg(control_path).arg("restart");
+
+                                    match cmd.output().await {
+                                        Ok(o) => {
+                                            if o.status.success() {
+                                                info!("Self-healing: Restart command executed successfully");
+                                            } else {
+                                                warn!("Self-healing: Restart command failed with exit code {}: {}",
+                                                    o.status.code().unwrap_or(-1),
+                                                    String::from_utf8_lossy(&o.stderr));
+                                            }
+                                        },
+                                        Err(e) => warn!("Self-healing: Failed to spawn restart command: {e}"),
+                                    }
+                                });
+                            }
+
+                            #[cfg(target_os = "windows")]
+                            {
+                                tokio::spawn(async move {
+                                    let mut cmd = Command::new("powershell.exe");
+                                    cmd.args([
+                                        "-NoProfile",
+                                        "-NonInteractive",
+                                        "-Command",
+                                        "Restart-Service -Name WazuhSvc -Force",
+                                    ]);
+
+                                    match cmd.output().await {
+                                        Ok(o) => {
+                                            if o.status.success() {
+                                                info!("Self-healing: Restart command executed successfully");
+                                            } else {
+                                                warn!("Self-healing: Restart command failed with exit code {}: {}",
+                                                    o.status.code().unwrap_or(-1),
+                                                    String::from_utf8_lossy(&o.stderr));
+                                            }
+                                        },
+                                        Err(e) => warn!("Self-healing: Failed to spawn restart command: {e}"),
+                                    }
+                                });
+                            }
                         }
                     } else if new_state.status == crate::models::AgentStatus::Active {
                         // Just broadcast state; don't reset healing clock to maintain strict cooldown
