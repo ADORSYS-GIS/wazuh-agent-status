@@ -60,6 +60,21 @@ async fn test_server_concurrent_clients() {
     }
 }
 
+#[tokio::test]
+async fn test_server_subscribe_logs() {
+    let (_manager, addr) = setup_test_server().await;
+    
+    let stream = TcpStream::connect(&addr).await.unwrap();
+    let (mut reader_raw, mut writer) = tokio::io::split(stream);
+    
+    writer.write_all(b"subscribe-logs\n").await.unwrap();
+    
+    let mut reader = BufReader::new(&mut reader_raw).lines();
+    let line = reader.next_line().await.unwrap().unwrap();
+    assert!(line.starts_with("LOG_LINE:"));
+    // The stream closes after the error line since the log file doesn't exist in tests
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async fn setup_test_server() -> (Arc<AgentManager>, String) {

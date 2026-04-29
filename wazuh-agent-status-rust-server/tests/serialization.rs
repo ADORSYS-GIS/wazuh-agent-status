@@ -9,6 +9,7 @@ fn test_agent_state_serialization() {
         tray_version: "1.8.0".to_string(),
         groups: vec!["default".to_string(), "linux".to_string()],
         metrics: SystemMetrics::default(),
+        self_healing_enabled: true,
     };
 
     let json = serde_json::to_string(&state).expect("Failed to serialize");
@@ -32,7 +33,8 @@ fn test_agent_state_deserialization() {
             "memory_usage": 0.0,
             "total_memory": 0,
             "used_memory": 0
-        }
+        },
+        "self_healing_enabled": true
     }"#;
 
     let state: AgentState = serde_json::from_str(json).expect("Failed to deserialize");

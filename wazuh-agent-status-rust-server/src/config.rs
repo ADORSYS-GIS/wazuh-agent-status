@@ -150,11 +150,15 @@ pub struct AgentPaths {
     pub update_script: PathBuf,
     /// Path to the wazuh-control utility.
     pub wazuh_control: PathBuf,
+    /// Path to the Wazuh agent's ossec.log file.
+    pub ossec_log: PathBuf,
 }
 
 impl AgentPaths {
     /// Return the native paths for the OS this binary targets.
     pub fn native() -> Self {
+        let ossec_log_override = std::env::var("WAZUH_STATUS_OSSEC_LOG").ok().map(PathBuf::from);
+
         #[cfg(target_os = "linux")]
         {
             let base = PathBuf::from("/var/ossec");
@@ -166,6 +170,7 @@ impl AgentPaths {
                 pid_file:      base.join("var/run/wazuh-agentd.pid"),
                 update_script: base.join("active-response/bin/adorsys-update.sh"),
                 wazuh_control: base.join("bin/wazuh-control"),
+                ossec_log:     ossec_log_override.unwrap_or_else(|| base.join("logs/ossec.log")),
             }
         }
 
@@ -180,6 +185,7 @@ impl AgentPaths {
                 pid_file:      base.join("var/run/wazuh-agentd.pid"),
                 update_script: base.join("active-response/bin/adorsys-update.sh"),
                 wazuh_control: base.join("bin/wazuh-control"),
+                ossec_log:     ossec_log_override.unwrap_or_else(|| base.join("logs/ossec.log")),
             }
         }
 
@@ -194,6 +200,7 @@ impl AgentPaths {
                 pid_file:      PathBuf::new(), // not applicable on Windows
                 update_script: base.join("adorsys-update.bat"),
                 wazuh_control: base.join("wazuh-control.exe"), // Placeholder for Windows
+                ossec_log:     ossec_log_override.unwrap_or_else(|| base.join(r"ossec.log")),
             }
         }
 

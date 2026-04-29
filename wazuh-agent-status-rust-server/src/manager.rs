@@ -9,12 +9,12 @@ use tokio::time;
 use tracing::{info, warn};
 
 use crate::config::{AgentPaths, Config};
-use crate::models::{AgentState, ComponentUpdate, UpdateStatus, VersionInfo};
+use crate::models::{AgentState, ComponentUpdate, LogLine, UpdateStatus, VersionInfo};
 use crate::status_provider::StatusProvider;
 use crate::version_utils::fetch_version_info;
 use tokio::process::Command;
 use std::process::Stdio;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader};
 use tokio::sync::mpsc;
 
 // ── Version cache ─────────────────────────────────────────────────────────────
@@ -127,25 +127,54 @@ impl AgentManager {
                         if should_attempt {
                             info!("Self-healing: Wazuh agent is inactive. Attempting restart...");
                             last_healing_attempt = Some(now);
-                            
-                            let control_path = self.paths.wazuh_control.clone();
-                            tokio::spawn(async move {
-                                let mut cmd = Command::new("sudo");
-                                cmd.arg(control_path).arg("restart");
-                                
-                                match cmd.output().await {
-                                    Ok(o) => {
-                                        if o.status.success() {
-                                            info!("Self-healing: Restart command executed successfully");
-                                        } else {
-                                            warn!("Self-healing: Restart command failed with exit code {}: {}", 
-                                                o.status.code().unwrap_or(-1),
-                                                String::from_utf8_lossy(&o.stderr));
-                                        }
-                                    },
-                                    Err(e) => warn!("Self-healing: Failed to spawn restart command: {e}"),
-                                }
-                            });
+
+                            #[cfg(not(target_os = "windows"))]
+                            {
+                                let control_path = self.paths.wazuh_control.clone();
+                                tokio::spawn(async move {
+                                    let mut cmd = Command::new("sudo");
+                                    cmd.arg(control_path).arg("restart");
+
+                                    match cmd.output().await {
+                                        Ok(o) => {
+                                            if o.status.success() {
+                                                info!("Self-healing: Restart command executed successfully");
+                                            } else {
+                                                warn!("Self-healing: Restart command failed with exit code {}: {}",
+                                                    o.status.code().unwrap_or(-1),
+                                                    String::from_utf8_lossy(&o.stderr));
+                                            }
+                                        },
+                                        Err(e) => warn!("Self-healing: Failed to spawn restart command: {e}"),
+                                    }
+                                });
+                            }
+
+                            #[cfg(target_os = "windows")]
+                            {
+                                tokio::spawn(async move {
+                                    let mut cmd = Command::new("powershell.exe");
+                                    cmd.args([
+                                        "-NoProfile",
+                                        "-NonInteractive",
+                                        "-Command",
+                                        "Restart-Service -Name WazuhSvc -Force",
+                                    ]);
+
+                                    match cmd.output().await {
+                                        Ok(o) => {
+                                            if o.status.success() {
+                                                info!("Self-healing: Restart command executed successfully");
+                                            } else {
+                                                warn!("Self-healing: Restart command failed with exit code {}: {}",
+                                                    o.status.code().unwrap_or(-1),
+                                                    String::from_utf8_lossy(&o.stderr));
+                                            }
+                                        },
+                                        Err(e) => warn!("Self-healing: Failed to spawn restart command: {e}"),
+                                    }
+                                });
+                            }
                         }
                     } else if new_state.status == crate::models::AgentStatus::Active {
                         // Just broadcast state; don't reset healing clock to maintain strict cooldown
@@ -256,6 +285,78 @@ impl AgentManager {
                 }
                 Err(e) => {
                     let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to start update script (check sudoers): {e}")).await;
+                }
+            }
+        });
+
+        rx
+    }
+
+    // ── Log streaming ─────────────────────────────────────────────────────────
+
+    /// Open `ossec.log`, seek to the end, and stream new lines as they are
+    /// appended.  Returns an [`mpsc::Receiver`] that yields structured
+    /// [`LogLine`] values until the file is closed or the client disconnects.
+    pub async fn stream_logs(&self) -> mpsc::Receiver<LogLine> {
+        let (tx, rx) = mpsc::channel(256);
+        let log_path = self.paths.ossec_log.clone();
+
+        tokio::spawn(async move {
+            const HISTORY: usize = 50;
+
+            // Verify file exists before attempting anything.
+            if !tokio::fs::try_exists(&log_path).await.unwrap_or(false) {
+                let _ = tx.send(LogLine::from_raw(format!("[ERROR] Log file not found: {}", log_path.display()))).await;
+                return;
+            }
+
+            // Send last N historical lines so the UI isn't empty on first connect.
+            match tokio::fs::read_to_string(&log_path).await {
+                Ok(content) => {
+                    let mut hist: Vec<&str> = Vec::with_capacity(HISTORY);
+                    for line in content.lines() {
+                        hist.push(line);
+                        if hist.len() > HISTORY { hist.remove(0); }
+                    }
+                    for line in hist {
+                        if tx.send(LogLine::from_raw(line.to_string())).await.is_err() { return; }
+                    }
+                }
+                Err(e) => {
+                    let _ = tx.send(LogLine::from_raw(format!("[WARNING] Could not read history (file may be locked): {e}"))).await;
+                }
+            }
+
+            // Re-open and tail from EOF for live lines.
+            let file = match tokio::fs::File::open(&log_path).await {
+                Ok(f) => f,
+                Err(e) => {
+                    let _ = tx.send(LogLine::from_raw(format!("[ERROR] Cannot open log file for tailing: {e}"))).await;
+                    return;
+                }
+            };
+            let mut reader = BufReader::new(file);
+            if let Err(e) = reader.seek(std::io::SeekFrom::End(0)).await {
+                let _ = tx.send(LogLine::from_raw(format!("[ERROR] Cannot seek log file: {e}"))).await;
+                return;
+            }
+
+            let mut lines = reader.lines();
+            loop {
+                match lines.next_line().await {
+                    Ok(Some(line)) => {
+                        if tx.send(LogLine::from_raw(line)).await.is_err() {
+                            break; // Client disconnected
+                        }
+                    }
+                    Ok(None) => {
+                        // EOF — wait briefly for new data to be appended.
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                    }
+                    Err(e) => {
+                        let _ = tx.send(LogLine::from_raw(format!("[ERROR] Failed to read log line: {e}"))).await;
+                        break;
+                    }
                 }
             }
         });
