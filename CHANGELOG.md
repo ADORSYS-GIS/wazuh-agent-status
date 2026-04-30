@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[f67d00b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f67d00b0ff8444832373faaa7a2dc43b879d5c18)
+[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[9d8de89](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9d8de890566c2ebb866f6e3e867ea9a1f1e9e7f6)
 
 ### Bug Fixes
 
@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - Define install profile for windows uninstall script ([`a0d9d54`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a0d9d5452b8230ddeb6d69c47c36fbfa3b600489))
 - Use REAL_HOME and add sudo-safe function execution ([`22bf5a6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/22bf5a6b7d5a6289ca63b95ffc99b56a8711d0c3))
 - Fix sonaqube warnings ([`0582f21`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0582f21367b51fea53548d356bba3864c841e02d))
+- Define missing WAZUH_AGENT_STATUS_REPO_URL in install.ps1 ([`9d8de89`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9d8de890566c2ebb866f6e3e867ea9a1f1e9e7f6))
 
 ### Documentation
 
@@ -25,6 +26,7 @@ All notable changes to this project will be documented in this file.
 - Update agent enrollment documentation and images with release configuration adjustments ([`65b84bd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/65b84bdc9298a6e29d1fe031ff96a069b634dcb0)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Update CHANGELOG.md and checksums [skip ci] ([`991c7e7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/991c7e7d964e2e85c794f9f1a3fd5fa21fd8e69a))
 - Update CHANGELOG.md and checksums [skip ci] ([`5d43bf4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5d43bf42eb09a734d7e6ae1bc1d233b46005969c))
+- Update CHANGELOG.md and checksums [skip ci] ([`d251627`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d251627b90b4e302d2ea6b296389d5ab5af2ace6))
 
 ### Features
 
