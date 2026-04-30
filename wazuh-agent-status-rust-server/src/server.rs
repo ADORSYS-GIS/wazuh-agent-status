@@ -13,7 +13,7 @@ use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::broadcast;
-use tokio::time::timeout;
+use tokio::time::{self, timeout};
 use tracing::{info, warn, error};
 
 use crate::manager::AgentManager;
@@ -140,6 +140,28 @@ async fn handle_connection(
                 break; // Subscription ended — close connection
             }
 
+            // ── Update triggers (compatible with Go protocol) ─────────────────
+            "update" => {
+                start_update_stream_async(&manager, false).await;
+                writer.write_all(b"OK: Update process initiated\n").await?;
+            }
+
+            "update-prerelease" => {
+                start_update_stream_async(&manager, true).await;
+                writer.write_all(b"OK: Prerelease update process initiated\n").await?;
+            }
+
+            // ── Update streams ────────────────────────────────────────────────
+            "initiate-update-stream" => {
+                handle_update_stream(&mut writer, &manager, false).await?;
+                break;
+            }
+
+            "initiate-prerelease-update-stream" => {
+                handle_update_stream(&mut writer, &manager, true).await?;
+                break;
+            }
+
             // ── Unknown ───────────────────────────────────────────────────────
             _ => {
                 let msg = format!("ERROR: Unknown command: {raw_command}\n");
@@ -206,4 +228,68 @@ where
     }
 
     Ok(())
+}
+
+/// Handle a `initiate-update-stream` session: call the manager to start the
+/// script execution and pipe all output back to the client.
+async fn handle_update_stream<W>(
+    writer: &mut W,
+    manager: &AgentManager,
+    is_prerelease: bool,
+) -> tokio::io::Result<()>
+where
+    W: AsyncWriteExt + Unpin,
+{
+    let mut rx = manager.initiate_update(is_prerelease).await;
+
+    while let Some(line) = rx.recv().await {
+        if let Err(e) = writer.write_all(format!("{line}\n").as_bytes()).await {
+            warn!(error = %e, "Failed to write update log to client; stopping stream");
+            break;
+        }
+        let _ = writer.flush().await;
+    }
+
+    Ok(())
+}
+
+/// Compatibility helper: dials the server's own listener to start a streaming
+/// update session.
+async fn start_update_stream_async(manager: &AgentManager, is_prerelease: bool) {
+    let listen_addr = manager.config().listen_addr.clone();
+    
+    // Parse the port from the listen address
+    let port = listen_addr.split(':').last().unwrap_or("50505");
+    let addr = format!("127.0.0.1:{}", port);
+    
+    tokio::spawn(async move {
+        // Give the current connection a moment to close/return if needed,
+        // though not strictly required by the protocol.
+        time::sleep(Duration::from_millis(100)).await;
+
+        match TcpStream::connect(&addr).await {
+            Ok(mut stream) => {
+                let cmd = if is_prerelease {
+                    "initiate-prerelease-update-stream\n"
+                } else {
+                    "initiate-update-stream\n"
+                };
+                if let Err(e) = stream.write_all(cmd.as_bytes()).await {
+                    error!(error = %e, "Failed to send streaming command to self");
+                    return;
+                }
+                
+                // Keep the connection alive while the update happens.
+                // We don't need to read anything here; the server-side task
+                // of this new connection will handle the stream.
+                let mut buf = [0u8; 1024];
+                while let Ok(n) = stream.read(&mut buf).await {
+                    if n == 0 { break; }
+                }
+            }
+            Err(e) => {
+                error!(error = %e, addr = %addr, "Failed to dial self for update stream");
+            }
+        }
+    });
 }

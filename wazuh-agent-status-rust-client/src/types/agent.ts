@@ -4,6 +4,7 @@ export interface AgentStatus {
     version: string;
     tray_version: string;
     groups: string[];
+    self_healing_enabled: boolean;
 }
 
 export type UpdateState = "uptodate" | "outdated" | "prereleaseavailable" | "unknown";

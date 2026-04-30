@@ -3,7 +3,6 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
-use tracing::debug;
 
 /// Parse the `merged.mg` file at `path` and return all group names found.
 ///
@@ -39,7 +38,6 @@ pub fn extract_groups<P: AsRef<Path>>(path: P) -> io::Result<Vec<String>> {
         }
     }
 
-    debug!(groups = ?groups, "Extracted agent groups");
     Ok(groups)
 }
 

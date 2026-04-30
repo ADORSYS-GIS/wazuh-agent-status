@@ -39,12 +39,13 @@ pub trait StatusProvider: Send + Sync {
     /// on-demand operation handled by [`crate::manager::AgentManager`].
     fn get_partial_state(&self) -> Result<AgentState> {
         Ok(AgentState {
-            status:       self.get_agent_status()?,
-            connection:   self.get_connection_status()?,
-            version:      self.get_agent_version()?,
-            tray_version: self.get_tray_version()?,
-            groups:       self.get_agent_groups()?,
-            metrics:      self.get_system_metrics()?,
+            status:               self.get_agent_status()?,
+            connection:           self.get_connection_status()?,
+            version:              self.get_agent_version()?,
+            tray_version:         self.get_tray_version()?,
+            groups:               self.get_agent_groups()?,
+            metrics:              self.get_system_metrics()?,
+            self_healing_enabled: true, // Initial placeholder; overridden by Manager config
         })
     }
 }
