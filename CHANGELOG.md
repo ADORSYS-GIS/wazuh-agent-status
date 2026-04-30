@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[4520cf1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4520cf13e026f92c7aa03582f5874aedd87b5c4c)
+[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[f67d00b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f67d00b0ff8444832373faaa7a2dc43b879d5c18)
 
 ### Bug Fixes
 
@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`140531c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/140531c12c3a5812407bd4349cdf1971cd2402f7))
 - Update agent enrollment documentation and images with release configuration adjustments ([`65b84bd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/65b84bdc9298a6e29d1fe031ff96a069b634dcb0)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Update CHANGELOG.md and checksums [skip ci] ([`991c7e7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/991c7e7d964e2e85c794f9f1a3fd5fa21fd8e69a))
+- Update CHANGELOG.md and checksums [skip ci] ([`5d43bf4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5d43bf42eb09a734d7e6ae1bc1d233b46005969c))
 
 ### Features
 
@@ -32,6 +33,7 @@ All notable changes to this project will be documented in this file.
 ### Miscellaneous Tasks
 
 - Resolve merge conflicts and align with feat/self-healing-and-update branch ([`58c417e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/58c417eb7a0c6a87dfecf4d6f42d9827b3ce08e4)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Align release workflow with ci.yml dependencies and caching ([`f67d00b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f67d00b0ff8444832373faaa7a2dc43b879d5c18))
 
 ### Refactor
 
