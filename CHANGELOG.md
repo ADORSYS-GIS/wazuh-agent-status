@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[4db5d23](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4db5d23ae2b3412a969d01cd48846304a74acc2f)
+[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[4520cf1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4520cf13e026f92c7aa03582f5874aedd87b5c4c)
 
 ### Bug Fixes
 
@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`dcd1b0b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/dcd1b0b20f94b9af9fe348d6fc093b6cafcec6c1))
 - Update CHANGELOG.md and checksums [skip ci] ([`140531c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/140531c12c3a5812407bd4349cdf1971cd2402f7))
 - Update agent enrollment documentation and images with release configuration adjustments ([`65b84bd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/65b84bdc9298a6e29d1fe031ff96a069b634dcb0)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Update CHANGELOG.md and checksums [skip ci] ([`991c7e7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/991c7e7d964e2e85c794f9f1a3fd5fa21fd8e69a))
 
 ### Features
 
@@ -40,6 +41,7 @@ All notable changes to this project will be documented in this file.
 ### Security
 
 - Pin all actions to absolute latest stable SHAs ([`b90d3da`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b90d3da257c7844b190102a1a66bd69dd3e4d951)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Prevent script injection via repo reference variables ([`4520cf1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4520cf13e026f92c7aa03582f5874aedd87b5c4c))
 
 ## 0.4.2.rc2-user - 2026-04-14
 
