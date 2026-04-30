@@ -12,6 +12,9 @@ $CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazu
 $APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0-rc.1" }
 $WAS_VERSION = $APP_VERSION
 
+$WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "main" }
+$WAZUH_AGENT_STATUS_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
+
 $TMP_DIR = Join-Path $env:TEMP "wazuh-agent-status-install"
 if (-not (Test-Path $TMP_DIR)) {
     New-Item -Path $TMP_DIR -ItemType Directory | Out-Null
