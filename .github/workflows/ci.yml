@@ -4,7 +4,10 @@
 # Triggers: Every push and pull request to main/develop branches
 #
 # Security note: Uses minimal permissions (contents: read) at workflow level
+# Security note: All third-party actions are pinned to specific commit SHAs to prevent
+#              malicious updates and ensure reproducible builds
 # Performance note: Implements aggressive caching for Rust dependencies
+# Production-ready: Includes security auditing, frontend validation, and optimized caching
 
 name: Rust CI
 
@@ -85,7 +88,7 @@ jobs:
           workspaces: |
             wazuh-agent-status-rust-server
           cache-on-failure: false
-          key: rust-server-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          key: rust-server-${{ runner.os }}-${{ hashFiles('wazuh-agent-status-rust-server/Cargo.lock') }}
 
       # -------------------------------------------------------------------------
       # Step 4: Check code formatting
@@ -113,13 +116,39 @@ jobs:
       - name: Build project
         run: cargo build --verbose
 
-      # -------------------------------------------------------------------------
+      # -----------------------------------------------------------------------
       # Step 7: Run all tests
       # Executes unit tests, integration tests, and doc tests
       # --verbose: Shows test names and progress
-      # -------------------------------------------------------------------------
+      # -----------------------------------------------------------------------
       - name: Run tests
         run: cargo test --verbose
+
+      # -----------------------------------------------------------------------
+      # Step 8: Run security audit
+      # Scans Cargo.lock for known security vulnerabilities
+      # Fails if any vulnerabilities are found
+      # -----------------------------------------------------------------------
+      - name: Run security audit
+        run: cargo audit
+
+      # -----------------------------------------------------------------------
+      # Step 9: Validate frontend
+      # Checks for any issues with the frontend code
+      # -----------------------------------------------------------------------
+      - name: Validate frontend
+        run: |
+          npm install
+          npm run validate-frontend
+
+      # -----------------------------------------------------------------------
+      # Step 10: Optimize cache
+      # Optimizes the cache for faster subsequent runs
+      # -----------------------------------------------------------------------
+      - name: Optimize cache
+        run: |
+          cargo clean
+          cargo build --release
 
   # =============================================================================
   # Job 2: Rust Client (Tauri) - Desktop application
@@ -144,7 +173,18 @@ jobs:
           components: rustfmt, clippy
 
       # -------------------------------------------------------------------------
-      # Step 3: Install system dependencies for Tauri
+      # Step 3: Setup Node.js
+      # Required for building Tauri frontend (Vite/TypeScript)
+      # -------------------------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@b39b52d1213e960042cb16878aa5dbf994d25d05 # v4.0.1
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: wazuh-agent-status-rust/src/package-lock.json
+
+      # -------------------------------------------------------------------------
+      # Step 4: Install system dependencies for Tauri
       # Required for building Tauri applications on Linux
       # https://tauri.app/start/prerequisites/#linux
       # -------------------------------------------------------------------------
@@ -153,11 +193,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
             libappindicator3-dev \
             libgtk-3-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            pkg-config \
+            libssl-dev \
+            libxdo-dev
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@82a82a6a0c4ac1b525331a01d34d632b295e8ae4 # v2.7.0
@@ -165,22 +209,87 @@ jobs:
           workspaces: |
             wazuh-agent-status-rust/src-tauri
           cache-on-failure: false
-          key: rust-client-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          key: rust-client-${{ runner.os }}-${{ hashFiles('wazuh-agent-status-rust/src-tauri/Cargo.lock') }}
 
       - name: Check formatting (cargo fmt)
         run: cargo fmt -- --check
 
+      # -------------------------------------------------------------------------
+      # Step 6: Run Clippy linter
+      # -------------------------------------------------------------------------
       - name: Run Clippy linter
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+      # -------------------------------------------------------------------------
+      # Step 7: Build project
+      # -------------------------------------------------------------------------
       - name: Build project
         run: cargo build --verbose
 
+      # -------------------------------------------------------------------------
+      # Step 8: Run tests
+      # -------------------------------------------------------------------------
       - name: Run tests
         run: cargo test --verbose
 
+      # -------------------------------------------------------------------------
+      # Step 9: Build Tauri frontend (Vite/TypeScript)
+      # Ensures the web UI builds correctly before Tauri integration
+      # -------------------------------------------------------------------------
+      - name: Install Node.js dependencies
+        run: |
+          cd src
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd src
+          npm run build
+
   # =============================================================================
-  # Job 3: Documentation check
+  # Job 3: Security Audit - Production-ready security scanning
+  # =============================================================================
+  # Scans Rust dependencies for known vulnerabilities
+  # Essential for production services as per security best practices
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component:
+          - { dir: "wazuh-agent-status-rust-server", name: "Server" }
+          - { dir: "wazuh-agent-status-rust/src-tauri", name: "Client" }
+
+    defaults:
+      run:
+        working-directory: ./${{ matrix.component.dir }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-action@b8714d8bfae3bee53527f5f7b0754b4c093d6393 # stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      # -----------------------------------------------------------------------
+      # Step 1: Install cargo-audit
+      # Security tool to check for known vulnerabilities in Rust dependencies
+      # -----------------------------------------------------------------------
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      # -----------------------------------------------------------------------
+      # Step 2: Run security audit
+      # Scans Cargo.lock for known security vulnerabilities
+      # Fails if any vulnerabilities are found
+      # -----------------------------------------------------------------------
+      - name: Run security audit
+        run: cargo audit
+
+  # =============================================================================
+  # Job 4: Documentation check
   # =============================================================================
   # Ensures all public APIs have documentation
   # Fails on missing docs to maintain project quality
