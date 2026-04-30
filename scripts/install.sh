@@ -10,15 +10,19 @@ fi
 APP_VERSION=${APP_VERSION:-"0.5.0-rc.1"}
 WAS_VERSION="$APP_VERSION"
 
+# OS Constants
+OS_LINUX="linux"
+OS_DARWIN="darwin"
+
 # OS and Architecture Detection
 case "$(uname)" in
 Linux)
-    OS="linux"
+    OS="$OS_LINUX"
     BIN_DIR="/usr/local/bin"
     WAZUH_ACTIVE_RESPONSE_BIN_DIR="/var/ossec/active-response/bin"
     ;;
 Darwin)
-    OS="darwin"
+    OS="$OS_DARWIN"
     BIN_DIR="/usr/local/bin"
     WAZUH_ACTIVE_RESPONSE_BIN_DIR="/Library/Ossec/active-response/bin"
     ;;
@@ -123,7 +127,7 @@ cleanup_legacy_system() {
     maybe_sudo killall "$CLIENT_NAME" 2>/dev/null || true
     
     # 3. macOS: Unload legacy launchd plists
-    if [ "$OS" = "darwin" ]; then
+    if [ "$OS" = "$OS_DARWIN" ]; then
         info_message "Unloading legacy macOS launchd services..."
         maybe_sudo launchctl unload "$SERVER_LAUNCH_AGENT_FILE" 2>/dev/null || true
         maybe_sudo launchctl unload "$CLIENT_LAUNCH_AGENT_FILE" 2>/dev/null || true
@@ -282,15 +286,15 @@ unload_plist_file() {
 # Startup Configurations
 make_server_launch_at_startup() {
     case "$OS" in
-    linux) create_service_file && reload_and_enable_service ;;
-    darwin) create_launchd_plist_file "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE" ;;
+    "$OS_LINUX") create_service_file && reload_and_enable_service ;;
+    "$OS_DARWIN") create_launchd_plist_file "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE" ;;
     esac
 }
 
 make_client_launch_at_startup() {
     case "$OS" in
-    linux) create_desktop_unit_file ;;
-    darwin) create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE" ;;
+    "$OS_LINUX") create_desktop_unit_file ;;
+    "$OS_DARWIN") create_launchd_plist_file "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE" ;;
     esac
 }
 
@@ -309,7 +313,7 @@ validate_installation() {
     fi
 
     # Validate service files
-    if [ "$OS" = "linux" ]; then
+    if [ "$OS" = "$OS_LINUX" ]; then
         if [ -f "$SERVICE_FILE" ]; then
             success_message "Systemd service file exists: $SERVICE_FILE."
         else
@@ -326,7 +330,7 @@ validate_installation() {
             error_exit "Desktop autostart file is missing: $DESKTOP_UNIT_FILE."
         fi
 
-    elif [ "$OS" = "darwin" ]; then
+    elif [ "$OS" = "$OS_DARWIN" ]; then
         if [ -f "$SERVER_LAUNCH_AGENT_FILE" ]; then
             success_message "macOS Launchd server plist exists: $SERVER_LAUNCH_AGENT_FILE."
         else
@@ -348,8 +352,8 @@ validate_installation() {
     fi
 
     case "$OS" in
-    linux) success_message "Installation complete! Restart your system to apply changes for the wazuh agent status." ;;
-    darwin) success_message "Installation complete!" ;;
+    "$OS_LINUX") success_message "Installation complete! Restart your system to apply changes for the wazuh agent status." ;;
+    "$OS_DARWIN") success_message "Installation complete!" ;;
     esac
 }
 
@@ -385,7 +389,7 @@ print_step_header 3 "Server Service Configuration"
 make_server_launch_at_startup
 
 print_step_header 4 "Client Service Configuration"
-if [ "$OS" = "darwin" ]; then
+if [ "$OS" = "$OS_DARWIN" ]; then
     unload_plist_file "$CLIENT_LAUNCH_AGENT_FILE"
 fi
 make_client_launch_at_startup
