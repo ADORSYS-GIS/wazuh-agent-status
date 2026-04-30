@@ -2,16 +2,8 @@ name: Build and Release Binaries for Linux (amd64), macOS (AMD64, ARM64)
 
 on:
   push:
-    branches:
-      - main
-      - develop
-      - user-main
     tags:
       - 'v*'
-    paths:
-      - 'wazuh-agent-status-client/**'
-      - 'wazuh-agent-status/**'
-      - '.github/workflows/release.yaml'
 
 env:
   SERVER_DIR: wazuh-agent-status-rust-server
@@ -106,13 +98,8 @@ jobs:
             echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
           fi
 
-<<<<<<< HEAD
-      - name: Set up Go
-        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
-=======
       - name: Setup Node.js
         uses: actions/setup-node@v4
->>>>>>> 04e6e0f (docs: update agent enrollment documentation and images with release configuration adjustments)
         with:
           node-version: 20
 
@@ -166,11 +153,11 @@ jobs:
           else
             echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
           fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
         with:
@@ -183,7 +170,6 @@ jobs:
           if not exist ..\dist mkdir ..\dist
           copy target\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
         shell: cmd
-
       - name: Build Tauri Client (Tray App)
         shell: bash
         run: |
@@ -191,6 +177,7 @@ jobs:
           npm install
           npm run tauri build
           cp src-tauri/target/release/wazuh-agent-status.exe ../dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
+
       - name: Upload windows client binaries
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
@@ -287,6 +274,7 @@ jobs:
           # Calculate script checksums and keep paths
           find scripts -type f -exec sha256sum {} + >> checksums.sha256
           cat checksums.sha256
+
       - name: Generate release notes (latest only)
         id: git_cliff
         uses: orhun/git-cliff-action@c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72

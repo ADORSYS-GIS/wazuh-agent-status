@@ -7,7 +7,7 @@ else
     set -eu
 fi
 
-APP_VERSION=${APP_VERSION:-"0.5.0-rc"}
+APP_VERSION=${APP_VERSION:-"0.5.0-rc.1"}
 WAS_VERSION="$APP_VERSION"
 
 # OS and Architecture Detection
