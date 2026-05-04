@@ -72,9 +72,15 @@ impl AgentManager {
         // Spawn background task to keep the state in sync with the server
         tauri::async_runtime::spawn(async move {
             loop {
-                if let Err(e) = run_sync_loop(addr_for_loop.clone(), state_tx.clone()).await {
-                    eprintln!("Server sync loop error for {}: {}; retrying in 5s", addr_for_loop, e);
-                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                match run_sync_loop(addr_for_loop.clone(), state_tx.clone()).await {
+                    Ok(()) => {
+                        log::warn!("Sync loop ended for {}; reconnecting in 2s", addr_for_loop);
+                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                    }
+                    Err(e) => {
+                        log::error!("Server sync loop error for {}: {}; retrying in 5s", addr_for_loop, e);
+                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    }
                 }
             }
         });
@@ -186,24 +192,36 @@ impl AgentManager {
 }
 
 async fn run_sync_loop(addr: String, tx: tokio::sync::watch::Sender<AgentState>) -> anyhow::Result<()> {
-    // Connect to server
+    log::info!("Connecting to Wazuh status server at {}...", addr);
+
     let stream = tokio::net::TcpStream::connect(&addr).await?;
+    log::info!("Connected to Wazuh status server at {}", addr);
+
     let (reader, mut writer) = tokio::io::split(stream);
     let mut reader = tokio::io::BufReader::new(reader);
 
-    // Subscribe to status updates
     use tokio::io::{AsyncWriteExt, AsyncBufReadExt};
     writer.write_all(b"subscribe-status\n").await?;
+    log::info!("Sent subscribe-status command");
 
     let mut line = String::new();
     while reader.read_line(&mut line).await? > 0 {
         if let Some(json) = line.strip_prefix("STATUS_UPDATE: ") {
-            if let Ok(state) = serde_json::from_str::<AgentState>(json.trim()) {
-                let _ = tx.send(state);
+            match serde_json::from_str::<AgentState>(json.trim()) {
+                Ok(state) => {
+                    let _ = tx.send(state.clone());
+                    log::debug!("Received state update: {:?}", state.status);
+                }
+                Err(e) => {
+                    log::warn!("Failed to parse STATUS_UPDATE JSON: {} — payload: {}", e, json.trim());
+                }
             }
+        } else {
+            log::debug!("Ignoring non-status line: {}", line.trim());
         }
         line.clear();
     }
 
+    log::warn!("Server closed status stream for {}", addr);
     Ok(())
 }
