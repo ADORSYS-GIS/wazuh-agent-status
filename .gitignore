@@ -25,4 +25,6 @@ go.work.sum
 .env
 
 # Output directories or files
-dist/
+target/
+node_modules/
+gen/

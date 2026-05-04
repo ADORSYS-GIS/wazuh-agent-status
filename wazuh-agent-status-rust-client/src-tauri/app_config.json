@@ -1,0 +1,18 @@
+{
+  "server_addr": "127.0.0.1:50505",
+  "brand": {
+    "name": "Wazuh Agent Status",
+    "company": "adorsys",
+    "logo_path": "adorsys-logo.png",
+    "theme": {
+        "primary_color": "#00aaff",
+        "secondary_color": "#ffffff",
+        "dark_mode": true
+    }
+  },
+  "features": {
+    "self_healing": true,
+    "log_streaming": true,
+    "os_updates_check": true
+  }
+}
