@@ -147,30 +147,33 @@ create_launchd_plist_file() {
 </plist>
 "
 
+    local label="com.adorsys.$name"
     if [ "$name" = "$SERVER_NAME" ]; then
-        info_message "Loading new daemon plist file..."
-        maybe_sudo launchctl bootstrap system "$filepath" 2>/dev/null || warn_message "Loading server plist file failed: $filepath"
+        local target="system/$label"
+        if maybe_sudo launchctl print "$target" >/dev/null 2>&1; then
+            info_message "Service $label is already loaded, kickstarting..."
+            maybe_sudo launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting server failed: $label"
+        else
+            info_message "Loading new daemon plist file..."
+            maybe_sudo launchctl bootstrap system "$filepath" 2>/dev/null || warn_message "Loading server plist file failed: $filepath"
+        fi
     else
-        info_message "Loading new agent plist file..."
-        launchctl bootstrap "gui/$(id -u)" "$filepath" 2>/dev/null || warn_message "Loading client plist file failed: $filepath"
+        local uid
+        uid=$(id -u)
+        local target="gui/$uid/$label"
+        if launchctl print "$target" >/dev/null 2>&1; then
+            info_message "Service $label is already loaded, kickstarting..."
+            launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting client failed: $label"
+        else
+            info_message "Loading new agent plist file..."
+            launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || warn_message "Loading client plist file failed: $filepath"
+        fi
     fi
 
-    info_message "macOS Launchd plist file created and loaded: $filepath"
+    info_message "macOS Launchd plist file created and managed: $filepath"
     return 0
 }
 
-unload_plist_file() {
-    local filepath="$1"
-
-    if [[ -f "$filepath" ]]; then
-        info_message "Unloading previous plist file (if any)..."
-        maybe_sudo launchctl bootout "gui/$(id) $filepath" 2>/dev/null || warn_message "Unloading previous plist file failed: $filepath"
-        info_message "Previous plist file unloaded: $filepath"
-    else
-        warn_message "Plist file: $filepath does not exist. Skipping."
-    fi
-    return 0
-}
 
 # Startup Configurations
 make_server_launch_at_startup() {
@@ -243,7 +246,6 @@ print_step_header 3 "Server Service Configuration"
 make_server_launch_at_startup
 
 print_step_header 4 "Client Service Configuration"
-unload_plist_file "$CLIENT_LAUNCH_AGENT_FILE"
 make_client_launch_at_startup
 
 print_step_header 5 "Download and configure adorsys-update.sh"
