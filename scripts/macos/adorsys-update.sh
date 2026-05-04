@@ -59,7 +59,7 @@ trap cleanup EXIT
 
 # Environment Variables with Defaults
 WAZUH_MANAGER=${WAZUH_MANAGER:-"wazuh.example.com"}
-readonly WAZUH_AGENT_REPO_REF="main"
+readonly WAZUH_AGENT_REPO_REF=${WAZUH_AGENT_REPO_REF:-"main"}
 readonly SCRIPT_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/${WAZUH_AGENT_REPO_REF}/scripts/macos/setup-agent.sh"
 
 # macOS-specific constants

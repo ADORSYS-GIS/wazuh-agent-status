@@ -110,6 +110,24 @@ create_launchd_plist_file() {
     local filepath="$2"
 
     info_message "Creating plist file for $name..."
+
+    # Determine the EnvironmentVariables block: inject HOME only for the client (LaunchAgent)
+    local env_block=""
+    if [[ "$name" != "$SERVER_NAME" ]]; then
+        local real_user="${SUDO_USER:-${USER:-}}"
+        local user_home=""
+        if [ -n "$real_user" ]; then
+            user_home=$(dscl . -read "/Users/$real_user" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
+        fi
+        user_home="${user_home:-$HOME}"
+        env_block="
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>$user_home</string>
+    </dict>"
+    fi
+
     create_file "$filepath" "
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
@@ -120,7 +138,7 @@ create_launchd_plist_file() {
     <key>ProgramArguments</key>
     <array>
         <string>$BIN_DIR/$name</string>
-    </array>
+    </array>$env_block
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -128,30 +146,34 @@ create_launchd_plist_file() {
 </dict>
 </plist>
 "
-    
-    if [[ "$name" = "$SERVER_NAME" ]]; then
-        info_message "Loading new daemon plist file..."
-        maybe_sudo launchctl bootstrap "system $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
+
+    local label="com.adorsys.$name"
+    if [ "$name" = "$SERVER_NAME" ]; then
+        local target="system/$label"
+        if maybe_sudo launchctl print "$target" >/dev/null 2>&1; then
+            info_message "Service $label is already loaded, kickstarting..."
+            maybe_sudo launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting server failed: $label"
+        else
+            info_message "Loading new daemon plist file..."
+            maybe_sudo launchctl bootstrap system "$filepath" 2>/dev/null || warn_message "Loading server plist file failed: $filepath"
+        fi
     else
-        info_message "Loading new agent plist file..."
-        launchctl bootstrap "gui/$(id) $filepath" 2>/dev/null || warn_message "loading previous plist file failed: $filepath"
+        local uid
+        uid=$(id -u)
+        local target="gui/$uid/$label"
+        if launchctl print "$target" >/dev/null 2>&1; then
+            info_message "Service $label is already loaded, kickstarting..."
+            launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting client failed: $label"
+        else
+            info_message "Loading new agent plist file..."
+            launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || warn_message "Loading client plist file failed: $filepath"
+        fi
     fi
-    info_message "macOS Launchd plist file created and loaded: $filepath"
+
+    info_message "macOS Launchd plist file created and managed: $filepath"
     return 0
 }
 
-unload_plist_file() {
-    local filepath="$1"
-
-    if [[ -f "$filepath" ]]; then
-        info_message "Unloading previous plist file (if any)..."
-        maybe_sudo launchctl bootout "gui/$(id) $filepath" 2>/dev/null || warn_message "Unloading previous plist file failed: $filepath"
-        info_message "Previous plist file unloaded: $filepath"
-    else
-        warn_message "Plist file: $filepath does not exist. Skipping."
-    fi
-    return 0
-}
 
 # Startup Configurations
 make_server_launch_at_startup() {
@@ -190,7 +212,7 @@ validate_installation() {
     else
         error_exit "macOS Launchd client plist is missing: $CLIENT_LAUNCH_AGENT_FILE."
     fi
-    
+
     # Validate adorsys-update.sh script
     if maybe_sudo [ -f "$UPDATE_SCRIPT_PATH" ]; then
         success_message "adorsys-update.sh script exists: $UPDATE_SCRIPT_PATH."
@@ -224,7 +246,6 @@ print_step_header 3 "Server Service Configuration"
 make_server_launch_at_startup
 
 print_step_header 4 "Client Service Configuration"
-unload_plist_file "$CLIENT_LAUNCH_AGENT_FILE"
 make_client_launch_at_startup
 
 print_step_header 5 "Download and configure adorsys-update.sh"
@@ -232,7 +253,7 @@ info_message "Downloading adorsys-update.sh..."
 if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     download_and_verify_file "$ADORSYS_UPDATE_SCRIPT_URL" "$UPDATE_SCRIPT_PATH" "scripts/macos/adorsys-update.sh" "adorsys-update.sh script" "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256" || warn_message "Failed to download adorsys-update.sh"
     maybe_sudo chmod 750 "$UPDATE_SCRIPT_PATH"
-    
+
     # Update WAZUH_MANAGER value in adorsys-update.sh
     if [[ -n "${WAZUH_MANAGER:-}" ]]; then
         info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
