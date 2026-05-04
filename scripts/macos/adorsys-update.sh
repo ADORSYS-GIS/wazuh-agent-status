@@ -62,6 +62,7 @@ WAZUH_MANAGER=${WAZUH_MANAGER:-"wazuh.example.com"}
 WAZUH_AGENT_REPO_REF=${WAZUH_AGENT_REPO_REF:-"main"}
 WAZUH_AGENT_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/${WAZUH_AGENT_REPO_REF}"
 
+
 # macOS-specific constants
 ICON_PATH='/Library/Application Support/Ossec/wazuh-logo.png'
 LOG_FILE='/Library/Ossec/logs/active-responses.log'
