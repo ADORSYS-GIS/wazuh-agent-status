@@ -9,7 +9,6 @@ $APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.
 $WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
 $CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
-$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0-rc.1" }
 $WAS_VERSION = $APP_VERSION
 
 $WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "main" }
@@ -80,7 +79,7 @@ $PS_UPDATE_SCRIPT_PATH = "${env:ProgramFiles(x86)}\ossec-agent\active-response\b
 Ensure-Directory -Path $BIN_DIR
 
 # Download binaries
-$BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
+$BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/latest/download" }
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 $BinChecksumsURL = "$BaseURL/checksums.sha256"
@@ -185,7 +184,7 @@ function Create-StartupShortcut {
 }
 
 # Download binaries
-$BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
+$BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/latest/download" }
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 
