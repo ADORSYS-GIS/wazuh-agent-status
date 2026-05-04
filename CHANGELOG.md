@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[1a8c096](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a8c0966f58a1eb8edda4f9330952833f6427bc1)
+[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[5bba00b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5bba00b6ddfdce2e1bf839651472d12eb86cd6f1)
 
 ### Bug Fixes
 
@@ -12,6 +12,10 @@ All notable changes to this project will be documented in this file.
 - Corrected command_exists function to return actual command existence ([`f69e8ca`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f69e8ca48684f99f7176324bcca2a10ab593e554))
 - Define install profile for windows uninstall script ([`a0d9d54`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a0d9d5452b8230ddeb6d69c47c36fbfa3b600489))
 - Use REAL_HOME and add sudo-safe function execution ([`22bf5a6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/22bf5a6b7d5a6289ca63b95ffc99b56a8711d0c3))
+- Resolve HOME env var correctly in launchd context ([`0a069b7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0a069b7ec56c5f8601b014abeb5b6365cb4396d0))
+- Update tray window positioning logic to support tauri-plugin-positioner on macos ([`391030c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/391030cf54231a1d2b57c0841517b9298e1063ee)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Update window positioning logic to use BottomRight on Windows ([`d466499`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d46649958f578d9e68fb8b32f936e3b27f5f8ea4)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Ensure dock icon is hidden on macOS by setting activation policy ([`b6dadf1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6dadf1510da77dc8c8e93eda652d4be8e940ef1)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ### Documentation
 
@@ -20,10 +24,40 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`227d624`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/227d6243a622c19921f121a9513db3f34342be55))
 - Update CHANGELOG.md and checksums [skip ci] ([`76b564a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/76b564add79af071556322fd16565da428d50aec))
 - Update CHANGELOG.md and checksums [skip ci] ([`dcd1b0b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/dcd1b0b20f94b9af9fe348d6fc093b6cafcec6c1))
+- Update CHANGELOG.md and checksums [skip ci] ([`140531c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/140531c12c3a5812407bd4349cdf1971cd2402f7))
 
 ### Features
 
 - Added precomit ([`73fba0e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/73fba0e7da7ffb50eb5a92d16174a96299b1663f))
+- Initialize Wazuh Agent Status application ([`843570f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/843570f796f35f5962e3561326879d63a4158aaf)), Signed-off-by:Awambeng <awambengrodrick@gmail.com>
+- Implement standalone wazuh agent status server in rust ([`0685ac4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0685ac44d3dcfe8a10236e15cfd42cecc2932dc9)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Implement modular update system and remove sudo dependency for status checks ([`b2b1069`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b2b10699cfd43be7287dce00224e177c3e05d9da)), Signed-off-by:Awambeng <awambengrodrick@gmail.com>
+- Add comprehensive test suite and implement update script existence checks for Windows and Unix agents ([`ad8c618`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ad8c6188e7424fa388664052ff7cad2059321b93)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Handle uninstalled agent state by returning default values instead of errors ([`352e7d4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/352e7d4369d6f60483adef5cf0e3efe917c2ec98)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Implement real-time system metrics collection and expose via Tauri commands ([`c43c361`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c43c361d3cb30ac01d51b78f69449032713f437a)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Make server address configurable via app config and environment variables with default port 50505 ([`ff3deb0`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ff3deb03583e13edb7bcc05aae30d798cd77aad2)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Add log crate and configure tauri-plugin-log with custom level filters ([`c193273`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c19327364e98c7fa6f5a49d056c30f0ee9308a4d)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Update window title and improve memory usage display with new byte formatting utility ([`6f208e8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6f208e8f71446db5dadbf110d1cee62a129558b0)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+
+### Refactor
+
+- Extract base URL into WAZUH_AGENT_REPO_URL variable in macOS update script ([`7bd57da`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7bd57dabb30ddf34d2fbd8ccc06b4e28a6e8f649))
+- Simplify agent status logic and remove unused configuration and update functionality ([`734d0c8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/734d0c8db8500b188cddf91d5e7ac206022d6adc)), Signed-off-by:Awambeng <awambengrodrick@gmail.com>
+- Modularize frontend components and backend command handlers, and add anyhow for improved error handling ([`1f573cb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1f573cbbd29bdd393e5a1de7273d4a0e5f0cae46)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Enforce Readonly props, clean up skeleton CSS, and optimize sidebar indicator logic ([`7d2c2e0`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7d2c2e0b2759a0255a541055ec749d4eab6b69b8)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Replace Math.random with cryptographically secure random values and update Google Fonts link attributes ([`c5a877b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c5a877b54999fd7d67fb39399b9ecfd6f4bb9637)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Replace window with globalThis and simplify indicatorTop calculation logic ([`590ba98`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/590ba98be3a8f4dc80c5cbaddf2f58bd3bcdf282)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Move tests to external directory, add library entry point, and implement security warning for public interface binding ([`9b6e427`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9b6e427dfa359ce222f3145aafee960313ed6051)), Signed-off-by:Awambeng <awambengrodrick@gmail.com>
+- Improve agent status detection, handle missing state files, and add configurable logging and robust JSON parsing ([`dc5390e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/dc5390e13697f30389869f0b06f6240201d11ef3)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Improve status provider reliability, add connection limits, and implement idle timeouts for TCP server ([`e16cf46`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e16cf464fc9d39b873fd69770f719bb0cc94cb8d)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Normalize command parsing to preserve original input in error messages and add max_connections to test configuration ([`69ef3ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/69ef3ac8698aed433116f5d65a4cfcc928882f5a)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Improve CLI argument handling, centralize HTTP fetching, and add Tauri capability schemas ([`9cfc542`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9cfc542a69118246371ad3d7dfd5c10e1ae179fd)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Improve agent status detection logic, optimize system metrics collection, and update tests ([`2082168`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/20821684f5e0f9b1422e2fd861f70c379c8b6cf0)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Update get_agent_status to return full AgentState instead of just AgentStatus ([`31983a4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/31983a4f006de8567190b2ed0e78e37114b24ba8))
+- Remove update logic, update UI sidebar, and add tray version to agent status ([`651dfc8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/651dfc8d8b7a3ab890abf43d75902a3dc7996b75)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Remove redundant nav-item styles and improve type safety in UpdatesView component ([`3080cba`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3080cbad15c619cbe1263bbb136d1ee3a6c3c9f6)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Simplify decimal clamping and use explicit Number.parseFloat for byte formatting ([`273fefc`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/273fefcde4d1c4473b6871cc4856746b51461334)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Replace SCRIPT_URL with WAZUH_AGENT_REPO_URL to simplify script path construction ([`7790137`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/77901379d9830a02098fe75e48953f9530ef9cff))
 
 ## 0.4.2.rc2-user - 2026-04-14
 
