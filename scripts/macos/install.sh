@@ -158,15 +158,18 @@ create_launchd_plist_file() {
             maybe_sudo launchctl bootstrap system "$filepath" 2>/dev/null || warn_message "Loading server plist file failed: $filepath"
         fi
     else
+        local real_user="${SUDO_USER:-$USER}"
         local uid
-        uid=$(id -u)
+        uid=$(id -u "$real_user")
+
         local target="gui/$uid/$label"
-        if launchctl print "$target" >/dev/null 2>&1; then
+
+        if sudo -u "$real_user" launchctl print "$target" >/dev/null 2>&1; then
             info_message "Service $label is already loaded, kickstarting..."
-            launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting client failed: $label"
+            sudo -u "$real_user" launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting client failed: $label"
         else
             info_message "Loading new agent plist file..."
-            launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || warn_message "Loading client plist file failed: $filepath"
+            sudo -u "$real_user" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || warn_message "Loading client plist file failed: $filepath"
         fi
     fi
 
