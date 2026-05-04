@@ -14,6 +14,7 @@ use crate::errors::{Result, ServerError};
 use crate::group_extractor;
 use crate::models::{AgentStatus, ConnectionStatus};
 use crate::status_provider::StatusProvider;
+use tracing::{debug, trace};
 
 pub struct WindowsStatusProvider {
     paths: AgentPaths,
@@ -126,11 +127,20 @@ impl StatusProvider for WindowsStatusProvider {
 
         for process in sys.processes().values() {
             let name = process.name().to_string_lossy();
+            trace!(process = %name, cpu = %process.cpu_usage(), mem = process.memory(), "Scanning process");
             if crate::status_provider::WINDOWS_AGENT_PROCESSES.contains(&name.as_ref()) {
+                debug!(process = %name, cpu = %process.cpu_usage(), mem = process.memory(), "Matched Wazuh process");
                 total_cpu += process.cpu_usage();
                 total_rss += process.memory();
                 found = true;
             }
+        }
+
+        if !found {
+            let available: Vec<_> = sys.processes().values()
+                .map(|p| p.name().to_string_lossy().into_owned())
+                .collect();
+            debug!(processes = ?available, "No Wazuh processes matched; available process names shown above");
         }
 
         let cpu_count = sys.cpus().len() as f32;
