@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[9d8de89](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9d8de890566c2ebb866f6e3e867ea9a1f1e9e7f6)
+[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[05665c0](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/05665c0c76130763a3535df574e7a4ca578031ed)
 
 ### Bug Fixes
 
@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - Use REAL_HOME and add sudo-safe function execution ([`22bf5a6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/22bf5a6b7d5a6289ca63b95ffc99b56a8711d0c3))
 - Fix sonaqube warnings ([`0582f21`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0582f21367b51fea53548d356bba3864c841e02d))
 - Define missing WAZUH_AGENT_STATUS_REPO_URL in install.ps1 ([`9d8de89`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9d8de890566c2ebb866f6e3e867ea9a1f1e9e7f6))
+- Update install.ps1 to use latest release fallback ([`05665c0`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/05665c0c76130763a3535df574e7a4ca578031ed))
 
 ### Documentation
 
@@ -27,6 +28,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`991c7e7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/991c7e7d964e2e85c794f9f1a3fd5fa21fd8e69a))
 - Update CHANGELOG.md and checksums [skip ci] ([`5d43bf4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5d43bf42eb09a734d7e6ae1bc1d233b46005969c))
 - Update CHANGELOG.md and checksums [skip ci] ([`d251627`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d251627b90b4e302d2ea6b296389d5ab5af2ace6))
+- Update CHANGELOG.md and checksums [skip ci] ([`f698bfd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f698bfd5620d687b9b1301960284b4f8abcf8c30))
 
 ### Features
 
