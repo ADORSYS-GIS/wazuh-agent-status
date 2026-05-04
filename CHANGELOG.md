@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[37462c8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/37462c87fc0654189ab1e9f9ad219d5c95d2d390)
+[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[b4713af](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b4713afb58aed4b6eef50612ae284da2e2037ba0)
 
 ### Bug Fixes
 
@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - Define missing WAZUH_AGENT_STATUS_REPO_URL in install.ps1 ([`9d8de89`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9d8de890566c2ebb866f6e3e867ea9a1f1e9e7f6))
 - Update install.ps1 to use latest release fallback ([`05665c0`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/05665c0c76130763a3535df574e7a4ca578031ed))
 - Resolve HOME env var correctly in launchd context ([`0a069b7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0a069b7ec56c5f8601b014abeb5b6365cb4396d0))
+- Update macos install script to run launchctl commands as the actual user and remove stale checksum entry ([`0c4f39c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0c4f39c0b9ff8572cbd3a0c88a0806d45c15e95c))
 
 ### Documentation
 
@@ -32,6 +33,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`f698bfd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f698bfd5620d687b9b1301960284b4f8abcf8c30))
 - Update CHANGELOG.md and checksums [skip ci] ([`ab78e8e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ab78e8ed46ad404e9255f6d4ca96fed073166342))
 - Update CHANGELOG.md and checksums [skip ci] ([`3f51b26`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3f51b2675c2180ab7bd2321b14eae541566ac655))
+- Update CHANGELOG.md and checksums [skip ci] ([`424999a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/424999aa16cfef19aaa0052f67ed7fa395b44652))
 
 ### Features
 
