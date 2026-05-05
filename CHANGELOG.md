@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[b4713af](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b4713afb58aed4b6eef50612ae284da2e2037ba0)
+[c9e1fe1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9e1fe1c521d1f5671c2cee7146a4e9841928c7a)...[e516a67](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e516a676d30fb4ffce321b54de856ef3cc6e79ce)
 
 ### Bug Fixes
 
@@ -17,6 +17,12 @@ All notable changes to this project will be documented in this file.
 - Update install.ps1 to use latest release fallback ([`05665c0`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/05665c0c76130763a3535df574e7a4ca578031ed))
 - Resolve HOME env var correctly in launchd context ([`0a069b7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0a069b7ec56c5f8601b014abeb5b6365cb4396d0))
 - Update macos install script to run launchctl commands as the actual user and remove stale checksum entry ([`0c4f39c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0c4f39c0b9ff8572cbd3a0c88a0806d45c15e95c))
+- Persist stream across navigation and history on connection ([`5d715ee`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5d715eeec069e06d25fa35c1a56c7f61d26c2252))
+- Better windows errors, env override, remove idle timeout ([`a020eed`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a020eed76b0622a120876209cfdfc2f0d23947a2))
+- Use ossec.log directly in agent root on windows ([`e44933c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e44933cfbde99a48fe3ba7ff85a03f12f72999b1))
+- Use platform-specific self-healing restart commands ([`7af49f5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7af49f56e621b2b3ea1475a2147d57620831a6fb))
+- Add diagnostics to server sync loop for Windows debugging ([`39f602f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/39f602fee2024839b71c8d96a50f3eb7cdb9008a))
+- Correct process names for Wazuh agent metrics ([`1f292d7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1f292d78dc540333ed25e2552c6be9698d0c9acb))
 
 ### Documentation
 
@@ -34,17 +40,20 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`ab78e8e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ab78e8ed46ad404e9255f6d4ca96fed073166342))
 - Update CHANGELOG.md and checksums [skip ci] ([`3f51b26`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3f51b2675c2180ab7bd2321b14eae541566ac655))
 - Update CHANGELOG.md and checksums [skip ci] ([`424999a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/424999aa16cfef19aaa0052f67ed7fa395b44652))
+- Update CHANGELOG.md and checksums [skip ci] ([`da0277c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/da0277c9156213bd4d4368c98716f54ab1d4e5fe))
 
 ### Features
 
 - Added precomit ([`73fba0e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/73fba0e7da7ffb50eb5a92d16174a96299b1663f))
 - Update macOS launchd service management to use kickstart for existing services and remove redundant unload calls ([`d985f42`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d985f42f3722efb98d390e7102dd522540efa3c5))
+- Implement real-time ossec.log streamer ([`6b6ca51`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6b6ca51209e6d98cfb5011fb681fe46272528874))
 
 ### Miscellaneous Tasks
 
 - Resolve merge conflicts and align with feat/self-healing-and-update branch ([`58c417e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/58c417eb7a0c6a87dfecf4d6f42d9827b3ce08e4)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Align release workflow with ci.yml dependencies and caching ([`f67d00b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f67d00b0ff8444832373faaa7a2dc43b879d5c18))
 - Restrict release workflow trigger to specific project paths ([`d01a1cf`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d01a1cfe19f54d5a65e068a6e16fe1bc067dbf79))
+- Fix npm audit vulnerability ([`99e2c94`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/99e2c948f8f85b2c1adeacc61d85d7e9922bd1db))
 
 ### Refactor
 
