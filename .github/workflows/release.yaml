@@ -68,6 +68,8 @@ jobs:
       - name: Build Tauri Client (Tray App)
         run: |
           cd ${{ env.CLIENT_DIR }}
+          export RUST_BACKTRACE=1
+          export TAURI_DEBUG=1
           npm install
           npm run tauri build
           cp src-tauri/target/release/wazuh-agent-status ../dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
