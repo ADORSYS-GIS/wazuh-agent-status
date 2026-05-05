@@ -99,6 +99,7 @@ jobs:
             arch: amd64
           - os: macos-latest
             arch: arm64
+
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
@@ -164,6 +165,7 @@ jobs:
     strategy:
       matrix:
         arch: [amd64]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
@@ -212,10 +214,12 @@ jobs:
         with:
           name: ${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}
           path: dist/${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
-
-  release:
-    name: Release
-    permissions: write-all
+  
+  update-changelog-and-checksums:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     needs:
       - build-linux
       - build-macos
@@ -262,7 +266,7 @@ jobs:
           else
             echo "No changes to commit"
           fi
-      
+
       - name: Upload artifacts
         uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
         with:
@@ -329,19 +333,3 @@ jobs:
           name: Release ${{ steps.get_version.outputs.VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.0.5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update CHANGELOG.md and checksums"
-          title: "Update Changelog and Checksums"
-          body: |
-            This PR updates the CHANGELOG.md and the unified checksums file.
-            - Generated using git-cliff and sha256sum
-            - Includes both binary and script checksums
-            - Triggered by: ${{ github.event_name }}
-          branch: update-changelog-${{ github.run_id }}
-          base: user-main
-          delete-branch: true
-          labels: documentation, automated-pr
