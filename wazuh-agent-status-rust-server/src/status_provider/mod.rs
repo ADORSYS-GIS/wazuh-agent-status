@@ -13,8 +13,18 @@ pub const UNIX_AGENT_PROCESSES: &[&str] = &[
 ];
 
 pub const WINDOWS_AGENT_PROCESSES: &[&str] = &[
-    "Wazuh.exe",
+    // Wazuh 4.x on Windows (original naming)
+    "ossec-agent.exe",
+    "ossec-agentd.exe",
+    "ossec-logcollector.exe",
+    "ossec-syscheckd.exe",
+    "ossec-execd.exe",
+    // Wazuh 5.x+ on Windows (renamed binaries)
+    "wazuh-agent.exe",
     "wazuh-agentd.exe",
+    "wazuh-logcollector.exe",
+    "wazuh-syscheckd.exe",
+    "wazuh-execd.exe",
 ];
 
 /// Abstraction over platform-specific Wazuh agent status retrieval.
