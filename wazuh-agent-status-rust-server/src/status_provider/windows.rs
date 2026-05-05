@@ -14,6 +14,7 @@ use crate::errors::{Result, ServerError};
 use crate::group_extractor;
 use crate::models::{AgentStatus, ConnectionStatus};
 use crate::status_provider::StatusProvider;
+use tracing::{debug, trace};
 
 pub struct WindowsStatusProvider {
     paths: AgentPaths,
@@ -57,6 +58,12 @@ impl StatusProvider for WindowsStatusProvider {
     }
 
     fn get_connection_status(&self) -> Result<ConnectionStatus> {
+        // Optimization: If the agent service is stopped, it's definitely disconnected
+        // regardless of what the stale state file says.
+        if !matches!(self.get_agent_status()?, AgentStatus::Active) {
+            return Ok(ConnectionStatus::Disconnected);
+        }
+
         // Direct file read — no PowerShell needed.
         let content = match fs::read_to_string(&self.paths.state_file) {
             Ok(c) => c,
@@ -120,11 +127,20 @@ impl StatusProvider for WindowsStatusProvider {
 
         for process in sys.processes().values() {
             let name = process.name().to_string_lossy();
+            trace!(process = %name, cpu = %process.cpu_usage(), mem = process.memory(), "Scanning process");
             if crate::status_provider::WINDOWS_AGENT_PROCESSES.contains(&name.as_ref()) {
+                debug!(process = %name, cpu = %process.cpu_usage(), mem = process.memory(), "Matched Wazuh process");
                 total_cpu += process.cpu_usage();
                 total_rss += process.memory();
                 found = true;
             }
+        }
+
+        if !found {
+            let available: Vec<_> = sys.processes().values()
+                .map(|p| p.name().to_string_lossy().into_owned())
+                .collect();
+            debug!(processes = ?available, "No Wazuh processes matched; available process names shown above");
         }
 
         let cpu_count = sys.cpus().len() as f32;

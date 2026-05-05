@@ -26,35 +26,37 @@ impl LinuxStatusProvider {
         }
     }
 
-    /// Determine whether the `wazuh-agentd` process is alive by:
-    /// 1. Running `/var/ossec/bin/wazuh-control status`
-    /// 2. Looking for "is running" in the output.
+    /// Determine whether the `wazuh-agentd` process is alive by calling the
+    /// official `wazuh-control status` script. This ensures parity with the 
+    /// local Wazuh management tools.
     fn is_agent_running(&self) -> bool {
-        let control_path = self.paths.state_file.parent() // var/run/
-            .and_then(|p| p.parent())                    // var/
-            .and_then(|p| p.parent())                    // base/
-            .map(|base| base.join("bin/wazuh-control"))
-            .unwrap_or_else(|| std::path::PathBuf::from("/var/ossec/bin/wazuh-control"));
+        let control_path = self.paths.wazuh_control.clone();
 
         // Primary check: official wazuh-control utility
         match std::process::Command::new(&control_path).arg("status").output() {
             Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                if stdout.contains("wazuh-agentd is running") {
-                    return true;
+                let is_running = stdout.contains("wazuh-agentd is running");
+                if !is_running {
+                    tracing::info!("wazuh-control status says agent is NOT running");
                 }
-                // If wazuh-control ran successfully but didn't say it's running, 
-                // trust it and return false instead of falling back.
-                if output.status.success() || stdout.contains("wazuh-agentd is stopped") {
-                    return false;
-                }
+                is_running
             }
-            Err(_) => {
-                // wazuh-control not found or failed to spawn
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to execute wazuh-control status, falling back to process check");
+                // Fallback: search process list if control utility is missing
+                if let Ok(mut sys) = self.sys.lock() {
+                    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+                    let is_running = sys.processes().values().any(|p| p.name().to_string_lossy() == "wazuh-agentd");
+                    if !is_running {
+                        tracing::info!("Process list check confirms wazuh-agentd is NOT running");
+                    }
+                    is_running
+                } else {
+                    false
+                }
             }
         }
-        
-        false
     }
 }
 
@@ -68,10 +70,15 @@ impl StatusProvider for LinuxStatusProvider {
     }
 
     fn get_connection_status(&self) -> Result<ConnectionStatus> {
+        // Optimization: If the agent service is stopped, it's definitely disconnected
+        // regardless of what the stale state file says.
+        if !self.is_agent_running() {
+            return Ok(ConnectionStatus::Disconnected);
+        }
+
         let content = match fs::read_to_string(&self.paths.state_file) {
             Ok(c) => c,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                // Agent stopped — correctly reflect as Disconnected
                 return Ok(ConnectionStatus::Disconnected);
             }
             Err(e) => {
@@ -95,7 +102,7 @@ impl StatusProvider for LinuxStatusProvider {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
                 if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
                     let version = v.to_string();
-                    tracing::info!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
+                    tracing::debug!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
                     return Ok(version);
                 }
             }
@@ -127,7 +134,7 @@ impl StatusProvider for LinuxStatusProvider {
         match fs::read_to_string(&self.paths.version_file) {
             Ok(raw) => {
                 let v = raw.trim().to_string();
-                tracing::info!(version = %v, path = %self.paths.version_file.display(), "Read tray app version");
+                tracing::debug!(version = %v, path = %self.paths.version_file.display(), "Read tray app version");
                 Ok(v)
             }
             Err(e) => {
@@ -168,9 +175,6 @@ impl StatusProvider for LinuxStatusProvider {
             }
         }
 
-        if !found_names.is_empty() {
-            tracing::debug!("Found Wazuh processes: {}", found_names.join(", "));
-        }
 
         let cpu_count = sys.cpus().len() as f32;
         let cpu_usage = if !found_names.is_empty() && cpu_count > 0.0 {

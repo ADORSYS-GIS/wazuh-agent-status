@@ -4,6 +4,7 @@ export interface AgentStatus {
     version: string;
     tray_version: string;
     groups: string[];
+    self_healing_enabled: boolean;
 }
 
 export type UpdateState = "uptodate" | "outdated" | "prereleaseavailable" | "unknown";
@@ -28,4 +29,11 @@ export interface SystemMetrics {
     total_memory: number;
     used_memory: number;
     agent_running: boolean;
+}
+
+export type LogLevel = "ERROR" | "WARNING" | "INFO" | "DEBUG" | "UNKNOWN";
+
+export interface LogLine {
+    raw: string;
+    level: LogLevel;
 }

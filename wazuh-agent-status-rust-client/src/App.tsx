@@ -1,12 +1,14 @@
-import { useState, useEffect, type CSSProperties } from "react";
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 
 import type { AppConfig, View } from "./types/app";
-import type { AgentStatus, SystemMetrics, UpdateStatus } from "./types/agent";
+import type { AgentStatus, SystemMetrics, UpdateStatus, LogLine } from "./types/agent";
 
-import { IconHome, IconShield, IconSettings } from "./components/Icons";
+import { IconHome, IconLogs, IconShield, IconSettings } from "./components/Icons";
 import { StatusView } from "./components/StatusView";
+import { LogsView } from "./components/LogsView";
 import { UpdatesView } from "./components/UpdatesView";
 import { SettingsView } from "./components/SettingsView";
 
@@ -18,6 +20,7 @@ const DEFAULT_STATUS: AgentStatus = {
   version: "Unknown",
   tray_version: "Unknown",
   groups: [],
+  self_healing_enabled: true,
 };
 
 const DEFAULT_METRICS: SystemMetrics = {
@@ -56,6 +59,39 @@ function App() {
     return (localStorage.getItem(STORAGE_KEY_VIEW) as View) || "status";
   });
 
+  // Global log stream state (persists across navigation)
+  const [logs, setLogs] = useState<LogLine[]>([]);
+  const [isLogStreaming, setIsLogStreaming] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
+  const unlistenRef = useRef<(() => void) | null>(null);
+
+  const startLogStream = useCallback(async () => {
+    if (isLogStreaming) return;
+    setIsLogStreaming(true);
+    setLogError(null);
+    setLogs([]);
+
+    const unlisten = await listen<string>("log-line", (event) => {
+      try {
+        const parsed: LogLine = JSON.parse(event.payload);
+        setLogs((prev) => [...prev, parsed]);
+      } catch {
+        setLogs((prev) => [...prev, { raw: event.payload, level: "UNKNOWN" }]);
+      }
+    });
+
+    unlistenRef.current = unlisten;
+    invoke("start_log_stream").catch((e) => {
+      setLogError(`Failed to start log stream: ${e}`);
+      setIsLogStreaming(false);
+    });
+  }, [isLogStreaming]);
+
+  const stopLogStream = useCallback(() => {
+    if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
+    setIsLogStreaming(false);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_VIEW, activeView);
   }, [activeView]);
@@ -64,7 +100,7 @@ function App() {
     // Initial data fetch
     invoke<AppConfig>("get_config").then(setConfig).catch(console.error);
     invoke<UpdateStatus>("check_for_updates").then(setUpdateInfo).catch(console.error);
-    
+
     // Polling logic for real-time data
     const refreshData = () => {
       invoke<AgentStatus>("get_agent_status").then(setAgentStatus).catch(console.error);
@@ -74,7 +110,10 @@ function App() {
     refreshData();
     const statusTimer = setInterval(refreshData, STATUS_POLL_MS);
 
-    return () => clearInterval(statusTimer);
+    return () => {
+      clearInterval(statusTimer);
+      if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
+    };
   }, []);
 
   useEffect(() => {
@@ -104,7 +143,7 @@ function App() {
   } as CSSProperties;
 
   const indicatorTop = (
-    { status: "10px", updates: "70px", settings: "130px" } as Record<View, string>
+    { status: "10px", logs: "70px", updates: "130px", settings: "190px" } as Record<View, string>
   )[activeView];
 
   return (
@@ -129,6 +168,17 @@ function App() {
               <IconHome />
             </button>
             <span className="tooltip">Overview</span>
+          </div>
+
+          <div className="tooltip-container">
+            <button
+              className={`nav-item ${activeView === "logs" ? "active" : ""}`}
+              onClick={() => setActiveView("logs")}
+              aria-label="Logs"
+            >
+              <IconLogs />
+            </button>
+            <span className="tooltip">Logs</span>
           </div>
 
           <div className="tooltip-container">
@@ -162,7 +212,17 @@ function App() {
 
       <main className="main-content">
         {activeView === "status" && <StatusView agentStatus={agentStatus} metrics={metrics} />}
-        {activeView === "updates" && <UpdatesView updateInfo={updateInfo} />}
+        {activeView === "logs" && (
+          <LogsView
+            logs={logs}
+            isStreaming={isLogStreaming}
+            error={logError}
+            onStart={startLogStream}
+            onStop={stopLogStream}
+            onClear={() => setLogs([])}
+          />
+        )}
+        {activeView === "updates" && <UpdatesView updateInfo={updateInfo} agentStatus={agentStatus} />}
         {activeView === "settings" && <SettingsView config={config} agentStatus={agentStatus} />}
       </main>
     </div>
