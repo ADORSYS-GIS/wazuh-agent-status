@@ -79,9 +79,8 @@ jobs:
           cd ${{ env.CLIENT_DIR }}
           export RUST_BACKTRACE=1
           export TAURI_DEBUG=1
-          export APPIMAGE_EXTRACT_AND_RUN=1
           npm install
-          npm run tauri build
+          npm run tauri build -- --bundles deb,rpm
           cp src-tauri/target/release/wazuh-agent-status ../dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Upload Linux client binaries
