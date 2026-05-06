@@ -118,13 +118,6 @@ jobs:
       - name: Run tests
         run: cargo test --verbose
 
-      - name: Upload test results
-        uses: actions/upload-artifact@v3
-        with:
-          name: server-test-results
-          path: target/test-results/
-          retention-days: 7
-
       # -----------------------------------------------------------------------
       # Step 8: Run security audit
       # Scans Cargo.lock for known security vulnerabilities
@@ -161,7 +154,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./wazuh-agent-status-rust/src-tauri
+        working-directory: ./wazuh-agent-status-rust-client
 
     steps:
       - name: Checkout repository
@@ -182,7 +175,7 @@ jobs:
         with:
           node-version: "18"
           cache: "npm"
-          cache-dependency-path: wazuh-agent-status-rust/src/package-lock.json
+          cache-dependency-path: wazuh-agent-status-rust-client/package-lock.json
 
       # -------------------------------------------------------------------------
       # Step 4: Install system dependencies for Tauri
@@ -208,9 +201,9 @@ jobs:
         uses: Swatinem/rust-cache@82a82a6a0c4ac1b525331a01d34d632b295e8ae4 # v2.7.0
         with:
           workspaces: |
-            wazuh-agent-status-rust/src-tauri
+            wazuh-agent-status-rust-client
           cache-on-failure: false
-          key: rust-client-${{ runner.os }}-${{ hashFiles('wazuh-agent-status-rust/src-tauri/Cargo.lock') }}
+          key: rust-client-${{ runner.os }}-${{ hashFiles('wazuh-agent-status-rust-client/Cargo.lock') }}
 
       - name: Check formatting (cargo fmt)
         run: cargo fmt -- --check
@@ -222,26 +215,14 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       # -------------------------------------------------------------------------
-      # Step 7: Build project
-      # -------------------------------------------------------------------------
-      - name: Build project
-        run: cargo build --verbose
-
-      # -------------------------------------------------------------------------
-      # Step 8: Run tests
-      # -------------------------------------------------------------------------
-
-      # -------------------------------------------------------------------------
-      # Step 9: Build Tauri frontend
+      # Step 7: Build Tauri frontend
       # -------------------------------------------------------------------------
       - name: Install Node.js dependencies
         run: |
-          cd src
           npm ci
 
       - name: Build frontend
         run: |
-          cd src
           npm run build
 
       - name: Build Tauri application
