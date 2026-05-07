@@ -103,8 +103,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-13
-            arch: amd64
+          # - os: macos-13
+          #   arch: amd64
           - os: macos-latest
             arch: arm64
 
