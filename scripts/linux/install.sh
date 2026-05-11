@@ -158,6 +158,7 @@ After=network.target
 ExecStart=$BIN_DIR/$SERVER_NAME
 Restart=always
 User=$WAZUH_USER
+Environment=WAZUH_STATUS_LOG_FILE=/var/log/wazuh-agent-status/wazuh-agent-status.log
 
 [Install]
 WantedBy=multi-user.target

@@ -321,14 +321,21 @@ setup_permissions_and_ownership() {
         warn_message "$wazuh_control_path not found, skipping."
     fi
 
-    # 2. Adjust log file permissions
-    info_message "Ensuring log file $log_file_path has correct ownership..."
+    # 2. Adjust log file and directory permissions
+    info_message "Ensuring log directory $log_dir has correct ownership..."
+    if ! maybe_sudo [ -d "$log_dir" ]; then
+        maybe_sudo mkdir -p "$log_dir"
+    fi
+    maybe_sudo chown "$wazuh_user:$wazuh_group" "$log_dir"
+    maybe_sudo chmod 775 "$log_dir"
+
+    info_message "Ensuring log file $log_file_path exists and has correct ownership..."
     if ! maybe_sudo [ -f "$log_file_path" ]; then
         maybe_sudo touch "$log_file_path"
     fi
     maybe_sudo chown "$wazuh_user:$wazuh_group" "$log_file_path"
     maybe_sudo chmod 664 "$log_file_path"
-    success_message "Log file permissions updated."
+    success_message "Log file and directory permissions updated."
 
     return 0
 }
