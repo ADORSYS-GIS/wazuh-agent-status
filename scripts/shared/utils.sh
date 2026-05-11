@@ -307,9 +307,9 @@ setup_permissions_and_ownership() {
     local wazuh_user="$1"
     local wazuh_group="$2"
     local wazuh_control_path="$3"
-    local log_file_path="/var/log/wazuh-agent-status.log"
+    local log_dir="/var/log/wazuh-agent-status"
+    local log_file_path="$log_dir/wazuh-agent-status.log"
 
-    print_step_header 0 "Permissions and Ownership Configuration"
 
     # 1. Adjust wazuh-control group to allow non-root execution
     if [ -f "$wazuh_control_path" ]; then
