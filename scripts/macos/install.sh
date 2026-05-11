@@ -12,7 +12,7 @@ APP_VERSION=${APP_VERSION:-"0.5.0-rc.1"}
 # Common configuration
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"v0.4.2"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Source shared utilities
@@ -67,7 +67,22 @@ fi
 
 # Environment Variables with Defaults
 WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
-WAZUH_USER=${WAZUH_USER:-"root"}
+
+# Default to 'wazuh' user/group if they exist, otherwise fallback to root
+USER_EXISTS=$(id -u wazuh 2>/dev/null || echo "")
+GROUP_EXISTS=$(dscl . -list /Groups | grep -w "wazuh" || echo "")
+
+if [ -n "$USER_EXISTS" ]; then
+    WAZUH_USER=${WAZUH_USER:-"wazuh"}
+else
+    WAZUH_USER=${WAZUH_USER:-"root"}
+fi
+
+if [ -n "$GROUP_EXISTS" ]; then
+    WAZUH_GROUP=${WAZUH_GROUP:-"wazuh"}
+else
+    WAZUH_GROUP=${WAZUH_GROUP:-"root"}
+fi
 
 SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
 CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
@@ -84,19 +99,6 @@ ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"$WAZUH_AGENT_STATUS_REPO
 UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
 
-remove_file() {
-    local filepath="$1"
-    if [[ -f "$filepath" ]]; then
-        info_message "Removing file: $filepath"
-        maybe_sudo rm -f "$filepath"
-    fi
-    return 0
-}
-
-sed_inplace() {
-    maybe_sudo sed -i '' "$@" 2>/dev/null || true
-    return $?
-}
 
 # Legacy Go Cleanup
 cleanup_legacy_system() {
@@ -133,12 +135,8 @@ create_launchd_plist_file() {
     # Determine the EnvironmentVariables block: inject HOME only for the client (LaunchAgent)
     local env_block=""
     if [[ "$name" != "$SERVER_NAME" ]]; then
-        local real_user="${SUDO_USER:-${USER:-}}"
-        local user_home=""
-        if [ -n "$real_user" ]; then
-            user_home=$(dscl . -read "/Users/$real_user" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
-        fi
-        user_home="${user_home:-$HOME}"
+        local real_user=$(get_real_user)
+        local user_home=$(eval echo "~$real_user")
         env_block="
     <key>EnvironmentVariables</key>
     <dict>
@@ -177,18 +175,19 @@ create_launchd_plist_file() {
             maybe_sudo launchctl bootstrap system "$filepath" 2>/dev/null || warn_message "Loading server plist file failed: $filepath"
         fi
     else
-        local real_user="${SUDO_USER:-$USER}"
+        local real_user=$(get_real_user)
         local uid
         uid=$(id -u "$real_user")
-
-        local target="gui/$uid/$label"
 
         if sudo -u "$real_user" launchctl print "$target" >/dev/null 2>&1; then
             info_message "Service $label is already loaded, kickstarting..."
             sudo -u "$real_user" launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting client failed: $label"
         else
-            info_message "Loading new agent plist file..."
-            sudo -u "$real_user" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || warn_message "Loading client plist file failed: $filepath"
+            info_message "Loading $name into user GUI session ($real_user)..."
+            # Use 'asuser' to ensure it's loaded in the correct GUI context
+            sudo launchctl asuser "$uid" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || \
+            sudo -u "$real_user" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || \
+            warn_message "Loading $name failed. You may need to log out and log back in to see the tray app."
         fi
     fi
 
@@ -290,7 +289,11 @@ else
     warn_message "$WAZUH_ACTIVE_RESPONSE_BIN_DIR does not exist, skipping."
 fi
 
-print_step_header 6 "Validating installation and configuration..."
+# Permissions and Ownership Configuration
+print_step_header 6 "Permissions and Ownership Configuration"
+setup_permissions_and_ownership "$WAZUH_USER" "$WAZUH_GROUP" "/Library/Ossec/bin/wazuh-control"
+
+print_step_header 7 "Validating installation and configuration..."
 validate_installation
 
 # Create migration marker

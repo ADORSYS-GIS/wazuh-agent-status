@@ -18,7 +18,7 @@ log() {
     local message="$*"
     local timestamp
     timestamp=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "${timestamp} ${level} ${message}"
+    printf "%s %b %s\n" "${timestamp}" "${level}" "${message}"
     return 0
 }
 
@@ -51,7 +51,7 @@ success_message() {
 print_step_header() {
     local step_number="$1"
     local step_name="$2"
-    echo -e "\n${BOLD}===== STEP $step_number: $step_name =====${NORMAL}\n"
+    printf "\n%b===== STEP %s: %s =====%b\n\n" "${BOLD}" "${step_number}" "${step_name}" "${NORMAL}"
     return 0
 }
 
@@ -253,5 +253,82 @@ create_file() {
 $content
 EOF"
     info_message "Created file: $filepath"
+    return 0
+}
+
+# Cross-platform sed -i wrapper
+sed_inplace() {
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        maybe_sudo sed -i '' "$@"
+    else
+        maybe_sudo sed -i "$@"
+    fi
+}
+
+# Runs a shell function with root privileges by injecting its definition
+maybe_sudo_fn() {
+    local fn="$1"; shift
+    if [ "$(id -u)" -ne 0 ]; then
+        command_exists sudo || error_exit "This script requires root privileges. Run as root or use sudo."
+        sudo bash -c "$(declare -f command_exists "$fn"); $fn \"\$@\"" -- "$@"
+    else
+        "$fn" "$@"
+    fi
+}
+
+# Detect the real user who invoked the script (even via sudo)
+get_real_user() {
+    # If SUDO_USER is set, trust it
+    if [ -n "${SUDO_USER:-}" ]; then
+        echo "$SUDO_USER"
+        return
+    fi
+
+    # Fallback for Linux using process tree
+    if [[ "$(uname -s)" == "Linux" ]]; then
+        local pid=$$
+        while [ "$pid" -ne 1 ] && [ -n "$pid" ]; do
+            pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+            local user
+            user=$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')
+            if [ -n "$user" ] && [ "$user" != "root" ]; then
+                echo "$user"
+                return
+            fi
+        done
+    fi
+
+    # Last resort: current user (might be root)
+    id -un
+}
+
+# Centralized permission and ownership setup for Wazuh-Agent-Status
+setup_permissions_and_ownership() {
+    local wazuh_user="$1"
+    local wazuh_group="$2"
+    local wazuh_control_path="$3"
+    local log_file_path="/var/log/wazuh-agent-status.log"
+
+    print_step_header 0 "Permissions and Ownership Configuration"
+
+    # 1. Adjust wazuh-control group to allow non-root execution
+    if [ -f "$wazuh_control_path" ]; then
+        info_message "Adjusting $wazuh_control_path group to $wazuh_group..."
+        maybe_sudo chgrp "$wazuh_group" "$wazuh_control_path"
+        maybe_sudo chmod g+x "$wazuh_control_path"
+        success_message "wazuh-control permissions updated."
+    else
+        warn_message "$wazuh_control_path not found, skipping."
+    fi
+
+    # 2. Adjust log file permissions
+    info_message "Ensuring log file $log_file_path has correct ownership..."
+    if ! maybe_sudo [ -f "$log_file_path" ]; then
+        maybe_sudo touch "$log_file_path"
+    fi
+    maybe_sudo chown "$wazuh_user:$wazuh_group" "$log_file_path"
+    maybe_sudo chmod 664 "$log_file_path"
+    success_message "Log file permissions updated."
+
     return 0
 }

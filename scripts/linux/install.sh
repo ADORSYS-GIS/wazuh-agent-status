@@ -72,31 +72,21 @@ fi
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
-WAZUH_USER=${WAZUH_USER:-"root"}
+# Default to 'wazuh' user/group if they exist, otherwise fallback to root
+USER_EXISTS=$(id -u wazuh 2>/dev/null || echo "")
+GROUP_EXISTS=$(getent group wazuh 2>/dev/null || echo "")
 
-get_real_user() {
-    # If SUDO_USER is set, trust it
-    if [ -n "${SUDO_USER:-}" ]; then
-        echo "$SUDO_USER"
-        return
-    fi
+if [ -n "$USER_EXISTS" ]; then
+    WAZUH_USER=${WAZUH_USER:-"wazuh"}
+else
+    WAZUH_USER=${WAZUH_USER:-"root"}
+fi
 
-    # Walk up the process tree to find the first non-root login user
-    local pid=$$
-    while [ "$pid" -ne 1 ]; do
-        pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
-        local user
-        user=$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')
-        if [ -n "$user" ] && [ "$user" != "root" ]; then
-            echo "$user"
-            return
-        fi
-    done
-
-    # Last resort: current user
-    id -un
-}
-
+if [ -n "$GROUP_EXISTS" ]; then
+    WAZUH_GROUP=${WAZUH_GROUP:-"wazuh"}
+else
+    WAZUH_GROUP=${WAZUH_GROUP:-"root"}
+fi
 
 REAL_USER=$(get_real_user)
 REAL_HOME=$(eval echo "~$REAL_USER")
@@ -152,16 +142,6 @@ cleanup_legacy_system() {
     return 0
 }
 
-# Runs a shell function with root privileges by injecting its definition into a sudo bash -c call
-maybe_sudo_fn() {
-    local fn="$1"; shift
-    if [ "$(id -u)" -ne 0 ]; then
-        command_exists sudo || error_exit "This script requires root privileges. Run as root or use sudo."
-        sudo bash -c "$(declare -f command_exists "$fn"); $fn \"\$@\"" -- "$@"
-    else
-        "$fn" "$@"
-    fi
-}
 
 # Service Management
 create_service_file() {
@@ -231,10 +211,6 @@ make_client_launch_at_startup() {
     return 0
 }
 
-sed_inplace() {
-    maybe_sudo sed -i "$@" 2>/dev/null || true
-    return $?
-}
 
 validate_installation() {
     # Validate binaries
@@ -322,7 +298,11 @@ else
     warn_message "$WAZUH_ACTIVE_RESPONSE_BIN_DIR does not exist, skipping."
 fi
 
-print_step_header 6 "Validating installation and configuration..."
+# Permissions and Ownership Configuration
+print_step_header 6 "Permissions and Ownership Configuration"
+setup_permissions_and_ownership "$WAZUH_USER" "$WAZUH_GROUP" "/var/ossec/bin/wazuh-control"
+
+print_step_header 7 "Validating installation and configuration..."
 validate_installation
 
 # Create migration marker
