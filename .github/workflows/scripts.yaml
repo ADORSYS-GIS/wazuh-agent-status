@@ -8,6 +8,9 @@ on:
       - user-main
     paths:
       - 'scripts/**'
+  push:
+    branches:
+      - feat/remove-installation-profiles
   workflow_dispatch:
 
 env:
@@ -64,7 +67,7 @@ jobs:
           git config --local user.name "GitHub Action"
       - name: Generate script checksums
         run: |
-          find scripts -type f -exec sha256sum {} + > checksums.sha256
+          find scripts -type f -exec sha256sum {} + | sort -k 2 > checksums.sha256
           cat checksums.sha256
           
       - name: Generate full CHANGELOG.md
