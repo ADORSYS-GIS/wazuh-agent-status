@@ -102,6 +102,7 @@ REAL_USER=$(get_real_user)
 REAL_HOME=$(eval echo "~$REAL_USER")
 
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
+MIGRATION_MARKER="/usr/local/etc/$SERVER_NAME/.migrated_from_go"
 DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$REAL_HOME/.config/autostart"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
 
@@ -114,6 +115,42 @@ CHECKSUM_URL="$BASE_URL/checksums.sha256"
 
 ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"$WAZUH_AGENT_STATUS_REPO_URL/scripts/linux/adorsys-update.sh"}
 UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
+
+# Legacy Go Cleanup
+cleanup_legacy_system() {
+    if [ -f "$MIGRATION_MARKER" ]; then
+        info_message "Migration already completed. Skipping legacy cleanup."
+        return 0
+    fi
+    print_step_header 0 "Legacy Go Cleanup"
+    info_message "Detecting legacy Go components..."
+
+    # 1. Stop and Disable the old service (if it exists)
+    if command_exists systemctl; then
+        if systemctl is-active --quiet "$SERVER_NAME" 2>/dev/null; then
+            info_message "Stopping legacy service: $SERVER_NAME"
+            maybe_sudo systemctl stop "$SERVER_NAME" || true
+        fi
+        if systemctl is-enabled --quiet "$SERVER_NAME" 2>/dev/null; then
+            info_message "Disabling legacy service: $SERVER_NAME"
+            maybe_sudo systemctl disable "$SERVER_NAME" || true
+        fi
+    fi
+
+    # 2. Kill any lingering Go processes
+    info_message "Killing lingering Go processes ($SERVER_NAME, $CLIENT_NAME)..."
+    maybe_sudo killall "$SERVER_NAME" 2>/dev/null || true
+    maybe_sudo killall "$CLIENT_NAME" 2>/dev/null || true
+
+    # 3. Remove old desktop entries
+    if [ -f "$DESKTOP_UNIT_FILE" ]; then
+        info_message "Removing legacy desktop entry: $DESKTOP_UNIT_FILE"
+        remove_file "$DESKTOP_UNIT_FILE"
+    fi
+
+    info_message "Legacy cleanup complete."
+    return 0
+}
 
 # Runs a shell function with root privileges by injecting its definition into a sudo bash -c call
 maybe_sudo_fn() {
@@ -241,6 +278,9 @@ validate_installation() {
     return 0
 }
 
+print_step_header 0 "Legacy Go Cleanup"
+cleanup_legacy_system
+
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary from $SERVER_URL..."
 download_and_verify_file "$SERVER_URL" "$TMP_DIR/$SERVER_BIN_NAME" "$SERVER_BIN_NAME" "server binary" "$CHECKSUM_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
@@ -284,3 +324,7 @@ fi
 
 print_step_header 6 "Validating installation and configuration..."
 validate_installation
+
+# Create migration marker
+maybe_sudo mkdir -p "$(dirname "$MIGRATION_MARKER")"
+maybe_sudo touch "$MIGRATION_MARKER"

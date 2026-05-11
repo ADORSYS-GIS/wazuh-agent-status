@@ -71,6 +71,7 @@ WAZUH_USER=${WAZUH_USER:-"root"}
 
 SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
 CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
+MIGRATION_MARKER="/usr/local/etc/$SERVER_NAME/.migrated_from_go"
 
 SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
 CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
@@ -95,6 +96,31 @@ remove_file() {
 sed_inplace() {
     maybe_sudo sed -i '' "$@" 2>/dev/null || true
     return $?
+}
+
+# Legacy Go Cleanup
+cleanup_legacy_system() {
+    if [ -f "$MIGRATION_MARKER" ]; then
+        info_message "Migration already completed. Skipping legacy cleanup."
+        return 0
+    fi
+    print_step_header 0 "Legacy Go Cleanup"
+    info_message "Detecting legacy Go components..."
+
+    # 1. macOS: Unload legacy launchd plists
+    info_message "Unloading legacy macOS launchd services..."
+    maybe_sudo launchctl unload "$SERVER_LAUNCH_AGENT_FILE" 2>/dev/null || true
+    maybe_sudo launchctl unload "$CLIENT_LAUNCH_AGENT_FILE" 2>/dev/null || true
+    remove_file "$SERVER_LAUNCH_AGENT_FILE"
+    remove_file "$CLIENT_LAUNCH_AGENT_FILE"
+
+    # 2. Kill any lingering Go processes
+    info_message "Killing lingering Go processes ($SERVER_NAME, $CLIENT_NAME)..."
+    maybe_sudo killall "$SERVER_NAME" 2>/dev/null || true
+    maybe_sudo killall "$CLIENT_NAME" 2>/dev/null || true
+
+    info_message "Legacy cleanup complete."
+    return 0
 }
 
 # macOS Launchd Plist File
@@ -220,6 +246,9 @@ validate_installation() {
     return 0
 }
 
+print_step_header 0 "Legacy Go Cleanup"
+cleanup_legacy_system
+
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary from $SERVER_URL..."
 download_and_verify_file "$SERVER_URL" "$TMP_DIR/$SERVER_BIN_NAME" "$SERVER_BIN_NAME" "server binary" "$CHECKSUM_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
@@ -263,3 +292,7 @@ fi
 
 print_step_header 6 "Validating installation and configuration..."
 validate_installation
+
+# Create migration marker
+maybe_sudo mkdir -p "$(dirname "$MIGRATION_MARKER")"
+maybe_sudo touch "$MIGRATION_MARKER"
