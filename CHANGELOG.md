@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 [5940735](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/59407352eeaecf8fe4dbb527747b387aafca4d2c)...[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)
 
 
+
 ### Features
 
 - Add legacy Go component cleanup and migration tracking to Linux and macOS installers ([`1559382`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/155938246a3326cfe8c0b25955652c25c5ae5ee5)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
