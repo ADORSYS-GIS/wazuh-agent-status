@@ -22,6 +22,7 @@ All notable changes to this project will be documented in this file.
 
 [5940735](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/59407352eeaecf8fe4dbb527747b387aafca4d2c)...[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)
 
+
 ### Features
 
 - Add legacy Go component cleanup and migration tracking to Linux and macOS installers ([`1559382`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/155938246a3326cfe8c0b25955652c25c5ae5ee5)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
@@ -31,7 +32,9 @@ All notable changes to this project will be documented in this file.
 
 - Add workflow trigger for feature branch and sort script checksums by filename ([`68cdf54`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68cdf546a9ffd90d446addddc78ad3a79cb31ded)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Update WAZUH_AGENT_STATUS_REPO_REF to dynamically use current branch reference ([`5a508db`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5a508db7076568f78fa5d06485aec4befd81e62c)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+
 - Bump application version to 0.5.0-rc.2 and update release workflow configuration ([`b6752d8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+
 
 ### Refactor
 
