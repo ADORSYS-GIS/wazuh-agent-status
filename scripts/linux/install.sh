@@ -13,17 +13,10 @@ if [[ "$(uname -s)" != "Linux" ]]; then
     exit 1
 fi
 
-PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.4.2.rc1"}
-
-# Assign app version based on profile
-case "$PROFILE" in
-"admin") WAS_VERSION="$APP_VERSION" ;;
-*) WAS_VERSION="$APP_VERSION-user" ;;
-esac
+APP_VERSION=${APP_VERSION:-"0.5.0-rc.1"}
 
 # Common configuration
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"refs/tags/v$WAS_VERSION"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Source shared utilities
@@ -114,7 +107,7 @@ DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.deskto
 
 SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
 CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
-BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"}
+BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$APP_VERSION"}
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
 CHECKSUM_URL="$BASE_URL/checksums.sha256"

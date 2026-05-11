@@ -7,14 +7,7 @@ else
     set -eu
 fi
 
-PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.4.2.rc1"}
-
-# Assign app version based on profile
-case "$PROFILE" in
-"admin") WAS_VERSION="$APP_VERSION" ;;
-*) WAS_VERSION="$APP_VERSION-user" ;;
-esac
+APP_VERSION=${APP_VERSION:-"0.5.0-rc.1"}
 
 # Common configuration
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
@@ -81,7 +74,7 @@ CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.
 
 SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
 CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
-BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"}
+BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$APP_VERSION"}
 SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
 CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
 CHECKSUM_URL="$BASE_URL/checksums.sha256"
