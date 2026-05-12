@@ -4,15 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)...[82244eb](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/82244eb145ca74ae117e30385873f217844815b8)
+[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)...[7953d8a](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7953d8aea992fc86125460f4e408d0e42730c70b)
 
 ### Documentation
 
 - Update CHANGELOG.md and checksums [skip ci] ([`d0bc6b8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d0bc6b88dbe177e67365422ae327b9fb036dd82c))
+- Update CHANGELOG.md and checksums [skip ci] ([`fa37a31`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/fa37a313032d7cec0effc2b495262b555f08fafb))
 
 ### Features
 
 - Improve download URL validation and strengthen checksum verification logic in installation scripts ([`82244eb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/82244eb145ca74ae117e30385873f217844815b8)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Add setup_sudoers function to grant passwordless execution for wazuh-control ([`7953d8a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7953d8aea992fc86125460f4e408d0e42730c70b)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ### Refactor
 
