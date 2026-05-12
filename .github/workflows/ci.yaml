@@ -112,7 +112,7 @@ jobs:
         run: cargo build --verbose
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@654c2827adde4bb619e7d1c7fdb3b7cc10a3ecd1 # v4.3.4
         with:
           name: server-build-artifacts
           path: target/debug/
@@ -131,7 +131,7 @@ jobs:
             --exclude-files "*/tests/*" --timeout 300
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@125ce36ca5e57bfe631a5a9b3b8943ec1b8b5561 # v4.6.0
         with:
           file: ./coverage/cobertura.xml
           flags: rust-server
@@ -267,7 +267,7 @@ jobs:
             --exclude-files "*/tests/*" --timeout 300
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@125ce36ca5e57bfe631a5a9b3b8943ec1b8b5561 # v4.6.0
         with:
           file: ./coverage/cobertura.xml
           flags: rust-client
@@ -287,14 +287,14 @@ jobs:
         run: cargo build --verbose
 
       - name: Upload client build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@654c2827adde4bb619e7d1c7fdb3b7cc10a3ecd1 # v4.3.4
         with:
           name: client-tauri-build
           path: target/debug/
           retention-days: 7
 
       - name: Upload frontend artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@654c2827adde4bb619e7d1c7fdb3b7cc10a3ecd1 # v4.3.4
         with:
           name: client-frontend-dist
           path: src/dist/
@@ -371,7 +371,7 @@ jobs:
           cargo test --test '*' --verbose
 
       - name: Upload integration test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@654c2827adde4bb619e7d1c7fdb3b7cc10a3ecd1 # v4.3.4
         if: always()
         with:
           name: integration-test-results
@@ -523,7 +523,7 @@ jobs:
         run: cargo bench --no-fail-fast -- --output-format bencher | tee benchmark-results.txt
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@654c2827adde4bb619e7d1c7fdb3b7cc10a3ecd1 # v4.3.4
         with:
           name: benchmark-results-${{ matrix.component.name }}
           path: benchmark-results.txt
@@ -588,7 +588,7 @@ jobs:
           echo "Code duplication check completed"
 
       - name: Upload complexity report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@654c2827adde4bb619e7d1c7fdb3b7cc10a3ecd1 # v4.3.4
         if: always()
         with:
           name: complexity-report-${{ matrix.component.name }}
