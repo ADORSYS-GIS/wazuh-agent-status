@@ -8,10 +8,10 @@ on:
       - user-main
     paths:
       - 'scripts/**'
+  workflow_dispatch:
   push:
     branches:
       - feat/remove-installation-profiles
-  workflow_dispatch:
 
 env:
   WAZUH_MANAGER: "127.0.0.1"

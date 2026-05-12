@@ -189,49 +189,64 @@ download_file() {
 }
 
 download_and_verify_file() {
-    local url="$1"
-    local dest="$2"
-    local pattern="$3"
+    local url="${1}"
+    local dest="${2}"
+    local pattern="${3}"
     local name="${4:-Unknown file}"
     # Expected checksum file format: "sha256  filename" or "sha256 filename"
     local checksum_url="${5:-${CHECKSUMS_URL:-}}"
     local checksum_file="${6:-${CHECKSUMS_FILE:-}}"
 
-    if ! download_file "$url" "$dest" "$name"; then
-        error_exit "Failed to download $name from $url"
+    if ! download_file "${url}" "${dest}" "${name}"; then
+        error_exit "Failed to download ${name} from ${url}"
     fi
 
-    if [[ -n "$checksum_url" ]]; then
+    # Handle external checksum file download if a URL is provided
+    if [[ -n "${checksum_url}" ]]; then
         local temp_checksum_file
         temp_checksum_file=$(mktemp)
-        if ! download_file "$checksum_url" "$temp_checksum_file" "checksum file"; then
-            error_exit "Failed to download external checksum file from $checksum_url"
+        if ! download_file "${checksum_url}" "${temp_checksum_file}" "checksum file"; then
+            error_exit "Failed to download external checksum file from ${checksum_url}"
         fi
-        checksum_file="$temp_checksum_file"
+        checksum_file="${temp_checksum_file}"
     fi
 
-    if [[ -f "$checksum_file" ]]; then
+    # Verify checksum if a checksum file is available
+    if [[ -f "${checksum_file}" ]]; then
         local expected
-        expected=$(grep "$pattern" "$checksum_file" | awk '{print $1}')
+        # Use anchored grep for exact filename matching to avoid partial matches
+        # Format: HASH  FILENAME (with one or more spaces)
+        expected=$(grep -E "[[:space:]]+${pattern}$" "${checksum_file}" | awk '{print $1}' | head -n 1)
 
-        if [[ -n "$expected" ]]; then
-            if ! verify_checksum "$dest" "$expected"; then
-                error_exit "$name checksum verification failed"
+        if [[ -n "${expected}" ]]; then
+            # Validate that the extracted checksum follows SHA256 hexadecimal format
+            if ! [[ "${expected}" =~ ^[0-9a-fA-F]{64}$ ]]; then
+                error_message "Detected invalid checksum format for ${name}: ${expected}"
+                error_message "Problematic line in ${checksum_file}:"
+                grep -E "[[:space:]]+${pattern}$" "${checksum_file}" | head -n 1
+                error_exit "Invalid checksum entry in ${checksum_file}"
             fi
-            info_message "$name checksum verification passed."
+
+            if ! verify_checksum "${dest}" "${expected}"; then
+                error_exit "${name} checksum verification FAILED"
+            fi
+            info_message "${name} checksum verification passed."
         else
-            error_exit "No checksum found for $name in $checksum_file using pattern $pattern"
+            error_message "No checksum found for ${name} in ${checksum_file} with pattern '${pattern}'"
+            error_message "First 10 lines of the checksum file for debugging:"
+            head -n 10 "${checksum_file}"
+            error_exit "Checksum lookup failed for ${name}"
         fi
 
-        # Cleanup temporary checksum file if it was downloaded from a URL
-        if [[ -n "$checksum_url" ]] && [[ -f "$checksum_file" ]]; then
-            rm -f "$checksum_file"
+        # Clean up temporary checksum files
+        if [[ -n "${checksum_url}" ]] && [[ -f "${checksum_file}" ]]; then
+            rm -f "${checksum_file}"
         fi
     else
-        error_exit "Checksum file not found at $checksum_file, cannot verify $name"
+        error_exit "Checksum file not found at ${checksum_file}; cannot verify ${name}"
     fi
 
-    success_message "$name downloaded and verified successfully."
+    success_message "${name} downloaded and verified successfully."
     return 0
 }
 
@@ -270,7 +285,7 @@ maybe_sudo_fn() {
     local fn="$1"; shift
     if [ "$(id -u)" -ne 0 ]; then
         command_exists sudo || error_exit "This script requires root privileges. Run as root or use sudo."
-        sudo bash -c "$(declare -f command_exists "$fn"); $fn \"\$@\"" -- "$@"
+        sudo /usr/bin/env bash -c "$(declare -f "$fn"); $fn \"\$@\"" -- "$@"
     else
         "$fn" "$@"
     fi
@@ -284,11 +299,22 @@ get_real_user() {
         return
     fi
 
+    # Check LOGNAME or USER if they are not root
+    if [ -n "${LOGNAME:-}" ] && [ "$LOGNAME" != "root" ]; then
+        echo "$LOGNAME"
+        return
+    fi
+    if [ -n "${USER:-}" ] && [ "$USER" != "root" ]; then
+        echo "$USER"
+        return
+    fi
+
     # Fallback for Linux using process tree
     if [[ "$(uname -s)" == "Linux" ]]; then
         local pid=$$
         while [ "$pid" -ne 1 ] && [ -n "$pid" ]; do
             pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+            [ -z "$pid" ] && break
             local user
             user=$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')
             if [ -n "$user" ] && [ "$user" != "root" ]; then
@@ -296,6 +322,16 @@ get_real_user() {
                 return
             fi
         done
+    fi
+
+    # Fallback for macOS using stat on the tty
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        local tty_user
+        tty_user=$(stat -f "%Su" /dev/console 2>/dev/null)
+        if [ -n "$tty_user" ] && [ "$tty_user" != "root" ]; then
+            echo "$tty_user"
+            return
+        fi
     fi
 
     # Last resort: current user (might be root)
