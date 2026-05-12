@@ -315,13 +315,11 @@ jobs:
       - name: Determine prerelease
         id: prerelease
         run: |
-          # RC tags are now treated as full releases
-          # if [[ "${GITHUB_REF#refs/tags/}" == *"rc"* ]]; then
-          #   echo "PRERELEASE=true" >> $GITHUB_OUTPUT
-          # else
-          #   echo "PRERELEASE=false" >> $GITHUB_OUTPUT
-          # fi
-          echo "PRERELEASE=false" >> $GITHUB_OUTPUT
+          if [[ "${GITHUB_REF#refs/tags/}" == *"rc"* ]]; then
+            echo "PRERELEASE=true" >> $GITHUB_OUTPUT
+          else
+            echo "PRERELEASE=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0

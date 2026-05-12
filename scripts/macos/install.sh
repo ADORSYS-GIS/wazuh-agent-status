@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Set shell options
 if [ -n "$BASH_VERSION" ]; then
@@ -61,6 +61,11 @@ BIN_DIR="/usr/local/bin"
 WAZUH_ACTIVE_RESPONSE_BIN_DIR="/Library/Ossec/active-response/bin"
 
 ARCH=$(detect_architecture)
+if [[ "$ARCH" == "amd64" ]]; then
+    warn_message "Detected architecture is amd64, but currently only arm64 binaries are built for macOS."
+    warn_message "The installation may fail if amd64 binaries are missing from the release."
+fi
+
 if [[ "$ARCH" != "amd64" ]] && [[ "$ARCH" != "arm64" ]]; then
     error_exit "Unsupported architecture: $ARCH. Only amd64 and arm64 are supported on macOS."
 fi

@@ -44,8 +44,14 @@ if ! curl -fsSL "$install_script_url" -o "$TMP_DIR/install.sh"; then
 fi
 
 # Run the actual script
-# We use -E to preserve environment variables like APP_VERSION, WAZUH_MANAGER, etc.
-sh "$TMP_DIR/install.sh" "$@"
+# We use bash because the sub-scripts use bashisms like [[
+if command -v bash >/dev/null 2>&1; then
+    bash "$TMP_DIR/install.sh" "$@"
+else
+    # Fallback to sh if bash is not available, but warn the user
+    echo "Warning: bash not found, falling back to sh. This may cause errors if the script uses bashisms."
+    sh "$TMP_DIR/install.sh" "$@"
+fi
 
 # Cleanup
 rm -rf "$TMP_DIR"

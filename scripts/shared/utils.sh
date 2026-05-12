@@ -270,7 +270,7 @@ maybe_sudo_fn() {
     local fn="$1"; shift
     if [ "$(id -u)" -ne 0 ]; then
         command_exists sudo || error_exit "This script requires root privileges. Run as root or use sudo."
-        sudo bash -c "$(declare -f command_exists "$fn"); $fn \"\$@\"" -- "$@"
+        sudo /usr/bin/env bash -c "$(declare -f "$fn"); $fn \"\$@\"" -- "$@"
     else
         "$fn" "$@"
     fi
@@ -284,11 +284,22 @@ get_real_user() {
         return
     fi
 
+    # Check LOGNAME or USER if they are not root
+    if [ -n "${LOGNAME:-}" ] && [ "$LOGNAME" != "root" ]; then
+        echo "$LOGNAME"
+        return
+    fi
+    if [ -n "${USER:-}" ] && [ "$USER" != "root" ]; then
+        echo "$USER"
+        return
+    fi
+
     # Fallback for Linux using process tree
     if [[ "$(uname -s)" == "Linux" ]]; then
         local pid=$$
         while [ "$pid" -ne 1 ] && [ -n "$pid" ]; do
             pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+            [ -z "$pid" ] && break
             local user
             user=$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')
             if [ -n "$user" ] && [ "$user" != "root" ]; then
@@ -296,6 +307,16 @@ get_real_user() {
                 return
             fi
         done
+    fi
+
+    # Fallback for macOS using stat on the tty
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        local tty_user
+        tty_user=$(stat -f "%Su" /dev/console 2>/dev/null)
+        if [ -n "$tty_user" ] && [ "$tty_user" != "root" ]; then
+            echo "$tty_user"
+            return
+        fi
     fi
 
     # Last resort: current user (might be root)
