@@ -97,11 +97,21 @@ DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$REAL_HOME/.config/autostart"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
 
 SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
-CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
-BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$APP_VERSION"}
-SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
-CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
-CHECKSUM_URL="$BASE_URL/checksums.sha256"
+SERVER_BIN_NAME="${SERVER_NAME}-${OS}-${ARCH}"
+CLIENT_BIN_NAME="${CLIENT_NAME}-${OS}-${ARCH}"
+BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/${SERVER_NAME}/releases/download/v${APP_VERSION}"}
+
+# Sanity check for BASE_URL: Automatically correct GitHub tag page URLs to download URLs
+if [[ "${BASE_URL}" == *"releases/tag/"* ]]; then
+    warn_message "BASE_URL appears to point to a tag page instead of a release download: ${BASE_URL}"
+    warn_message "Correcting BASE_URL to use 'download' path..."
+    BASE_URL="${BASE_URL/releases\/tag/releases\/download}"
+    info_message "Corrected BASE_URL: ${BASE_URL}"
+fi
+
+SERVER_URL="${BASE_URL}/${SERVER_BIN_NAME}"
+CLIENT_URL="${BASE_URL}/${CLIENT_BIN_NAME}"
+CHECKSUM_URL="${BASE_URL}/checksums.sha256"
 
 ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"$WAZUH_AGENT_STATUS_REPO_URL/scripts/linux/adorsys-update.sh"}
 UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
