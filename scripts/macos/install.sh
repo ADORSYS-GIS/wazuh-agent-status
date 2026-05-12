@@ -7,8 +7,14 @@ else
     set -eu
 fi
 
+# OS guard early in the script
+if [[ "$(uname -s)" != "Darwin" ]]; then
+    printf "%s\n" "[ERROR] This installation script is intended for macOS systems. Please use the appropriate script for your operating system." >&2
+    exit 1
+fi
+
 PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.4.2.rc1"}
+APP_VERSION=${APP_VERSION:-"0.4.3"}
 
 # Assign app version based on profile
 case "$PROFILE" in
@@ -19,7 +25,7 @@ esac
 # Common configuration
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"v0.4.2"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"refs/tags/v0.4.3"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Source shared utilities

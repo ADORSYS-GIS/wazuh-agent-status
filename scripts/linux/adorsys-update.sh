@@ -15,7 +15,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
     exit 1
 fi
 
-readonly WAZUH_AGENT_STATUS_REPO_REF="main"
+readonly WAZUH_AGENT_STATUS_REPO_REF="refs/tags/v0.4.3"
 readonly WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Source shared utilities
