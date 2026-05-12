@@ -8,9 +8,6 @@ on:
       - user-main
     paths:
       - 'scripts/**'
-  push:
-    branches:
-      - feat/remove-installation-profiles
   workflow_dispatch:
 
 env:
