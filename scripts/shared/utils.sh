@@ -338,40 +338,76 @@ get_real_user() {
     id -un
 }
 
+# Grant passwordless sudo for wazuh-control to the wazuh user
+setup_sudoers() {
+    local wazuh_user="${1}"
+    local wazuh_control_path="${2}"
+    local sudoers_file="/etc/sudoers.d/wazuh-agent-status"
+
+    # Only configure sudoers if the user is not root
+    if [ "${wazuh_user}" != "root" ]; then
+        info_message "Configuring sudoers for ${wazuh_user} to allow passwordless ${wazuh_control_path} execution..."
+        
+        local sudoers_line="${wazuh_user} ALL=(ALL) NOPASSWD: ${wazuh_control_path} *"
+        
+        # Create a temporary file first
+        local tmp_sudoers
+        tmp_sudoers=$(mktemp)
+        echo "${sudoers_line}" > "${tmp_sudoers}"
+        
+        # Validate sudoers file before moving it (if visudo is available)
+        if command -v visudo >/dev/null 2>&1; then
+            if ! maybe_sudo visudo -cf "${tmp_sudoers}"; then
+                error_message "Invalid sudoers configuration generated. Skipping sudoers setup."
+                rm -f "${tmp_sudoers}"
+                return 1
+            fi
+        fi
+
+        maybe_sudo mv "${tmp_sudoers}" "${sudoers_file}"
+        maybe_sudo chown root:root "${sudoers_file}"
+        maybe_sudo chmod 0440 "${sudoers_file}"
+        success_message "Sudoers configured: ${sudoers_file}"
+    else
+        info_message "User is root, skipping sudoers configuration."
+    fi
+    return 0
+}
+
 # Centralized permission and ownership setup for Wazuh-Agent-Status
 setup_permissions_and_ownership() {
-    local wazuh_user="$1"
-    local wazuh_group="$2"
-    local wazuh_control_path="$3"
+    local wazuh_user="${1}"
+    local wazuh_group="${2}"
+    local wazuh_control_path="${3}"
     local log_dir="/var/log/wazuh-agent-status"
-    local log_file_path="$log_dir/wazuh-agent-status.log"
-
+    local log_file_path="${log_dir}/wazuh-agent-status.log"
 
     # 1. Adjust wazuh-control group to allow non-root execution
-    if [ -f "$wazuh_control_path" ]; then
-        info_message "Adjusting $wazuh_control_path group to $wazuh_group..."
-        maybe_sudo chgrp "$wazuh_group" "$wazuh_control_path"
-        maybe_sudo chmod g+x "$wazuh_control_path"
+    if [ -f "${wazuh_control_path}" ]; then
+        info_message "Adjusting ${wazuh_control_path} group to ${wazuh_group}..."
+        maybe_sudo chgrp "${wazuh_group}" "${wazuh_control_path}"
+        maybe_sudo chmod g+x "${wazuh_control_path}"
         success_message "wazuh-control permissions updated."
     else
-        warn_message "$wazuh_control_path not found, skipping."
+        warn_message "${wazuh_control_path} not found, skipping."
     fi
 
     # 2. Adjust log file and directory permissions
-    info_message "Ensuring log directory $log_dir has correct ownership..."
-    if ! maybe_sudo [ -d "$log_dir" ]; then
-        maybe_sudo mkdir -p "$log_dir"
+    info_message "Ensuring log directory ${log_dir} has correct ownership..."
+    if ! maybe_sudo [ -d "${log_dir}" ]; then
+        maybe_sudo mkdir -p "${log_dir}"
     fi
-    maybe_sudo chown "$wazuh_user:$wazuh_group" "$log_dir"
-    maybe_sudo chmod 775 "$log_dir"
+    maybe_sudo chown "${wazuh_user}:${wazuh_group}" "${log_dir}"
+    maybe_sudo chmod 775 "${log_dir}"
 
-    info_message "Ensuring log file $log_file_path exists and has correct ownership..."
-    if ! maybe_sudo [ -f "$log_file_path" ]; then
-        maybe_sudo touch "$log_file_path"
+    info_message "Ensuring log file ${log_file_path} exists and has correct ownership..."
+    if ! maybe_sudo [ -f "${log_file_path}" ]; then
+        maybe_sudo touch "${log_file_path}"
     fi
-    maybe_sudo chown "$wazuh_user:$wazuh_group" "$log_file_path"
-    maybe_sudo chmod 664 "$log_file_path"
+    maybe_sudo chown "${wazuh_user}:${wazuh_group}" "${log_file_path}"
+    maybe_sudo chmod 664 "${log_file_path}"
     success_message "Log file and directory permissions updated."
 
-    return 0
+    # 3. Setup sudoers for self-healing (restarting the agent)
+    setup_sudoers "${wazuh_user}" "${wazuh_control_path}"
 }
