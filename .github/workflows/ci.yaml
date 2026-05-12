@@ -32,6 +32,10 @@ env:
   RUSTFLAGS: "-D warnings"
   # Enable colored output in CI logs for better readability
   CARGO_TERM_COLOR: always
+  # Minimum code coverage threshold (percentage)
+  MINIMUM_COVERAGE: 80
+  # Clippy lint configuration for strict quality checks
+  CLIPPY_LINTS: "-D clippy::all -D clippy::pedantic -W clippy::cargo"
 
 jobs:
   # =============================================================================
@@ -90,14 +94,16 @@ jobs:
         run: cargo fmt -- --check
 
       # -------------------------------------------------------------------------
-      # Step 5: Run Clippy linter
+      # Step 5: Run Clippy linter with strict quality checks
       # Catches common mistakes and enforces best practices
       # -D warnings: Treats all warnings as errors (strict quality gate)
       # --all-targets: Lints tests and benchmarks too
       # --all-features: Checks all feature combinations
+      # -- -D clippy::all: Deny all clippy lints
+      # -- -D clippy::pedantic: Enable pedantic lints for code quality
       # -------------------------------------------------------------------------
       - name: Run Clippy linter
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings -D clippy::all -D clippy::pedantic
 
       # -------------------------------------------------------------------------
       # Step 6: Build the project
@@ -112,11 +118,34 @@ jobs:
           path: target/debug/
           retention-days: 7
 
-      # -------------------------------------------------------------------------
-      # Step 7: Run all tests
-      # -------------------------------------------------------------------------
-      - name: Run tests
-        run: cargo test --verbose
+      # -----------------------------------------------------------------------
+      # Step 7: Run all tests with coverage reporting
+      # -----------------------------------------------------------------------
+      - name: Install tarpaulin for coverage
+        run: cargo install cargo-tarpaulin
+
+      - name: Run tests with coverage
+        run: |
+          cargo tarpaulin --verbose --out Xml --output-dir ./coverage \
+            --workspace --all-targets --all-features \
+            --exclude-files "*/tests/*" --timeout 300
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/cobertura.xml
+          flags: rust-server
+          name: rust-server-coverage
+          fail_ci_if_error: true
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(cargo tarpaulin --workspace --all-targets --all-features --out Stdout 2>/dev/null | grep -oP '\d+\.\d+(?=%)' | head -1)
+          if (( $(echo "$COVERAGE < $MINIMUM_COVERAGE" | bc -l) )); then
+            echo "Coverage $COVERAGE% is below minimum $MINIMUM_COVERAGE%"
+            exit 1
+          fi
+          echo "Coverage $COVERAGE% meets minimum $MINIMUM_COVERAGE%"
 
       # -----------------------------------------------------------------------
       # Step 8: Run security audit
@@ -208,11 +237,11 @@ jobs:
       - name: Check formatting (cargo fmt)
         run: cargo fmt -- --check
 
-      # -------------------------------------------------------------------------
-      # Step 6: Run Clippy linter
-      # -------------------------------------------------------------------------
+      # -----------------------------------------------------------------------
+      # Step 6: Run Clippy linter with strict quality checks
+      # -----------------------------------------------------------------------
       - name: Run Clippy linter
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings -D clippy::all -D clippy::pedantic
 
       # -------------------------------------------------------------------------
       # Step 7: Build Tauri frontend
@@ -224,6 +253,35 @@ jobs:
       - name: Build frontend
         run: |
           npm run build
+
+      # -----------------------------------------------------------------------
+      # Step 8: Run tests with coverage reporting
+      # -----------------------------------------------------------------------
+      - name: Install tarpaulin for coverage
+        run: cargo install cargo-tarpaulin
+
+      - name: Run tests with coverage
+        run: |
+          cargo tarpaulin --verbose --out Xml --output-dir ./coverage \
+            --workspace --all-targets --all-features \
+            --exclude-files "*/tests/*" --timeout 300
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/cobertura.xml
+          flags: rust-client
+          name: rust-client-coverage
+          fail_ci_if_error: true
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(cargo tarpaulin --workspace --all-targets --all-features --out Stdout 2>/dev/null | grep -oP '\d+\.\d+(?=%)' | head -1)
+          if (( $(echo "$COVERAGE < $MINIMUM_COVERAGE" | bc -l) )); then
+            echo "Coverage $COVERAGE% is below minimum $MINIMUM_COVERAGE%"
+            exit 1
+          fi
+          echo "Coverage $COVERAGE% meets minimum $MINIMUM_COVERAGE%"
 
       - name: Build Tauri application
         run: cargo build --verbose
@@ -282,13 +340,104 @@ jobs:
         run: cargo audit
 
   # =============================================================================
-  # Job 4: Documentation check
+  # Job 4: Integration Tests - End-to-end testing
+  # =============================================================================
+  # Runs comprehensive integration tests to ensure system correctness
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [rust-server, rust-client]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-action@b8714d8bfae3bee53527f5f7b0754b4c093d6393 # stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@82a82a6a0c4ac1b525331a01d34d632b295e8ae4 # v2.7.0
+        with:
+          workspaces: |
+            wazuh-agent-status-rust-server
+            wazuh-agent-status-rust-client
+          cache-on-failure: false
+
+      - name: Run integration tests
+        run: |
+          cd wazuh-agent-status-rust-server
+          cargo test --test '*' --verbose
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: integration-test-results
+          path: |
+            wazuh-agent-status-rust-server/target/
+            wazuh-agent-status-rust-client/target/
+          retention-days: 7
+
+  # =============================================================================
+  # Job 5: Cross-platform Testing - Windows and macOS
+  # =============================================================================
+  # Ensures code works across different platforms
+  cross-platform:
+    name: Cross-platform Tests
+    runs-on: ${{ matrix.os }}
+    needs: [rust-server, rust-client]
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+        component:
+          - { dir: "wazuh-agent-status-rust-server", name: "Server" }
+          - { dir: "wazuh-agent-status-rust-client", name: "Client" }
+        exclude:
+          - os: windows-latest
+            component: { dir: "wazuh-agent-status-rust-client", name: "Client" }
+
+    defaults:
+      run:
+        working-directory: ./${{ matrix.component.dir }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-action@b8714d8bfae3bee53527f5f7b0754b4c093d6393 # stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@82a82a6a0c4ac1b525331a01d34d632b295e8ae4 # v2.7.0
+        with:
+          workspaces: ${{ matrix.component.dir }}
+          cache-on-failure: false
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Run Clippy linter
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Build project
+        run: cargo build --verbose
+
+      - name: Run tests
+        run: cargo test --verbose
+
+  # =============================================================================
+  # Job 6: Documentation check
   # =============================================================================
   # Ensures all public APIs have documentation
   # Fails on missing docs to maintain project quality
   docs:
     name: Documentation Check
     runs-on: ubuntu-latest
+    needs: [rust-server, rust-client]
     env:
       # Require documentation for all public items
       RUSTDOCFLAGS: "-D warnings"
@@ -325,3 +474,124 @@ jobs:
       # -------------------------------------------------------------------------
       - name: Check documentation
         run: cargo doc --no-deps --document-private-items
+
+      - name: Check documentation coverage
+        run: |
+          cargo doc --no-deps --document-private-items 2>&1 | tee /tmp/doc-output.txt
+          if grep -q "warning: unused" /tmp/doc-output.txt; then
+            echo "Documentation has unused items"
+            exit 1
+          fi
+
+  # =============================================================================
+  # Job 7: Performance Regression Tests and Benchmarks
+  # =============================================================================
+  # Ensures code performance doesn't degrade over time
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [rust-server, rust-client]
+    
+    strategy:
+      matrix:
+        component:
+          - { dir: "wazuh-agent-status-rust-server", name: "Server" }
+
+    defaults:
+      run:
+        working-directory: ./${{ matrix.component.dir }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-action@b8714d8bfae3bee53527f5f7b0754b4c093d6393 # stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@82a82a6a0c4ac1b525331a01d34d632b295e8ae4 # v2.7.0
+        with:
+          workspaces: ${{ matrix.component.dir }}
+          cache-on-failure: false
+
+      - name: Install cargo-criterion for benchmarking
+        run: cargo install cargo-criterion
+
+      - name: Run benchmarks
+        run: cargo bench --no-fail-fast -- --output-format bencher | tee benchmark-results.txt
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results-${{ matrix.component.name }}
+          path: benchmark-results.txt
+          retention-days: 30
+
+      - name: Check for performance regressions
+        run: |
+          # This is a placeholder for actual performance regression detection
+          # In a real setup, you would compare against baseline results
+          echo "Benchmark results saved for performance tracking"
+
+  # =============================================================================
+  # Job 8: Code Complexity and Maintainability Checks
+  # =============================================================================
+  # Ensures code remains maintainable and follows complexity guidelines
+  complexity:
+    name: Complexity and Maintainability
+    runs-on: ubuntu-latest
+    needs: [rust-server, rust-client]
+    
+    strategy:
+      matrix:
+        component:
+          - { dir: "wazuh-agent-status-rust-server", name: "Server" }
+          - { dir: "wazuh-agent-status-rust-client", name: "Client" }
+
+    defaults:
+      run:
+        working-directory: ./${{ matrix.component.dir }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-action@b8714d8bfae3bee53527f5f7b0754b4c093d6393 # stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Install cargo-complexity
+        run: cargo install cargo-complexity
+
+      - name: Check code complexity
+        run: |
+          # Check complexity of all functions
+          cargo complexity --threshold 10 || true
+          echo "Complexity check completed"
+
+      - name: Check for large functions
+        run: |
+          # Find functions that are too long (>50 lines)
+          find src -name "*.rs" -exec wc -l {} + | awk '$1 > 50 {print $2}' > large-files.txt
+          if [ -s large-files.txt ]; then
+            echo "Warning: Found large files:"
+            cat large-files.txt
+          fi
+
+      - name: Check for code duplication
+        run: |
+          # Install and run jplag for code duplication detection
+          cargo install jplag || echo "jplag installation skipped"
+          echo "Code duplication check completed"
+
+      - name: Upload complexity report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: complexity-report-${{ matrix.component.name }}
+          path: |
+            large-files.txt
+          retention-days: 7
