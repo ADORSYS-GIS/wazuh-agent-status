@@ -377,7 +377,8 @@ setup_sudoers() {
         fi
 
         maybe_sudo mv "${tmp_sudoers}" "${sudoers_file}"
-        maybe_sudo chown root:root "${sudoers_file}"
+        # Use GID 0 for the root group (root on Linux, wheel on macOS)
+        maybe_sudo chown root:0 "${sudoers_file}"
         maybe_sudo chmod 0440 "${sudoers_file}"
         success_message "Sudoers configured: ${sudoers_file}"
     else
