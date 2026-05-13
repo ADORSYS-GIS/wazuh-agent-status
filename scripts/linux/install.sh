@@ -301,7 +301,7 @@ if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     # Update WAZUH_MANAGER value in adorsys-update.sh
     if [[ -n "${WAZUH_MANAGER:-}" ]]; then
         info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
-        maybe_sudo_fn sed_inplace "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
+        sed_inplace "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
     else
         warn_message "WAZUH_MANAGER variable not set. Skipping update in adorsys-update.sh."
     fi

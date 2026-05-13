@@ -273,10 +273,14 @@ EOF"
 
 # Cross-platform sed -i wrapper
 sed_inplace() {
+    local expr="$1"
+    local file="$2"
     if [[ "$(uname -s)" == "Darwin" ]]; then
-        maybe_sudo sed -i '' "$@"
+        # BSD sed (macOS) requires an empty string for the -i extension, and -e for the expression
+        maybe_sudo sed -i '' -e "${expr}" "${file}"
     else
-        maybe_sudo sed -i "$@"
+        # GNU sed (Linux)
+        maybe_sudo sed -i -e "${expr}" "${file}"
     fi
 }
 

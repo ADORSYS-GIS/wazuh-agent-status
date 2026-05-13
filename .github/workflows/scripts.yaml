@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feat/remove-installation-profiles
+      - fix/agent-status-lock-and-version
 
 env:
   WAZUH_MANAGER: "127.0.0.1"
