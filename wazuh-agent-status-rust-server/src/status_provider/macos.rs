@@ -35,33 +35,20 @@ impl MacosStatusProvider {
         }
     }
 
-    /// Determine whether `wazuh-agentd` is alive by running `wazuh-control status`.
+    /// Determine whether the `wazuh-agentd` process is alive by checking the
+    /// process list via `sysinfo`. This avoids lock file race conditions
+    /// inherent in calling `wazuh-control status`.
     fn is_agent_running(&self) -> bool {
-        let control_path = self.paths.state_file.parent() // var/run/
-            .and_then(|p| p.parent())                    // var/
-            .and_then(|p| p.parent())                    // base/
-            .map(|base| base.join("bin/wazuh-control"))
-            .unwrap_or_else(|| std::path::PathBuf::from("/Library/Ossec/bin/wazuh-control"));
-
-        // Primary check: official wazuh-control utility
-        match Command::new(&control_path).arg("status").output() {
-            Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                if stdout.contains("wazuh-agentd is running") {
-                    return true;
-                }
-                // If wazuh-control ran successfully but didn't say it's running, 
-                // trust it and return false instead of falling back.
-                if output.status.success() || stdout.contains("wazuh-agentd is stopped") {
-                    return false;
-                }
+        if let Ok(mut sys) = self.sys.lock() {
+            sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+            let is_running = sys.processes().values().any(|p| p.name().to_string_lossy() == "wazuh-agentd");
+            if !is_running {
+                tracing::info!("Process list check confirms wazuh-agentd is NOT running");
             }
-            Err(_) => {
-                // wazuh-control not found or failed to spawn
-            }
+            is_running
+        } else {
+            false
         }
-
-        false
     }
 }
 
@@ -102,32 +89,23 @@ impl StatusProvider for MacosStatusProvider {
     }
 
     fn get_agent_version(&self) -> Result<String> {
-        // 1. Try VERSION.json first
-        if let Ok(content) = fs::read_to_string(&self.paths.version_json) {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
-                    return Ok(v.to_string());
+        match fs::read_to_string(&self.paths.version_json) {
+            Ok(content) => {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
+                        let version = v.to_string();
+                        tracing::debug!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
+                        return Ok(version);
+                    }
                 }
+                tracing::warn!(path = %self.paths.version_json.display(), "Failed to parse version from VERSION.json");
+                Ok("Unknown".to_string())
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, path = %self.paths.version_json.display(), "Failed to read VERSION.json");
+                Ok("Unknown".to_string())
             }
         }
-
-        // 2. Fallback to wazuh-control info
-        let control_path = self.paths.state_file.parent()
-            .and_then(|p| p.parent())
-            .and_then(|p| p.parent())
-            .map(|base| base.join("bin/wazuh-control"))
-            .unwrap_or_else(|| std::path::PathBuf::from("/Library/Ossec/bin/wazuh-control"));
-
-        if let Ok(output) = Command::new(&control_path).arg("info").output() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for line in stdout.lines() {
-                if let Some(v) = line.strip_prefix("WAZUH_VERSION=\"") {
-                    return Ok(v.trim_matches('"').trim_start_matches('v').to_string());
-                }
-            }
-        }
-
-        Ok("Unknown".to_string())
     }
 
     fn get_tray_version(&self) -> Result<String> {
