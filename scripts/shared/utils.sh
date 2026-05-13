@@ -275,14 +275,22 @@ EOF"
 sed_inplace() {
     local expr="$1"
     local file="$2"
+
+    if [[ -z "${file}" ]]; then
+        error_message "sed_inplace: file argument is empty"
+        return 1
+    fi
+
     if [[ "$(uname -s)" == "Darwin" ]]; then
-        # BSD sed (macOS) requires an empty string for the -i extension, and -e for the expression
-        maybe_sudo sed -i '' -e "${expr}" "${file}"
+        # BSD sed (macOS) is finicky with -i. The most compatible way is -i.bak then rm.
+        maybe_sudo sed -i.bak -e "${expr}" "${file}"
+        maybe_sudo rm -f "${file}.bak"
     else
         # GNU sed (Linux)
         maybe_sudo sed -i -e "${expr}" "${file}"
     fi
 }
+ 
 
 # Runs a shell function with root privileges by injecting its definition
 maybe_sudo_fn() {
