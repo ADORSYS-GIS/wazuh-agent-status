@@ -9,12 +9,6 @@ on:
     paths:
       - 'scripts/**'
   workflow_dispatch:
-<<<<<<< HEAD
-=======
-  push:
-    branches:
-      - fix/agent-status-lock-and-version
->>>>>>> a6a70fc (refactor: standardize sed_inplace utility and remove redundant sudo calls in installation scripts)
 
 env:
   WAZUH_MANAGER: "127.0.0.1"

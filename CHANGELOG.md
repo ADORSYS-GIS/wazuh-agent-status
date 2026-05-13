@@ -4,12 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)...[7953d8a](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7953d8aea992fc86125460f4e408d0e42730c70b)
+[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)...[4f0e66c](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4f0e66cf980912a6732abdd7f83b9535927a6c28)
+
+### Bug Fixes
+
+- Replace wazuh-control status with sysinfo process check in is_agent_running to avoid lock file race condition, and Replace wazuh-control info with direct VERSION.json read in get_agent_version. ([`07b2a78`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/07b2a7888f9dfd2cc57edcfd0cdf95c719c615d0))
+- Correct BASE_URL string replacement and add target variable for macOS launchctl check ([`a5e3c4b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a5e3c4bf0609140cd839a5aebdcd03b8e9e59b2d)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Update default WAZUH_GROUP to wheel for macOS installations ([`4f0e66c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4f0e66cf980912a6732abdd7f83b9535927a6c28)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ### Documentation
 
 - Update CHANGELOG.md and checksums [skip ci] ([`d0bc6b8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d0bc6b88dbe177e67365422ae327b9fb036dd82c))
 - Update CHANGELOG.md and checksums [skip ci] ([`fa37a31`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/fa37a313032d7cec0effc2b495262b555f08fafb))
+- Update CHANGELOG.md and checksums [skip ci] ([`3b55dcd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3b55dcdfa8c963ee367ee17602f488f065ed45d4))
+- Update CHANGELOG.md and checksums [skip ci] ([`968f259`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/968f2593eddc2e79c57b5fa371ae65f1192e134d))
+- Update CHANGELOG.md and checksums [skip ci] ([`db46a4e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/db46a4e4feba664f4d82b411b36eacc9030c3140))
 
 ### Features
 
@@ -21,11 +30,11 @@ All notable changes to this project will be documented in this file.
 - Standardize bash usage, improve user detection, and update release workflow logic ([`c6352d7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c6352d78e88d3fdbc06ef78212df7319ba6e14fb)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Remove unified install script, update repo references, and add sudoers file cleanup to uninstallers ([`d2a29f6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d2a29f62c9adcdf878f2206cb6650b2850429319)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
+- Standardize sed_inplace utility and remove redundant sudo calls in installation scripts ([`a6a70fc`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a6a70fcb0f644fed57f0b41ead74f7e6e7801c4e)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+
 ## 0.5.0-rc.2 - 2026-05-12
 
 [5940735](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/59407352eeaecf8fe4dbb527747b387aafca4d2c)...[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)
-
-
 
 ### Features
 
@@ -36,9 +45,7 @@ All notable changes to this project will be documented in this file.
 
 - Add workflow trigger for feature branch and sort script checksums by filename ([`68cdf54`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68cdf546a9ffd90d446addddc78ad3a79cb31ded)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Update WAZUH_AGENT_STATUS_REPO_REF to dynamically use current branch reference ([`5a508db`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5a508db7076568f78fa5d06485aec4befd81e62c)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
-
 - Bump application version to 0.5.0-rc.2 and update release workflow configuration ([`b6752d8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
-
 
 ### Refactor
 
