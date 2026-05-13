@@ -8,7 +8,7 @@ else
 fi
 
 # Common configuration
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"v0.4.2"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Source shared utilities
@@ -98,5 +98,6 @@ remove_binaries
 remove_file "$UPGRADE_SCRIPT_PATH"
 remove_launchd_service "$SERVER_NAME" "$SERVER_LAUNCH_AGENT_FILE"
 remove_launchd_service "$CLIENT_NAME" "$CLIENT_LAUNCH_AGENT_FILE"
+remove_file "/etc/sudoers.d/wazuh-agent-status"
 
 success_message "Wazuh agent status uninstalled completed successfully."
