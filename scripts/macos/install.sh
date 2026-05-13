@@ -86,7 +86,7 @@ fi
 if [ -n "$GROUP_EXISTS" ]; then
     WAZUH_GROUP=${WAZUH_GROUP:-"wazuh"}
 else
-    WAZUH_GROUP=${WAZUH_GROUP:-"root"}
+    WAZUH_GROUP=${WAZUH_GROUP:-"wheel"}
 fi
 
 SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
