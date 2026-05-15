@@ -4,7 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)...[f87eabe](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f87eabe2ae9f1432c891b986bc9049fcb44a19b1)
+[5ddc7fb](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5ddc7fb01394259873a220bd9dd0050a78a1ffc5)...[ff7245e](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ff7245efbf6267de4f450b8b88c141ea47415fb9)
+
+### Features
+
+- Add desktop application entry and icon installation to Linux install and uninstall scripts ([`ff7245e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ff7245efbf6267de4f450b8b88c141ea47415fb9))
+
+## 0.5.0-rc.4 - 2026-05-15
+
+[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)...[5ddc7fb](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5ddc7fb01394259873a220bd9dd0050a78a1ffc5)
 
 ### Bug Fixes
 
@@ -21,6 +29,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`968f259`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/968f2593eddc2e79c57b5fa371ae65f1192e134d))
 - Update CHANGELOG.md and checksums [skip ci] ([`db46a4e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/db46a4e4feba664f4d82b411b36eacc9030c3140))
 - Update CHANGELOG.md and checksums [skip ci] ([`262826c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/262826cd66359a45e334d9ca89e450bb80defaa2))
+- Update CHANGELOG.md and checksums [skip ci] ([`e65de99`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e65de9919569b00336ae9172411f158b73ec7e95))
 
 ### Features
 
@@ -30,6 +39,7 @@ All notable changes to this project will be documented in this file.
 ### Miscellaneous Tasks
 
 - Bump version to 0.5.0-rc.4 and improve configuration loading diagnostics and error messaging ([`f87eabe`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f87eabe2ae9f1432c891b986bc9049fcb44a19b1))
+- Downgrade APP_VERSION to 0.5.0-rc.3 across all installation and update scripts ([`5ddc7fb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5ddc7fb01394259873a220bd9dd0050a78a1ffc5))
 
 ### Refactor
 
