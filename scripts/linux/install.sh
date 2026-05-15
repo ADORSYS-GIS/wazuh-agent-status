@@ -94,7 +94,12 @@ REAL_HOME=$(eval echo "~$REAL_USER")
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
 MIGRATION_MARKER="/usr/local/etc/$SERVER_NAME/.migrated_from_go"
 DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$REAL_HOME/.config/autostart"}
+DESKTOP_APPS_FOLDER=${DESKTOP_APPS_FOLDER:-"$REAL_HOME/.local/share/applications"}
+USER_ICON_FOLDER=${USER_ICON_FOLDER:-"$REAL_HOME/.local/share/icons"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
+DESKTOP_APP_FILE=${DESKTOP_APP_FILE:-"$DESKTOP_APPS_FOLDER/$CLIENT_NAME.desktop"}
+APP_ID="wazuh-agent-status"
+ICON_URL="${WAZUH_AGENT_STATUS_REPO_URL}/wazuh-agent-status-rust-client/src-tauri/icons/icon.png"
 
 SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
 SERVER_BIN_NAME="${SERVER_NAME}-${OS}-${ARCH}"
@@ -147,6 +152,10 @@ cleanup_legacy_system() {
         info_message "Removing legacy desktop entry: $DESKTOP_UNIT_FILE"
         remove_file "$DESKTOP_UNIT_FILE"
     fi
+    if [ -f "$DESKTOP_APP_FILE" ]; then
+        info_message "Removing legacy desktop app entry: $DESKTOP_APP_FILE"
+        remove_file "$DESKTOP_APP_FILE"
+    fi
 
     info_message "Legacy cleanup complete."
     return 0
@@ -192,22 +201,44 @@ reload_and_enable_service() {
 }
 
 # Desktop Unit File Creation
-create_desktop_unit_file() {
-    info_message "Creating desktop unit directory if it doesn't exist..."
-    mkdir -p "$DESKTOP_UNIT_FOLDER"
+install_icon() {
+    info_message "Creating user icon directory if it doesn't exist..."
+    mkdir -p "$USER_ICON_FOLDER"
 
-    info_message "Creating desktop unit file for autostart..."
-    create_file "$DESKTOP_UNIT_FILE" "
-[Desktop Entry]
+    info_message "Downloading application icon..."
+    if ! curl -fsSL "$ICON_URL" -o "$USER_ICON_FOLDER/$APP_ID.png"; then
+        warn_message "Failed to download icon from $ICON_URL. Application will use a generic icon."
+        return 0
+    fi
+    info_message "Icon installed to: $USER_ICON_FOLDER/$APP_ID.png"
+    return 0
+}
+
+create_desktop_unit_file() {
+    info_message "Creating desktop directories if they don't exist..."
+    mkdir -p "$DESKTOP_UNIT_FOLDER"
+    mkdir -p "$DESKTOP_APPS_FOLDER"
+
+    local desktop_content="[Desktop Entry]
 Name=Wazuh Agent Monitoring Tray Icon App
-GenericName=Script for GNOME startup
-Comment=Runs the tray script
+GenericName=Wazuh Agent Status
+Comment=Monitors the Wazuh agent status and provides a tray icon dashboard
 Exec=$BIN_DIR/$CLIENT_NAME
+Icon=$APP_ID
 Terminal=false
 Type=Application
+StartupWMClass=$CLIENT_NAME
 X-GNOME-Autostart-enabled=true
+Categories=Utility;System;Monitoring;
 "
-    info_message "Desktop autostart file created: $DESKTOP_UNIT_FILE"
+
+    info_message "Creating desktop unit file for autostart..."
+    create_file "$DESKTOP_UNIT_FILE" "$desktop_content"
+    
+    info_message "Creating desktop application entry..."
+    create_file "$DESKTOP_APP_FILE" "$desktop_content"
+
+    info_message "Desktop entries created successfully."
     return 0
 }
 
@@ -218,6 +249,7 @@ make_server_launch_at_startup() {
 }
 
 make_client_launch_at_startup() {
+    install_icon
     create_desktop_unit_file
     return 0
 }
@@ -252,6 +284,12 @@ validate_installation() {
         success_message "Desktop autostart file exists: $DESKTOP_UNIT_FILE."
     else
         error_exit "Desktop autostart file is missing: $DESKTOP_UNIT_FILE."
+    fi
+
+    if [[ -f "$DESKTOP_APP_FILE" ]]; then
+        success_message "Desktop application file exists: $DESKTOP_APP_FILE."
+    else
+        error_exit "Desktop application file is missing: $DESKTOP_APP_FILE."
     fi
 
     # Validate adorsys-update.sh script
