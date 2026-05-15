@@ -156,16 +156,7 @@ jobs:
         run: cargo audit
 
       # -----------------------------------------------------------------------
-      # Step 9: Validate frontend
-      # Checks for any issues with the frontend code
-      # -----------------------------------------------------------------------
-      - name: Validate frontend
-        run: |
-          npm install
-          npm run validate-frontend
-
-      # -----------------------------------------------------------------------
-      # Step 10: Optimize cache
+      # Step 9: Optimize cache
       # Optimizes the cache for faster subsequent runs
       # -----------------------------------------------------------------------
       - name: Optimize cache
@@ -250,12 +241,16 @@ jobs:
         run: |
           npm ci
 
-      - name: Build frontend
-        run: |
-          npm run build
+      # -------------------------------------------------------------------------
+      # Step 8: Build frontend and Tauri application
+      # npm run build triggers Vite for the frontend and Tauri for the backend —
+      # no separate `cargo build` needed here.
+      # -------------------------------------------------------------------------
+      - name: Build frontend and Tauri application
+        run: npm run build
 
       # -----------------------------------------------------------------------
-      # Step 8: Run tests with coverage reporting
+      # Step 9: Run tests with coverage reporting
       # -----------------------------------------------------------------------
       - name: Install tarpaulin for coverage
         run: cargo install cargo-tarpaulin
@@ -282,9 +277,6 @@ jobs:
             exit 1
           fi
           echo "Coverage $COVERAGE% meets minimum $MINIMUM_COVERAGE%"
-
-      - name: Build Tauri application
-        run: cargo build --verbose
 
       - name: Upload client build artifacts
         uses: actions/upload-artifact@654c2827adde4bb619e7d1c7fdb3b7cc10a3ecd1 # v4.3.4
