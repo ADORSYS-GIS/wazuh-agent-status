@@ -300,6 +300,7 @@ maybe_sudo_fn() {
     else
         "$fn" "$@"
     fi
+    return 0
 }
 
 # Detect the real user who invoked the script (even via sudo)
@@ -347,6 +348,7 @@ get_real_user() {
 
     # Last resort: current user (might be root)
     id -un
+    return 0
 }
 
 # Grant passwordless sudo for wazuh-control to the wazuh user
@@ -367,12 +369,10 @@ setup_sudoers() {
         echo "${sudoers_line}" > "${tmp_sudoers}"
         
         # Validate sudoers file before moving it (if visudo is available)
-        if command -v visudo >/dev/null 2>&1; then
-            if ! maybe_sudo visudo -cf "${tmp_sudoers}"; then
-                error_message "Invalid sudoers configuration generated. Skipping sudoers setup."
-                rm -f "${tmp_sudoers}"
-                return 1
-            fi
+        if command -v visudo >/dev/null 2>&1 && ! maybe_sudo visudo -cf "${tmp_sudoers}"; then
+            error_message "Invalid sudoers configuration generated. Skipping sudoers setup."
+            rm -f "${tmp_sudoers}"
+            return 1
         fi
 
         maybe_sudo mv "${tmp_sudoers}" "${sudoers_file}"
@@ -422,4 +422,5 @@ setup_permissions_and_ownership() {
 
     # 3. Setup sudoers for self-healing (restarting the agent)
     setup_sudoers "${wazuh_user}" "${wazuh_control_path}"
+    return 0
 }
