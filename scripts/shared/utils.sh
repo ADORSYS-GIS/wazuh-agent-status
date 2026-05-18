@@ -198,7 +198,8 @@ download_and_verify_file() {
     local checksum_file="${6:-${CHECKSUMS_FILE:-}}"
 
     if ! download_file "${url}" "${dest}" "${name}"; then
-        error_exit "Failed to download ${name} from ${url}"
+        error_message "Failed to download ${name} from ${url}"
+        return 1
     fi
 
     # Handle external checksum file download if a URL is provided
@@ -206,7 +207,8 @@ download_and_verify_file() {
         local temp_checksum_file
         temp_checksum_file=$(mktemp)
         if ! download_file "${checksum_url}" "${temp_checksum_file}" "checksum file"; then
-            error_exit "Failed to download external checksum file from ${checksum_url}"
+            error_message "Failed to download external checksum file from ${checksum_url}"
+            return 1
         fi
         checksum_file="${temp_checksum_file}"
     fi
@@ -224,18 +226,21 @@ download_and_verify_file() {
                 error_message "Detected invalid checksum format for ${name}: ${expected}"
                 error_message "Problematic line in ${checksum_file}:"
                 grep -E "[[:space:]]+${pattern}$" "${checksum_file}" | head -n 1
-                error_exit "Invalid checksum entry in ${checksum_file}"
+                error_message "Invalid checksum entry in ${checksum_file}"
+                return 1
             fi
 
             if ! verify_checksum "${dest}" "${expected}"; then
-                error_exit "${name} checksum verification FAILED"
+                error_message "${name} checksum verification FAILED"
+                return 1
             fi
             info_message "${name} checksum verification passed."
         else
             error_message "No checksum found for ${name} in ${checksum_file} with pattern '${pattern}'"
             error_message "First 10 lines of the checksum file for debugging:"
             head -n 10 "${checksum_file}"
-            error_exit "Checksum lookup failed for ${name}"
+            error_message "Checksum lookup failed for ${name}"
+            return 1
         fi
 
         # Clean up temporary checksum files
@@ -243,7 +248,8 @@ download_and_verify_file() {
             rm -f "${checksum_file}"
         fi
     else
-        error_exit "Checksum file not found at ${checksum_file}; cannot verify ${name}"
+        error_message "Checksum file not found at ${checksum_file}; cannot verify ${name}"
+        return 1
     fi
 
     success_message "${name} downloaded and verified successfully."

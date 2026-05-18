@@ -89,7 +89,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
-          path: dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+          path: |
+            dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+            dist/icon.png
 
       - name: Upload Linux server binaries
         if: ${{ !env.ACT }}
