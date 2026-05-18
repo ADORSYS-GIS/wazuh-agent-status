@@ -290,12 +290,11 @@ sed_inplace() {
         maybe_sudo sed -i -e "${expr}" "${file}"
     fi
 }
- 
 
 # Runs a shell function with root privileges by injecting its definition
 maybe_sudo_fn() {
     local fn="$1"; shift
-    if [ "$(id -u)" -ne 0 ]; then
+    if [[ "$(id -u)" -ne 0 ]]; then
         command_exists sudo || error_exit "This script requires root privileges. Run as root or use sudo."
         sudo /usr/bin/env bash -c "$(declare -f "$fn"); $fn \"\$@\"" -- "$@"
     else
@@ -306,17 +305,17 @@ maybe_sudo_fn() {
 # Detect the real user who invoked the script (even via sudo)
 get_real_user() {
     # If SUDO_USER is set, trust it
-    if [ -n "${SUDO_USER:-}" ]; then
+    if [[ -n "${SUDO_USER:-}" ]]; then
         echo "$SUDO_USER"
         return
     fi
 
     # Check LOGNAME or USER if they are not root
-    if [ -n "${LOGNAME:-}" ] && [ "$LOGNAME" != "root" ]; then
+    if [[ -n "${LOGNAME:-}" ]] && [[ "$LOGNAME" != "root" ]]; then
         echo "$LOGNAME"
         return
     fi
-    if [ -n "${USER:-}" ] && [ "$USER" != "root" ]; then
+    if [[ -n "${USER:-}" ]] && [[ "$USER" != "root" ]]; then
         echo "$USER"
         return
     fi
@@ -340,7 +339,7 @@ get_real_user() {
     if [[ "$(uname -s)" == "Darwin" ]]; then
         local tty_user
         tty_user=$(stat -f "%Su" /dev/console 2>/dev/null)
-        if [ -n "$tty_user" ] && [ "$tty_user" != "root" ]; then
+        if [[ -n "$tty_user" ]] && [[ "$tty_user" != "root" ]]; then
             echo "$tty_user"
             return
         fi
@@ -357,7 +356,7 @@ setup_sudoers() {
     local sudoers_file="/etc/sudoers.d/wazuh-agent-status"
 
     # Only configure sudoers if the user is not root
-    if [ "${wazuh_user}" != "root" ]; then
+    if [[ "${wazuh_user}" != "root" ]]; then
         info_message "Configuring sudoers for ${wazuh_user} to allow passwordless ${wazuh_control_path} execution..."
         
         local sudoers_line="${wazuh_user} ALL=(ALL) NOPASSWD: ${wazuh_control_path} *"
@@ -396,7 +395,7 @@ setup_permissions_and_ownership() {
     local log_file_path="${log_dir}/wazuh-agent-status.log"
 
     # 1. Adjust wazuh-control group to allow non-root execution
-    if [ -f "${wazuh_control_path}" ]; then
+    if [[ -f "${wazuh_control_path}" ]]; then
         info_message "Adjusting ${wazuh_control_path} group to ${wazuh_group}..."
         maybe_sudo chgrp "${wazuh_group}" "${wazuh_control_path}"
         maybe_sudo chmod g+x "${wazuh_control_path}"

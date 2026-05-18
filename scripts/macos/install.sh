@@ -7,7 +7,7 @@ else
     set -eu
 fi
 
-APP_VERSION=${APP_VERSION:-"0.5.0-rc.3"}
+APP_VERSION=${APP_VERSION:-"0.5.0-rc.4"}
 
 # Common configuration
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
@@ -77,13 +77,13 @@ WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
 USER_EXISTS=$(id -u wazuh 2>/dev/null || echo "")
 GROUP_EXISTS=$(dscl . -list /Groups | grep -w "wazuh" || echo "")
 
-if [ -n "$USER_EXISTS" ]; then
+if [[ -n "$USER_EXISTS" ]]; then
     WAZUH_USER=${WAZUH_USER:-"wazuh"}
 else
     WAZUH_USER=${WAZUH_USER:-"root"}
 fi
 
-if [ -n "$GROUP_EXISTS" ]; then
+if [[ -n "$GROUP_EXISTS" ]]; then
     WAZUH_GROUP=${WAZUH_GROUP:-"wazuh"}
 else
     WAZUH_GROUP=${WAZUH_GROUP:-"wheel"}
@@ -116,7 +116,7 @@ UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
 # Legacy Go Cleanup
 cleanup_legacy_system() {
-    if [ -f "$MIGRATION_MARKER" ]; then
+    if [[ -f "$MIGRATION_MARKER" ]]; then
         info_message "Migration already completed. Skipping legacy cleanup."
         return 0
     fi

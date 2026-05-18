@@ -76,13 +76,13 @@ WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
 USER_EXISTS=$(id -u wazuh 2>/dev/null || echo "")
 GROUP_EXISTS=$(getent group wazuh 2>/dev/null || echo "")
 
-if [ -n "$USER_EXISTS" ]; then
+if [[ -n "$USER_EXISTS" ]]; then
     WAZUH_USER=${WAZUH_USER:-"wazuh"}
 else
     WAZUH_USER=${WAZUH_USER:-"root"}
 fi
 
-if [ -n "$GROUP_EXISTS" ]; then
+if [[ -n "$GROUP_EXISTS" ]]; then
     WAZUH_GROUP=${WAZUH_GROUP:-"wazuh"}
 else
     WAZUH_GROUP=${WAZUH_GROUP:-"root"}
@@ -123,7 +123,7 @@ UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
 # Legacy Go Cleanup
 cleanup_legacy_system() {
-    if [ -f "$MIGRATION_MARKER" ]; then
+    if [[ -f "$MIGRATION_MARKER" ]]; then
         info_message "Migration already completed. Skipping legacy cleanup."
         return 0
     fi
@@ -148,7 +148,7 @@ cleanup_legacy_system() {
     maybe_sudo killall "$CLIENT_NAME" 2>/dev/null || true
 
     # 3. Remove old desktop entries
-    if [ -f "$DESKTOP_UNIT_FILE" ]; then
+    if [[ -f "$DESKTOP_UNIT_FILE" ]]; then
         info_message "Removing legacy desktop entry: $DESKTOP_UNIT_FILE"
         remove_file "$DESKTOP_UNIT_FILE"
     fi
