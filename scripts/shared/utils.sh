@@ -323,12 +323,12 @@ get_real_user() {
     # Fallback for Linux using process tree
     if [[ "$(uname -s)" == "Linux" ]]; then
         local pid=$$
-        while [ "$pid" -ne 1 ] && [ -n "$pid" ]; do
+        while [[ "$pid" -ne 1 ]] && [[ -n "$pid" ]]; do
             pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
-            [ -z "$pid" ] && break
+            [[ -z "$pid" ]] && break
             local user
             user=$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')
-            if [ -n "$user" ] && [ "$user" != "root" ]; then
+            if [[ -n "$user" ]] && [[ "$user" != "root" ]]; then
                 echo "$user"
                 return
             fi
@@ -406,14 +406,14 @@ setup_permissions_and_ownership() {
 
     # 2. Adjust log file and directory permissions
     info_message "Ensuring log directory ${log_dir} has correct ownership..."
-    if ! maybe_sudo [ -d "${log_dir}" ]; then
+    if ! maybe_sudo [[ -d "${log_dir}" ]]; then
         maybe_sudo mkdir -p "${log_dir}"
     fi
     maybe_sudo chown "${wazuh_user}:${wazuh_group}" "${log_dir}"
     maybe_sudo chmod 775 "${log_dir}"
 
     info_message "Ensuring log file ${log_file_path} exists and has correct ownership..."
-    if ! maybe_sudo [ -f "${log_file_path}" ]; then
+    if ! maybe_sudo [[ -f "${log_file_path}" ]]; then
         maybe_sudo touch "${log_file_path}"
     fi
     maybe_sudo chown "${wazuh_user}:${wazuh_group}" "${log_file_path}"
