@@ -11,7 +11,6 @@
 //! ```
 
 use std::fs;
-use std::process::Command;
 use sysinfo::System;
 
 use crate::config::AgentPaths;
