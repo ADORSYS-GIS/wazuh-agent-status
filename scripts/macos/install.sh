@@ -7,7 +7,7 @@ else
     set -eu
 fi
 
-APP_VERSION=${APP_VERSION:-"0.5.0-rc.2"}
+APP_VERSION=${APP_VERSION:-"0.5.0-rc.3"}
 
 # Common configuration
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
@@ -86,7 +86,7 @@ fi
 if [ -n "$GROUP_EXISTS" ]; then
     WAZUH_GROUP=${WAZUH_GROUP:-"wazuh"}
 else
-    WAZUH_GROUP=${WAZUH_GROUP:-"root"}
+    WAZUH_GROUP=${WAZUH_GROUP:-"wheel"}
 fi
 
 SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
@@ -101,7 +101,7 @@ BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/${SERVER_NAME}/releases/dow
 if [[ "${BASE_URL}" == *"releases/tag/"* ]]; then
     warn_message "BASE_URL appears to point to a tag page instead of a release download: ${BASE_URL}"
     warn_message "Correcting BASE_URL to use 'download' path..."
-    BASE_URL="${BASE_URL/releases\/tag/releases\/download}"
+    BASE_URL="${BASE_URL/releases\/tag/releases/download}"
     info_message "Corrected BASE_URL: ${BASE_URL}"
 fi
 
@@ -194,6 +194,7 @@ create_launchd_plist_file() {
         local real_user=$(get_real_user)
         local uid
         uid=$(id -u "$real_user")
+        local target="gui/$uid/$label"
 
         if sudo -u "$real_user" launchctl print "$target" >/dev/null 2>&1; then
             info_message "Service $label is already loaded, kickstarting..."
@@ -297,7 +298,7 @@ if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     # Update WAZUH_MANAGER value in adorsys-update.sh
     if [[ -n "${WAZUH_MANAGER:-}" ]]; then
         info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
-        maybe_sudo sed_inplace "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
+        sed_inplace "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
     else
         warn_message "WAZUH_MANAGER variable not set. Skipping update in adorsys-update.sh."
     fi

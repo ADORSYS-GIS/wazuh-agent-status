@@ -273,12 +273,24 @@ EOF"
 
 # Cross-platform sed -i wrapper
 sed_inplace() {
+    local expr="$1"
+    local file="$2"
+
+    if [[ -z "${file}" ]]; then
+        error_message "sed_inplace: file argument is empty"
+        return 1
+    fi
+
     if [[ "$(uname -s)" == "Darwin" ]]; then
-        maybe_sudo sed -i '' "$@"
+        # BSD sed (macOS) is finicky with -i. The most compatible way is -i.bak then rm.
+        maybe_sudo sed -i.bak -e "${expr}" "${file}"
+        maybe_sudo rm -f "${file}.bak"
     else
-        maybe_sudo sed -i "$@"
+        # GNU sed (Linux)
+        maybe_sudo sed -i -e "${expr}" "${file}"
     fi
 }
+ 
 
 # Runs a shell function with root privileges by injecting its definition
 maybe_sudo_fn() {
@@ -365,7 +377,8 @@ setup_sudoers() {
         fi
 
         maybe_sudo mv "${tmp_sudoers}" "${sudoers_file}"
-        maybe_sudo chown root:root "${sudoers_file}"
+        # Use GID 0 for the root group (root on Linux, wheel on macOS)
+        maybe_sudo chown root:0 "${sudoers_file}"
         maybe_sudo chmod 0440 "${sudoers_file}"
         success_message "Sudoers configured: ${sudoers_file}"
     else

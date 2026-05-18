@@ -35,11 +35,12 @@ impl AppConfig {
         use tauri::Manager;
 
         // 1. Try bundled resource (allows override in .deb/.msi/.app installs)
-        let resource_path = app.path().resolve("app_config.json", tauri::path::BaseDirectory::Resource)
-            .map_err(|e| format!("Failed to resolve resource path: {}", e))?;
-
-        if resource_path.exists() {
-            return Self::load_from_path(resource_path);
+        match app.path().resolve("app_config.json", tauri::path::BaseDirectory::Resource) {
+            Ok(resource_path) if resource_path.exists() => {
+                return Self::load_from_path(resource_path);
+            }
+            Ok(_) => log::info!("Bundled app_config.json not found in resources."),
+            Err(e) => log::debug!("Could not resolve resource path (expected when not bundled): {}", e),
         }
 
         // 2. Fallback: current working directory (for dev / cargo run / npm run tauri dev)
@@ -47,9 +48,11 @@ impl AppConfig {
         if dev_path.exists() {
             return Self::load_from_path(dev_path);
         }
+        log::info!("app_config.json not found in working directory.");
 
         // 3. Ultimate fallback: compile-time embedded config
         //    Guaranteed to exist for raw binaries moved anywhere (e.g. /usr/local/bin)
+        log::info!("Using embedded application configuration.");
         let embedded = include_str!("../app_config.json");
         serde_json::from_str(embedded)
             .map_err(|e| format!("Failed to parse embedded config: {}", e))

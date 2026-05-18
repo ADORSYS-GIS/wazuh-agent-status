@@ -1,8 +1,9 @@
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Runtime,
+    AppHandle, Manager, Runtime, Emitter,
 };
+use crate::agent::{AgentManager, AgentStatus, ConnectionStatus};
 #[cfg(not(target_os = "linux"))]
 use tauri_plugin_positioner::{WindowExt, Position};
 
@@ -13,10 +14,61 @@ pub struct TrayMenuState<R: Runtime> {
 }
 
 pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
+    let agent_manager = app.state::<std::sync::Arc<AgentManager>>();
+    let mut rx = agent_manager.subscribe();
+    let initial_state = rx.borrow().clone();
+
+    let status_text = match initial_state.status {
+        AgentStatus::Active => "Agent: Active",
+        AgentStatus::Inactive => "Agent: Inactive",
+        AgentStatus::Unknown => "Agent: Unknown",
+    };
+    
+    let conn_text = match initial_state.connection {
+        ConnectionStatus::Connected => "Connection: Connected",
+        ConnectionStatus::Disconnected => "Connection: Disconnected",
+        ConnectionStatus::Unknown => "Connection: Unknown",
+    };
+
+    let status_i = MenuItem::with_id(app, "status", status_text, false, None::<&str>)?;
+    let conn_i = MenuItem::with_id(app, "connection", conn_text, false, None::<&str>)?;
+    let sep1 = PredefinedMenuItem::separator(app)?;
+    
+    let update_i = MenuItem::with_id(app, "update", "Check for Updates", true, None::<&str>)?;
+    let sep2 = PredefinedMenuItem::separator(app)?;
+
     let show_i = MenuItem::with_id(app, "show", "Show Dashboard", true, None::<&str>)?;
     let show_i_state = show_i.clone();
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+    
+    let menu = Menu::with_items(app, &[
+        &status_i, &conn_i, &sep1, 
+        &update_i, &sep2, 
+        &show_i, &quit_i
+    ])?;
+
+    let status_i_clone = status_i.clone();
+    let conn_i_clone = conn_i.clone();
+
+    tauri::async_runtime::spawn(async move {
+        while rx.changed().await.is_ok() {
+            let state = rx.borrow().clone();
+            
+            let status_text = match state.status {
+                AgentStatus::Active => "Agent: Active",
+                AgentStatus::Inactive => "Agent: Inactive",
+                AgentStatus::Unknown => "Agent: Unknown",
+            };
+            let _ = status_i_clone.set_text(status_text);
+            
+            let conn_text = match state.connection {
+                ConnectionStatus::Connected => "Connection: Connected",
+                ConnectionStatus::Disconnected => "Connection: Disconnected",
+                ConnectionStatus::Unknown => "Connection: Unknown",
+            };
+            let _ = conn_i_clone.set_text(conn_text);
+        }
+    });
 
     let icon_bytes = include_bytes!("../icons/tray.png");
     let image = image::load_from_memory(icon_bytes).expect("Failed to load icon from memory");
@@ -54,6 +106,21 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         let _ = window.set_focus();
                         let _ = show_i.set_text("Hide Dashboard");
                     }
+                }
+            }
+            "update" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    #[cfg(target_os = "windows")]
+                    let _ = window.move_window(Position::BottomRight);
+                    #[cfg(target_os = "macos")]
+                    let _ = window.move_window(Position::TrayCenter);
+
+                    let _ = window.set_decorations(true);
+                    let _ = window.unminimize();
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                    let _ = show_i.set_text("Hide Dashboard");
+                    let _ = window.emit("navigate-to-updates", ());
                 }
             }
             _ => {}

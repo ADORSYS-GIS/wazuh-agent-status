@@ -4,22 +4,55 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)...[d2a29f6](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d2a29f62c9adcdf878f2206cb6650b2850429319)
+[5ddc7fb](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5ddc7fb01394259873a220bd9dd0050a78a1ffc5)...[7613308](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7613308b630f803c32120f51ee2d138ad62022fe)
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`76d7eee`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/76d7eeeb0eaeec807288b02ac09ef84268cb4cbf))
+
+### Features
+
+- Add desktop application entry and icon installation to Linux install and uninstall scripts ([`ff7245e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ff7245efbf6267de4f450b8b88c141ea47415fb9))
+- Add agent status indicators to tray menu and implement navigation to update screen ([`1887e39`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1887e397a85a9ea4b510bb5b762257e697600433))
+
+## 0.5.0-rc.4 - 2026-05-15
+
+[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)...[5ddc7fb](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5ddc7fb01394259873a220bd9dd0050a78a1ffc5)
+
+### Bug Fixes
+
+- Replace wazuh-control status with sysinfo process check in is_agent_running to avoid lock file race condition, and Replace wazuh-control info with direct VERSION.json read in get_agent_version. ([`07b2a78`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/07b2a7888f9dfd2cc57edcfd0cdf95c719c615d0))
+- Correct BASE_URL string replacement and add target variable for macOS launchctl check ([`a5e3c4b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a5e3c4bf0609140cd839a5aebdcd03b8e9e59b2d)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Update default WAZUH_GROUP to wheel for macOS installations ([`4f0e66c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4f0e66cf980912a6732abdd7f83b9535927a6c28)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Update sudoers file ownership to GID 0 for cross-platform compatibility ([`588f0fe`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/588f0febb9b6bcadc32c4631fbb1fe6e38097e58))
 
 ### Documentation
 
 - Update CHANGELOG.md and checksums [skip ci] ([`d0bc6b8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d0bc6b88dbe177e67365422ae327b9fb036dd82c))
 - Update CHANGELOG.md and checksums [skip ci] ([`fa37a31`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/fa37a313032d7cec0effc2b495262b555f08fafb))
+- Update CHANGELOG.md and checksums [skip ci] ([`3b55dcd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3b55dcdfa8c963ee367ee17602f488f065ed45d4))
+- Update CHANGELOG.md and checksums [skip ci] ([`968f259`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/968f2593eddc2e79c57b5fa371ae65f1192e134d))
+- Update CHANGELOG.md and checksums [skip ci] ([`db46a4e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/db46a4e4feba664f4d82b411b36eacc9030c3140))
+- Update CHANGELOG.md and checksums [skip ci] ([`262826c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/262826cd66359a45e334d9ca89e450bb80defaa2))
+- Update CHANGELOG.md and checksums [skip ci] ([`e65de99`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e65de9919569b00336ae9172411f158b73ec7e95))
 
 ### Features
 
 - Improve download URL validation and strengthen checksum verification logic in installation scripts ([`82244eb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/82244eb145ca74ae117e30385873f217844815b8)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Add setup_sudoers function to grant passwordless execution for wazuh-control ([`7953d8a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7953d8aea992fc86125460f4e408d0e42730c70b)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
+### Miscellaneous Tasks
+
+- Bump version to 0.5.0-rc.4 and improve configuration loading diagnostics and error messaging ([`f87eabe`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f87eabe2ae9f1432c891b986bc9049fcb44a19b1))
+- Downgrade APP_VERSION to 0.5.0-rc.3 across all installation and update scripts ([`5ddc7fb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5ddc7fb01394259873a220bd9dd0050a78a1ffc5))
+
 ### Refactor
 
 - Standardize bash usage, improve user detection, and update release workflow logic ([`c6352d7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c6352d78e88d3fdbc06ef78212df7319ba6e14fb)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Remove unified install script, update repo references, and add sudoers file cleanup to uninstallers ([`d2a29f6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d2a29f62c9adcdf878f2206cb6650b2850429319)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+
+- Standardize sed_inplace utility and remove redundant sudo calls in installation scripts ([`a6a70fc`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a6a70fcb0f644fed57f0b41ead74f7e6e7801c4e)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Improve sed_inplace compatibility on macOS by using temporary backup files and add input validation ([`ef1eb3b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ef1eb3b0de8063706a5d0c5534e619e253390f3c))
 
 ## 0.5.0-rc.2 - 2026-05-12
 
