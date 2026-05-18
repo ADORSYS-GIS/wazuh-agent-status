@@ -4,11 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5ddc7fb](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5ddc7fb01394259873a220bd9dd0050a78a1ffc5)...[ff7245e](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ff7245efbf6267de4f450b8b88c141ea47415fb9)
+[5ddc7fb](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5ddc7fb01394259873a220bd9dd0050a78a1ffc5)...[7613308](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7613308b630f803c32120f51ee2d138ad62022fe)
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`76d7eee`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/76d7eeeb0eaeec807288b02ac09ef84268cb4cbf))
 
 ### Features
 
 - Add desktop application entry and icon installation to Linux install and uninstall scripts ([`ff7245e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ff7245efbf6267de4f450b8b88c141ea47415fb9))
+- Add agent status indicators to tray menu and implement navigation to update screen ([`1887e39`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1887e397a85a9ea4b510bb5b762257e697600433))
 
 ## 0.5.0-rc.4 - 2026-05-15
 
