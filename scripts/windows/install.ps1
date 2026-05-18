@@ -4,7 +4,6 @@ $ErrorActionPreference = "Stop"
 
 # Configuration
 $APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0-rc.3" }
-
 # Default Variables
 $WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
@@ -21,7 +20,7 @@ if (-not (Test-Path $TMP_DIR)) {
 try {
     $ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
     $UtilsURL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/shared/utils.ps1"
-    
+
     $global:ChecksumsPath = Join-Path $TMP_DIR "checksums.sha256"
     $UtilsPath = Join-Path $TMP_DIR "utils.ps1"
 
@@ -397,7 +396,7 @@ finally {
     }
 } else {
     InfoMessage "adorsys-update.bat is not running. Downloading directly..."
-    Download-And-VerifyFile -Url $BAT_UPDATE_SCRIPT_URL -Destination $BAT_UPDATE_SCRIPT_PATH -FileName "adorsys-update.bat" -ChecksumPattern "scripts/windows/adorsys-update.bat" 
+    Download-And-VerifyFile -Url $BAT_UPDATE_SCRIPT_URL -Destination $BAT_UPDATE_SCRIPT_PATH -FileName "adorsys-update.bat" -ChecksumPattern "scripts/windows/adorsys-update.bat"
     InfoMessage "adorsys-update.ps1 is not running. Downloading directly..."
     Download-And-VerifyFile -Url $PS_UPDATE_SCRIPT_URL -Destination $PS_UPDATE_SCRIPT_PATH -FileName "adorsys-update.ps1" -ChecksumPattern "scripts/windows/adorsys-update.ps1"
 }

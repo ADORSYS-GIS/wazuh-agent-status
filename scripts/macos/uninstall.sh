@@ -7,6 +7,13 @@ else
     set -eu
 fi
 
+
+# OS guard early in the script
+if [[ "$(uname -s)" != "Darwin" ]]; then
+    printf "%s\n" "[ERROR] This installation script is intended for macOS systems. Please use the appropriate script for your operating system." >&2
+    exit 1
+fi
+
 # Common configuration
 WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"

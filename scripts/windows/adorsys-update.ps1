@@ -39,7 +39,6 @@ if (-not $IsAdmin) {
 
 # Configuration
 $APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0-rc.3" }
-
 $WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "user-main" }
 $WAZUH_AGENT_STATUS_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
@@ -51,7 +50,7 @@ if (-not (Test-Path $TMP_DIR)) {
 try {
     $ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
     $UtilsURL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/shared/utils.ps1"
-    
+
     $global:ChecksumsPath = Join-Path $TMP_DIR "checksums.sha256"
     $UtilsPath = Join-Path $TMP_DIR "utils.ps1"
 
