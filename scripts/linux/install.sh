@@ -152,7 +152,7 @@ cleanup_legacy_system() {
         info_message "Removing legacy desktop entry: $DESKTOP_UNIT_FILE"
         remove_file "$DESKTOP_UNIT_FILE"
     fi
-    if [ -f "$DESKTOP_APP_FILE" ]; then
+    if [[ -f "$DESKTOP_APP_FILE" ]]; then
         info_message "Removing legacy desktop app entry: $DESKTOP_APP_FILE"
         remove_file "$DESKTOP_APP_FILE"
     fi
