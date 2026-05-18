@@ -4,11 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[e2386ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e2386ad9b1fcee87b9085e937fcff7b5a7f35788)...[d673fd4](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d673fd4a8578fbbde793fb38a298f7e8a742f7bf)
+[e2386ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e2386ad9b1fcee87b9085e937fcff7b5a7f35788)...[68c5ecf](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68c5ecf9e38b531dc69a6fc595c5879e9690ca20)
 
 ### Bug Fixes
 
 - Fix failing ci ([`d673fd4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d673fd4a8578fbbde793fb38a298f7e8a742f7bf))
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`cfb18ef`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cfb18ef0c6c0bf130373c35c86c5fc273c7d9553))
+
+### Refactor
+
+- Replace error_exit with error_message/return and include icon in release artifacts ([`68c5ecf`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68c5ecf9e38b531dc69a6fc595c5879e9690ca20))
 
 ## 0.5.0-rc.6 - 2026-05-18
 
