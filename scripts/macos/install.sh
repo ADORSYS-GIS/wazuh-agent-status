@@ -61,11 +61,6 @@ BIN_DIR="/usr/local/bin"
 WAZUH_ACTIVE_RESPONSE_BIN_DIR="/Library/Ossec/active-response/bin"
 
 ARCH=$(detect_architecture)
-if [[ "$ARCH" == "amd64" ]]; then
-    warn_message "Detected architecture is amd64, but currently only arm64 binaries are built for macOS."
-    warn_message "The installation may fail if amd64 binaries are missing from the release."
-fi
-
 if [[ "$ARCH" != "amd64" ]] && [[ "$ARCH" != "arm64" ]]; then
     error_exit "Unsupported architecture: $ARCH. Only amd64 and arm64 are supported on macOS."
 fi
@@ -212,6 +207,25 @@ create_launchd_plist_file() {
     return 0
 }
 
+configure_logrotate() {
+    local newsyslog_file="/etc/newsyslog.d/wazuh-agent-status.conf"
+    local log_dir="/var/log/wazuh-agent-status"
+    local log_file_path="${log_dir}/wazuh-agent-status.log"
+
+    info_message "Configuring newsyslog for $log_file_path..."
+
+    # Format: logfilename [owner:group] mode count size when flags [/pid_file] [sig_num]
+    # Rotate daily ($D0), keep 7 logs, compress (Z)
+    create_file "$newsyslog_file" "$log_file_path  $WAZUH_USER:$WAZUH_GROUP  644  7  *  \$D0  Z
+"
+    # Ensure correct permissions for the newsyslog entry
+    maybe_sudo chown root:wheel "$newsyslog_file"
+    maybe_sudo chmod 644 "$newsyslog_file"
+
+    success_message "macOS newsyslog configuration created: $newsyslog_file"
+    return 0
+}
+
 
 # Startup Configurations
 make_server_launch_at_startup() {
@@ -310,7 +324,10 @@ fi
 print_step_header 6 "Permissions and Ownership Configuration"
 setup_permissions_and_ownership "$WAZUH_USER" "$WAZUH_GROUP" "/Library/Ossec/bin/wazuh-control"
 
-print_step_header 7 "Validating installation and configuration..."
+print_step_header 7 "Log Rotation Configuration"
+configure_logrotate
+
+print_step_header 8 "Validating installation and configuration..."
 validate_installation
 
 # Create migration marker

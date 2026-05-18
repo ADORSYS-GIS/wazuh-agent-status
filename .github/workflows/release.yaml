@@ -82,6 +82,7 @@ jobs:
           npm install
           npm run tauri build -- --bundles deb,rpm
           cp src-tauri/target/release/wazuh-agent-status ../dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
+          cp src-tauri/icons/icon.png ../dist/icon.png
 
       - name: Upload Linux client binaries
         if: ${{ !env.ACT }}

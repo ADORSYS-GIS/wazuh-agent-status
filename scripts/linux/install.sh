@@ -99,11 +99,6 @@ USER_ICON_FOLDER=${USER_ICON_FOLDER:-"$REAL_HOME/.local/share/icons"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
 DESKTOP_APP_FILE=${DESKTOP_APP_FILE:-"$DESKTOP_APPS_FOLDER/$CLIENT_NAME.desktop"}
 APP_ID="wazuh-agent-status"
-ICON_URL="${WAZUH_AGENT_STATUS_REPO_URL}/wazuh-agent-status-rust-client/src-tauri/icons/icon.png"
-
-SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
-SERVER_BIN_NAME="${SERVER_NAME}-${OS}-${ARCH}"
-CLIENT_BIN_NAME="${CLIENT_NAME}-${OS}-${ARCH}"
 BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/${SERVER_NAME}/releases/download/v${APP_VERSION}"}
 
 # Sanity check for BASE_URL: Automatically correct GitHub tag page URLs to download URLs
@@ -114,6 +109,10 @@ if [[ "${BASE_URL}" == *"releases/tag/"* ]]; then
     info_message "Corrected BASE_URL: ${BASE_URL}"
 fi
 
+ICON_URL="${BASE_URL}/icon.png"
+
+SERVER_BIN_NAME="${SERVER_NAME}-${OS}-${ARCH}"
+CLIENT_BIN_NAME="${CLIENT_NAME}-${OS}-${ARCH}"
 SERVER_URL="${BASE_URL}/${SERVER_BIN_NAME}"
 CLIENT_URL="${BASE_URL}/${CLIENT_BIN_NAME}"
 CHECKSUM_URL="${BASE_URL}/checksums.sha256"
@@ -205,12 +204,37 @@ install_icon() {
     info_message "Creating user icon directory if it doesn't exist..."
     mkdir -p "$USER_ICON_FOLDER"
 
-    info_message "Downloading application icon..."
-    if ! curl -fsSL "$ICON_URL" -o "$USER_ICON_FOLDER/$APP_ID.png"; then
-        warn_message "Failed to download icon from $ICON_URL. Application will use a generic icon."
+    info_message "Downloading application icon from release..."
+    if ! download_and_verify_file "$ICON_URL" "$USER_ICON_FOLDER/$APP_ID.png" "icon.png" "application icon" "$CHECKSUM_URL"; then
+        warn_message "Failed to download verified icon from $ICON_URL. Application will use a generic icon."
         return 0
     fi
     info_message "Icon installed to: $USER_ICON_FOLDER/$APP_ID.png"
+    return 0
+}
+
+configure_logrotate() {
+    local logrotate_file="/etc/logrotate.d/wazuh-agent-status"
+    local log_dir="/var/log/wazuh-agent-status"
+    local log_file_path="${log_dir}/wazuh-agent-status.log"
+
+    info_message "Configuring logrotate for $log_file_path..."
+
+    create_file "$logrotate_file" "$log_file_path {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 $WAZUH_USER $WAZUH_GROUP
+}
+"
+    # Ensure correct permissions for the logrotate entry
+    maybe_sudo chown root:root "$logrotate_file"
+    maybe_sudo chmod 644 "$logrotate_file"
+
+    success_message "Logrotate configuration created: $logrotate_file"
     return 0
 }
 
@@ -351,7 +375,10 @@ fi
 print_step_header 6 "Permissions and Ownership Configuration"
 setup_permissions_and_ownership "$WAZUH_USER" "$WAZUH_GROUP" "/var/ossec/bin/wazuh-control"
 
-print_step_header 7 "Validating installation and configuration..."
+print_step_header 7 "Logrotate Configuration"
+configure_logrotate
+
+print_step_header 8 "Validating installation and configuration..."
 validate_installation
 
 # Create migration marker
