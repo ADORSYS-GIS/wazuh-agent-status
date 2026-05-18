@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)...[06302ab](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/06302ab94e6f0e1810e0a0db980aa931359c7c16)
+[b6752d8](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b6752d831752af621c9ee87d6516fcb9d712544a)...[fce01dc](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/fce01dc0ceca74169f944454decbec989a892153)
 
 ### Bug Fixes
 
@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`256bf9d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/256bf9d82b621b2f4f7166eb0e8f95cea37e4397))
 - Update CHANGELOG.md and checksums [skip ci] ([`1d917fa`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1d917fabd2ec816f95e13725a8303930e716bd67))
 - Update CHANGELOG.md and checksums [skip ci] ([`65986f4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/65986f480c39e7f594df482eed0005314d736b45))
+- Update CHANGELOG.md and checksums [skip ci] ([`d5d8f6a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d5d8f6a35abdd8b9f176fbabe973c3764cddab4a))
 
 ### Features
 
@@ -48,6 +49,8 @@ All notable changes to this project will be documented in this file.
 - Standardize sed_inplace utility and remove redundant sudo calls in installation scripts ([`2582fd5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2582fd5f19b7696b83841812b4f4ce201e82dc82)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Improve sed_inplace compatibility on macOS by using temporary backup files and add input validation ([`2b57e8d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2b57e8d3d39f13a4b52e73e21818a237545ba79d))
 - Migrate shell scripts to use double brackets and bump application version to 0.5.0-rc.4 ([`06302ab`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/06302ab94e6f0e1810e0a0db980aa931359c7c16)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Replace legacy test commands with bash-native double brackets in utility scripts ([`f3321df`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f3321df8b83ff5349760aa8c43a5a71da787f74b)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Add explicit return statements and simplify sudoers validation logic in utils.sh ([`fce01dc`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/fce01dc0ceca74169f944454decbec989a892153)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ## 0.5.0-rc.2 - 2026-05-12
 
