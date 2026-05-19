@@ -11,7 +11,7 @@ jobs:
         uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
 
       - name: Install stable Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
         with:
           components: rustfmt, clippy
 
@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
 
       - name: Install stable Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
         with:
           components: rustfmt, clippy
 
@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
 
       - name: Install stable Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
         with:
           components: rustfmt, clippy
 
@@ -99,7 +99,7 @@ jobs:
         uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
 
       - name: Install stable Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
         with:
           components: rustfmt, clippy
 
@@ -107,7 +107,7 @@ jobs:
         if: matrix.component.name == 'Client'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y \r
             libwebkit2gtk-4.1-dev \
             libjavascriptcoregtk-4.1-dev \
             libappindicator3-dev \
@@ -140,7 +140,7 @@ jobs:
         uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
 
       - name: Install stable Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
 
       - name: Install Tauri system dependencies (Client only)
         if: matrix.component.name == 'Client'
@@ -159,7 +159,7 @@ jobs:
             libxdo-dev
 
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@b550161ef8a7bc4f2a671c0b03a18ac9ccedea1e # v2
         with:
           tool: nextest
 
@@ -184,10 +184,10 @@ jobs:
         uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
 
       - name: Install stable Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
 
       - name: Check for unused dependencies
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@b550161ef8a7bc4f2a671c0b03a18ac9ccedea1e # v2
         with:
           tool: cargo-machete
 
