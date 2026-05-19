@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Install stable Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
@@ -30,7 +30,7 @@ jobs:
         working-directory: ./${{ matrix.component.dir }}
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Install stable Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
@@ -55,7 +55,7 @@ jobs:
         working-directory: ./${{ matrix.component.dir }}
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Install stable Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
@@ -96,7 +96,7 @@ jobs:
         working-directory: ./${{ matrix.component.dir }}
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Install stable Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
@@ -137,7 +137,7 @@ jobs:
         working-directory: ./${{ matrix.component.dir }}
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Install stable Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
@@ -181,7 +181,7 @@ jobs:
         working-directory: ./${{ matrix.component.dir }}
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@692973e3d1915638f7e18cd4854ef7de212e79b3 # v4.1.7
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Install stable Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
