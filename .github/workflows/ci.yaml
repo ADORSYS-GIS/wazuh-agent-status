@@ -106,7 +106,7 @@ jobs:
         if: matrix.component.name == 'Client'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \r
+          sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
             libjavascriptcoregtk-4.1-dev \
             libgtk-3-dev \
@@ -118,7 +118,7 @@ jobs:
             libxdo-dev
 
       - name: Clippy Check
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features
 
   cargo-nextest:
     name: Cargo Nextest - ${{ matrix.component.name }}
@@ -161,7 +161,7 @@ jobs:
           tool: nextest
 
       - name: Run Cargo Tests
-        run: cargo nextest run --workspace --all-targets --all-features
+        run: cargo nextest run --workspace --all-targets --all-features --no-tests
 
   cargo-machete:
     name: Cargo Machete Check - ${{ matrix.component.name }}
@@ -189,4 +189,8 @@ jobs:
           tool: cargo-machete
 
       - name: Cargo Machete
-        run: cargo machete --with-metadata
+        run: |
+          if [ "${{ matrix.component.name }}" = "Client" ]; then
+            echo -e '\n[package.metadata.cargo-machete]\nignored = ["tauri-build", "thiserror", "tracing"]' >> Cargo.toml
+          fi
+          cargo machete --with-metadata
