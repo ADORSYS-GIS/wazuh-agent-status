@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[e2386ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e2386ad9b1fcee87b9085e937fcff7b5a7f35788)...[68c5ecf](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68c5ecf9e38b531dc69a6fc595c5879e9690ca20)
+[e2386ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e2386ad9b1fcee87b9085e937fcff7b5a7f35788)...[268a560](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/268a560bd360fe9103c67addb4d7de4805f9099c)
 
 ### Bug Fixes
 
@@ -13,10 +13,12 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 
 - Update CHANGELOG.md and checksums [skip ci] ([`cfb18ef`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cfb18ef0c6c0bf130373c35c86c5fc273c7d9553))
+- Update CHANGELOG.md and checksums [skip ci] ([`48d414b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/48d414bceb8aa061408a5a6e3940c45baf240001))
 
 ### Refactor
 
 - Replace error_exit with error_message/return and include icon in release artifacts ([`68c5ecf`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68c5ecf9e38b531dc69a6fc595c5879e9690ca20))
+- Replace bash conditional expressions with test command in log file and directory checks ([`268a560`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/268a560bd360fe9103c67addb4d7de4805f9099c))
 
 ## 0.5.0-rc.6 - 2026-05-18
 
