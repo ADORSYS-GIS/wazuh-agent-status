@@ -77,7 +77,7 @@ $PS_UPDATE_SCRIPT_PATH = "${env:ProgramFiles(x86)}\ossec-agent\active-response\b
 Ensure-Directory -Path $BIN_DIR
 
 # Download binaries
-$BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/latest/download" }
+$BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$APP_VERSION" }
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 $BinChecksumsURL = "$BaseURL/checksums.sha256"
@@ -181,10 +181,6 @@ function Create-StartupShortcut {
     InfoMessage "Startup shortcut created: $ShortcutPath."
 }
 
-# Download binaries
-$BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/latest/download" }
-$ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
-$ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 
 PrintStep 1 "Checking migration status..."
 if (Test-Path -LiteralPath $MIGRATION_MARKER) {
