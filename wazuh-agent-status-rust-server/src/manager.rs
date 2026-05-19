@@ -2,16 +2,20 @@
 //! broadcasts changes to subscribers, and provides on-demand version checking.
 
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use tokio::sync::{broadcast, RwLock};
 use tokio::time;
 use tracing::{info, warn};
 
 use crate::config::{AgentPaths, Config};
-use crate::models::{AgentState, ComponentUpdate, UpdateStatus, VersionInfo};
+use crate::models::{AgentState, ComponentUpdate, LogLine, UpdateStatus, VersionInfo};
 use crate::status_provider::StatusProvider;
 use crate::version_utils::fetch_version_info;
+use tokio::process::Command;
+use std::process::Stdio;
+use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader};
+use tokio::sync::mpsc;
 
 // ── Version cache ─────────────────────────────────────────────────────────────
 
@@ -36,6 +40,8 @@ pub struct AgentManager {
     provider: Box<dyn StatusProvider>,
     /// Cached result of the last remote version check.
     version_cache: RwLock<Option<VersionCache>>,
+    /// Platform-specific file paths.
+    paths: Arc<AgentPaths>,
     /// Runtime configuration.
     config: Arc<Config>,
 }
@@ -57,7 +63,7 @@ impl AgentManager {
     #[must_use]
     pub fn new_custom(
         config: Arc<Config>,
-        _paths: Arc<AgentPaths>,
+        paths: Arc<AgentPaths>,
         provider: Box<dyn StatusProvider>,
     ) -> Self {
         let (tx, _) = broadcast::channel(128);
@@ -67,6 +73,7 @@ impl AgentManager {
             notifier: tx,
             provider,
             version_cache: RwLock::new(None),
+            paths,
             config,
         }
     }
@@ -101,20 +108,260 @@ impl AgentManager {
     /// via [`get_version_status`].
     pub async fn start_polling(&self) {
         let mut ticker = time::interval(self.config.poll_interval);
+        let mut last_healing_attempt: Option<Instant> = None;
+
         loop {
             ticker.tick().await;
             match self.provider.get_partial_state() {
                 Ok(new_state) => {
                     let mut current = self.state.write().await;
-                    if *current != new_state {
-                        info!(state = ?new_state, "Agent state changed");
-                        *current = new_state.clone();
-                        let _ = self.notifier.send(new_state);
+                    
+                    // Self-healing: if agent is stopped, try to restart it (if enabled)
+                    if self.config.self_healing && new_state.status == crate::models::AgentStatus::Inactive {
+                        let now = Instant::now();
+                        let should_attempt = match last_healing_attempt {
+                            Some(last) => now.duration_since(last) > time::Duration::from_secs(300), // 5-minute cooldown
+                            None => true,
+                        };
+
+                        if should_attempt {
+                            info!("Self-healing: Wazuh agent is inactive. Attempting restart...");
+                            last_healing_attempt = Some(now);
+
+                            #[cfg(not(target_os = "windows"))]
+                            {
+                                let control_path = self.paths.wazuh_control.clone();
+                                tokio::spawn(async move {
+                                    let mut cmd = Command::new("sudo");
+                                    cmd.arg(control_path).arg("restart");
+
+                                    match cmd.output().await {
+                                        Ok(o) => {
+                                            if o.status.success() {
+                                                info!("Self-healing: Restart command executed successfully");
+                                            } else {
+                                                warn!("Self-healing: Restart command failed with exit code {}: {}",
+                                                    o.status.code().unwrap_or(-1),
+                                                    String::from_utf8_lossy(&o.stderr));
+                                            }
+                                        },
+                                        Err(e) => warn!("Self-healing: Failed to spawn restart command: {e}"),
+                                    }
+                                });
+                            }
+
+                            #[cfg(target_os = "windows")]
+                            {
+                                tokio::spawn(async move {
+                                    let mut cmd = Command::new("powershell.exe");
+                                    cmd.args([
+                                        "-NoProfile",
+                                        "-NonInteractive",
+                                        "-Command",
+                                        "Restart-Service -Name WazuhSvc -Force",
+                                    ]);
+
+                                    match cmd.output().await {
+                                        Ok(o) => {
+                                            if o.status.success() {
+                                                info!("Self-healing: Restart command executed successfully");
+                                            } else {
+                                                warn!("Self-healing: Restart command failed with exit code {}: {}",
+                                                    o.status.code().unwrap_or(-1),
+                                                    String::from_utf8_lossy(&o.stderr));
+                                            }
+                                        },
+                                        Err(e) => warn!("Self-healing: Failed to spawn restart command: {e}"),
+                                    }
+                                });
+                            }
+                        }
+                    } else if new_state.status == crate::models::AgentStatus::Active {
+                        // Just broadcast state; don't reset healing clock to maintain strict cooldown
+                    }
+
+                    let mut final_state = new_state;
+                    final_state.self_healing_enabled = self.config.self_healing;
+
+                    if *current != final_state {
+                        info!(state = ?final_state, "Agent state changed");
+                        *current = final_state.clone();
+                        let _ = self.notifier.send(final_state);
                     }
                 }
                 Err(e) => warn!("Failed to poll agent status: {e}"),
             }
         }
+    }
+
+    // ── Update Execution ──────────────────────────────────────────────────────
+
+    /// Initiate an update process and return a stream of log output.
+    pub async fn initiate_update(&self, is_prerelease: bool) -> mpsc::Receiver<String> {
+        let (tx, rx) = mpsc::channel(100);
+        let paths = Arc::clone(&self.paths);
+        
+        // If prerelease, fetch the version string before spawning the task to avoid lifetime issues
+        let prerelease_version = if is_prerelease {
+            let status = self.get_version_status().await;
+            Some(status.wazuh.latest_version)
+        } else {
+            None
+        };
+
+        tokio::spawn(async move {
+            let _ = tx.send("UPDATE_PROGRESS: [STATUS] Starting update process...".to_string()).await;
+
+            let mut cmd = Command::new("sudo");
+            if is_prerelease {
+                let version = match prerelease_version {
+                    Some(v) if v != "Unknown" => v,
+                    _ => {
+                        let _ = tx.send("UPDATE_PROGRESS: [FAILURE] Could not determine latest prerelease version".to_string()).await;
+                        return;
+                    }
+                };
+
+                let _ = tx.send(format!("UPDATE_PROGRESS: [STATUS] Downloading setup script for v{}...", version)).await;
+                let url = format!("https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v{}/scripts/setup-agent.sh", version);
+                
+                match crate::http::fetch_bytes(&url, Duration::from_secs(30)).await {
+                    Ok(bytes) => {
+                        let tmp_script = format!("/tmp/setup-agent-{}.sh", version);
+                        if let Err(e) = std::fs::write(&tmp_script, bytes) {
+                            let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to save setup script: {e}")).await;
+                            return;
+                        }
+                        let _ = std::process::Command::new("chmod").arg("+x").arg(&tmp_script).status();
+                        
+                        let _ = tx.send("UPDATE_PROGRESS: [STATUS] Executing prerelease setup...".to_string()).await;
+                        cmd.arg(tmp_script);
+                    }
+                    Err(e) => {
+                        let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to download setup script: {e}")).await;
+                        return;
+                    }
+                }
+            } else {
+                cmd.arg(&paths.update_script);
+            }
+
+            cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+            match cmd.spawn() {
+                Ok(mut child) => {
+                    let stdout = child.stdout.take().unwrap();
+                    let stderr = child.stderr.take().unwrap();
+                    let tx_clone = tx.clone();
+
+                    // Pipe stdout
+                    tokio::spawn(async move {
+                        let mut reader = BufReader::new(stdout).lines();
+                        while let Ok(Some(line)) = reader.next_line().await {
+                            let _ = tx_clone.send(format!("UPDATE_PROGRESS: {}", line)).await;
+                        }
+                    });
+
+                    // Pipe stderr
+                    let tx_clone = tx.clone();
+                    tokio::spawn(async move {
+                        let mut reader = BufReader::new(stderr).lines();
+                        while let Ok(Some(line)) = reader.next_line().await {
+                            let _ = tx_clone.send(format!("UPDATE_PROGRESS: [ERROR] {}", line)).await;
+                        }
+                    });
+
+                    match child.wait().await {
+                        Ok(status) if status.success() => {
+                            let _ = tx.send("UPDATE_PROGRESS: [SUCCESS] Update completed successfully".to_string()).await;
+                        }
+                        Ok(status) => {
+                            let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Update script exited with code: {:?}", status.code())).await;
+                        }
+                        Err(e) => {
+                            let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to wait for update script: {e}")).await;
+                        }
+                    }
+                }
+                Err(e) => {
+                    let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to start update script (check sudoers): {e}")).await;
+                }
+            }
+        });
+
+        rx
+    }
+
+    // ── Log streaming ─────────────────────────────────────────────────────────
+
+    /// Open `ossec.log`, seek to the end, and stream new lines as they are
+    /// appended.  Returns an [`mpsc::Receiver`] that yields structured
+    /// [`LogLine`] values until the file is closed or the client disconnects.
+    pub async fn stream_logs(&self) -> mpsc::Receiver<LogLine> {
+        let (tx, rx) = mpsc::channel(256);
+        let log_path = self.paths.ossec_log.clone();
+
+        tokio::spawn(async move {
+            const HISTORY: usize = 50;
+
+            // Verify file exists before attempting anything.
+            if !tokio::fs::try_exists(&log_path).await.unwrap_or(false) {
+                let _ = tx.send(LogLine::from_raw(format!("[ERROR] Log file not found: {}", log_path.display()))).await;
+                return;
+            }
+
+            // Send last N historical lines so the UI isn't empty on first connect.
+            match tokio::fs::read_to_string(&log_path).await {
+                Ok(content) => {
+                    let mut hist: Vec<&str> = Vec::with_capacity(HISTORY);
+                    for line in content.lines() {
+                        hist.push(line);
+                        if hist.len() > HISTORY { hist.remove(0); }
+                    }
+                    for line in hist {
+                        if tx.send(LogLine::from_raw(line.to_string())).await.is_err() { return; }
+                    }
+                }
+                Err(e) => {
+                    let _ = tx.send(LogLine::from_raw(format!("[WARNING] Could not read history (file may be locked): {e}"))).await;
+                }
+            }
+
+            // Re-open and tail from EOF for live lines.
+            let file = match tokio::fs::File::open(&log_path).await {
+                Ok(f) => f,
+                Err(e) => {
+                    let _ = tx.send(LogLine::from_raw(format!("[ERROR] Cannot open log file for tailing: {e}"))).await;
+                    return;
+                }
+            };
+            let mut reader = BufReader::new(file);
+            if let Err(e) = reader.seek(std::io::SeekFrom::End(0)).await {
+                let _ = tx.send(LogLine::from_raw(format!("[ERROR] Cannot seek log file: {e}"))).await;
+                return;
+            }
+
+            let mut lines = reader.lines();
+            loop {
+                match lines.next_line().await {
+                    Ok(Some(line)) => {
+                        if tx.send(LogLine::from_raw(line)).await.is_err() {
+                            break; // Client disconnected
+                        }
+                    }
+                    Ok(None) => {
+                        // EOF — wait briefly for new data to be appended.
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                    }
+                    Err(e) => {
+                        let _ = tx.send(LogLine::from_raw(format!("[ERROR] Failed to read log line: {e}"))).await;
+                        break;
+                    }
+                }
+            }
+        });
+
+        rx
     }
 
     // ── On-demand version check ───────────────────────────────────────────────
@@ -130,10 +377,10 @@ impl AgentManager {
         // 1. Try to return fresh cached value
         {
             let cache = self.version_cache.read().await;
-            if let Some(c) = &*cache {
-                if now.duration_since(c.fetched_at) < self.config.version_cache_ttl {
-                    return c.status.clone();
-                }
+            if let Some(c) = &*cache
+                && now.duration_since(c.fetched_at) < self.config.version_cache_ttl
+            {
+                return c.status.clone();
             }
         }
 
@@ -150,20 +397,23 @@ impl AgentManager {
 
         match new_info {
             Some(info) => {
+                let wazuh_v = info.components.get("wazuh-agent");
                 let wazuh_update = compute_component_update(
                     "Wazuh Agent",
                     &current_state.version,
                     &current_state.groups,
-                    &info.wazuh,
+                    wazuh_v.map(|v| v.version.as_str()).unwrap_or("Unknown"),
+                    wazuh_v.map(|v| v.prerelease_version.as_str()).unwrap_or(""),
                     &info.prerelease_test_groups,
                 );
 
                 let tray_update = compute_component_update(
                     "Tray App",
                     &current_state.tray_version,
-                    &[], // No pre-release groups for tray app yet
-                    &info.tray,
-                    &[],
+                    &current_state.groups,
+                    &info.framework.version,
+                    &info.framework.prerelease_version,
+                    &[], // Tray uses global framework version
                 );
 
                 let has_updates = wazuh_update.can_update || tray_update.can_update;
@@ -213,32 +463,34 @@ fn compute_component_update(
     name: &str,
     local_version: &str,
     agent_groups: &[String],
-    online: &crate::models::FrameworkVersion,
+    online_version: &str,
+    online_prerelease: &str,
     prerelease_groups: &[String],
 ) -> crate::models::ComponentUpdate {
     if local_version == "Unknown" || local_version == "Not Installed" {
         return crate::models::ComponentUpdate {
             name: name.to_string(),
             current_version: local_version.to_string(),
-            latest_version: online.version.clone(),
+            latest_version: online_version.to_string(),
             state: crate::models::UpdateState::Unknown,
             can_update: false,
         };
     }
 
-    let is_outdated = !online.version.is_empty()
-        && crate::version_utils::is_version_higher(&online.version, local_version);
+    let is_outdated = !online_version.is_empty()
+        && online_version != "Unknown"
+        && crate::version_utils::is_version_higher(online_version, local_version);
 
-    let has_prerelease = !online.prerelease_version.is_empty()
+    let has_prerelease = !online_prerelease.is_empty()
         && should_show_prerelease_for_component(prerelease_groups, agent_groups)
-        && crate::version_utils::is_version_higher(&online.prerelease_version, local_version);
+        && crate::version_utils::is_version_higher(online_prerelease, local_version);
 
     let (state, latest, can_update) = if is_outdated {
-        (crate::models::UpdateState::Outdated, online.version.clone(), true)
+        (crate::models::UpdateState::Outdated, online_version.to_string(), true)
     } else if has_prerelease {
-        (crate::models::UpdateState::PrereleaseAvailable, online.prerelease_version.clone(), true)
+        (crate::models::UpdateState::PrereleaseAvailable, online_prerelease.to_string(), true)
     } else {
-        (crate::models::UpdateState::UpToDate, online.version.clone(), false)
+        (crate::models::UpdateState::UpToDate, online_version.to_string(), false)
     };
 
     crate::models::ComponentUpdate {

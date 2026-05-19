@@ -161,7 +161,7 @@ jobs:
           tool: nextest
 
       - name: Run Cargo Tests
-        run: cargo nextest run --workspace --all-targets --all-features --no-tests
+        run: cargo nextest run --workspace --all-targets --all-features --no-tests pass
 
   cargo-machete:
     name: Cargo Machete Check - ${{ matrix.component.name }}

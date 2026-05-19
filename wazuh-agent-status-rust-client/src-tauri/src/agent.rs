@@ -63,7 +63,7 @@ impl AgentManager {
         
         // Environment variable override takes precedence
         let server_addr = std::env::var("WAZUH_SERVER_ADDR")
-            .unwrap_or_else(|_| default_addr);
+            .unwrap_or(default_addr);
             
         let addr_for_loop = server_addr.clone();
         
