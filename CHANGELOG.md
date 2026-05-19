@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[e2386ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e2386ad9b1fcee87b9085e937fcff7b5a7f35788)...[2e10929](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2e10929a27206d82922280002dfc0f4cdc798fe3)
+[e2386ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e2386ad9b1fcee87b9085e937fcff7b5a7f35788)...[9e1bdfe](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9e1bdfe061a782519e2ab35c4cd163a02688b4b8)
 
 ### Bug Fixes
 
@@ -15,6 +15,11 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`cfb18ef`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cfb18ef0c6c0bf130373c35c86c5fc273c7d9553))
 - Update CHANGELOG.md and checksums [skip ci] ([`48d414b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/48d414bceb8aa061408a5a6e3940c45baf240001))
 - Update CHANGELOG.md and checksums [skip ci] ([`5aa38d0`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5aa38d06dcd7ac2cf788a10b0bcc02bb67c3ff1d))
+- Update CHANGELOG.md and checksums [skip ci] ([`56c1e43`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/56c1e433f5a832a6a05c0d2a93edcb950bb5e810))
+
+### Miscellaneous Tasks
+
+- Restrict release workflow triggers to specific subdirectories ([`9e1bdfe`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9e1bdfe061a782519e2ab35c4cd163a02688b4b8))
 
 ### Refactor
 
