@@ -4,10 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-    paths:
-      - 'wazuh-agent-status-rust-client/**'
-      - 'wazuh-agent-status-rust-server/**'
-      - '.github/workflows/release.yaml'
 
 env:
   SERVER_DIR: wazuh-agent-status-rust-server
@@ -18,7 +14,7 @@ env:
 jobs:
   build-linux:
     name: Build for Linux AMD64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         arch: [amd64]
@@ -67,12 +63,18 @@ jobs:
           sudo chmod 666 /dev/fuse
           sudo chown root:$(id -gn) /dev/fuse
 
+      - name: Install musl-tools and Rust target
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          rustup target add x86_64-unknown-linux-musl
+
       - name: Build Rust Server
         run: |
           cd ${{ env.SERVER_DIR }}
-          cargo build --release
+          cargo build --release --target x86_64-unknown-linux-musl
           mkdir -p ../dist
-          cp target/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+          cp target/x86_64-unknown-linux-musl/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Build Tauri Client (Tray App)
         run: |
