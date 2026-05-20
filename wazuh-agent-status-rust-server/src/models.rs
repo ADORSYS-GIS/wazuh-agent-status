@@ -20,12 +20,27 @@ pub enum ConnectionStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionInfo {
-    /// Wazuh agent core versioning.
-    pub wazuh: FrameworkVersion,
-    /// Tray application versioning.
-    pub tray: FrameworkVersion,
+    /// Mapping of component versions
+    pub components: std::collections::HashMap<String, ComponentVersion>,
+    /// Global framework versioning
+    pub framework: FrameworkVersion,
     #[serde(alias = "prerelease_test_groups", default)]
     pub prerelease_test_groups: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComponentVersion {
+    pub version: String,
+    #[serde(default)]
+    pub prerelease_version: String,
+}
+
+/// Version numbers within the online manifest for the framework (tray app).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrameworkVersion {
+    pub version: String,
+    #[serde(default)]
+    pub prerelease_version: String,
 }
 
 /// Real-time system performance indicators.
@@ -48,12 +63,6 @@ impl Default for SystemMetrics {
     }
 }
 
-/// Version numbers within the online manifest.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FrameworkVersion {
-    pub version: String,
-    pub prerelease_version: String,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -97,17 +106,59 @@ pub struct AgentState {
     pub groups: Vec<String>,
     /// System performance indicators.
     pub metrics: SystemMetrics,
+    /// Whether self-healing is currently active on the server.
+    pub self_healing_enabled: bool,
 }
 
 impl Default for AgentState {
     fn default() -> Self {
         Self {
-            status:       AgentStatus::Unknown,
-            connection:   ConnectionStatus::Unknown,
-            version:      "Unknown".to_string(),
-            tray_version: "Unknown".to_string(),
-            groups:       Vec::new(),
-            metrics:      SystemMetrics::default(),
+            status:               AgentStatus::Unknown,
+            connection:           ConnectionStatus::Unknown,
+            version:              "Unknown".to_string(),
+            tray_version:         "Unknown".to_string(),
+            groups:               Vec::new(),
+            metrics:              SystemMetrics::default(),
+            self_healing_enabled: true,
         }
+    }
+}
+
+/// A single line from the ossec.log file, structured for streaming to clients.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogLine {
+    /// The raw, unmodified text of the log line.
+    pub raw: String,
+    /// Inferred severity level based on line content.
+    pub level: LogLevel,
+}
+
+/// Severity levels inferred from ossec.log content.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum LogLevel {
+    Error,
+    Warning,
+    Info,
+    Debug,
+    Unknown,
+}
+
+impl LogLine {
+    /// Create a new LogLine by analysing the raw text for known keywords.
+    pub fn from_raw(raw: String) -> Self {
+        let upper = raw.to_uppercase();
+        let level = if upper.contains("ERROR") || upper.contains("CRITICAL") || upper.contains("FATAL") {
+            LogLevel::Error
+        } else if upper.contains("WARNING") || upper.contains("WARN") {
+            LogLevel::Warning
+        } else if upper.contains("DEBUG") {
+            LogLevel::Debug
+        } else if upper.contains("INFO") {
+            LogLevel::Info
+        } else {
+            LogLevel::Unknown
+        };
+        Self { raw, level }
     }
 }

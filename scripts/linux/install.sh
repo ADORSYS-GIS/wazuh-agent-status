@@ -14,7 +14,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.4.2.rc1"}
+APP_VERSION=${APP_VERSION:-"0.4.3"}
 
 # Assign app version based on profile
 case "$PROFILE" in

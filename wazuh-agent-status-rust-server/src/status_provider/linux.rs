@@ -105,6 +105,14 @@ impl StatusProvider for LinuxStatusProvider {
             let version = v.to_string();
             tracing::debug!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
             return Ok(version);
+        if let Ok(content) = fs::read_to_string(&self.paths.version_json) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
+                    let version = v.to_string();
+                    tracing::debug!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
+                    return Ok(version);
+                }
+            }
         }
 
         // 2. Fallback to wazuh-control info

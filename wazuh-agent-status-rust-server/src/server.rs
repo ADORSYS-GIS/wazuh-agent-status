@@ -290,6 +290,7 @@ async fn start_update_stream_async(manager: &AgentManager, is_prerelease: bool) 
     
     // Parse the port from the listen address
     let port = listen_addr.split(':').next_back().unwrap_or("50505");
+    let port = listen_addr.split(':').last().unwrap_or("50505");
     let addr = format!("127.0.0.1:{}", port);
     
     tokio::spawn(async move {

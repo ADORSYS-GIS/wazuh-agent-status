@@ -3,16 +3,15 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.2.rc1" }
+$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.3" }
 
-$INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
+# Default Variables
+$WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
+$SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
+$CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
+$WAS_VERSION = $APP_VERSION
 
-if ($INSTALL_PROFILE -eq "admin") {
-    $WAS_VERSION = $APP_VERSION
-} else {
-    $WAS_VERSION = "$APP_VERSION-user"
-}
-$WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "refs/tags/v$WAS_VERSION" }
+$WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "main" }
 $WAZUH_AGENT_STATUS_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 $TMP_DIR = Join-Path $env:TEMP "wazuh-agent-status-install"
@@ -23,7 +22,7 @@ if (-not (Test-Path $TMP_DIR)) {
 try {
     $ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
     $UtilsURL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/shared/utils.ps1"
-    
+
     $global:ChecksumsPath = Join-Path $TMP_DIR "checksums.sha256"
     $UtilsPath = Join-Path $TMP_DIR "utils.ps1"
 
@@ -68,6 +67,7 @@ $ARCH = "amd64"
 $BIN_DIR = "C:\Program Files\$SERVER_NAME"
 $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
+$MIGRATION_MARKER = "C:\ProgramData\$SERVER_NAME\.migrated_from_go"
 
 $BAT_UPDATE_SCRIPT_URL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/windows/adorsys-update.bat"
 $BAT_UPDATE_SCRIPT_PATH = "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.bat"
@@ -79,7 +79,7 @@ $PS_UPDATE_SCRIPT_PATH = "${env:ProgramFiles(x86)}\ossec-agent\active-response\b
 Ensure-Directory -Path $BIN_DIR
 
 # Download binaries
-$BaseURL = "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"
+$BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/latest/download" }
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 $BinChecksumsURL = "$BaseURL/checksums.sha256"
@@ -183,39 +183,48 @@ function Create-StartupShortcut {
     InfoMessage "Startup shortcut created: $ShortcutPath."
 }
 
-PrintStep 1 "Stopping existing agent-status service and client processes..."
-try {
-    # Stop the service if it exists
-    $Service = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
-    if ($Service) {
-        if ($Service.Status -eq 'Running') {
-            InfoMessage "Stopping $SERVER_NAME service..."
-            Stop-Service -Name $SERVER_NAME -Force -ErrorAction Stop
-            InfoMessage "Service $SERVER_NAME stopped successfully."
+# Download binaries
+$BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/latest/download" }
+$ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
+$ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
+
+PrintStep 1 "Checking migration status..."
+if (Test-Path -LiteralPath $MIGRATION_MARKER) {
+    InfoMessage "System already migrated from Go. Skipping legacy cleanup."
+} else {
+    PrintStep 1 "Stopping existing legacy Go processes..."
+    try {
+        # Stop the service if it exists
+        $Service = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
+        if ($Service) {
+            if ($Service.Status -eq 'Running') {
+                InfoMessage "Stopping $SERVER_NAME service..."
+                Stop-Service -Name $SERVER_NAME -Force -ErrorAction Stop
+                InfoMessage "Service $SERVER_NAME stopped successfully."
+            } else {
+                InfoMessage "Service $SERVER_NAME is not running."
+            }
         } else {
-            InfoMessage "Service $SERVER_NAME is not running."
+            InfoMessage "Service $SERVER_NAME does not exist."
         }
-    } else {
-        InfoMessage "Service $SERVER_NAME does not exist."
-    }
 
-    # Stop any running client processes
-    $ClientProcesses = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
-    if ($ClientProcesses) {
-        InfoMessage "Stopping $CLIENT_NAME processes..."
-        $ClientProcesses | ForEach-Object {
-            Stop-Process -Id $_.Id -Force
+        # Stop any running client processes
+        $ClientProcesses = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
+        if ($ClientProcesses) {
+            InfoMessage "Stopping $CLIENT_NAME processes..."
+            $ClientProcesses | ForEach-Object {
+                Stop-Process -Id $_.Id -Force
+            }
+            InfoMessage "All $CLIENT_NAME processes stopped successfully."
+        } else {
+            InfoMessage "No running $CLIENT_NAME processes found."
         }
-        InfoMessage "All $CLIENT_NAME processes stopped successfully."
-    } else {
-        InfoMessage "No running $CLIENT_NAME processes found."
-    }
 
-    # Wait a moment for processes to fully terminate
-    Start-Sleep -Seconds 2
-} catch {
-    WarnMessage "Error while stopping existing services/processes: $($_.Exception.Message)"
-    WarnMessage "Continuing with installation..."
+        Start-Sleep -Seconds 2
+    } catch {
+        WarnMessage "Error while stopping existing services/processes: $($_.Exception.Message)"
+        WarnMessage "Continuing with installation..."
+    }
 }
 
 PrintStep 2 "Downloading binaries..."
@@ -389,10 +398,15 @@ finally {
     }
 } else {
     InfoMessage "adorsys-update.bat is not running. Downloading directly..."
-    Download-And-VerifyFile -Url $BAT_UPDATE_SCRIPT_URL -Destination $BAT_UPDATE_SCRIPT_PATH -FileName "adorsys-update.bat" -ChecksumPattern "scripts/windows/adorsys-update.bat" 
+    Download-And-VerifyFile -Url $BAT_UPDATE_SCRIPT_URL -Destination $BAT_UPDATE_SCRIPT_PATH -FileName "adorsys-update.bat" -ChecksumPattern "scripts/windows/adorsys-update.bat"
     InfoMessage "adorsys-update.ps1 is not running. Downloading directly..."
     Download-And-VerifyFile -Url $PS_UPDATE_SCRIPT_URL -Destination $PS_UPDATE_SCRIPT_PATH -FileName "adorsys-update.ps1" -ChecksumPattern "scripts/windows/adorsys-update.ps1"
 }
+
+# Create migration marker
+$MarkerDir = Split-Path -Path $MIGRATION_MARKER -Parent
+if (-not (Test-Path $MarkerDir)) { New-Item -Path $MarkerDir -ItemType Directory -Force | Out-Null }
+if (-not (Test-Path $MIGRATION_MARKER)) { New-Item -Path $MIGRATION_MARKER -ItemType File -Force | Out-Null }
 
 PrintStep 6 "Validating installation and configuration..."
 Validate-Installation

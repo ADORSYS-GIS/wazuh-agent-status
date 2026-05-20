@@ -38,7 +38,7 @@ if (-not $IsAdmin) {
 }
 
 # Configuration
-$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.2.rc1" }
+$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.3" }
 
 if ($INSTALL_PROFILE -eq "admin") {
     $WAS_VERSION = $APP_VERSION
@@ -56,7 +56,7 @@ if (-not (Test-Path $TMP_DIR)) {
 try {
     $ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
     $UtilsURL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/shared/utils.ps1"
-    
+
     $global:ChecksumsPath = Join-Path $TMP_DIR "checksums.sha256"
     $UtilsPath = Join-Path $TMP_DIR "utils.ps1"
 
