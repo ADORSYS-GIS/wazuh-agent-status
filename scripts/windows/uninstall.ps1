@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.2.rc1" }
+$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.3" }
 
 $INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
 
@@ -23,7 +23,7 @@ if (-not (Test-Path $TMP_DIR)) {
 try {
     $ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
     $UtilsURL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/shared/utils.ps1"
-    
+
     $global:ChecksumsPath = Join-Path $TMP_DIR "checksums.sha256"
     $UtilsPath = Join-Path $TMP_DIR "utils.ps1"
 
@@ -73,7 +73,7 @@ function Remove-File {
     try {
         if (Test-Path -Path $FilePath) {
             Remove-Item -Path $FilePath -Force -ErrorAction Stop
-            InfoMessage "File '$FilePath' has been successfully removed." 
+            InfoMessage "File '$FilePath' has been successfully removed."
         } else {
             WarnMessage "File '$FilePath' does not exist."
         }
@@ -94,7 +94,7 @@ function Remove-Service {
     if ($service) {
         # Stop the service if it's running
         if ($service.Status -eq 'Running') {
-            
+
             Stop-Service -Name $ServiceName -Force
         }
 
@@ -129,7 +129,7 @@ function Remove-StartupShortcut {
 
     InfoMessage "Removing Shortcut '$ShortcutName' from Startup..."
     $ShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
-    
+
     # Check if the shortcut exists and remove it
     if (Test-Path $ShortcutPath) {
         Remove-Item -Path $ShortcutPath -Force
