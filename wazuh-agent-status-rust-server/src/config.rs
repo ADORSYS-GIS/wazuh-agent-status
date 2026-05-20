@@ -42,6 +42,8 @@ pub struct Config {
     pub version_cache_ttl: Duration,
     /// Maximum concurrent client connections allowed.
     pub max_connections: usize,
+    /// Whether to automatically restart the Wazuh agent if it is inactive.
+    pub self_healing: bool,
 }
 
 impl Default for Config {
@@ -52,6 +54,7 @@ impl Default for Config {
             version_url:       DEFAULT_VERSION_URL.to_string(),
             version_cache_ttl: Duration::from_secs(DEFAULT_VERSION_CACHE_TTL_SECS),
             max_connections:   3,
+            self_healing:      true,
         }
     }
 }
@@ -109,6 +112,18 @@ impl Config {
             }
         }
 
+        if let Ok(raw) = std::env::var("WAZUH_STATUS_SELF_HEALING") {
+            match raw.to_lowercase().as_str() {
+                "true" | "1" | "yes" => cfg.self_healing = true,
+                "false" | "0" | "no" => cfg.self_healing = false,
+                _ => warn!(
+                    env_var = "WAZUH_STATUS_SELF_HEALING",
+                    value = %raw,
+                    "Invalid value; using default"
+                ),
+            }
+        }
+
         cfg
     }
 }
@@ -131,11 +146,19 @@ pub struct AgentPaths {
     pub merged_mg: PathBuf,
     /// Daemon PID file (UNIX only; empty on Windows).
     pub pid_file: PathBuf,
+    /// Path to the update wrapper script.
+    pub update_script: PathBuf,
+    /// Path to the wazuh-control utility.
+    pub wazuh_control: PathBuf,
+    /// Path to the Wazuh agent's ossec.log file.
+    pub ossec_log: PathBuf,
 }
 
 impl AgentPaths {
     /// Return the native paths for the OS this binary targets.
     pub fn native() -> Self {
+        let ossec_log_override = std::env::var("WAZUH_STATUS_OSSEC_LOG").ok().map(PathBuf::from);
+
         #[cfg(target_os = "linux")]
         {
             let base = PathBuf::from("/var/ossec");
@@ -145,6 +168,9 @@ impl AgentPaths {
                 version_json:  base.join("VERSION.json"),
                 merged_mg:     base.join("etc/shared/merged.mg"),
                 pid_file:      base.join("var/run/wazuh-agentd.pid"),
+                update_script: base.join("active-response/bin/adorsys-update.sh"),
+                wazuh_control: base.join("bin/wazuh-control"),
+                ossec_log:     ossec_log_override.unwrap_or_else(|| base.join("logs/ossec.log")),
             }
         }
 
@@ -157,6 +183,9 @@ impl AgentPaths {
                 version_json:  base.join("VERSION.json"),
                 merged_mg:     base.join("etc/shared/merged.mg"),
                 pid_file:      base.join("var/run/wazuh-agentd.pid"),
+                update_script: base.join("active-response/bin/adorsys-update.sh"),
+                wazuh_control: base.join("bin/wazuh-control"),
+                ossec_log:     ossec_log_override.unwrap_or_else(|| base.join("logs/ossec.log")),
             }
         }
 
@@ -169,6 +198,9 @@ impl AgentPaths {
                 version_json:  base.join("VERSION.json"),
                 merged_mg:     base.join(r"shared\merged.mg"),
                 pid_file:      PathBuf::new(), // not applicable on Windows
+                update_script: base.join("adorsys-update.bat"),
+                wazuh_control: base.join("wazuh-control.exe"), // Placeholder for Windows
+                ossec_log:     ossec_log_override.unwrap_or_else(|| base.join(r"ossec.log")),
             }
         }
 

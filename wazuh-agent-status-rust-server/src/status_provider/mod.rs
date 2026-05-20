@@ -13,8 +13,18 @@ pub const UNIX_AGENT_PROCESSES: &[&str] = &[
 ];
 
 pub const WINDOWS_AGENT_PROCESSES: &[&str] = &[
-    "Wazuh.exe",
+    // Wazuh 4.x on Windows (original naming)
+    "ossec-agent.exe",
+    "ossec-agentd.exe",
+    "ossec-logcollector.exe",
+    "ossec-syscheckd.exe",
+    "ossec-execd.exe",
+    // Wazuh 5.x+ on Windows (renamed binaries)
+    "wazuh-agent.exe",
     "wazuh-agentd.exe",
+    "wazuh-logcollector.exe",
+    "wazuh-syscheckd.exe",
+    "wazuh-execd.exe",
 ];
 
 /// Abstraction over platform-specific Wazuh agent status retrieval.
@@ -39,12 +49,13 @@ pub trait StatusProvider: Send + Sync {
     /// on-demand operation handled by [`crate::manager::AgentManager`].
     fn get_partial_state(&self) -> Result<AgentState> {
         Ok(AgentState {
-            status:       self.get_agent_status()?,
-            connection:   self.get_connection_status()?,
-            version:      self.get_agent_version()?,
-            tray_version: self.get_tray_version()?,
-            groups:       self.get_agent_groups()?,
-            metrics:      self.get_system_metrics()?,
+            status:               self.get_agent_status()?,
+            connection:           self.get_connection_status()?,
+            version:              self.get_agent_version()?,
+            tray_version:         self.get_tray_version()?,
+            groups:               self.get_agent_groups()?,
+            metrics:              self.get_system_metrics()?,
+            self_healing_enabled: true, // Initial placeholder; overridden by Manager config
         })
     }
 }
