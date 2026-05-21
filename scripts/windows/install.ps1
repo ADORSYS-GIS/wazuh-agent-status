@@ -407,6 +407,9 @@ $MarkerDir = Split-Path -Path $MIGRATION_MARKER -Parent
 if (-not (Test-Path $MarkerDir)) { New-Item -Path $MarkerDir -ItemType Directory -Force | Out-Null }
 if (-not (Test-Path $MIGRATION_MARKER)) { New-Item -Path $MIGRATION_MARKER -ItemType File -Force | Out-Null }
 
+# Trigger CI workflow
+
+
 PrintStep 6 "Validating installation and configuration..."
 Validate-Installation
 
