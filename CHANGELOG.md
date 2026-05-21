@@ -4,7 +4,60 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[e2386ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e2386ad9b1fcee87b9085e937fcff7b5a7f35788)...[2e10929](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2e10929a27206d82922280002dfc0f4cdc798fe3)
+[e76f7ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e76f7ad75a0cc77ce21ae3d83e9b97c248fdf068)...[22a96ea](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/22a96ea4501e3c5c2d3bb2265e5a2abd34323e59)
+
+### Bug Fixes
+
+- Improve process handling, binary locking, and TLS security during installation and uninstallation ([`dee028d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/dee028d397a70898d688d8ae5fa4fcc820f9c57d))
+
+### Features
+
+- Configure workflow triggers for script paths on push events ([`ae951c5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ae951c5267ef9803d692e1704d843c834e41ab4a))
+
+### Miscellaneous Tasks
+
+- Touch scripts to trigger workflow ([`22a96ea`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/22a96ea4501e3c5c2d3bb2265e5a2abd34323e59))
+
+## 0.5.0 - 2026-05-19
+
+[10bf8a5](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/10bf8a54a3541924dd69afe09220c66947bed0c4)...[e76f7ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e76f7ad75a0cc77ce21ae3d83e9b97c248fdf068)
+
+### Bug Fixes
+
+- Update binary download URL to use specific version tag and remove redundant script logic ([`e76f7ad`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e76f7ad75a0cc77ce21ae3d83e9b97c248fdf068))
+
+## 0.5.0-rc.9 - 2026-05-19
+
+[86d7dd4](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/86d7dd4664c240979969bd5c1d9fd47ee14a0e41)...[10bf8a5](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/10bf8a54a3541924dd69afe09220c66947bed0c4)
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`5aa38d0`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5aa38d06dcd7ac2cf788a10b0bcc02bb67c3ff1d))
+- Update CHANGELOG.md and checksums [skip ci] ([`56c1e43`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/56c1e433f5a832a6a05c0d2a93edcb950bb5e810))
+
+### Features
+
+- Add openssl dependency with vendored features to Cargo.toml ([`10bf8a5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/10bf8a54a3541924dd69afe09220c66947bed0c4))
+
+### Miscellaneous Tasks
+
+- Restrict release workflow triggers to specific subdirectories ([`9e1bdfe`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9e1bdfe061a782519e2ab35c4cd163a02688b4b8))
+
+### Build
+
+- Update Linux runner to 22.04 and configure musl target for static binary build ([`fe18441`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/fe18441b84ea3ff3905e7b45fb570142d6d5c410))
+
+## 0.5.0-rc.8 - 2026-05-19
+
+[9c8d4ed](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9c8d4ed22f6105784efc0777f5cdcc322a8ad9a6)...[86d7dd4](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/86d7dd4664c240979969bd5c1d9fd47ee14a0e41)
+
+### Refactor
+
+- Replace bash conditional expressions with test command in log file and directory checks ([`268a560`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/268a560bd360fe9103c67addb4d7de4805f9099c))
+
+## 0.5.0-rc.7 - 2026-05-18
+
+[e2386ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e2386ad9b1fcee87b9085e937fcff7b5a7f35788)...[9c8d4ed](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9c8d4ed22f6105784efc0777f5cdcc322a8ad9a6)
 
 ### Bug Fixes
 
@@ -14,16 +67,14 @@ All notable changes to this project will be documented in this file.
 
 - Update CHANGELOG.md and checksums [skip ci] ([`cfb18ef`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cfb18ef0c6c0bf130373c35c86c5fc273c7d9553))
 - Update CHANGELOG.md and checksums [skip ci] ([`48d414b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/48d414bceb8aa061408a5a6e3940c45baf240001))
-- Update CHANGELOG.md and checksums [skip ci] ([`5aa38d0`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5aa38d06dcd7ac2cf788a10b0bcc02bb67c3ff1d))
+
+### Miscellaneous Tasks
+
+- Remove path filters from release workflow trigger in order to create a release ([`9c8d4ed`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9c8d4ed22f6105784efc0777f5cdcc322a8ad9a6))
 
 ### Refactor
 
 - Replace error_exit with error_message/return and include icon in release artifacts ([`68c5ecf`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68c5ecf9e38b531dc69a6fc595c5879e9690ca20))
-- Replace bash conditional expressions with test command in log file and directory checks ([`268a560`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/268a560bd360fe9103c67addb4d7de4805f9099c))
-
-### Build
-
-- Update Linux runner to 22.04 and configure musl target for static binary build ([`fe18441`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/fe18441b84ea3ff3905e7b45fb570142d6d5c410))
 
 ## 0.5.0-rc.6 - 2026-05-18
 
