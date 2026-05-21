@@ -1,6 +1,14 @@
 name: Lint and test scripts
 
 on:
+  push:
+    branches:
+      - main
+      - develop
+      - user-main
+      - 'feat/**'
+    paths:
+      - 'scripts/**'
   pull_request:
     branches:
       - main
