@@ -4,7 +4,48 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[e2386ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e2386ad9b1fcee87b9085e937fcff7b5a7f35788)...[9e1bdfe](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9e1bdfe061a782519e2ab35c4cd163a02688b4b8)
+[e76f7ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e76f7ad75a0cc77ce21ae3d83e9b97c248fdf068)...[6e9a763](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6e9a7636a56b594a50944911ef0dcbd69ce28f4c)
+
+### Bug Fixes
+
+- Improve process handling, binary locking, and TLS security during installation and uninstallation ([`dee028d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/dee028d397a70898d688d8ae5fa4fcc820f9c57d))
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`3739fb3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3739fb3581052c56d711c421dc7b0321b4271fbf))
+
+### Features
+
+- Configure workflow triggers for script paths on push events ([`ae951c5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ae951c5267ef9803d692e1704d843c834e41ab4a))
+- Add vendored OpenSSL to server, improve file lock handling during updates, and refine installation and uninstallation process logic. ([`6e9a763`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6e9a7636a56b594a50944911ef0dcbd69ce28f4c))
+
+### Miscellaneous Tasks
+
+- Touch scripts to trigger workflow ([`22a96ea`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/22a96ea4501e3c5c2d3bb2265e5a2abd34323e59))
+
+## 0.5.0 - 2026-05-19
+
+[10bf8a5](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/10bf8a54a3541924dd69afe09220c66947bed0c4)...[e76f7ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e76f7ad75a0cc77ce21ae3d83e9b97c248fdf068)
+
+### Bug Fixes
+
+- Update binary download URL to use specific version tag and remove redundant script logic ([`e76f7ad`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e76f7ad75a0cc77ce21ae3d83e9b97c248fdf068))
+
+## 0.5.0-rc.9 - 2026-05-19
+
+[86d7dd4](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/86d7dd4664c240979969bd5c1d9fd47ee14a0e41)...[10bf8a5](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/10bf8a54a3541924dd69afe09220c66947bed0c4)
+
+### Features
+
+- Add openssl dependency with vendored features to Cargo.toml ([`10bf8a5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/10bf8a54a3541924dd69afe09220c66947bed0c4))
+
+## 0.5.0-rc.8 - 2026-05-19
+
+[9c8d4ed](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9c8d4ed22f6105784efc0777f5cdcc322a8ad9a6)...[86d7dd4](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/86d7dd4664c240979969bd5c1d9fd47ee14a0e41)
+
+## 0.5.0-rc.7 - 2026-05-18
+
+[e2386ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e2386ad9b1fcee87b9085e937fcff7b5a7f35788)...[9c8d4ed](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9c8d4ed22f6105784efc0777f5cdcc322a8ad9a6)
 
 ### Bug Fixes
 
@@ -16,10 +57,12 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`48d414b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/48d414bceb8aa061408a5a6e3940c45baf240001))
 - Update CHANGELOG.md and checksums [skip ci] ([`5aa38d0`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5aa38d06dcd7ac2cf788a10b0bcc02bb67c3ff1d))
 - Update CHANGELOG.md and checksums [skip ci] ([`56c1e43`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/56c1e433f5a832a6a05c0d2a93edcb950bb5e810))
+- Update CHANGELOG.md and checksums [skip ci] ([`d88fc43`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d88fc432f073290172367f071a90915a8da1eebf))
 
 ### Miscellaneous Tasks
 
 - Restrict release workflow triggers to specific subdirectories ([`9e1bdfe`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9e1bdfe061a782519e2ab35c4cd163a02688b4b8))
+- Remove path filters from release workflow trigger in order to create a release ([`9c8d4ed`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9c8d4ed22f6105784efc0777f5cdcc322a8ad9a6))
 
 ### Refactor
 
