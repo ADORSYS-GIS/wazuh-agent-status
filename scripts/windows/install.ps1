@@ -77,7 +77,7 @@ $PS_UPDATE_SCRIPT_PATH = "${env:ProgramFiles(x86)}\ossec-agent\active-response\b
 Ensure-Directory -Path $BIN_DIR
 
 # Download binaries
-$BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/latest/download" }
+$BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$APP_VERSION" }
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 $BinChecksumsURL = "$BaseURL/checksums.sha256"
@@ -181,48 +181,46 @@ function Create-StartupShortcut {
     InfoMessage "Startup shortcut created: $ShortcutPath."
 }
 
-# Download binaries
-$BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/latest/download" }
-$ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
-$ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 
-PrintStep 1 "Checking migration status..."
+PrintStep 1 "Checking migration status and stopping existing processes..."
 if (Test-Path -LiteralPath $MIGRATION_MARKER) {
-    InfoMessage "System already migrated from Go. Skipping legacy cleanup."
+    InfoMessage "System already migrated from Go."
 } else {
-    PrintStep 1 "Stopping existing legacy Go processes..."
-    try {
-        # Stop the service if it exists
-        $Service = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
-        if ($Service) {
-            if ($Service.Status -eq 'Running') {
-                InfoMessage "Stopping $SERVER_NAME service..."
-                Stop-Service -Name $SERVER_NAME -Force -ErrorAction Stop
-                InfoMessage "Service $SERVER_NAME stopped successfully."
-            } else {
-                InfoMessage "Service $SERVER_NAME is not running."
-            }
-        } else {
-            InfoMessage "Service $SERVER_NAME does not exist."
-        }
+    InfoMessage "System not migrated from Go yet."
+}
 
-        # Stop any running client processes
-        $ClientProcesses = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
-        if ($ClientProcesses) {
-            InfoMessage "Stopping $CLIENT_NAME processes..."
-            $ClientProcesses | ForEach-Object {
-                Stop-Process -Id $_.Id -Force
-            }
-            InfoMessage "All $CLIENT_NAME processes stopped successfully."
+InfoMessage "Ensuring all running instances are stopped before downloading new binaries..."
+try {
+    # Stop the service if it exists
+    $Service = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
+    if ($Service) {
+        if ($Service.Status -eq 'Running') {
+            InfoMessage "Stopping $SERVER_NAME service..."
+            Stop-Service -Name $SERVER_NAME -Force -ErrorAction Stop
+            InfoMessage "Service $SERVER_NAME stopped successfully."
         } else {
-            InfoMessage "No running $CLIENT_NAME processes found."
+            InfoMessage "Service $SERVER_NAME is not running."
         }
-
-        Start-Sleep -Seconds 2
-    } catch {
-        WarnMessage "Error while stopping existing services/processes: $($_.Exception.Message)"
-        WarnMessage "Continuing with installation..."
+    } else {
+        InfoMessage "Service $SERVER_NAME does not exist."
     }
+
+    # Stop any running client processes
+    $ClientProcesses = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
+    if ($ClientProcesses) {
+        InfoMessage "Stopping $CLIENT_NAME processes..."
+        $ClientProcesses | ForEach-Object {
+            Stop-Process -Id $_.Id -Force
+        }
+        InfoMessage "All $CLIENT_NAME processes stopped successfully."
+    } else {
+        InfoMessage "No running $CLIENT_NAME processes found."
+    }
+
+    Start-Sleep -Seconds 2
+} catch {
+    WarnMessage "Error while stopping existing services/processes: $($_.Exception.Message)"
+    WarnMessage "Continuing with installation..."
 }
 
 PrintStep 2 "Downloading binaries..."

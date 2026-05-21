@@ -107,15 +107,18 @@ function Remove-StartupShortcut {
 
 
     # Check if the process is running
-    $process = Get-Process -Name $ShortcutName -ErrorAction SilentlyContinue
+    # Check if the process is running
+    $process = Get-Process -Name "wazuh-agent-status*" -ErrorAction SilentlyContinue
 
     if ($process) {
-        InfoMessage "Process '$ShortcutName' is running. Stopping it..."
-        Stop-Process -Name $ShortcutName -Force
-        InfoMessage "Process '$ShortcutName' has been stopped."
+        InfoMessage "Processes matching 'wazuh-agent-status*' are running. Stopping them..."
+        $process | ForEach-Object {
+            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+        }
+        InfoMessage "Processes have been stopped."
     }
     else {
-        WarnMessage "Process '$ShortcutName' is not running. Skipping..."
+        WarnMessage "No processes matching 'wazuh-agent-status*' are running. Skipping..."
     }
     # Define full path of the shortcut
 
@@ -193,9 +196,20 @@ function Validate-Uninstallation {
 function Remove-Binaries {
     Remove-File $SERVER_EXE
     Remove-File $CLIENT_EXE
+    Remove-File "$SERVER_EXE.old"
+    Remove-File "$CLIENT_EXE.old"
     Remove-File $BAT_UPDATE_SCRIPT_PATH
     Remove-File $PS_UPDATE_SCRIPT_PATH
-    Remove-File $BIN_DIR
+    
+    if (Test-Path -Path $BIN_DIR) {
+        InfoMessage "Removing bin directory '$BIN_DIR'..."
+        try {
+            Remove-Item -Path $BIN_DIR -Recurse -Force -ErrorAction Stop
+            InfoMessage "Bin directory '$BIN_DIR' removed successfully."
+        } catch {
+            ErrorMessage "Failed to remove bin directory '$BIN_DIR': $_"
+        }
+    }
 }
 
 # Function to uninstall application and clean up
