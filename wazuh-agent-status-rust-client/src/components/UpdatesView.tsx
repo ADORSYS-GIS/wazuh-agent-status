@@ -47,8 +47,6 @@ export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewPro
     if (updateStatus === "error") return "var(--warning)";
     return "var(--accent)";
   };
-  const statusColor = getUpdateStatusColor();
-
   return (
     <div className="view-container">
       <div className="subtitle">Security & Versions</div>
@@ -58,7 +56,7 @@ export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewPro
         <div className="card update-overlay" style={{ background: "var(--bg)", border: "1px solid var(--border)", marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <span style={{ fontWeight: 600 }}>Update in Progress</span>
-            <span style={{ color: statusColor }}>
+            <span style={{ color: getUpdateStatusColor() }}>
               {updateStatus.toUpperCase()}
             </span>
           </div>
