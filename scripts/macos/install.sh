@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Set shell options
-if [ -n "$BASH_VERSION" ]; then
+if [[ -n "$BASH_VERSION" ]]; then
     set -euo pipefail
 else
     set -eu
@@ -176,7 +176,7 @@ create_launchd_plist_file() {
 "
 
     local label="com.adorsys.$name"
-    if [ "$name" = "$SERVER_NAME" ]; then
+    if [[ "$name" == "$SERVER_NAME" ]]; then
         local target="system/$label"
         if maybe_sudo launchctl print "$target" >/dev/null 2>&1; then
             info_message "Service $label is already loaded, kickstarting..."

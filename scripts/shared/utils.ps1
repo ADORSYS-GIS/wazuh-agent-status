@@ -80,22 +80,8 @@ function Test-Checksum {
     return $true
 }
 
-function Download-File {
-    param(
-        [string]$Url,
-        [string]$Destination,
-        [string]$Description = "file",
-        [int]$MaxRetries = 3
-    )
-
-    InfoMessage "Downloading $Description..."
-
-    $destDir = Split-Path -Parent $Destination
-    if (-not (Test-Path $destDir)) {
-        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
-    }
-
-    # Handle existing files, resolving file locks if the process is still running
+function Prepare-DestinationFile {
+    param([string]$Destination)
     if (Test-Path -LiteralPath $Destination) {
         try {
             Remove-Item -LiteralPath $Destination -Force -ErrorAction Stop
@@ -113,6 +99,25 @@ function Download-File {
             }
         }
     }
+}
+
+function Download-File {
+    param(
+        [string]$Url,
+        [string]$Destination,
+        [string]$Description = "file",
+        [int]$MaxRetries = 3
+    )
+
+    InfoMessage "Downloading $Description..."
+
+    $destDir = Split-Path -Parent $Destination
+    if (-not (Test-Path $destDir)) {
+        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+    }
+
+    # Handle existing files, resolving file locks if the process is still running
+    Prepare-DestinationFile -Destination $Destination
 
     $attempt = 0
     while ($attempt -lt $MaxRetries) {

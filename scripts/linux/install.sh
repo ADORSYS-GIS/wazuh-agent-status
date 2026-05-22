@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Set shell options
-if [ -n "$BASH_VERSION" ]; then
+if [[ -n "$BASH_VERSION" ]]; then
     set -euo pipefail
 else
     set -eu
