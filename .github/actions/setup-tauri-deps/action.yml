@@ -1,0 +1,19 @@
+name: 'Setup Tauri Dependencies'
+description: 'Installs Ubuntu system dependencies required to build and test Tauri applications'
+runs:
+  using: "composite"
+  steps:
+    - name: Install Tauri system dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libwebkit2gtk-4.1-dev \
+          libjavascriptcoregtk-4.1-dev \
+          libgtk-3-dev \
+          libayatana-appindicator3-dev \
+          librsvg2-dev \
+          patchelf \
+          pkg-config \
+          libssl-dev \
+          libxdo-dev

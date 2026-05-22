@@ -1,0 +1,9 @@
+name: 'Setup Rust Env'
+description: 'Sets up the Rust toolchain with formatting and linting components, utilizing built-in caching'
+runs:
+  using: "composite"
+  steps:
+    - name: Install stable Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
+      with:
+        components: rustfmt, clippy
