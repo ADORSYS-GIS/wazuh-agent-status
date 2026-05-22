@@ -3,55 +3,19 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.3" }
-
-$INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
-
-if ($INSTALL_PROFILE -eq "admin") {
-    $WAS_VERSION = $APP_VERSION
-} else {
-    $WAS_VERSION = "$APP_VERSION-user"
-}
-$WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "refs/tags/v$WAS_VERSION" }
-$WAZUH_AGENT_STATUS_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
-
-$TMP_DIR = Join-Path $env:TEMP "wazuh-agent-status-install"
-if (-not (Test-Path $TMP_DIR)) {
-    New-Item -Path $TMP_DIR -ItemType Directory | Out-Null
-}
+$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.4.3" }
+$WAS_VERSION = if ($env:INSTALL_PROFILE -eq "admin") { $APP_VERSION } else { "$APP_VERSION-user" }
+$REPO_REF    = if ($env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "refs/tags/v$WAS_VERSION" }
+$REPO_URL    = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$REPO_REF"
+$TMP_DIR     = Join-Path $env:TEMP "wazuh-agent-status-install"; if (!(Test-Path $TMP_DIR)) { mkdir $TMP_DIR | Out-Null }
 
 try {
-    $ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
-    $UtilsURL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/shared/utils.ps1"
-
-    $global:ChecksumsPath = Join-Path $TMP_DIR "checksums.sha256"
-    $UtilsPath = Join-Path $TMP_DIR "utils.ps1"
-
-    Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
-    Invoke-WebRequest -Uri $UtilsURL -OutFile $UtilsPath -ErrorAction Stop
-
-    # Verification function (bootstrap)
-    function Get-FileChecksum-Bootstrap {
-        param([string]$FilePath)
-        return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
-    }
-
-    $ExpectedHash = (Select-String -Path $ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0]
-    $ActualHash = Get-FileChecksum-Bootstrap -FilePath $UtilsPath
-
-    if ([string]::IsNullOrWhiteSpace($ExpectedHash) -or ($ActualHash -ne $ExpectedHash.ToLower())) {
-        Write-Error "Checksum verification failed for utils.ps1"
-        Write-Error "Expected: $ExpectedHash"
-        Write-Error "Got:      $ActualHash"
-        exit 1
-    }
-
+    $global:ChecksumsPath = Join-Path $TMP_DIR "checksums.sha256"; $UtilsPath = Join-Path $TMP_DIR "utils.ps1"
+    Invoke-WebRequest -Uri "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath -ErrorAction Stop
+    Invoke-WebRequest -Uri "$REPO_URL/scripts/shared/utils.ps1" -OutFile $UtilsPath -ErrorAction Stop
+    if ((Get-FileHash $UtilsPath -Algorithm SHA256).Hash.ToLower() -ne (Select-String $global:ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0].Trim().ToLower()) { throw "Checksum mismatch" }
     . $UtilsPath
-}
-catch {
-    Write-Error "Failed to initialize utilities: $($_.Exception.Message)"
-    exit 1
-}
+} catch { Write-Error "Initialization failed: $_"; exit 1 }
 
 EnsureAdmin
 
