@@ -200,7 +200,6 @@ function Remove-Binaries {
     Remove-File "$CLIENT_EXE.old"
     Remove-File $BAT_UPDATE_SCRIPT_PATH
     Remove-File $PS_UPDATE_SCRIPT_PATH
-    
     if (Test-Path -Path $BIN_DIR) {
         InfoMessage "Removing bin directory '$BIN_DIR'..."
         try {
