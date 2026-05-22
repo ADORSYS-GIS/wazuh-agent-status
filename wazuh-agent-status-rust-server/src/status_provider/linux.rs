@@ -26,6 +26,7 @@ impl LinuxStatusProvider {
         }
     }
 
+<<<<<<< HEAD
     /// Determine whether the `wazuh-agentd` process is alive by calling the
     /// official `wazuh-control status` script. This ensures parity with the
     /// local Wazuh management tools.
@@ -61,7 +62,21 @@ impl LinuxStatusProvider {
                 } else {
                     false
                 }
+=======
+    /// Determine whether the `wazuh-agentd` process is alive by checking the
+    /// process list via `sysinfo`. This avoids lock file race conditions
+    /// inherent in calling `wazuh-control status`.
+    fn is_agent_running(&self) -> bool {
+        if let Ok(mut sys) = self.sys.lock() {
+            sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+            let is_running = sys.processes().values().any(|p| p.name().to_string_lossy() == "wazuh-agentd");
+            if !is_running {
+                tracing::info!("Process list check confirms wazuh-agentd is NOT running");
+>>>>>>> origin/user-main
             }
+            is_running
+        } else {
+            false
         }
     }
 }
@@ -103,6 +118,7 @@ impl StatusProvider for LinuxStatusProvider {
     }
 
     fn get_agent_version(&self) -> Result<String> {
+<<<<<<< HEAD
         // 1. Try VERSION.json first
         if let Ok(content) = fs::read_to_string(&self.paths.version_json)
             && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
@@ -139,13 +155,32 @@ impl StatusProvider for LinuxStatusProvider {
 
         tracing::warn!("Failed to detect Wazuh agent version via VERSION.json or wazuh-control");
         Ok("Unknown".to_string())
+=======
+        match fs::read_to_string(&self.paths.version_json) {
+            Ok(content) => {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
+                        let version = v.to_string();
+                        tracing::debug!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
+                        return Ok(version);
+                    }
+                }
+                tracing::warn!(path = %self.paths.version_json.display(), "Failed to parse version from VERSION.json");
+                Ok("Unknown".to_string())
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, path = %self.paths.version_json.display(), "Failed to read VERSION.json");
+                Ok("Unknown".to_string())
+            }
+        }
+>>>>>>> origin/user-main
     }
 
     fn get_tray_version(&self) -> Result<String> {
         match fs::read_to_string(&self.paths.version_file) {
             Ok(raw) => {
                 let v = raw.trim().to_string();
-                tracing::debug!(version = %v, path = %self.paths.version_file.display(), "Read tray app version");
+                tracing::debug!(version = %v, path = %self.paths.version_file.display(), "Read Wazuh Agent Setup Version");
                 Ok(v)
             }
             Err(e) => {

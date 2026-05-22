@@ -18,7 +18,7 @@ log() {
     local message="$*"
     local timestamp
     timestamp=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "${timestamp} ${level} ${message}"
+    printf "%s %b %s\n" "${timestamp}" "${level}" "${message}"
     return 0
 }
 
@@ -41,6 +41,7 @@ error_message() {
 error_exit() {
     error_message "$*"
     exit 1
+    return 1
 }
 
 success_message() {
@@ -51,7 +52,7 @@ success_message() {
 print_step_header() {
     local step_number="$1"
     local step_name="$2"
-    echo -e "\n${BOLD}===== STEP $step_number: $step_name =====${NORMAL}\n"
+    printf "\n%b===== STEP %s: %s =====%b\n\n" "${BOLD}" "${step_number}" "${step_name}" "${NORMAL}"
     return 0
 }
 
@@ -189,49 +190,70 @@ download_file() {
 }
 
 download_and_verify_file() {
-    local url="$1"
-    local dest="$2"
-    local pattern="$3"
+    local url="${1}"
+    local dest="${2}"
+    local pattern="${3}"
     local name="${4:-Unknown file}"
     # Expected checksum file format: "sha256  filename" or "sha256 filename"
     local checksum_url="${5:-${CHECKSUMS_URL:-}}"
     local checksum_file="${6:-${CHECKSUMS_FILE:-}}"
 
-    if ! download_file "$url" "$dest" "$name"; then
-        error_exit "Failed to download $name from $url"
+    if ! download_file "${url}" "${dest}" "${name}"; then
+        error_message "Failed to download ${name} from ${url}"
+        return 1
     fi
 
-    if [[ -n "$checksum_url" ]]; then
+    # Handle external checksum file download if a URL is provided
+    if [[ -n "${checksum_url}" ]]; then
         local temp_checksum_file
         temp_checksum_file=$(mktemp)
-        if ! download_file "$checksum_url" "$temp_checksum_file" "checksum file"; then
-            error_exit "Failed to download external checksum file from $checksum_url"
+        if ! download_file "${checksum_url}" "${temp_checksum_file}" "checksum file"; then
+            error_message "Failed to download external checksum file from ${checksum_url}"
+            return 1
         fi
-        checksum_file="$temp_checksum_file"
+        checksum_file="${temp_checksum_file}"
     fi
 
-    if [[ -f "$checksum_file" ]]; then
+    # Verify checksum if a checksum file is available
+    if [[ -f "${checksum_file}" ]]; then
         local expected
-        expected=$(grep "$pattern" "$checksum_file" | awk '{print $1}')
+        # Use anchored grep for exact filename matching to avoid partial matches
+        # Format: HASH  FILENAME (with one or more spaces)
+        expected=$(grep -E "[[:space:]]+${pattern}$" "${checksum_file}" | awk '{print $1}' | head -n 1)
 
-        if [[ -n "$expected" ]]; then
-            if ! verify_checksum "$dest" "$expected"; then
-                error_exit "$name checksum verification failed"
+        if [[ -n "${expected}" ]]; then
+            # Validate that the extracted checksum follows SHA256 hexadecimal format
+            if ! [[ "${expected}" =~ ^[0-9a-fA-F]{64}$ ]]; then
+                error_message "Detected invalid checksum format for ${name}: ${expected}"
+                error_message "Problematic line in ${checksum_file}:"
+                grep -E "[[:space:]]+${pattern}$" "${checksum_file}" | head -n 1
+                error_message "Invalid checksum entry in ${checksum_file}"
+                return 1
             fi
-            info_message "$name checksum verification passed."
+
+            if ! verify_checksum "${dest}" "${expected}"; then
+                error_message "${name} checksum verification FAILED"
+                return 1
+            fi
+            info_message "${name} checksum verification passed."
         else
-            error_exit "No checksum found for $name in $checksum_file using pattern $pattern"
+            error_message "No checksum found for ${name} in ${checksum_file} with pattern '${pattern}'"
+            error_message "First 10 lines of the checksum file for debugging:"
+            head -n 10 "${checksum_file}"
+            error_message "Checksum lookup failed for ${name}"
+            return 1
         fi
 
-        # Cleanup temporary checksum file if it was downloaded from a URL
-        if [[ -n "$checksum_url" ]] && [[ -f "$checksum_file" ]]; then
-            rm -f "$checksum_file"
+        # Clean up temporary checksum files
+        if [[ -n "${checksum_url}" ]] && [[ -f "${checksum_file}" ]]; then
+            rm -f "${checksum_file}"
         fi
     else
-        error_exit "Checksum file not found at $checksum_file, cannot verify $name"
+        error_message "Checksum file not found at ${checksum_file}; cannot verify ${name}"
+        return 1
     fi
 
-    success_message "$name downloaded and verified successfully."
+    success_message "${name} downloaded and verified successfully."
     return 0
 }
 
@@ -253,5 +275,159 @@ create_file() {
 $content
 EOF"
     info_message "Created file: $filepath"
+    return 0
+}
+
+# Cross-platform sed -i wrapper
+sed_inplace() {
+    local expr="$1"
+    local file="$2"
+
+    if [[ -z "${file}" ]]; then
+        error_message "sed_inplace: file argument is empty"
+        return 1
+    fi
+
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        # BSD sed (macOS) is finicky with -i. The most compatible way is -i.bak then rm.
+        maybe_sudo sed -i.bak -e "${expr}" "${file}"
+        maybe_sudo rm -f "${file}.bak"
+    else
+        # GNU sed (Linux)
+        maybe_sudo sed -i -e "${expr}" "${file}"
+    fi
+}
+
+# Runs a shell function with root privileges by injecting its definition
+maybe_sudo_fn() {
+    local fn="$1"; shift
+    if [[ "$(id -u)" -ne 0 ]]; then
+        command_exists sudo || error_exit "This script requires root privileges. Run as root or use sudo."
+        sudo /usr/bin/env bash -c "$(declare -f "$fn"); $fn \"\$@\"" -- "$@"
+    else
+        "$fn" "$@"
+    fi
+    return 0
+}
+
+# Detect the real user who invoked the script (even via sudo)
+get_real_user() {
+    # If SUDO_USER is set, trust it
+    if [[ -n "${SUDO_USER:-}" ]]; then
+        echo "$SUDO_USER"
+        return
+    fi
+
+    # Check LOGNAME or USER if they are not root
+    if [[ -n "${LOGNAME:-}" ]] && [[ "$LOGNAME" != "root" ]]; then
+        echo "$LOGNAME"
+        return
+    fi
+    if [[ -n "${USER:-}" ]] && [[ "$USER" != "root" ]]; then
+        echo "$USER"
+        return
+    fi
+
+    # Fallback for Linux using process tree
+    if [[ "$(uname -s)" == "Linux" ]]; then
+        local pid=$$
+        while [[ "$pid" -ne 1 ]] && [[ -n "$pid" ]]; do
+            pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+            [[ -z "$pid" ]] && break
+            local user
+            user=$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')
+            if [[ -n "$user" ]] && [[ "$user" != "root" ]]; then
+                echo "$user"
+                return
+            fi
+        done
+    fi
+
+    # Fallback for macOS using stat on the tty
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        local tty_user
+        tty_user=$(stat -f "%Su" /dev/console 2>/dev/null)
+        if [[ -n "$tty_user" ]] && [[ "$tty_user" != "root" ]]; then
+            echo "$tty_user"
+            return
+        fi
+    fi
+
+    # Last resort: current user (might be root)
+    id -un
+    return 0
+}
+
+# Grant passwordless sudo for wazuh-control to the wazuh user
+setup_sudoers() {
+    local wazuh_user="${1}"
+    local wazuh_control_path="${2}"
+    local sudoers_file="/etc/sudoers.d/wazuh-agent-status"
+
+    # Only configure sudoers if the user is not root
+    if [[ "${wazuh_user}" != "root" ]]; then
+        info_message "Configuring sudoers for ${wazuh_user} to allow passwordless ${wazuh_control_path} execution..."
+        
+        local sudoers_line="${wazuh_user} ALL=(ALL) NOPASSWD: ${wazuh_control_path} *"
+        
+        # Create a temporary file first
+        local tmp_sudoers
+        tmp_sudoers=$(mktemp)
+        echo "${sudoers_line}" > "${tmp_sudoers}"
+        
+        # Validate sudoers file before moving it (if visudo is available)
+        if command -v visudo >/dev/null 2>&1 && ! maybe_sudo visudo -cf "${tmp_sudoers}"; then
+            error_message "Invalid sudoers configuration generated. Skipping sudoers setup."
+            rm -f "${tmp_sudoers}"
+            return 1
+        fi
+
+        maybe_sudo mv "${tmp_sudoers}" "${sudoers_file}"
+        # Use GID 0 for the root group (root on Linux, wheel on macOS)
+        maybe_sudo chown root:0 "${sudoers_file}"
+        maybe_sudo chmod 0440 "${sudoers_file}"
+        success_message "Sudoers configured: ${sudoers_file}"
+    else
+        info_message "User is root, skipping sudoers configuration."
+    fi
+    return 0
+}
+
+# Centralized permission and ownership setup for Wazuh-Agent-Status
+setup_permissions_and_ownership() {
+    local wazuh_user="${1}"
+    local wazuh_group="${2}"
+    local wazuh_control_path="${3}"
+    local log_dir="/var/log/wazuh-agent-status"
+    local log_file_path="${log_dir}/wazuh-agent-status.log"
+
+    # 1. Adjust wazuh-control group to allow non-root execution
+    if [[ -f "${wazuh_control_path}" ]]; then
+        info_message "Adjusting ${wazuh_control_path} group to ${wazuh_group}..."
+        maybe_sudo chgrp "${wazuh_group}" "${wazuh_control_path}"
+        maybe_sudo chmod g+x "${wazuh_control_path}"
+        success_message "wazuh-control permissions updated."
+    else
+        warn_message "${wazuh_control_path} not found, skipping."
+    fi
+
+    # 2. Adjust log file and directory permissions
+    info_message "Ensuring log directory ${log_dir} has correct ownership..."
+    if ! maybe_sudo test -d "${log_dir}"; then
+        maybe_sudo mkdir -p "${log_dir}"
+    fi
+    maybe_sudo chown "${wazuh_user}:${wazuh_group}" "${log_dir}"
+    maybe_sudo chmod 775 "${log_dir}"
+
+    info_message "Ensuring log file ${log_file_path} exists and has correct ownership..."
+    if ! maybe_sudo test -f "${log_file_path}"; then
+        maybe_sudo touch "${log_file_path}"
+    fi
+    maybe_sudo chown "${wazuh_user}:${wazuh_group}" "${log_file_path}"
+    maybe_sudo chmod 664 "${log_file_path}"
+    success_message "Log file and directory permissions updated."
+
+    # 3. Setup sudoers for self-healing (restarting the agent)
+    setup_sudoers "${wazuh_user}" "${wazuh_control_path}"
     return 0
 }

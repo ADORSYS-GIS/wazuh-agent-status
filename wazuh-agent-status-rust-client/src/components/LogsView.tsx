@@ -2,21 +2,17 @@ import { useState, useEffect, useRef } from "react";
 import type { LogLine } from "../types/agent";
 
 interface LogsViewProps {
-  logs: LogLine[];
-  isStreaming: boolean;
-  error: string | null;
-  onStart: () => void;
-  onStop: () => void;
-  onClear: () => void;
+  readonly logs: LogLine[];
+  readonly isStreaming: boolean;
+  readonly error: string | null;
+  readonly onStart: () => void;
+  readonly onStop: () => void;
+  readonly onClear: () => void;
 }
 
 export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }: LogsViewProps) {
   const [filter, setFilter] = useState("");
-  const logEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
+  const logContainerRef = useRef<HTMLDivElement>(null);
 
   const filteredLogs = logs.filter((log) => {
     if (!filter.trim()) return true;
@@ -26,6 +22,12 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
       log.level.toLowerCase().includes(term)
     );
   });
+
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logs, filteredLogs.length]);
 
   const levelColor = (level: string) => {
     switch (level) {
@@ -41,6 +43,13 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
         return "#d1d5db";
     }
   };
+
+  let emptyMessage = null;
+  if (isStreaming) {
+    emptyMessage = "Waiting for log lines...";
+  } else if (!error) {
+    emptyMessage = "Click Stream to start.";
+  }
 
   return (
     <div className="view-container">
@@ -74,6 +83,7 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
 
       <div
         className="log-container"
+        ref={logContainerRef}
         style={{
           background: "#0a0a0a",
           padding: "12px",
@@ -93,11 +103,11 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
         )}
         {filteredLogs.length === 0 ? (
           <div style={{ color: "#6b7280", textAlign: "center", padding: "20px" }}>
-            {isStreaming ? "Waiting for log lines..." : error ? null : "Click Stream to start."}
+            {emptyMessage}
           </div>
         ) : (
           filteredLogs.map((log, i) => (
-            <div key={i} style={{ display: "flex", gap: "8px" }}>
+            <div key={`${log.level}-${log.raw}-${i}`} style={{ display: "flex", gap: "8px" }}>
               <span
                 style={{
                   color: levelColor(log.level),
@@ -117,7 +127,6 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
             </div>
           ))
         )}
-        <div ref={logEndRef} />
       </div>
 
       <div style={{ marginTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

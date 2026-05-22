@@ -14,7 +14,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 # Common configuration
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"refs/tags/v0.4.3"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Source shared utilities
@@ -61,6 +61,8 @@ SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 SERVICE_FILE="/etc/systemd/system/$SERVER_NAME.service"
 DESKTOP_UNIT_FILE="$HOME/.config/autostart/$CLIENT_NAME.desktop"
+DESKTOP_APP_FILE="$HOME/.local/share/applications/$CLIENT_NAME.desktop"
+USER_ICON_FILE="$HOME/.local/share/icons/wazuh-agent-status.png"
 BIN_DIR="/usr/local/bin"
 OS="linux"
 UPGRADE_SCRIPT_PATH="/var/ossec/active-response/bin/adorsys-update.sh"
@@ -99,13 +101,19 @@ remove_systemd_service() {
     return 0
 }
 
-# Remove Linux desktop unit file for autostart
-remove_desktop_unit() {
+# Remove Linux desktop unit file for autostart and application menu
+remove_desktop_entries() {
     if [[ -f "$DESKTOP_UNIT_FILE" ]]; then
         info_message "Removing desktop unit file for autostart..."
         remove_file "$DESKTOP_UNIT_FILE"
-    else
-        warn_message "Desktop unit file not found. Skipping."
+    fi
+    if [[ -f "$DESKTOP_APP_FILE" ]]; then
+        info_message "Removing desktop application entry..."
+        remove_file "$DESKTOP_APP_FILE"
+    fi
+    if [[ -f "$USER_ICON_FILE" ]]; then
+        info_message "Removing application icon..."
+        remove_file "$USER_ICON_FILE"
     fi
     return 0
 }
@@ -114,6 +122,7 @@ remove_desktop_unit() {
 remove_binaries
 remove_file "$UPGRADE_SCRIPT_PATH"
 remove_systemd_service
-remove_desktop_unit
+remove_desktop_entries
+remove_file "/etc/sudoers.d/wazuh-agent-status"
 
 success_message "Wazuh agent status uninstalled completed successfully."

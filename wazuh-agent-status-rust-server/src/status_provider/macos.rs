@@ -11,7 +11,6 @@
 //! ```
 
 use std::fs;
-use std::process::Command;
 use sysinfo::System;
 
 use crate::config::AgentPaths;
@@ -35,8 +34,11 @@ impl MacosStatusProvider {
         }
     }
 
-    /// Determine whether `wazuh-agentd` is alive by running `wazuh-control status`.
+    /// Determine whether the `wazuh-agentd` process is alive by checking the
+    /// process list via `sysinfo`. This avoids lock file race conditions
+    /// inherent in calling `wazuh-control status`.
     fn is_agent_running(&self) -> bool {
+<<<<<<< HEAD
         let control_path = self
             .paths
             .state_file
@@ -61,10 +63,18 @@ impl MacosStatusProvider {
             }
             Err(_) => {
                 // wazuh-control not found or failed to spawn
+=======
+        if let Ok(mut sys) = self.sys.lock() {
+            sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+            let is_running = sys.processes().values().any(|p| p.name().to_string_lossy() == "wazuh-agentd");
+            if !is_running {
+                tracing::info!("Process list check confirms wazuh-agentd is NOT running");
+>>>>>>> origin/user-main
             }
+            is_running
+        } else {
+            false
         }
-
-        false
     }
 }
 
@@ -105,14 +115,24 @@ impl StatusProvider for MacosStatusProvider {
     }
 
     fn get_agent_version(&self) -> Result<String> {
-        // 1. Try VERSION.json first
-        if let Ok(content) = fs::read_to_string(&self.paths.version_json) {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
-                    return Ok(v.to_string());
+        match fs::read_to_string(&self.paths.version_json) {
+            Ok(content) => {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
+                        let version = v.to_string();
+                        tracing::debug!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
+                        return Ok(version);
+                    }
                 }
+                tracing::warn!(path = %self.paths.version_json.display(), "Failed to parse version from VERSION.json");
+                Ok("Unknown".to_string())
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, path = %self.paths.version_json.display(), "Failed to read VERSION.json");
+                Ok("Unknown".to_string())
             }
         }
+<<<<<<< HEAD
 
         // 2. Fallback to wazuh-control info
         let control_path = self
@@ -134,6 +154,8 @@ impl StatusProvider for MacosStatusProvider {
         }
 
         Ok("Unknown".to_string())
+=======
+>>>>>>> origin/user-main
     }
 
     fn get_tray_version(&self) -> Result<String> {

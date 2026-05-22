@@ -5,19 +5,20 @@ on:
     branches:
       - main
       - develop
-      - user-main
     paths:
       - 'scripts/**'
   workflow_dispatch:
 
 env:
   WAZUH_MANAGER: "127.0.0.1"
-  WAZUH_AGENT_STATUS_REPO_REF: "refactor/split-linux-macos-scripts"
+  WAZUH_AGENT_STATUS_REPO_REF: ${{ github.head_ref || github.ref_name }}
 
 jobs:
   lint-scripts:
     name: Lint Scripts
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -64,7 +65,7 @@ jobs:
           git config --local user.name "GitHub Action"
       - name: Generate script checksums
         run: |
-          find scripts -type f -exec sha256sum {} + > checksums.sha256
+          find scripts -type f -exec sha256sum {} + | sort -k 2 > checksums.sha256
           cat checksums.sha256
           
       - name: Generate full CHANGELOG.md
@@ -90,6 +91,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5

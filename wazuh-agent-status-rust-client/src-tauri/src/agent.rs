@@ -98,6 +98,10 @@ impl AgentManager {
         self.state_rx.borrow().clone()
     }
 
+    pub fn subscribe(&self) -> watch::Receiver<AgentState> {
+        self.state_rx.clone()
+    }
+
     pub async fn check_updates(&self) -> anyhow::Result<serde_json::Value> {
         let mut stream = tokio::net::TcpStream::connect(&self.server_addr).await?;
         use tokio::io::{AsyncBufReadExt, AsyncWriteExt};

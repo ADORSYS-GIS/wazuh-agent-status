@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Set shell options
-if [ -n "$BASH_VERSION" ]; then
+if [[ -n "$BASH_VERSION" ]]; then
     set -euo pipefail
 else
     set -eu
@@ -13,17 +13,10 @@ if [[ "$(uname -s)" != "Linux" ]]; then
     exit 1
 fi
 
-PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.4.3"}
-
-# Assign app version based on profile
-case "$PROFILE" in
-"admin") WAS_VERSION="$APP_VERSION" ;;
-*) WAS_VERSION="$APP_VERSION-user" ;;
-esac
+APP_VERSION=${APP_VERSION:-"0.5.0"}
 
 # Common configuration
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"refs/tags/v$WAS_VERSION"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Source shared utilities
@@ -79,59 +72,95 @@ fi
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
-WAZUH_USER=${WAZUH_USER:-"root"}
+# Default to 'wazuh' user/group if they exist, otherwise fallback to root
+USER_EXISTS=$(id -u wazuh 2>/dev/null || echo "")
+GROUP_EXISTS=$(getent group wazuh 2>/dev/null || echo "")
 
-get_real_user() {
-    # If SUDO_USER is set, trust it
-    if [ -n "${SUDO_USER:-}" ]; then
-        echo "$SUDO_USER"
-        return
-    fi
+if [[ -n "$USER_EXISTS" ]]; then
+    WAZUH_USER=${WAZUH_USER:-"wazuh"}
+else
+    WAZUH_USER=${WAZUH_USER:-"root"}
+fi
 
-    # Walk up the process tree to find the first non-root login user
-    local pid=$$
-    while [ "$pid" -ne 1 ]; do
-        pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
-        local user
-        user=$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')
-        if [ -n "$user" ] && [ "$user" != "root" ]; then
-            echo "$user"
-            return
-        fi
-    done
-
-    # Last resort: current user
-    id -un
-}
-
+if [[ -n "$GROUP_EXISTS" ]]; then
+    WAZUH_GROUP=${WAZUH_GROUP:-"wazuh"}
+else
+    WAZUH_GROUP=${WAZUH_GROUP:-"root"}
+fi
 
 REAL_USER=$(get_real_user)
 REAL_HOME=$(eval echo "~$REAL_USER")
 
 SERVICE_FILE=${SERVICE_FILE:-"/etc/systemd/system/$SERVER_NAME.service"}
+MIGRATION_MARKER="/usr/local/etc/$SERVER_NAME/.migrated_from_go"
 DESKTOP_UNIT_FOLDER=${DESKTOP_UNIT_FOLDER:-"$REAL_HOME/.config/autostart"}
+DESKTOP_APPS_FOLDER=${DESKTOP_APPS_FOLDER:-"$REAL_HOME/.local/share/applications"}
+USER_ICON_FOLDER=${USER_ICON_FOLDER:-"$REAL_HOME/.local/share/icons"}
 DESKTOP_UNIT_FILE=${DESKTOP_UNIT_FILE:-"$DESKTOP_UNIT_FOLDER/$CLIENT_NAME.desktop"}
+DESKTOP_APP_FILE=${DESKTOP_APP_FILE:-"$DESKTOP_APPS_FOLDER/$CLIENT_NAME.desktop"}
+APP_ID="wazuh-agent-status"
+BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/${SERVER_NAME}/releases/download/v${APP_VERSION}"}
 
-SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
-CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
-BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"}
-SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
-CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
-CHECKSUM_URL="$BASE_URL/checksums.sha256"
+# Sanity check for BASE_URL: Automatically correct GitHub tag page URLs to download URLs
+if [[ "${BASE_URL}" == *"releases/tag/"* ]]; then
+    warn_message "BASE_URL appears to point to a tag page instead of a release download: ${BASE_URL}"
+    warn_message "Correcting BASE_URL to use 'download' path..."
+    BASE_URL="${BASE_URL/releases\/tag/releases/download}"
+    info_message "Corrected BASE_URL: ${BASE_URL}"
+fi
+
+ICON_URL="${BASE_URL}/icon.png"
+
+SERVER_BIN_NAME="${SERVER_NAME}-${OS}-${ARCH}"
+CLIENT_BIN_NAME="${CLIENT_NAME}-${OS}-${ARCH}"
+SERVER_URL="${BASE_URL}/${SERVER_BIN_NAME}"
+CLIENT_URL="${BASE_URL}/${CLIENT_BIN_NAME}"
+CHECKSUM_URL="${BASE_URL}/checksums.sha256"
 
 ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"$WAZUH_AGENT_STATUS_REPO_URL/scripts/linux/adorsys-update.sh"}
 UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
-# Runs a shell function with root privileges by injecting its definition into a sudo bash -c call
-maybe_sudo_fn() {
-    local fn="$1"; shift
-    if [ "$(id -u)" -ne 0 ]; then
-        command_exists sudo || error_exit "This script requires root privileges. Run as root or use sudo."
-        sudo bash -c "$(declare -f command_exists "$fn"); $fn \"\$@\"" -- "$@"
-    else
-        "$fn" "$@"
+# Legacy Go Cleanup
+cleanup_legacy_system() {
+    if [[ -f "$MIGRATION_MARKER" ]]; then
+        info_message "Migration already completed. Skipping legacy cleanup."
+        return 0
     fi
+
+    print_step_header 0 "Legacy Go Cleanup"
+    info_message "Detecting legacy Go components..."
+
+    # 1. Stop and Disable the old service (if it exists)
+    if command_exists systemctl; then
+        if systemctl is-active --quiet "$SERVER_NAME" 2>/dev/null; then
+            info_message "Stopping legacy service: $SERVER_NAME"
+            maybe_sudo systemctl stop "$SERVER_NAME" || true
+        fi
+        if systemctl is-enabled --quiet "$SERVER_NAME" 2>/dev/null; then
+            info_message "Disabling legacy service: $SERVER_NAME"
+            maybe_sudo systemctl disable "$SERVER_NAME" || true
+        fi
+    fi
+
+    # 2. Kill any lingering Go processes
+    info_message "Killing lingering Go processes ($SERVER_NAME, $CLIENT_NAME)..."
+    maybe_sudo killall "$SERVER_NAME" 2>/dev/null || true
+    maybe_sudo killall "$CLIENT_NAME" 2>/dev/null || true
+
+    # 3. Remove old desktop entries
+    if [[ -f "$DESKTOP_UNIT_FILE" ]]; then
+        info_message "Removing legacy desktop entry: $DESKTOP_UNIT_FILE"
+        remove_file "$DESKTOP_UNIT_FILE"
+    fi
+    if [[ -f "$DESKTOP_APP_FILE" ]]; then
+        info_message "Removing legacy desktop app entry: $DESKTOP_APP_FILE"
+        remove_file "$DESKTOP_APP_FILE"
+    fi
+
+    info_message "Legacy cleanup complete."
+    return 0
 }
+
 
 # Service Management
 create_service_file() {
@@ -148,6 +177,7 @@ After=network.target
 ExecStart=$BIN_DIR/$SERVER_NAME
 Restart=always
 User=$WAZUH_USER
+Environment=WAZUH_STATUS_LOG_FILE=/var/log/wazuh-agent-status/wazuh-agent-status.log
 
 [Install]
 WantedBy=multi-user.target
@@ -171,22 +201,69 @@ reload_and_enable_service() {
 }
 
 # Desktop Unit File Creation
-create_desktop_unit_file() {
-    info_message "Creating desktop unit directory if it doesn't exist..."
-    mkdir -p "$DESKTOP_UNIT_FOLDER"
+install_icon() {
+    info_message "Creating user icon directory if it doesn't exist..."
+    mkdir -p "$USER_ICON_FOLDER"
 
-    info_message "Creating desktop unit file for autostart..."
-    create_file "$DESKTOP_UNIT_FILE" "
-[Desktop Entry]
+    info_message "Downloading application icon from release..."
+    if ! download_and_verify_file "$ICON_URL" "$USER_ICON_FOLDER/$APP_ID.png" "icon.png" "application icon" "$CHECKSUM_URL"; then
+        warn_message "Failed to download verified icon from $ICON_URL. Application will use a generic icon."
+        return 0
+    fi
+    info_message "Icon installed to: $USER_ICON_FOLDER/$APP_ID.png"
+    return 0
+}
+
+configure_logrotate() {
+    local logrotate_file="/etc/logrotate.d/wazuh-agent-status"
+    local log_dir="/var/log/wazuh-agent-status"
+    local log_file_path="${log_dir}/wazuh-agent-status.log"
+
+    info_message "Configuring logrotate for $log_file_path..."
+
+    create_file "$logrotate_file" "$log_file_path {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 $WAZUH_USER $WAZUH_GROUP
+}
+"
+    # Ensure correct permissions for the logrotate entry
+    maybe_sudo chown root:root "$logrotate_file"
+    maybe_sudo chmod 644 "$logrotate_file"
+
+    success_message "Logrotate configuration created: $logrotate_file"
+    return 0
+}
+
+create_desktop_unit_file() {
+    info_message "Creating desktop directories if they don't exist..."
+    mkdir -p "$DESKTOP_UNIT_FOLDER"
+    mkdir -p "$DESKTOP_APPS_FOLDER"
+
+    local desktop_content="[Desktop Entry]
 Name=Wazuh Agent Monitoring Tray Icon App
-GenericName=Script for GNOME startup
-Comment=Runs the tray script
+GenericName=Wazuh Agent Status
+Comment=Monitors the Wazuh agent status and provides a tray icon dashboard
 Exec=$BIN_DIR/$CLIENT_NAME
+Icon=$APP_ID
 Terminal=false
 Type=Application
+StartupWMClass=$CLIENT_NAME
 X-GNOME-Autostart-enabled=true
+Categories=Utility;System;Monitoring;
 "
-    info_message "Desktop autostart file created: $DESKTOP_UNIT_FILE"
+
+    info_message "Creating desktop unit file for autostart..."
+    create_file "$DESKTOP_UNIT_FILE" "$desktop_content"
+    
+    info_message "Creating desktop application entry..."
+    create_file "$DESKTOP_APP_FILE" "$desktop_content"
+
+    info_message "Desktop entries created successfully."
     return 0
 }
 
@@ -197,14 +274,11 @@ make_server_launch_at_startup() {
 }
 
 make_client_launch_at_startup() {
+    install_icon
     create_desktop_unit_file
     return 0
 }
 
-sed_inplace() {
-    maybe_sudo sed -i "$@" 2>/dev/null || true
-    return $?
-}
 
 validate_installation() {
     # Validate binaries
@@ -237,6 +311,12 @@ validate_installation() {
         error_exit "Desktop autostart file is missing: $DESKTOP_UNIT_FILE."
     fi
 
+    if [[ -f "$DESKTOP_APP_FILE" ]]; then
+        success_message "Desktop application file exists: $DESKTOP_APP_FILE."
+    else
+        error_exit "Desktop application file is missing: $DESKTOP_APP_FILE."
+    fi
+
     # Validate adorsys-update.sh script
     if maybe_sudo [ -f "$UPDATE_SCRIPT_PATH" ]; then
         success_message "adorsys-update.sh script exists: $UPDATE_SCRIPT_PATH."
@@ -247,6 +327,9 @@ validate_installation() {
     success_message "Installation complete! Restart your system to apply changes for the wazuh agent status."
     return 0
 }
+
+print_step_header 0 "Legacy Go Cleanup"
+cleanup_legacy_system
 
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary from $SERVER_URL..."
@@ -281,7 +364,7 @@ if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     # Update WAZUH_MANAGER value in adorsys-update.sh
     if [[ -n "${WAZUH_MANAGER:-}" ]]; then
         info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
-        maybe_sudo_fn sed_inplace "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
+        sed_inplace "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
     else
         warn_message "WAZUH_MANAGER variable not set. Skipping update in adorsys-update.sh."
     fi
@@ -289,5 +372,16 @@ else
     warn_message "$WAZUH_ACTIVE_RESPONSE_BIN_DIR does not exist, skipping."
 fi
 
-print_step_header 6 "Validating installation and configuration..."
+# Permissions and Ownership Configuration
+print_step_header 6 "Permissions and Ownership Configuration"
+setup_permissions_and_ownership "$WAZUH_USER" "$WAZUH_GROUP" "/var/ossec/bin/wazuh-control"
+
+print_step_header 7 "Logrotate Configuration"
+configure_logrotate
+
+print_step_header 8 "Validating installation and configuration..."
 validate_installation
+
+# Create migration marker
+maybe_sudo mkdir -p "$(dirname "$MIGRATION_MARKER")"
+maybe_sudo touch "$MIGRATION_MARKER"

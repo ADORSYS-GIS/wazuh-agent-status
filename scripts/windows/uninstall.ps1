@@ -3,55 +3,18 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.4.3" }
 
-$INSTALL_PROFILE = if ($null -ne $env:INSTALL_PROFILE) { $env:INSTALL_PROFILE } else { "user" }
-
-if ($INSTALL_PROFILE -eq "admin") {
-    $WAS_VERSION = $APP_VERSION
-} else {
-    $WAS_VERSION = "$APP_VERSION-user"
-}
-$WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "refs/tags/v$WAS_VERSION" }
-$WAZUH_AGENT_STATUS_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
-
-$TMP_DIR = Join-Path $env:TEMP "wazuh-agent-status-install"
-if (-not (Test-Path $TMP_DIR)) {
-    New-Item -Path $TMP_DIR -ItemType Directory | Out-Null
-}
+$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0" }
+$REPO_REF = if ($env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "user-main" }
+$REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$REPO_REF"
+$TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
 
 try {
-    $ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
-    $UtilsURL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/shared/utils.ps1"
-
-    $global:ChecksumsPath = Join-Path $TMP_DIR "checksums.sha256"
-    $UtilsPath = Join-Path $TMP_DIR "utils.ps1"
-
-    Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
-    Invoke-WebRequest -Uri $UtilsURL -OutFile $UtilsPath -ErrorAction Stop
-
-    # Verification function (bootstrap)
-    function Get-FileChecksum-Bootstrap {
-        param([string]$FilePath)
-        return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
-    }
-
-    $ExpectedHash = (Select-String -Path $ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0]
-    $ActualHash = Get-FileChecksum-Bootstrap -FilePath $UtilsPath
-
-    if ([string]::IsNullOrWhiteSpace($ExpectedHash) -or ($ActualHash -ne $ExpectedHash.ToLower())) {
-        Write-Error "Checksum verification failed for utils.ps1"
-        Write-Error "Expected: $ExpectedHash"
-        Write-Error "Got:      $ActualHash"
-        exit 1
-    }
-
-    . $UtilsPath
-}
-catch {
-    Write-Error "Failed to initialize utilities: $($_.Exception.Message)"
-    exit 1
-}
+    $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
+    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
+    if ((Get-FileHash $U -Alg SHA256).Hash.ToLower() -ne (Select-String -Path $global:ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0].ToLower()) { throw }
+    . $U
+} catch { Write-Error "Bootstrap failed"; exit 1 }
 
 EnsureAdmin
 
@@ -82,7 +45,7 @@ function Remove-File {
     }
 }
 
-function Remove-Service {
+function Remove-WazuhAgentService {
     param (
         [Parameter(Mandatory=$true)]
         [string]$ServiceName
@@ -94,7 +57,6 @@ function Remove-Service {
     if ($service) {
         # Stop the service if it's running
         if ($service.Status -eq 'Running') {
-
             Stop-Service -Name $ServiceName -Force
         }
 
@@ -115,15 +77,18 @@ function Remove-StartupShortcut {
 
 
     # Check if the process is running
-    $process = Get-Process -Name $ShortcutName -ErrorAction SilentlyContinue
+    # Check if the process is running
+    $process = Get-Process -Name "wazuh-agent-status*" -ErrorAction SilentlyContinue
 
     if ($process) {
-        InfoMessage "Process '$ShortcutName' is running. Stopping it..."
-        Stop-Process -Name $ShortcutName -Force
-        InfoMessage "Process '$ShortcutName' has been stopped."
+        InfoMessage "Processes matching 'wazuh-agent-status*' are running. Stopping them..."
+        $process | ForEach-Object {
+            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+        }
+        InfoMessage "Processes have been stopped."
     }
     else {
-        WarnMessage "Process '$ShortcutName' is not running. Skipping..."
+        WarnMessage "No processes matching 'wazuh-agent-status*' are running. Skipping..."
     }
     # Define full path of the shortcut
 
@@ -148,14 +113,14 @@ function Validate-Uninstallation {
     $ClientExe = Test-Path -LiteralPath $CLIENT_EXE
     $BinDirExists = Test-Path -LiteralPath $BIN_DIR
 
-    if ($ServerService -eq $null) {
+    if ($null -eq $ServerService) {
         SuccessMessage "Windows service is removed: $SERVER_NAME."
     }
     else {
         ErrorMessage "Windows service still exists: $SERVER_NAME (current status: $($ServerService.Status))."
     }
 
-    if ($ClientProcess -eq $null) {
+    if ($null -eq $ClientProcess) {
         SuccessMessage "Client process is not running: $CLIENT_NAME."
     }
     else {
@@ -201,17 +166,26 @@ function Validate-Uninstallation {
 function Remove-Binaries {
     Remove-File $SERVER_EXE
     Remove-File $CLIENT_EXE
+    Remove-File "$SERVER_EXE.old"
+    Remove-File "$CLIENT_EXE.old"
     Remove-File $BAT_UPDATE_SCRIPT_PATH
     Remove-File $PS_UPDATE_SCRIPT_PATH
-    Remove-File $BIN_DIR
+    if (Test-Path -Path $BIN_DIR) {
+        InfoMessage "Removing bin directory '$BIN_DIR'..."
+        try {
+            Remove-Item -Path $BIN_DIR -Recurse -Force -ErrorAction Stop
+            InfoMessage "Bin directory '$BIN_DIR' removed successfully."
+        } catch {
+            ErrorMessage "Failed to remove bin directory '$BIN_DIR': $_"
+        }
+    }
 }
 
 # Function to uninstall application and clean up
 function Uninstall-WazuhAgentStatus {
     try {
 
-        Remove-StartupShortcut -ShortcutName $CLIENT_NAME
-        Remove-Service -ServiceName $SERVER_NAME
+        Remove-WazuhAgentService -ServiceName $SERVER_NAME
 
         Remove-Binaries
         Validate-Uninstallation

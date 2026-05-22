@@ -32,8 +32,13 @@ pub fn run() {
             // Initialize Managers
             let config = AppConfig::load(app.handle())
                 .map_err(|e| anyhow::anyhow!(e))
+<<<<<<< HEAD
                 .context("Failed to load application configuration")?;
 
+=======
+                .context("Failed to load application configuration. Ensure app_config.json is valid and accessible.")?;
+            
+>>>>>>> origin/user-main
             let agent_manager = AgentManager::new(config.server_addr.clone());
 
             // Manage state
