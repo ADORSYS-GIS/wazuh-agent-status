@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[d5d38ea](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d5d38ea7763ac2bd9d26c1421e425d2eba02096e)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[7a0c65b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7a0c65be81e71fbc47ec6741fc11c0d6a2ead14d)
 
 ### Bug Fixes
 
@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`9f27cb8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9f27cb86f12d03dd645143fb0faada6835d72213))
 - Update CHANGELOG.md and checksums [skip ci] ([`20ae207`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/20ae2078433ed027e757524da8cd24d592a208ed))
 - Update CHANGELOG.md and checksums [skip ci] ([`a89a71d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a89a71d2dd02e0943e8c0b69e0d4ff41474af98c))
+- Update CHANGELOG.md and checksums [skip ci] ([`ec8c62a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ec8c62aba9a97aa931c79aa68209597010a5ed8e))
 
 ### Features
 
@@ -33,6 +34,7 @@ All notable changes to this project will be documented in this file.
 - Improve checksum validation logic in utils.ps1 and update GitHub Actions workflows ([`269a11f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/269a11f71ca0b0d2f38bc3398f6af30b77598313)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Simplify PowerShell scripts ([`82068d5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/82068d54b31cc85589803e9220cb9695a984ce38)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Standardize PowerShell scripts, improve LogsView UI robustness ([`ba1bec6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ba1bec67a21fc1d471a96f17170bbb1fa1650e03)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Improve repository reference handling in PowerShell scripts ([`7a0c65b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7a0c65be81e71fbc47ec6741fc11c0d6a2ead14d)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ## 0.4.2.rc1-user - 2025-07-16
 
