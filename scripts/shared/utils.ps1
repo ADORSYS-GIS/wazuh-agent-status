@@ -11,7 +11,7 @@ function Log {
         [string]$Color = "White"
     )
     $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "$Timestamp $Level $Message" -ForegroundColor $Color
+    Write-Output "$Timestamp $Level $Message"
 }
 
 # Logging helpers
@@ -51,7 +51,7 @@ function Ensure-Directory {
         [Parameter(Mandatory)]
         [string]$Path
     )
-    if (-Not (Test-Path -Path $Path)) {
+    if (-not (Test-Path -Path $Path)) {
         New-Item -ItemType Directory -Path $Path -Force | Out-Null
         InfoMessage "Created directory: $Path"
     }
@@ -128,7 +128,6 @@ function Download-And-VerifyFile {
     # If a direct checksum URL is provided, download it and use it as the source of truth
     $finalChecksumFile = $ChecksumFile
     $isTempFile = $false
-    
     if (-not [string]::IsNullOrWhiteSpace($ChecksumUrl)) {
         $finalChecksumFile = Join-Path ([System.IO.Path]::GetTempPath()) "checksums-$([System.Guid]::NewGuid().ToString()).sha256"
         Download-File -Url $ChecksumUrl -Destination $finalChecksumFile -Description "checksum file"
@@ -136,24 +135,24 @@ function Download-And-VerifyFile {
     }
 
     try {
-        if (-not [string]::IsNullOrWhiteSpace($finalChecksumFile) -and (Test-Path -Path $finalChecksumFile)) {
-            $matchingLine = Select-String -Path $finalChecksumFile -Pattern $ChecksumPattern | Select-Object -First 1
-            if ($null -ne $matchingLine) {
-                $expectedHash = $matchingLine.Line.Split(" ")[0].Trim()
-                if (-not [string]::IsNullOrWhiteSpace($expectedHash)) {
-                    if (-not (Test-Checksum -FilePath $Destination -ExpectedHash $expectedHash)) {
-                        ErrorExit "$FileName checksum verification failed"
-                    }
-                    InfoMessage "$FileName checksum verification passed."
-                } else {
-                    ErrorExit "No checksum found for $FileName in $finalChecksumFile using pattern $ChecksumPattern (empty hash extracted)"
-                }
-            } else {
-                ErrorExit "No checksum found for $FileName in $finalChecksumFile using pattern $ChecksumPattern"
-            }
-        } else {
+        if ([string]::IsNullOrWhiteSpace($finalChecksumFile) -or -not (Test-Path -Path $finalChecksumFile)) {
             ErrorExit "Checksum file not found at $finalChecksumFile, cannot verify $FileName"
         }
+
+        $matchingLine = Select-String -Path $finalChecksumFile -Pattern $ChecksumPattern | Select-Object -First 1
+        if ($null -eq $matchingLine) {
+            ErrorExit "No checksum found for $FileName in $finalChecksumFile using pattern $ChecksumPattern"
+        }
+
+        $expectedHash = $matchingLine.Line.Split(" ")[0].Trim()
+        if ([string]::IsNullOrWhiteSpace($expectedHash)) {
+            ErrorExit "No checksum found for $FileName in $finalChecksumFile using pattern $ChecksumPattern (empty hash extracted)"
+        }
+
+        if (-not (Test-Checksum -FilePath $Destination -ExpectedHash $expectedHash)) {
+            ErrorExit "$FileName checksum verification failed"
+        }
+        InfoMessage "$FileName checksum verification passed."
     } finally {
         # Cleanup temporary checksum file if it was created
         if ($isTempFile -and (Test-Path -Path $finalChecksumFile)) {
@@ -167,7 +166,7 @@ function Download-And-VerifyFile {
 
 # Ensure the script is running with administrator privileges
 function EnsureAdmin {
-    if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
         ErrorExit "This script requires administrative privileges. Please run it as Administrator."
     }
 }

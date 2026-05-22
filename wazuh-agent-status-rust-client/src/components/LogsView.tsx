@@ -2,12 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import type { LogLine } from "../types/agent";
 
 interface LogsViewProps {
-  logs: LogLine[];
-  isStreaming: boolean;
-  error: string | null;
-  onStart: () => void;
-  onStop: () => void;
-  onClear: () => void;
+  readonly logs: LogLine[];
+  readonly isStreaming: boolean;
+  readonly error: string | null;
+  readonly onStart: () => void;
+  readonly onStop: () => void;
+  readonly onClear: () => void;
 }
 
 export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }: LogsViewProps) {
@@ -41,6 +41,13 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
         return "#d1d5db";
     }
   };
+
+  let emptyMessage = null;
+  if (isStreaming) {
+    emptyMessage = "Waiting for log lines...";
+  } else if (!error) {
+    emptyMessage = "Click Stream to start.";
+  }
 
   return (
     <div className="view-container">
@@ -93,11 +100,11 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
         )}
         {filteredLogs.length === 0 ? (
           <div style={{ color: "#6b7280", textAlign: "center", padding: "20px" }}>
-            {isStreaming ? "Waiting for log lines..." : error ? null : "Click Stream to start."}
+            {emptyMessage}
           </div>
         ) : (
           filteredLogs.map((log, i) => (
-            <div key={i} style={{ display: "flex", gap: "8px" }}>
+            <div key={`${log.level}-${log.raw}-${i}`} style={{ display: "flex", gap: "8px" }}>
               <span
                 style={{
                   color: levelColor(log.level),

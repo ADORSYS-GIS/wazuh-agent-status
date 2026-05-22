@@ -9,10 +9,10 @@ $SERVER_NAME = if ($env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-st
 $CLIENT_NAME = if ($env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
 $WAS_VERSION = $APP_VERSION
 $REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$($env:WAZUH_AGENT_STATUS_REPO_REF -or "main")"
-$TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (!(Test-Path $TMP)) { mkdir $TMP | Out-Null }
+$TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
 try {
     $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
-    iwr "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; iwr "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
+    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
     if ((Get-FileHash $U -Alg SHA256).Hash -ne (Select-String $global:ChecksumsPath -Pat "scripts/shared/utils.ps1").Line.Split(" ")[0]) { throw }
     . $U
 } catch { Write-Error "Bootstrap failed"; exit 1 }
@@ -108,7 +108,7 @@ function Create-Service {
         [string]$DisplayName = $null,
         [string]$Description = $null
     )
-    $ServiceExists = Get-WmiObject -Class Win32_Service -Filter "Name='$ServiceName'" -ErrorAction SilentlyContinue
+    $ServiceExists = Get-CimInstance -ClassName Win32_Service -Filter "Name='$ServiceName'" -ErrorAction SilentlyContinue
 
     if ($ServiceExists) {
         InfoMessage "Service $ServiceName already exists. Updating..."

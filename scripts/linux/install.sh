@@ -85,7 +85,7 @@ get_real_user() {
     # If SUDO_USER is set, trust it
     if [ -n "${SUDO_USER:-}" ]; then
         echo "$SUDO_USER"
-        return
+        return 0
     fi
 
     # Walk up the process tree to find the first non-root login user
@@ -96,7 +96,7 @@ get_real_user() {
         user=$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')
         if [ -n "$user" ] && [ "$user" != "root" ]; then
             echo "$user"
-            return
+            return 0
         fi
     done
 
@@ -131,6 +131,7 @@ maybe_sudo_fn() {
     else
         "$fn" "$@"
     fi
+    return 0
 }
 
 # Service Management

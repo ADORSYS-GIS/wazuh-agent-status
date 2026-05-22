@@ -41,10 +41,10 @@ if (-not $IsAdmin) {
 $APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.4.3" }
 $WAS_VERSION = if ($env:INSTALL_PROFILE -eq "admin") { $APP_VERSION } else { "$APP_VERSION-user" }
 $REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$($env:WAZUH_AGENT_STATUS_REPO_REF -or "refs/tags/v$WAS_VERSION")"
-$TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (!(Test-Path $TMP)) { mkdir $TMP | Out-Null }
+$TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
 try {
     $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
-    iwr "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; iwr "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
+    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
     if ((Get-FileHash $U -Alg SHA256).Hash -ne (Select-String $global:ChecksumsPath -Pat "scripts/shared/utils.ps1").Line.Split(" ")[0]) { throw }
     . $U
 } catch { Write-Error "Bootstrap failed"; exit 1 }
@@ -102,10 +102,11 @@ function Append-Log {
             if ($fileStream)   { $fileStream.Dispose() }
         }
     } catch {
-        # Silently ignore log-write errors so they don't mask real failures
+        # Fallback to standard host output if log file writing fails
+        Write-Output "Warning: Failed to write to log file $LogPath : $($_.Exception.Message)"
     }
 
-    Write-Host $line
+    Write-Output $line
 }
 
 # ---- Helper: clean up a temp file unconditionally ----

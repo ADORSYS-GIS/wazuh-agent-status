@@ -6,10 +6,10 @@ $ErrorActionPreference = "Stop"
 $APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.4.3" }
 $WAS_VERSION = if ($env:INSTALL_PROFILE -eq "admin") { $APP_VERSION } else { "$APP_VERSION-user" }
 $REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$($env:WAZUH_AGENT_STATUS_REPO_REF -or "refs/tags/v$WAS_VERSION")"
-$TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (!(Test-Path $TMP)) { mkdir $TMP | Out-Null }
+$TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
 try {
     $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
-    iwr "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; iwr "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
+    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
     if ((Get-FileHash $U -Alg SHA256).Hash -ne (Select-String $global:ChecksumsPath -Pat "scripts/shared/utils.ps1").Line.Split(" ")[0]) { throw }
     . $U
 } catch { Write-Error "Bootstrap failed"; exit 1 }
@@ -43,7 +43,7 @@ function Remove-File {
     }
 }
 
-function Remove-Service {
+function Remove-WazuhAgentService {
     param (
         [Parameter(Mandatory=$true)]
         [string]$ServiceName
@@ -55,7 +55,6 @@ function Remove-Service {
     if ($service) {
         # Stop the service if it's running
         if ($service.Status -eq 'Running') {
-
             Stop-Service -Name $ServiceName -Force
         }
 
@@ -109,14 +108,14 @@ function Validate-Uninstallation {
     $ClientExe = Test-Path -LiteralPath $CLIENT_EXE
     $BinDirExists = Test-Path -LiteralPath $BIN_DIR
 
-    if ($ServerService -eq $null) {
+    if ($null -eq $ServerService) {
         SuccessMessage "Windows service is removed: $SERVER_NAME."
     }
     else {
         ErrorMessage "Windows service still exists: $SERVER_NAME (current status: $($ServerService.Status))."
     }
 
-    if ($ClientProcess -eq $null) {
+    if ($null -eq $ClientProcess) {
         SuccessMessage "Client process is not running: $CLIENT_NAME."
     }
     else {
@@ -171,8 +170,7 @@ function Remove-Binaries {
 function Uninstall-WazuhAgentStatus {
     try {
 
-        Remove-StartupShortcut -ShortcutName $CLIENT_NAME
-        Remove-Service -ServiceName $SERVER_NAME
+        Remove-WazuhAgentService -ServiceName $SERVER_NAME
 
         Remove-Binaries
         Validate-Uninstallation
