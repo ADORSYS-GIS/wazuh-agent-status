@@ -3,59 +3,22 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$APP_VERSION = if ($null -ne $env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0-rc.6" }
-# Default Variables
-$WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
-$SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
-$CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
 
-$WAZUH_AGENT_STATUS_REPO_REF = if ($null -ne $env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "user-main" }
-$WAZUH_AGENT_STATUS_REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
-
-$TMP_DIR = Join-Path $env:TEMP "wazuh-agent-status-install"
-if (-not (Test-Path $TMP_DIR)) {
-    New-Item -Path $TMP_DIR -ItemType Directory | Out-Null
-}
+$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0" }
+$WAZUH_MANAGER = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
+$SERVER_NAME = if ($env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
+$CLIENT_NAME = if ($env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
+$REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$($env:WAZUH_AGENT_STATUS_REPO_REF -or "main")"
+$TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
 
 try {
-    $ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
-    $UtilsURL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/shared/utils.ps1"
-
-    $global:ChecksumsPath = Join-Path $TMP_DIR "checksums.sha256"
-    $UtilsPath = Join-Path $TMP_DIR "utils.ps1"
-
-    Invoke-WebRequest -Uri $ChecksumsURL -OutFile $ChecksumsPath -ErrorAction Stop
-    Invoke-WebRequest -Uri $UtilsURL -OutFile $UtilsPath -ErrorAction Stop
-
-    # Verification function (bootstrap)
-    function Get-FileChecksum-Bootstrap {
-        param([string]$FilePath)
-        return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
-    }
-
-    $ExpectedHash = (Select-String -Path $ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0]
-    $ActualHash = Get-FileChecksum-Bootstrap -FilePath $UtilsPath
-
-    if ([string]::IsNullOrWhiteSpace($ExpectedHash) -or ($ActualHash -ne $ExpectedHash.ToLower())) {
-        Write-Error "Checksum verification failed for utils.ps1"
-        Write-Error "Expected: $ExpectedHash"
-        Write-Error "Got:      $ActualHash"
-        exit 1
-    }
-
-    . $UtilsPath
-}
-catch {
-    Write-Error "Failed to initialize utilities: $($_.Exception.Message)"
-    exit 1
-}
+    $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
+    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
+    if ((Get-FileHash $U -Alg SHA256).Hash -ne (Select-String $global:ChecksumsPath -Pat "scripts/shared/utils.ps1").Line.Split(" ")[0]) { throw }
+    . $U
+} catch { Write-Error "Bootstrap failed"; exit 1 }
 
 EnsureAdmin
-
-# Default Variables
-$WAZUH_MANAGER = if ($null -ne $env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
-$SERVER_NAME = if ($null -ne $env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
-$CLIENT_NAME = if ($null -ne $env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
 
 # Determine architecture
 if (-not [Environment]::Is64BitOperatingSystem) {
@@ -67,10 +30,10 @@ $SERVER_EXE = "$BIN_DIR\$SERVER_NAME.exe"
 $CLIENT_EXE = "$BIN_DIR\$CLIENT_NAME.exe"
 $MIGRATION_MARKER = "C:\ProgramData\$SERVER_NAME\.migrated_from_go"
 
-$BAT_UPDATE_SCRIPT_URL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/windows/adorsys-update.bat"
+$BAT_UPDATE_SCRIPT_URL = "$REPO_URL/scripts/windows/adorsys-update.bat"
 $BAT_UPDATE_SCRIPT_PATH = "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.bat"
 
-$PS_UPDATE_SCRIPT_URL = "$WAZUH_AGENT_STATUS_REPO_URL/scripts/windows/adorsys-update.ps1"
+$PS_UPDATE_SCRIPT_URL = "$REPO_URL/scripts/windows/adorsys-update.ps1"
 $PS_UPDATE_SCRIPT_PATH = "${env:ProgramFiles(x86)}\ossec-agent\active-response\bin\adorsys-update.ps1"
 
 # Create necessary directories
@@ -81,7 +44,7 @@ $BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 $BinChecksumsURL = "$BaseURL/checksums.sha256"
-$global:ChecksumsURL = "$WAZUH_AGENT_STATUS_REPO_URL/checksums.sha256"
+$global:ChecksumsURL = "$REPO_URL/checksums.sha256"
 
 function Validate-Installation {
     PrintStep 6 "Validating installation and configuration..."
@@ -146,7 +109,7 @@ function Create-Service {
         [string]$DisplayName = $null,
         [string]$Description = $null
     )
-    $ServiceExists = Get-WmiObject -Class Win32_Service -Filter "Name='$ServiceName'" -ErrorAction SilentlyContinue
+    $ServiceExists = Get-CimInstance -ClassName Win32_Service -Filter "Name='$ServiceName'" -ErrorAction SilentlyContinue
 
     if ($ServiceExists) {
         InfoMessage "Service $ServiceName already exists. Updating..."
@@ -183,6 +146,7 @@ function Create-StartupShortcut {
 
 
 PrintStep 1 "Checking migration status and stopping existing processes..."
+
 if (Test-Path -LiteralPath $MIGRATION_MARKER) {
     InfoMessage "System already migrated from Go."
 } else {
@@ -278,54 +242,31 @@ function Write-SwapLog {
 Write-SwapLog 'Update swap task started'
 
 try {
-    if (Test-Path -LiteralPath `$batUpdateScriptNewPath) {
-        Write-SwapLog 'Found pending update for .bat script'
-
-        if (Test-Path -LiteralPath `$batUpdateScriptOldPath) {
-            Remove-Item -LiteralPath `$batUpdateScriptOldPath -Force
-            Write-SwapLog 'Removed old backup for .bat script'
+    function Swap-File {
+        param([string]`$Path, [string]`$NewPath, [string]`$OldPath, [string]`$Ext)
+        if (Test-Path -LiteralPath `$NewPath) {
+            Write-SwapLog "Found pending update for `$Ext script"
+            if (Test-Path -LiteralPath `$OldPath) {
+                Remove-Item -LiteralPath `$OldPath -Force
+                Write-SwapLog "Removed old backup for `$Ext script"
+            }
+            if (Test-Path -LiteralPath `$Path) {
+                Move-Item -LiteralPath `$Path -Destination `$OldPath -Force
+                Write-SwapLog "Backed up current `$Ext script version"
+            }
+            Move-Item -LiteralPath `$NewPath -Destination `$Path -Force
+            Write-SwapLog "Installed new `$Ext script version successfully"
+            if (Test-Path -LiteralPath `$OldPath) {
+                Remove-Item -LiteralPath `$OldPath -Force -ErrorAction SilentlyContinue
+                Write-SwapLog "Cleaned up old `$Ext script backup"
+            }
+        } else {
+            Write-SwapLog "No pending update found for `$Ext script"
         }
-
-        if (Test-Path -LiteralPath `$batUpdateScriptPath) {
-            Move-Item -LiteralPath `$batUpdateScriptPath -Destination `$batUpdateScriptOldPath -Force
-            Write-SwapLog 'Backed up current .bat script version'
-        }
-
-        Move-Item -LiteralPath `$batUpdateScriptNewPath -Destination `$batUpdateScriptPath -Force
-        Write-SwapLog 'Installed new .bat script version successfully'
-
-        if (Test-Path -LiteralPath `$batUpdateScriptOldPath) {
-            Remove-Item -LiteralPath `$batUpdateScriptOldPath -Force -ErrorAction SilentlyContinue
-            Write-SwapLog 'Cleaned up old .bat script backup'
-        }
-    } else {
-        Write-SwapLog 'No pending update found for .bat script'
     }
 
-    # Handle PowerShell script
-    if (Test-Path -LiteralPath `$psUpdateScriptNewPath) {
-        Write-SwapLog 'Found pending update for .ps1 script'
-
-        if (Test-Path -LiteralPath `$psUpdateScriptOldPath) {
-            Remove-Item -LiteralPath `$psUpdateScriptOldPath -Force
-            Write-SwapLog 'Removed old backup for .ps1 script'
-        }
-
-        if (Test-Path -LiteralPath `$psUpdateScriptOldPath) {
-            Move-Item -LiteralPath `$psUpdateScriptOldPath -Destination `$psUpdateScriptOldPath -Force
-            Write-SwapLog 'Backed up current .ps1 script version'
-        }
-
-        Move-Item -LiteralPath `$psUpdateScriptNewPath -Destination `$psUpdateScriptOldPath -Force
-        Write-SwapLog 'Installed new .ps1 script version successfully'
-
-        if (Test-Path -LiteralPath `$psUpdateScriptOldPath) {
-            Remove-Item -LiteralPath `$psUpdateScriptOldPath -Force -ErrorAction SilentlyContinue
-            Write-SwapLog 'Cleaned up old .ps1 script backup'
-        }
-    } else {
-        Write-SwapLog 'No pending update found for .ps1 script'
-    }
+    Swap-File -Path `$batUpdateScriptPath -NewPath `$batUpdateScriptNewPath -OldPath `$batUpdateScriptOldPath -Ext ".bat"
+    Swap-File -Path `$psUpdateScriptPath -NewPath `$psUpdateScriptNewPath -OldPath `$psUpdateScriptOldPath -Ext ".ps1"
 }
 catch {
     Write-SwapLog "ERROR: Failed to swap files: `$(`$_.Exception.Message)"
@@ -335,8 +276,8 @@ catch {
             Move-Item -LiteralPath `$batUpdateScriptOldPath -Destination `$batUpdateScriptPath -Force
             Write-SwapLog 'Rolled back .bat script to previous version'
         }
-        if (-not (Test-Path -LiteralPath `$psUpdateScriptOldPath) -and (Test-Path -LiteralPath `$psUpdateScriptOldPath)) {
-            Move-Item -LiteralPath `$psUpdateScriptOldPath -Destination `$psUpdateScriptOldPath -Force
+        if (-not (Test-Path -LiteralPath `$psUpdateScriptPath) -and (Test-Path -LiteralPath `$psUpdateScriptOldPath)) {
+            Move-Item -LiteralPath `$psUpdateScriptOldPath -Destination `$psUpdateScriptPath -Force
             Write-SwapLog 'Rolled back .ps1 script to previous version'
         }
     } catch {

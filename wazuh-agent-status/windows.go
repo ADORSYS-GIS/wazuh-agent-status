@@ -68,6 +68,7 @@ func (p *program) Stop(s service.Service) error {
 func checkServiceStatus() (string, string) {
 	cmd := exec.Command(powershellExe, cmdFlag, "Get-Service", "-Name", "WazuhSvc")
 	output, err := cmd.CombinedOutput()
+
 	if err != nil {
 		log.Printf("Error checking service status: %v\n", err)
 		log.Printf("Service command error output:\n%s\n", string(output))
@@ -141,6 +142,7 @@ func createScheduledTask(updateExe string) error {
 
 	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	output, err := cmd.CombinedOutput()
+
 	if err != nil {
 		log.Printf("Failed to create scheduled task: %v\nOutput: %s", err, string(output))
 		return err
@@ -241,6 +243,7 @@ func updateAgentViaWMI(updateExe string) error {
 
 	cmd := exec.Command(powershellExe, executionPolicyFlag, "Bypass", cmdFlag, psScript)
 	output, err := cmd.CombinedOutput()
+
 	if err != nil {
 		logFilePath := "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log"
 		errorMessage := fmt.Sprintf("Failed to launch update via WMI: %v. Output: %s\nFor details check logs at %s", err, string(output), logFilePath)

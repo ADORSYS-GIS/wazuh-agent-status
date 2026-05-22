@@ -15,8 +15,9 @@ if [[ "$(uname -s)" != "Linux" ]]; then
     exit 1
 fi
 
-readonly WAZUH_AGENT_STATUS_REPO_REF="user-main"
+readonly WAZUH_AGENT_STATUS_REPO_REF="main"
 readonly WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
+readonly AWK_PRINT_FIRST_COL='{print $1}'
 
 # Source shared utilities
 TMP_DIR=$(mktemp -d)
@@ -30,9 +31,9 @@ fi
 calculate_sha256_bootstrap() {
     local file="$1"
     if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum "$file" | awk '{print $1}'
+        sha256sum "$file" | awk "$AWK_PRINT_FIRST_COL"
     else
-        shasum -a 256 "$file" | awk '{print $1}'
+        shasum -a 256 "$file" | awk "$AWK_PRINT_FIRST_COL"
     fi
     return 0
 }
@@ -43,7 +44,7 @@ if ! curl -fsSL "${WAZUH_AGENT_STATUS_REPO_URL}/checksums.sha256" -o "$CHECKSUMS
     exit 1
 fi
 
-EXPECTED_HASH=$(grep "scripts/shared/utils.sh" "$CHECKSUMS_FILE" | awk '{print $1}')
+EXPECTED_HASH=$(grep "scripts/shared/utils.sh" "$CHECKSUMS_FILE" | awk "$AWK_PRINT_FIRST_COL")
 ACTUAL_HASH=$(calculate_sha256_bootstrap "$TMP_DIR/utils.sh")
 
 if [[ -z "$EXPECTED_HASH" ]] || [[ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]]; then
@@ -65,8 +66,7 @@ fi
 
 # Environment Variables with Defaults
 WAZUH_MANAGER=${WAZUH_MANAGER:-"wazuh.example.com"}
-readonly WAZUH_AGENT_REPO_REF="user-main"
-readonly WAZUH_AGENT_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$WAZUH_AGENT_REPO_REF"
+readonly WAZUH_AGENT_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Linux-specific constants
 ICON_PATH='/usr/share/pixmaps/wazuh-logo.png'
@@ -89,7 +89,7 @@ log() {
 
 # Get the currently logged-in user
 get_logged_in_user() {
-    who | awk '{print $1}' | head -n 1
+    who | awk "$AWK_PRINT_FIRST_COL" | head -n 1
     return 0
 }
 

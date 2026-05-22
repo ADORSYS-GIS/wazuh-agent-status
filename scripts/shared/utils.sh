@@ -41,6 +41,7 @@ error_message() {
 error_exit() {
     error_message "$*"
     exit 1
+    return 1
 }
 
 success_message() {

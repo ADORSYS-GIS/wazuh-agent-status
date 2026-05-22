@@ -13,10 +13,10 @@ if [[ "$(uname -s)" != "Linux" ]]; then
     exit 1
 fi
 
-APP_VERSION=${APP_VERSION:-"0.5.0-rc.6"}
+APP_VERSION=${APP_VERSION:-"0.5.0"}
 
 # Common configuration
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Source shared utilities
@@ -126,6 +126,7 @@ cleanup_legacy_system() {
         info_message "Migration already completed. Skipping legacy cleanup."
         return 0
     fi
+
     print_step_header 0 "Legacy Go Cleanup"
     info_message "Detecting legacy Go components..."
 
