@@ -12,11 +12,7 @@ interface LogsViewProps {
 
 export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }: LogsViewProps) {
   const [filter, setFilter] = useState("");
-  const logEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
+  const logContainerRef = useRef<HTMLDivElement>(null);
 
   const filteredLogs = logs.filter((log) => {
     if (!filter.trim()) return true;
@@ -26,6 +22,12 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
       log.level.toLowerCase().includes(term)
     );
   });
+
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logs, filteredLogs.length]);
 
   const levelColor = (level: string) => {
     switch (level) {
@@ -81,6 +83,7 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
 
       <div
         className="log-container"
+        ref={logContainerRef}
         style={{
           background: "#0a0a0a",
           padding: "12px",
@@ -124,7 +127,6 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
             </div>
           ))
         )}
-        <div ref={logEndRef} />
       </div>
 
       <div style={{ marginTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

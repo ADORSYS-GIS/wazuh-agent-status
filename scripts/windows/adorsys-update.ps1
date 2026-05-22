@@ -38,10 +38,12 @@ if (-not $IsAdmin) {
 }
 
 # Configuration
-$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.4.3" }
-$WAS_VERSION = if ($env:INSTALL_PROFILE -eq "admin") { $APP_VERSION } else { "$APP_VERSION-user" }
-$REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$($env:WAZUH_AGENT_STATUS_REPO_REF -or "refs/tags/v$WAS_VERSION")"
+
+$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0" }
+$REPO_REF = if ($env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "user-main" }
+$REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$REPO_REF"
 $TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
+
 try {
     $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
     Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
@@ -61,9 +63,8 @@ Set-StrictMode -Version Latest
 # ---- Configuration Variables ----
 $WAZUH_MANAGER           = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $OSSEC_PATH              = "C:\Program Files (x86)\ossec-agent\"
-$WAZUH_AGENT_REPO_REF    = if ($env:WAZUH_AGENT_REPO_REF) { $env:WAZUH_AGENT_REPO_REF } else { "main" }
-$VERSION_URL             = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/${WAZUH_AGENT_REPO_REF}/versions.json"
-$STABLE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/${WAZUH_AGENT_REPO_REF}/scripts/windows/setup-agent.ps1"
+$VERSION_URL             = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$REPO_REF/versions.json"
+$STABLE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$REPO_REF/scripts/windows/setup-agent.ps1"
 
 # ---- Globals ----
 $ActiveResponsesLogDir = Join-Path $OSSEC_PATH "active-response"

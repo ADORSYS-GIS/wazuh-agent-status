@@ -3,10 +3,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.4.3" }
-$WAS_VERSION = if ($env:INSTALL_PROFILE -eq "admin") { $APP_VERSION } else { "$APP_VERSION-user" }
-$REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$($env:WAZUH_AGENT_STATUS_REPO_REF -or "refs/tags/v$WAS_VERSION")"
+
+$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.0" }
+$REPO_REF = if ($env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "user-main" }
+$REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$REPO_REF"
 $TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
+
 try {
     $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
     Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
@@ -75,15 +77,18 @@ function Remove-StartupShortcut {
 
 
     # Check if the process is running
-    $process = Get-Process -Name $ShortcutName -ErrorAction SilentlyContinue
+    # Check if the process is running
+    $process = Get-Process -Name "wazuh-agent-status*" -ErrorAction SilentlyContinue
 
     if ($process) {
-        InfoMessage "Process '$ShortcutName' is running. Stopping it..."
-        Stop-Process -Name $ShortcutName -Force
-        InfoMessage "Process '$ShortcutName' has been stopped."
+        InfoMessage "Processes matching 'wazuh-agent-status*' are running. Stopping them..."
+        $process | ForEach-Object {
+            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+        }
+        InfoMessage "Processes have been stopped."
     }
     else {
-        WarnMessage "Process '$ShortcutName' is not running. Skipping..."
+        WarnMessage "No processes matching 'wazuh-agent-status*' are running. Skipping..."
     }
     # Define full path of the shortcut
 
@@ -161,9 +166,19 @@ function Validate-Uninstallation {
 function Remove-Binaries {
     Remove-File $SERVER_EXE
     Remove-File $CLIENT_EXE
+    Remove-File "$SERVER_EXE.old"
+    Remove-File "$CLIENT_EXE.old"
     Remove-File $BAT_UPDATE_SCRIPT_PATH
     Remove-File $PS_UPDATE_SCRIPT_PATH
-    Remove-File $BIN_DIR
+    if (Test-Path -Path $BIN_DIR) {
+        InfoMessage "Removing bin directory '$BIN_DIR'..."
+        try {
+            Remove-Item -Path $BIN_DIR -Recurse -Force -ErrorAction Stop
+            InfoMessage "Bin directory '$BIN_DIR' removed successfully."
+        } catch {
+            ErrorMessage "Failed to remove bin directory '$BIN_DIR': $_"
+        }
+    }
 }
 
 # Function to uninstall application and clean up

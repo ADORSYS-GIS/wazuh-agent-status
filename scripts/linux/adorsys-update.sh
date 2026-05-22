@@ -15,7 +15,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
     exit 1
 fi
 
-readonly WAZUH_AGENT_STATUS_REPO_REF="refs/tags/v0.4.3"
+readonly WAZUH_AGENT_STATUS_REPO_REF="user-main"
 readonly WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 readonly AWK_PRINT_FIRST_COL='{print $1}'
 
@@ -66,8 +66,7 @@ fi
 
 # Environment Variables with Defaults
 WAZUH_MANAGER=${WAZUH_MANAGER:-"wazuh.example.com"}
-readonly WAZUH_AGENT_REPO_REF="main"
-readonly WAZUH_AGENT_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$WAZUH_AGENT_REPO_REF"
+readonly WAZUH_AGENT_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Linux-specific constants
 ICON_PATH='/usr/share/pixmaps/wazuh-logo.png'

@@ -64,6 +64,7 @@ function App() {
   const [isLogStreaming, setIsLogStreaming] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
   const unlistenRef = useRef<(() => void) | null>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
 
   const startLogStream = useCallback(async () => {
     if (isLogStreaming) return;
@@ -94,6 +95,9 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_VIEW, activeView);
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTo(0, 0);
+    }
   }, [activeView]);
 
   useEffect(() => {
@@ -210,7 +214,7 @@ function App() {
         </div>
       </nav>
 
-      <main className="main-content">
+      <main className="main-content" ref={mainContentRef}>
         {activeView === "status" && <StatusView agentStatus={agentStatus} metrics={metrics} />}
         {activeView === "logs" && (
           <LogsView

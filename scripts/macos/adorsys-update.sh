@@ -15,7 +15,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
     exit 1
 fi
 
-readonly WAZUH_AGENT_STATUS_REPO_REF="refs/tags/v0.4.3"
+readonly WAZUH_AGENT_STATUS_REPO_REF="user-main"
 readonly WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Source shared utilities
@@ -59,8 +59,8 @@ trap cleanup EXIT
 
 # Environment Variables with Defaults
 WAZUH_MANAGER=${WAZUH_MANAGER:-"wazuh.example.com"}
-readonly WAZUH_AGENT_REPO_REF=${WAZUH_AGENT_REPO_REF:-"main"}
-readonly SCRIPT_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/${WAZUH_AGENT_REPO_REF}/scripts/macos/setup-agent.sh"
+readonly WAZUH_AGENT_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$WAZUH_AGENT_STATUS_REPO_REF"
+readonly SCRIPT_URL="$WAZUH_AGENT_REPO_URL/scripts/macos/setup-agent.sh"
 
 # macOS-specific constants
 ICON_PATH='/Library/Application Support/Ossec/wazuh-logo.png'

@@ -95,6 +95,25 @@ function Download-File {
         New-Item -ItemType Directory -Path $destDir -Force | Out-Null
     }
 
+    # Handle existing files, resolving file locks if the process is still running
+    if (Test-Path -LiteralPath $Destination) {
+        try {
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction Stop
+        } catch {
+            InfoMessage "File $Destination is in use or locked. Renaming it to allow overwrite..."
+            $oldPath = "$Destination.old"
+            try {
+                if (Test-Path -LiteralPath $oldPath) {
+                    Remove-Item -LiteralPath $oldPath -Force -ErrorAction SilentlyContinue
+                }
+                Move-Item -LiteralPath $Destination -Destination $oldPath -Force -ErrorAction Stop
+                InfoMessage "Successfully renamed locked file to $oldPath"
+            } catch {
+                WarnMessage "Failed to rename locked file: $($_.Exception.Message)"
+            }
+        }
+    }
+
     $attempt = 0
     while ($attempt -lt $MaxRetries) {
         try {
@@ -103,8 +122,9 @@ function Download-File {
             return
         } catch {
             $attempt++
+            WarnMessage "Download attempt $attempt failed: $($_.Exception.Message)"
             if ($attempt -lt $MaxRetries) {
-                WarnMessage "Download failed, retrying ($attempt/$MaxRetries)..."
+                WarnMessage "Retrying in 2 seconds..."
                 Start-Sleep -Seconds 2
             }
         }

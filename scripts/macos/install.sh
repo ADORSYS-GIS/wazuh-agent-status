@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Set shell options
 if [ -n "$BASH_VERSION" ]; then
@@ -7,25 +7,12 @@ else
     set -eu
 fi
 
-# OS guard early in the script
-if [[ "$(uname -s)" != "Darwin" ]]; then
-    printf "%s\n" "[ERROR] This installation script is intended for macOS systems. Please use the appropriate script for your operating system." >&2
-    exit 1
-fi
-
-PROFILE=${PROFILE:-"user"}
-APP_VERSION=${APP_VERSION:-"0.4.3"}
-
-# Assign app version based on profile
-case "$PROFILE" in
-"admin") WAS_VERSION="$APP_VERSION" ;;
-*) WAS_VERSION="$APP_VERSION-user" ;;
-esac
+APP_VERSION=${APP_VERSION:-"0.5.0"}
 
 # Common configuration
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"refs/tags/v0.4.3"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Source shared utilities
@@ -80,34 +67,71 @@ fi
 
 # Environment Variables with Defaults
 WAZUH_MANAGER=${WAZUH_MANAGER:-'wazuh.example.com'}
-WAZUH_USER=${WAZUH_USER:-"root"}
+
+# Default to 'wazuh' user/group if they exist, otherwise fallback to root
+USER_EXISTS=$(id -u wazuh 2>/dev/null || echo "")
+GROUP_EXISTS=$(dscl . -list /Groups | grep -w "wazuh" || echo "")
+
+if [[ -n "$USER_EXISTS" ]]; then
+    WAZUH_USER=${WAZUH_USER:-"wazuh"}
+else
+    WAZUH_USER=${WAZUH_USER:-"root"}
+fi
+
+if [[ -n "$GROUP_EXISTS" ]]; then
+    WAZUH_GROUP=${WAZUH_GROUP:-"wazuh"}
+else
+    WAZUH_GROUP=${WAZUH_GROUP:-"wheel"}
+fi
 
 SERVER_LAUNCH_AGENT_FILE=${SERVER_LAUNCH_AGENT_FILE:-"/Library/LaunchDaemons/com.adorsys.$SERVER_NAME.plist"}
 CLIENT_LAUNCH_AGENT_FILE=${CLIENT_LAUNCH_AGENT_FILE:-"/Library/LaunchAgents/com.adorsys.$CLIENT_NAME.plist"}
+MIGRATION_MARKER="/usr/local/etc/$SERVER_NAME/.migrated_from_go"
 
-SERVER_BIN_NAME="$SERVER_NAME-$OS-$ARCH"
-CLIENT_BIN_NAME="$CLIENT_NAME-$OS-$ARCH"
-BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/$SERVER_NAME/releases/download/v$WAS_VERSION"}
-SERVER_URL="$BASE_URL/$SERVER_BIN_NAME"
-CLIENT_URL="$BASE_URL/$CLIENT_BIN_NAME"
-CHECKSUM_URL="$BASE_URL/checksums.sha256"
+SERVER_BIN_NAME="${SERVER_NAME}-${OS}-${ARCH}"
+CLIENT_BIN_NAME="${CLIENT_NAME}-${OS}-${ARCH}"
+BASE_URL=${BASE_URL:-"https://github.com/ADORSYS-GIS/${SERVER_NAME}/releases/download/v${APP_VERSION}"}
+
+# Sanity check for BASE_URL: Automatically correct GitHub tag page URLs to download URLs
+if [[ "${BASE_URL}" == *"releases/tag/"* ]]; then
+    warn_message "BASE_URL appears to point to a tag page instead of a release download: ${BASE_URL}"
+    warn_message "Correcting BASE_URL to use 'download' path..."
+    BASE_URL="${BASE_URL/releases\/tag/releases/download}"
+    info_message "Corrected BASE_URL: ${BASE_URL}"
+fi
+
+SERVER_URL="${BASE_URL}/${SERVER_BIN_NAME}"
+CLIENT_URL="${BASE_URL}/${CLIENT_BIN_NAME}"
+CHECKSUM_URL="${BASE_URL}/checksums.sha256"
 
 ADORSYS_UPDATE_SCRIPT_URL=${ADORSYS_UPDATE_SCRIPT_URL:-"$WAZUH_AGENT_STATUS_REPO_URL/scripts/macos/adorsys-update.sh"}
 UPDATE_SCRIPT_PATH="$WAZUH_ACTIVE_RESPONSE_BIN_DIR/adorsys-update.sh"
 
 
-remove_file() {
-    local filepath="$1"
-    if [[ -f "$filepath" ]]; then
-        info_message "Removing file: $filepath"
-        maybe_sudo rm -f "$filepath"
-    fi
-    return 0
-}
 
-sed_inplace() {
-    maybe_sudo sed -i '' "$@" 2>/dev/null || true
-    return $?
+# Legacy Go Cleanup
+cleanup_legacy_system() {
+    if [[ -f "$MIGRATION_MARKER" ]]; then
+        info_message "Migration already completed. Skipping legacy cleanup."
+        return 0
+    fi
+    print_step_header 0 "Legacy Go Cleanup"
+    info_message "Detecting legacy Go components..."
+
+    # 1. macOS: Unload legacy launchd plists
+    info_message "Unloading legacy macOS launchd services..."
+    maybe_sudo launchctl unload "$SERVER_LAUNCH_AGENT_FILE" 2>/dev/null || true
+    maybe_sudo launchctl unload "$CLIENT_LAUNCH_AGENT_FILE" 2>/dev/null || true
+    remove_file "$SERVER_LAUNCH_AGENT_FILE"
+    remove_file "$CLIENT_LAUNCH_AGENT_FILE"
+
+    # 2. Kill any lingering Go processes
+    info_message "Killing lingering Go processes ($SERVER_NAME, $CLIENT_NAME)..."
+    maybe_sudo killall "$SERVER_NAME" 2>/dev/null || true
+    maybe_sudo killall "$CLIENT_NAME" 2>/dev/null || true
+
+    info_message "Legacy cleanup complete."
+    return 0
 }
 
 # macOS Launchd Plist File
@@ -118,20 +142,13 @@ create_launchd_plist_file() {
     info_message "Creating plist file for $name..."
 
     # Determine the EnvironmentVariables block: inject HOME only for the client (LaunchAgent)
-    local env_block=""
+    local env_dict_extra=""
     if [[ "$name" != "$SERVER_NAME" ]]; then
-        local real_user="${SUDO_USER:-${USER:-}}"
-        local user_home=""
-        if [ -n "$real_user" ]; then
-            user_home=$(dscl . -read "/Users/$real_user" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
-        fi
-        user_home="${user_home:-$HOME}"
-        env_block="
-    <key>EnvironmentVariables</key>
-    <dict>
+        local real_user=$(get_real_user)
+        local user_home=$(eval echo "~$real_user")
+        env_dict_extra="
         <key>HOME</key>
-        <string>$user_home</string>
-    </dict>"
+        <string>$user_home</string>"
     fi
 
     create_file "$filepath" "
@@ -144,7 +161,12 @@ create_launchd_plist_file() {
     <key>ProgramArguments</key>
     <array>
         <string>$BIN_DIR/$name</string>
-    </array>$env_block
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>WAZUH_STATUS_LOG_FILE</key>
+        <string>/var/log/wazuh-agent-status/wazuh-agent-status.log</string>$env_dict_extra
+    </dict>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -164,22 +186,43 @@ create_launchd_plist_file() {
             maybe_sudo launchctl bootstrap system "$filepath" 2>/dev/null || warn_message "Loading server plist file failed: $filepath"
         fi
     else
-        local real_user="${SUDO_USER:-$USER}"
+        local real_user=$(get_real_user)
         local uid
         uid=$(id -u "$real_user")
-
         local target="gui/$uid/$label"
 
         if sudo -u "$real_user" launchctl print "$target" >/dev/null 2>&1; then
             info_message "Service $label is already loaded, kickstarting..."
             sudo -u "$real_user" launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting client failed: $label"
         else
-            info_message "Loading new agent plist file..."
-            sudo -u "$real_user" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || warn_message "Loading client plist file failed: $filepath"
+            info_message "Loading $name into user GUI session ($real_user)..."
+            # Use 'asuser' to ensure it's loaded in the correct GUI context
+            sudo launchctl asuser "$uid" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || \
+            sudo -u "$real_user" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || \
+            warn_message "Loading $name failed. You may need to log out and log back in to see the tray app."
         fi
     fi
 
     info_message "macOS Launchd plist file created and managed: $filepath"
+    return 0
+}
+
+configure_logrotate() {
+    local newsyslog_file="/etc/newsyslog.d/wazuh-agent-status.conf"
+    local log_dir="/var/log/wazuh-agent-status"
+    local log_file_path="${log_dir}/wazuh-agent-status.log"
+
+    info_message "Configuring newsyslog for $log_file_path..."
+
+    # Format: logfilename [owner:group] mode count size when flags [/pid_file] [sig_num]
+    # Rotate daily ($D0), keep 7 logs, compress (Z)
+    create_file "$newsyslog_file" "$log_file_path  $WAZUH_USER:$WAZUH_GROUP  644  7  *  \$D0  Z
+"
+    # Ensure correct permissions for the newsyslog entry
+    maybe_sudo chown root:wheel "$newsyslog_file"
+    maybe_sudo chmod 644 "$newsyslog_file"
+
+    success_message "macOS newsyslog configuration created: $newsyslog_file"
     return 0
 }
 
@@ -233,6 +276,9 @@ validate_installation() {
     return 0
 }
 
+print_step_header 0 "Legacy Go Cleanup"
+cleanup_legacy_system
+
 print_step_header 1 "Binaries Download"
 info_message "Downloading server binary from $SERVER_URL..."
 download_and_verify_file "$SERVER_URL" "$TMP_DIR/$SERVER_BIN_NAME" "$SERVER_BIN_NAME" "server binary" "$CHECKSUM_URL" || error_exit "Failed to download $SERVER_BIN_NAME"
@@ -266,7 +312,7 @@ if maybe_sudo [ -d "$WAZUH_ACTIVE_RESPONSE_BIN_DIR" ]; then
     # Update WAZUH_MANAGER value in adorsys-update.sh
     if [[ -n "${WAZUH_MANAGER:-}" ]]; then
         info_message "Updating WAZUH_MANAGER in adorsys-update.sh to $WAZUH_MANAGER"
-        maybe_sudo sed_inplace "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
+        sed_inplace "s/^WAZUH_MANAGER=.*/WAZUH_MANAGER=\${WAZUH_MANAGER:-\"$WAZUH_MANAGER\"}/" "$UPDATE_SCRIPT_PATH"
     else
         warn_message "WAZUH_MANAGER variable not set. Skipping update in adorsys-update.sh."
     fi
@@ -274,5 +320,16 @@ else
     warn_message "$WAZUH_ACTIVE_RESPONSE_BIN_DIR does not exist, skipping."
 fi
 
-print_step_header 6 "Validating installation and configuration..."
+# Permissions and Ownership Configuration
+print_step_header 6 "Permissions and Ownership Configuration"
+setup_permissions_and_ownership "$WAZUH_USER" "$WAZUH_GROUP" "/Library/Ossec/bin/wazuh-control"
+
+print_step_header 7 "Log Rotation Configuration"
+configure_logrotate
+
+print_step_header 8 "Validating installation and configuration..."
 validate_installation
+
+# Create migration marker
+maybe_sudo mkdir -p "$(dirname "$MIGRATION_MARKER")"
+maybe_sudo touch "$MIGRATION_MARKER"
