@@ -4,17 +4,8 @@ on: [pull_request]
 
 jobs:
   cargo-fmt:
-    name: Cargo Format Check - ${{ matrix.component.name }}
+    name: Cargo Format Check
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        component:
-          - { dir: "wazuh-agent-status-rust-server", name: "Server" }
-          - { dir: "wazuh-agent-status-rust-client/src-tauri", name: "Client" }
-    defaults:
-      run:
-        working-directory: ./${{ matrix.component.dir }}
     steps:
       - name: Fetch Repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -22,21 +13,17 @@ jobs:
       - name: Setup Rust Environment
         uses: ./.github/actions/setup-rust-env
 
-      - name: Rustfmt Check
+      - name: Rustfmt Check Server
         run: cargo fmt --all -- --check
+        working-directory: ./wazuh-agent-status-rust-server
+
+      - name: Rustfmt Check Client
+        run: cargo fmt --all -- --check
+        working-directory: ./wazuh-agent-status-rust-client/src-tauri
 
   cargo-clippy:
-    name: Cargo Clippy Check - ${{ matrix.component.name }}
+    name: Cargo Clippy Check
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        component:
-          - { dir: "wazuh-agent-status-rust-server", name: "Server" }
-          - { dir: "wazuh-agent-status-rust-client/src-tauri", name: "Client" }
-    defaults:
-      run:
-        working-directory: ./${{ matrix.component.dir }}
     steps:
       - name: Fetch Repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -44,12 +31,16 @@ jobs:
       - name: Setup Rust Environment
         uses: ./.github/actions/setup-rust-env
 
-      - name: Install Tauri system dependencies (Client only)
-        if: matrix.component.name == 'Client'
+      - name: Install Tauri system dependencies
         uses: ./.github/actions/setup-tauri-deps
 
-      - name: Clippy Check
-        run: cargo clippy --workspace --all-targets --all-features
+      - name: Clippy Check Server
+        run: cargo clippy --all-targets --all-features
+        working-directory: ./wazuh-agent-status-rust-server
+
+      - name: Clippy Check Client
+        run: cargo clippy --all-targets --all-features
+        working-directory: ./wazuh-agent-status-rust-client/src-tauri
 
   cargo-nextest:
     name: Cargo Nextest - Server
@@ -70,20 +61,11 @@ jobs:
           tool: nextest
 
       - name: Run Cargo Tests
-        run: cargo nextest run --workspace --all-targets --all-features
+        run: cargo nextest run --all-targets --all-features
 
   cargo-machete:
-    name: Cargo Machete Check - ${{ matrix.component.name }}
+    name: Cargo Machete Check
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        component:
-          - { dir: "wazuh-agent-status-rust-server", name: "Server" }
-          - { dir: "wazuh-agent-status-rust-client/src-tauri", name: "Client" }
-    defaults:
-      run:
-        working-directory: ./${{ matrix.component.dir }}
     steps:
       - name: Fetch Repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -96,5 +78,10 @@ jobs:
         with:
           tool: cargo-machete
 
-      - name: Cargo Machete
+      - name: Cargo Machete Server
         run: cargo machete --with-metadata
+        working-directory: ./wazuh-agent-status-rust-server
+
+      - name: Cargo Machete Client
+        run: cargo machete --with-metadata
+        working-directory: ./wazuh-agent-status-rust-client/src-tauri
