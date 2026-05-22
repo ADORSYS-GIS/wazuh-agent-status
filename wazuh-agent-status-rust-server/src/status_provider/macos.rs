@@ -22,14 +22,14 @@ use crate::status_provider::StatusProvider;
 
 pub struct MacosStatusProvider {
     paths: AgentPaths,
-    sys:   std::sync::Mutex<System>,
+    sys: std::sync::Mutex<System>,
 }
 
 impl MacosStatusProvider {
     pub fn new(paths: AgentPaths) -> Self {
         let mut sys = System::new();
         sys.refresh_all();
-        Self { 
+        Self {
             paths,
             sys: std::sync::Mutex::new(sys),
         }
@@ -37,9 +37,12 @@ impl MacosStatusProvider {
 
     /// Determine whether `wazuh-agentd` is alive by running `wazuh-control status`.
     fn is_agent_running(&self) -> bool {
-        let control_path = self.paths.state_file.parent() // var/run/
-            .and_then(|p| p.parent())                    // var/
-            .and_then(|p| p.parent())                    // base/
+        let control_path = self
+            .paths
+            .state_file
+            .parent() // var/run/
+            .and_then(|p| p.parent()) // var/
+            .and_then(|p| p.parent()) // base/
             .map(|base| base.join("bin/wazuh-control"))
             .unwrap_or_else(|| std::path::PathBuf::from("/Library/Ossec/bin/wazuh-control"));
 
@@ -50,7 +53,7 @@ impl MacosStatusProvider {
                 if stdout.contains("wazuh-agentd is running") {
                     return true;
                 }
-                // If wazuh-control ran successfully but didn't say it's running, 
+                // If wazuh-control ran successfully but didn't say it's running,
                 // trust it and return false instead of falling back.
                 if output.status.success() || stdout.contains("wazuh-agentd is stopped") {
                     return false;
@@ -112,7 +115,10 @@ impl StatusProvider for MacosStatusProvider {
         }
 
         // 2. Fallback to wazuh-control info
-        let control_path = self.paths.state_file.parent()
+        let control_path = self
+            .paths
+            .state_file
+            .parent()
             .and_then(|p| p.parent())
             .and_then(|p| p.parent())
             .map(|base| base.join("bin/wazuh-control"))
@@ -145,9 +151,10 @@ impl StatusProvider for MacosStatusProvider {
     }
 
     fn get_system_metrics(&self) -> Result<crate::models::SystemMetrics> {
-        let mut sys = self.sys.lock().map_err(|_| {
-            ServerError::PlatformError("Failed to lock system metrics".to_string())
-        })?;
+        let mut sys = self
+            .sys
+            .lock()
+            .map_err(|_| ServerError::PlatformError("Failed to lock system metrics".to_string()))?;
 
         sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
         sys.refresh_memory();

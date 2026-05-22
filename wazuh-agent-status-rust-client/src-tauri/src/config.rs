@@ -35,7 +35,9 @@ impl AppConfig {
         use tauri::Manager;
 
         // 1. Try bundled resource (allows override in .deb/.msi/.app installs)
-        let resource_path = app.path().resolve("app_config.json", tauri::path::BaseDirectory::Resource)
+        let resource_path = app
+            .path()
+            .resolve("app_config.json", tauri::path::BaseDirectory::Resource)
             .map_err(|e| format!("Failed to resolve resource path: {}", e))?;
 
         if resource_path.exists() {

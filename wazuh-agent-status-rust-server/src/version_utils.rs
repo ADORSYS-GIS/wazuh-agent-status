@@ -10,25 +10,35 @@ use crate::models::VersionInfo;
 /// differences (e.g. `4.7` vs `4.7.2`).
 pub fn is_version_higher(online: &str, local: &str) -> bool {
     let online = online.trim_start_matches('v');
-    let local  = local.trim_start_matches('v');
+    let local = local.trim_start_matches('v');
 
     let online_base = online.split('-').next().unwrap_or(online);
-    let local_base  = local.split('-').next().unwrap_or(local);
+    let local_base = local.split('-').next().unwrap_or(local);
 
-    let online_parts: Vec<u32> = online_base.split('.').map(|p| p.parse().unwrap_or(0)).collect();
-    let local_parts:  Vec<u32> = local_base.split('.').map(|p| p.parse().unwrap_or(0)).collect();
+    let online_parts: Vec<u32> = online_base
+        .split('.')
+        .map(|p| p.parse().unwrap_or(0))
+        .collect();
+    let local_parts: Vec<u32> = local_base
+        .split('.')
+        .map(|p| p.parse().unwrap_or(0))
+        .collect();
 
     let len = online_parts.len().max(local_parts.len());
     for i in 0..len {
         let o = *online_parts.get(i).unwrap_or(&0);
         let l = *local_parts.get(i).unwrap_or(&0);
-        if o > l { return true; }
-        if o < l { return false; }
+        if o > l {
+            return true;
+        }
+        if o < l {
+            return false;
+        }
     }
 
     // Same base — stable beats prerelease
     let online_is_pre = online.contains('-');
-    let local_is_pre  = local.contains('-');
+    let local_is_pre = local.contains('-');
     matches!((online_is_pre, local_is_pre), (false, true))
 }
 

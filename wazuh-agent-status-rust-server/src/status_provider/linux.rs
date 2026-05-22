@@ -12,7 +12,7 @@ use crate::status_provider::StatusProvider;
 
 pub struct LinuxStatusProvider {
     paths: AgentPaths,
-    sys:   std::sync::Mutex<System>,
+    sys: std::sync::Mutex<System>,
 }
 
 impl LinuxStatusProvider {
@@ -20,20 +20,23 @@ impl LinuxStatusProvider {
         let mut sys = System::new();
         // Initial refresh so we have something for first poll
         sys.refresh_all();
-        Self { 
+        Self {
             paths,
             sys: std::sync::Mutex::new(sys),
         }
     }
 
     /// Determine whether the `wazuh-agentd` process is alive by calling the
-    /// official `wazuh-control status` script. This ensures parity with the 
+    /// official `wazuh-control status` script. This ensures parity with the
     /// local Wazuh management tools.
     fn is_agent_running(&self) -> bool {
         let control_path = self.paths.wazuh_control.clone();
 
         // Primary check: official wazuh-control utility
-        match std::process::Command::new(&control_path).arg("status").output() {
+        match std::process::Command::new(&control_path)
+            .arg("status")
+            .output()
+        {
             Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let is_running = stdout.contains("wazuh-agentd is running");
@@ -47,7 +50,10 @@ impl LinuxStatusProvider {
                 // Fallback: search process list if control utility is missing
                 if let Ok(mut sys) = self.sys.lock() {
                     sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-                    let is_running = sys.processes().values().any(|p| p.name().to_string_lossy() == "wazuh-agentd");
+                    let is_running = sys
+                        .processes()
+                        .values()
+                        .any(|p| p.name().to_string_lossy() == "wazuh-agentd");
                     if !is_running {
                         tracing::info!("Process list check confirms wazuh-agentd is NOT running");
                     }
@@ -98,23 +104,30 @@ impl StatusProvider for LinuxStatusProvider {
 
     fn get_agent_version(&self) -> Result<String> {
         // 1. Try VERSION.json first
-        if let Ok(content) = fs::read_to_string(&self.paths.version_json)
-            && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
-            && let Some(v) = json.get("version").and_then(|v| v.as_str())
-        {
-            let version = v.to_string();
-            tracing::debug!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
-            return Ok(version);
+        if let Ok(content) = fs::read_to_string(&self.paths.version_json) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
+                    let version = v.to_string();
+                    tracing::debug!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
+                    return Ok(version);
+                }
+            }
         }
 
         // 2. Fallback to wazuh-control info
-        let control_path = self.paths.state_file.parent()
+        let control_path = self
+            .paths
+            .state_file
+            .parent()
             .and_then(|p| p.parent())
             .and_then(|p| p.parent())
             .map(|base| base.join("bin/wazuh-control"))
             .unwrap_or_else(|| std::path::PathBuf::from("/var/ossec/bin/wazuh-control"));
 
-        if let Ok(output) = std::process::Command::new(&control_path).arg("info").output() {
+        if let Ok(output) = std::process::Command::new(&control_path)
+            .arg("info")
+            .output()
+        {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
                 if let Some(v) = line.strip_prefix("WAZUH_VERSION=\"") {
@@ -151,9 +164,10 @@ impl StatusProvider for LinuxStatusProvider {
     }
 
     fn get_system_metrics(&self) -> Result<crate::models::SystemMetrics> {
-        let mut sys = self.sys.lock().map_err(|_| {
-            ServerError::PlatformError("Failed to lock system metrics".to_string())
-        })?;
+        let mut sys = self
+            .sys
+            .lock()
+            .map_err(|_| ServerError::PlatformError("Failed to lock system metrics".to_string()))?;
 
         // Refresh all processes to find the Wazuh ones
         sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
@@ -173,7 +187,6 @@ impl StatusProvider for LinuxStatusProvider {
                 found_names.push(format!("{} ({:.1}%)", name, p_cpu));
             }
         }
-
 
         let cpu_count = sys.cpus().len() as f32;
         let cpu_usage = if !found_names.is_empty() && cpu_count > 0.0 {

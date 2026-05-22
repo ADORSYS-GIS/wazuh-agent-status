@@ -1,4 +1,6 @@
-use wazuh_agent_status_rust_server::models::{AgentState, AgentStatus, ConnectionStatus, SystemMetrics};
+use wazuh_agent_status_rust_server::models::{
+    AgentState, AgentStatus, ConnectionStatus, SystemMetrics,
+};
 
 #[test]
 fn test_agent_state_serialization() {

@@ -25,9 +25,7 @@ pub fn extract_groups<P: AsRef<Path>>(path: P) -> io::Result<Vec<String>> {
             continue;
         }
 
-        if !first_comment_added
-            && let Some(group) = extract_first_comment_group(&line)
-        {
+        if !first_comment_added && let Some(group) = extract_first_comment_group(&line) {
             groups.push(group);
             first_comment_added = true;
             continue;
@@ -47,7 +45,11 @@ fn extract_first_comment_group(line: &str) -> Option<String> {
     }
 
     let candidate = line.trim_start_matches('#').trim().to_string();
-    if candidate.is_empty() { None } else { Some(candidate) }
+    if candidate.is_empty() {
+        None
+    } else {
+        Some(candidate)
+    }
 }
 
 fn extract_source_file_group(line: &str) -> Option<String> {

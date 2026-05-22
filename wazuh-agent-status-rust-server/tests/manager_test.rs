@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 use wazuh_agent_status_rust_server::config::{AgentPaths, Config};
+use wazuh_agent_status_rust_server::errors::Result;
 use wazuh_agent_status_rust_server::manager::AgentManager;
 use wazuh_agent_status_rust_server::models::{AgentStatus, ConnectionStatus, SystemMetrics};
 use wazuh_agent_status_rust_server::status_provider::StatusProvider;
-use wazuh_agent_status_rust_server::errors::Result;
 
 struct MockProvider {
     status: std::sync::Mutex<AgentStatus>,
@@ -39,25 +39,21 @@ async fn test_manager_polling_notification() {
         ..Config::default()
     });
     let paths = Arc::new(AgentPaths::native());
-    
+
     let mock_provider = Box::new(MockProvider {
         status: std::sync::Mutex::new(AgentStatus::Inactive),
     });
-    
-    let manager = Arc::new(AgentManager::new_custom(
-        config,
-        paths,
-        mock_provider,
-    ));
-    
+
+    let manager = Arc::new(AgentManager::new_custom(config, paths, mock_provider));
+
     let mut rx = manager.subscribe();
-    
+
     // Start polling in background
     let manager_clone = Arc::clone(&manager);
     tokio::spawn(async move {
         manager_clone.start_polling().await;
     });
-    
+
     // First tick should broadcast the state from provider.
     let state1 = rx.recv().await.unwrap();
     assert_eq!(state1.status, AgentStatus::Inactive);
