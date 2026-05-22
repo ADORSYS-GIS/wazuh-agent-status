@@ -22,17 +22,17 @@ try {
     Write-Host "DEBUG: Downloading utils.ps1 from $REPO_URL/scripts/shared/utils.ps1"
     Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
     
-    $localHash = (Get-FileHash $U -Alg SHA256).Hash
-    Write-Host "DEBUG: Local hash of utils.ps1 is '$localHash'"
+    $localHash = (Get-FileHash $U -Alg SHA256).Hash.ToLower()
+    Write-Host "DEBUG: Local hash of utils.ps1 (lowercase) is '$localHash'"
     
-    $match = Select-String $global:ChecksumsPath -Pat "scripts/shared/utils.ps1"
+    $match = Select-String -Path $global:ChecksumsPath -Pattern "scripts/shared/utils.ps1"
     if ($null -eq $match) {
         Write-Error "DEBUG: Could not find 'scripts/shared/utils.ps1' in checksums file"
         throw
     }
     
-    $expectedHash = $match.Line.Split(" ")[0]
-    Write-Host "DEBUG: Expected hash from checksums is '$expectedHash'"
+    $expectedHash = $match.Line.Split(" ")[0].ToLower()
+    Write-Host "DEBUG: Expected hash from checksums (lowercase) is '$expectedHash'"
     
     if ($localHash -ne $expectedHash) {
         Write-Error "DEBUG: Hash mismatch! Local: $localHash, Expected: $expectedHash"
