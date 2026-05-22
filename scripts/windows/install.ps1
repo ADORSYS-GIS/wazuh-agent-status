@@ -13,11 +13,38 @@ $REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$R
 $TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
 
 try {
+    Write-Host "DEBUG: REPO_URL is '$REPO_URL'"
     $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
-    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
-    if ((Get-FileHash $U -Alg SHA256).Hash -ne (Select-String $global:ChecksumsPath -Pat "scripts/shared/utils.ps1").Line.Split(" ")[0]) { throw }
+    
+    Write-Host "DEBUG: Downloading checksums.sha256 from $REPO_URL/checksums.sha256"
+    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath
+    
+    Write-Host "DEBUG: Downloading utils.ps1 from $REPO_URL/scripts/shared/utils.ps1"
+    Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
+    
+    $localHash = (Get-FileHash $U -Alg SHA256).Hash
+    Write-Host "DEBUG: Local hash of utils.ps1 is '$localHash'"
+    
+    $match = Select-String $global:ChecksumsPath -Pat "scripts/shared/utils.ps1"
+    if ($null -eq $match) {
+        Write-Error "DEBUG: Could not find 'scripts/shared/utils.ps1' in checksums file"
+        throw
+    }
+    
+    $expectedHash = $match.Line.Split(" ")[0]
+    Write-Host "DEBUG: Expected hash from checksums is '$expectedHash'"
+    
+    if ($localHash -ne $expectedHash) {
+        Write-Error "DEBUG: Hash mismatch! Local: $localHash, Expected: $expectedHash"
+        throw
+    }
+    
+    Write-Host "DEBUG: Bootstrap verification successful, dot-sourcing utils.ps1"
     . $U
-} catch { Write-Error "Bootstrap failed"; exit 1 }
+} catch { 
+    Write-Error "Bootstrap failed: $($_.Exception.Message)"
+    exit 1 
+}
 
 EnsureAdmin
 
