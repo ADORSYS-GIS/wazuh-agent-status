@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 [5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[3a757ba](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3a757bab48670ccdd1daf05b2946be03101b2874)
 
+
 ### Bug Fixes
 
 - Use REAL_HOME and add sudo-safe function execution ([`b55d353`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b55d35369e2ee30062943b759c457b49dca13afc))
