@@ -4,12 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[ba1bec6](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ba1bec67a21fc1d471a96f17170bbb1fa1650e03)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[12ba1de](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/12ba1de8d6b6e82f8ea3856f0844c6e8575d81fc)
 
 ### Bug Fixes
 
 - Use REAL_HOME and add sudo-safe function execution ([`b55d353`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b55d35369e2ee30062943b759c457b49dca13afc))
 - Replace single brackets with double brackets for improved condition checks ([`72af293`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/72af293e5b21f193cd45ead32ab3990507ec7fc5))
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`12ba1de`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/12ba1de8d6b6e82f8ea3856f0844c6e8575d81fc))
 
 ### Features
 
