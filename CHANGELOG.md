@@ -4,16 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[e76f7ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e76f7ad75a0cc77ce21ae3d83e9b97c248fdf068)...[bc9df36](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/bc9df3666767231b3b30a30a4ceb3d0d55ceccfa)
+[e76f7ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e76f7ad75a0cc77ce21ae3d83e9b97c248fdf068)...[5980c9e](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5980c9e551b56e85885b096207868c8deb38fbae)
 
 ### Bug Fixes
 
 - Improve process handling, binary locking, and TLS security during installation and uninstallation ([`dee028d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/dee028d397a70898d688d8ae5fa4fcc820f9c57d))
+- Remove unnecessary blank line in Remove-Binaries function ([`ab9a379`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ab9a3797009ade118f6b46df4a0a6e8a9c0d288f))
 
 ### Documentation
 
 - Update CHANGELOG.md and checksums [skip ci] ([`3739fb3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3739fb3581052c56d711c421dc7b0321b4271fbf))
 - Update CHANGELOG.md and checksums [skip ci] ([`60dee42`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/60dee4221f8c18b1f90391409f64ad802c863d84))
+- Update CHANGELOG.md and checksums [skip ci] ([`8a4e01e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8a4e01e2c505b7cb3b1b4ef262b376b79b88b70e))
 
 ### Features
 
