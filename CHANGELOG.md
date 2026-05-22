@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[e76f7ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e76f7ad75a0cc77ce21ae3d83e9b97c248fdf068)...[6e9a763](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6e9a7636a56b594a50944911ef0dcbd69ce28f4c)
+[e76f7ad](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e76f7ad75a0cc77ce21ae3d83e9b97c248fdf068)...[bc9df36](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/bc9df3666767231b3b30a30a4ceb3d0d55ceccfa)
 
 ### Bug Fixes
 
@@ -13,11 +13,13 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 
 - Update CHANGELOG.md and checksums [skip ci] ([`3739fb3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3739fb3581052c56d711c421dc7b0321b4271fbf))
+- Update CHANGELOG.md and checksums [skip ci] ([`60dee42`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/60dee4221f8c18b1f90391409f64ad802c863d84))
 
 ### Features
 
 - Configure workflow triggers for script paths on push events ([`ae951c5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ae951c5267ef9803d692e1704d843c834e41ab4a))
 - Add vendored OpenSSL to server, improve file lock handling during updates, and refine installation and uninstallation process logic. ([`6e9a763`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6e9a7636a56b594a50944911ef0dcbd69ce28f4c))
+- Rename "Tray App Version" to "Wazuh Agent Setup Version" ([`bc9df36`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/bc9df3666767231b3b30a30a4ceb3d0d55ceccfa))
 
 ### Miscellaneous Tasks
 
