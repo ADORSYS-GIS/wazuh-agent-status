@@ -103,7 +103,7 @@ impl StatusProvider for LinuxStatusProvider {
         match fs::read_to_string(&self.paths.version_file) {
             Ok(raw) => {
                 let v = raw.trim().to_string();
-                tracing::debug!(version = %v, path = %self.paths.version_file.display(), "Read tray app version");
+                tracing::debug!(version = %v, path = %self.paths.version_file.display(), "Read Wazuh Agent Setup Version");
                 Ok(v)
             }
             Err(e) => {

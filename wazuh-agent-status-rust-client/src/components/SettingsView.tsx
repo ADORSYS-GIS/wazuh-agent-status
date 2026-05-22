@@ -14,7 +14,7 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
 
       <div className="card">
         <div className="card-info">
-          <div className="card-label">Tray App Version</div>
+          <div className="card-label">Wazuh Agent Setup Version</div>
           <div className="card-value">{agentStatus.tray_version}</div>
         </div>
       </div>
