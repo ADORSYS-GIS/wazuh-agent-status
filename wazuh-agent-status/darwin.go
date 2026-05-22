@@ -171,7 +171,6 @@ func handlePrereleaseUpdate(logFileHandle *os.File) error {
 }
 
 // macOS-specific helper functions
-
 func getSystemLogFilePath() (string, error) {
 	logDir := "/var/log"
 	return filepath.Join(logDir, "wazuh-agent-status.log"), nil
