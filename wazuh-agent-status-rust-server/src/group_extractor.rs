@@ -47,7 +47,11 @@ fn extract_first_comment_group(line: &str) -> Option<String> {
     }
 
     let candidate = line.trim_start_matches('#').trim().to_string();
-    if candidate.is_empty() { None } else { Some(candidate) }
+    if candidate.is_empty() {
+        None
+    } else {
+        Some(candidate)
+    }
 }
 
 fn extract_source_file_group(line: &str) -> Option<String> {

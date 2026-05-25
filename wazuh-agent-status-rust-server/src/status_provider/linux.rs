@@ -12,7 +12,7 @@ use crate::status_provider::StatusProvider;
 
 pub struct LinuxStatusProvider {
     paths: AgentPaths,
-    sys:   std::sync::Mutex<System>,
+    sys: std::sync::Mutex<System>,
 }
 
 impl LinuxStatusProvider {
@@ -20,7 +20,7 @@ impl LinuxStatusProvider {
         let mut sys = System::new();
         // Initial refresh so we have something for first poll
         sys.refresh_all();
-        Self { 
+        Self {
             paths,
             sys: std::sync::Mutex::new(sys),
         }
@@ -32,7 +32,10 @@ impl LinuxStatusProvider {
     fn is_agent_running(&self) -> bool {
         if let Ok(mut sys) = self.sys.lock() {
             sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-            let is_running = sys.processes().values().any(|p| p.name().to_string_lossy() == "wazuh-agentd");
+            let is_running = sys
+                .processes()
+                .values()
+                .any(|p| p.name().to_string_lossy() == "wazuh-agentd");
             if !is_running {
                 tracing::info!("Process list check confirms wazuh-agentd is NOT running");
             }
@@ -121,9 +124,10 @@ impl StatusProvider for LinuxStatusProvider {
     }
 
     fn get_system_metrics(&self) -> Result<crate::models::SystemMetrics> {
-        let mut sys = self.sys.lock().map_err(|_| {
-            ServerError::PlatformError("Failed to lock system metrics".to_string())
-        })?;
+        let mut sys = self
+            .sys
+            .lock()
+            .map_err(|_| ServerError::PlatformError("Failed to lock system metrics".to_string()))?;
 
         // Refresh all processes to find the Wazuh ones
         sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
@@ -143,7 +147,6 @@ impl StatusProvider for LinuxStatusProvider {
                 found_names.push(format!("{} ({:.1}%)", name, p_cpu));
             }
         }
-
 
         let cpu_count = sys.cpus().len() as f32;
         let cpu_usage = if !found_names.is_empty() && cpu_count > 0.0 {

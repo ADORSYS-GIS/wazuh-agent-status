@@ -1,12 +1,11 @@
+use crate::agent::{AgentManager, AgentState, AgentStatus, ConnectionStatus};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Runtime, Emitter,
+    AppHandle, Emitter, Manager, Runtime,
 };
-use crate::agent::{AgentManager, AgentStatus, ConnectionStatus, AgentState};
 #[cfg(not(target_os = "linux"))]
-use tauri_plugin_positioner::{WindowExt, Position};
-
+use tauri_plugin_positioner::{Position, WindowExt};
 
 #[allow(dead_code)]
 pub struct TrayMenuState<R: Runtime> {
@@ -23,7 +22,7 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         AgentStatus::Inactive => "Agent: Inactive",
         AgentStatus::Unknown => "Agent: Unknown",
     };
-    
+
     let conn_text = match initial_state.connection {
         ConnectionStatus::Connected => "Connection: Connected",
         ConnectionStatus::Disconnected => "Connection: Disconnected",
@@ -33,22 +32,23 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     let status_i = MenuItem::with_id(app, "status", status_text, false, None::<&str>)?;
     let conn_i = MenuItem::with_id(app, "connection", conn_text, false, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
-    
+
     let update_i = MenuItem::with_id(app, "update", "Check for Updates", true, None::<&str>)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
 
     let show_i = MenuItem::with_id(app, "show", "Show Dashboard", true, None::<&str>)?;
     let show_i_state = show_i.clone();
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    
-    let menu = Menu::with_items(app, &[
-        &status_i, &conn_i, &sep1, 
-        &update_i, &sep2, 
-        &show_i, &quit_i
-    ])?;
+
+    let menu = Menu::with_items(
+        app,
+        &[
+            &status_i, &conn_i, &sep1, &update_i, &sep2, &show_i, &quit_i,
+        ],
+    )?;
 
     let show_i_tray = show_i.clone();
-    
+
     let initial_state_val = initial_state.clone();
     let tray_icon = TrayIconBuilder::with_id("wazuh-status-v1")
         .tooltip("Wazuh Agent Status")
@@ -71,7 +71,7 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         let _ = window.move_window(Position::BottomRight);
                         #[cfg(target_os = "macos")]
                         let _ = window.move_window(Position::TrayCenter);
-                        
+
                         let _ = window.set_decorations(true);
                         let _ = window.unminimize();
                         let _ = window.show();
@@ -106,11 +106,12 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
                 ..
-            } = event {
+            } = event
+            {
                 let app = tray.app_handle();
                 if let Some(window) = app.get_webview_window("main") {
                     let is_visible = window.is_visible().unwrap_or(false);
-                    
+
                     if is_visible {
                         let _ = window.hide();
                         let _ = show_i_tray.set_text("Show Dashboard");
@@ -119,7 +120,7 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         let _ = window.move_window(Position::BottomRight);
                         #[cfg(target_os = "macos")]
                         let _ = window.move_window(Position::TrayCenter);
-                        
+
                         let _ = window.set_decorations(true);
                         let _ = window.unminimize();
                         let _ = window.show();
@@ -138,14 +139,14 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     tauri::async_runtime::spawn(async move {
         while rx.changed().await.is_ok() {
             let state = rx.borrow().clone();
-            
+
             let (status_dot, status_text) = match state.status {
                 AgentStatus::Active => ("🟢", "Agent: Active"),
                 AgentStatus::Inactive => ("🔴", "Agent: Inactive"),
                 AgentStatus::Unknown => ("⚪", "Agent: Unknown"),
             };
             let _ = status_i_clone.set_text(format!("{} {}", status_dot, status_text));
-            
+
             let (conn_dot, conn_text) = match state.connection {
                 ConnectionStatus::Connected => ("🟢", "Connection: Connected"),
                 ConnectionStatus::Disconnected => ("🔴", "Connection: Disconnected"),
@@ -155,13 +156,18 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
 
             // Update tray icon
             let _ = tray_icon_handle.set_icon(Some(get_status_icon(&state)));
-            log::info!("Updated tray icon and menu for status: {:?}, connection: {:?}", state.status, state.connection);
+            log::info!(
+                "Updated tray icon and menu for status: {:?}, connection: {:?}",
+                state.status,
+                state.connection
+            );
         }
     });
 
-
     // Store state for window event sync
-    app.manage(TrayMenuState { show_item: show_i_state });
+    app.manage(TrayMenuState {
+        show_item: show_i_state,
+    });
 
     Ok(())
 }
@@ -175,7 +181,9 @@ fn get_status_icon(state: &AgentState) -> tauri::image::Image<'_> {
 
     let color = match (&state.status, &state.connection) {
         (AgentStatus::Active, ConnectionStatus::Connected) => image::Rgba([0, 215, 0, 255]), // Bright Green
-        (AgentStatus::Inactive, _) | (_, ConnectionStatus::Disconnected) => image::Rgba([215, 0, 0, 255]), // Red
+        (AgentStatus::Inactive, _) | (_, ConnectionStatus::Disconnected) => {
+            image::Rgba([215, 0, 0, 255])
+        } // Red
         _ => image::Rgba([128, 128, 128, 255]), // Gray for Unknown/other
     };
 

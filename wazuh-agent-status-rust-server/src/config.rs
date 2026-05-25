@@ -49,12 +49,12 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            listen_addr:       DEFAULT_LISTEN_ADDR.to_string(),
-            poll_interval:     Duration::from_secs(DEFAULT_POLL_INTERVAL_SECS),
-            version_url:       DEFAULT_VERSION_URL.to_string(),
+            listen_addr: DEFAULT_LISTEN_ADDR.to_string(),
+            poll_interval: Duration::from_secs(DEFAULT_POLL_INTERVAL_SECS),
+            version_url: DEFAULT_VERSION_URL.to_string(),
             version_cache_ttl: Duration::from_secs(DEFAULT_VERSION_CACHE_TTL_SECS),
-            max_connections:   3,
-            self_healing:      true,
+            max_connections: 3,
+            self_healing: true,
         }
     }
 }
@@ -66,9 +66,10 @@ impl Config {
 
         if let Ok(addr) = std::env::var("WAZUH_STATUS_ADDR") {
             // Security check: Warn if binding to non-localhost (as there's no auth)
-            if !addr.contains("localhost") && !addr.contains("127.0.0.1") && !addr.contains("[::1]") {
+            if !addr.contains("localhost") && !addr.contains("127.0.0.1") && !addr.contains("[::1]")
+            {
                 warn!(
-                    addr = %addr, 
+                    addr = %addr,
                     "WARNING: Server is binding to a public interface without authentication. Ensure it is protected by a firewall."
                 );
             }
@@ -157,20 +158,22 @@ pub struct AgentPaths {
 impl AgentPaths {
     /// Return the native paths for the OS this binary targets.
     pub fn native() -> Self {
-        let ossec_log_override = std::env::var("WAZUH_STATUS_OSSEC_LOG").ok().map(PathBuf::from);
+        let ossec_log_override = std::env::var("WAZUH_STATUS_OSSEC_LOG")
+            .ok()
+            .map(PathBuf::from);
 
         #[cfg(target_os = "linux")]
         {
             let base = PathBuf::from("/var/ossec");
             Self {
-                state_file:    base.join("var/run/wazuh-agentd.state"),
-                version_file:  base.join("etc/version.txt"),
-                version_json:  base.join("VERSION.json"),
-                merged_mg:     base.join("etc/shared/merged.mg"),
-                pid_file:      base.join("var/run/wazuh-agentd.pid"),
+                state_file: base.join("var/run/wazuh-agentd.state"),
+                version_file: base.join("etc/version.txt"),
+                version_json: base.join("VERSION.json"),
+                merged_mg: base.join("etc/shared/merged.mg"),
+                pid_file: base.join("var/run/wazuh-agentd.pid"),
                 update_script: base.join("active-response/bin/adorsys-update.sh"),
                 wazuh_control: base.join("bin/wazuh-control"),
-                ossec_log:     ossec_log_override.unwrap_or_else(|| base.join("logs/ossec.log")),
+                ossec_log: ossec_log_override.unwrap_or_else(|| base.join("logs/ossec.log")),
             }
         }
 
@@ -178,14 +181,14 @@ impl AgentPaths {
         {
             let base = PathBuf::from("/Library/Ossec");
             Self {
-                state_file:    base.join("var/run/wazuh-agentd.state"),
-                version_file:  base.join("etc/version.txt"),
-                version_json:  base.join("VERSION.json"),
-                merged_mg:     base.join("etc/shared/merged.mg"),
-                pid_file:      base.join("var/run/wazuh-agentd.pid"),
+                state_file: base.join("var/run/wazuh-agentd.state"),
+                version_file: base.join("etc/version.txt"),
+                version_json: base.join("VERSION.json"),
+                merged_mg: base.join("etc/shared/merged.mg"),
+                pid_file: base.join("var/run/wazuh-agentd.pid"),
                 update_script: base.join("active-response/bin/adorsys-update.sh"),
                 wazuh_control: base.join("bin/wazuh-control"),
-                ossec_log:     ossec_log_override.unwrap_or_else(|| base.join("logs/ossec.log")),
+                ossec_log: ossec_log_override.unwrap_or_else(|| base.join("logs/ossec.log")),
             }
         }
 
@@ -193,14 +196,14 @@ impl AgentPaths {
         {
             let base = PathBuf::from(r"C:\Program Files (x86)\ossec-agent");
             Self {
-                state_file:    base.join("wazuh-agent.state"),
-                version_file:  base.join("version.txt"),
-                version_json:  base.join("VERSION.json"),
-                merged_mg:     base.join(r"shared\merged.mg"),
-                pid_file:      PathBuf::new(), // not applicable on Windows
+                state_file: base.join("wazuh-agent.state"),
+                version_file: base.join("version.txt"),
+                version_json: base.join("VERSION.json"),
+                merged_mg: base.join(r"shared\merged.mg"),
+                pid_file: PathBuf::new(), // not applicable on Windows
                 update_script: base.join("adorsys-update.bat"),
                 wazuh_control: base.join("wazuh-control.exe"), // Placeholder for Windows
-                ossec_log:     ossec_log_override.unwrap_or_else(|| base.join(r"ossec.log")),
+                ossec_log: ossec_log_override.unwrap_or_else(|| base.join(r"ossec.log")),
             }
         }
 
