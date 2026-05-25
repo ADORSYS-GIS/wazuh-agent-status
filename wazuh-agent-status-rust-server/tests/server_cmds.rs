@@ -33,9 +33,8 @@ async fn test_server_large_payload() {
     // Server should close connection or error out
     let mut reader = BufReader::new(&mut stream).lines();
     let res = reader.next_line().await;
-    match res {
-        Ok(Some(line)) => assert!(line.contains("ERROR")),
-        _ => {} // Connection closed or error is fine for large payload
+    if let Ok(Some(line)) = res {
+        assert!(line.contains("ERROR"));
     }
 }
 

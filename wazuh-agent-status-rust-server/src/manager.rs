@@ -449,10 +449,10 @@ impl AgentManager {
         // 1. Try to return fresh cached value
         {
             let cache = self.version_cache.read().await;
-            if let Some(c) = &*cache {
-                if now.duration_since(c.fetched_at) < self.config.version_cache_ttl {
-                    return c.status.clone();
-                }
+            if let Some(c) = &*cache
+                && now.duration_since(c.fetched_at) < self.config.version_cache_ttl
+            {
+                return c.status.clone();
             }
         }
 

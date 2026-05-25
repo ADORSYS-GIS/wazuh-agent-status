@@ -1,8 +1,8 @@
 use crate::agent::{AgentManager, AgentState, AgentStatus, ConnectionStatus};
 use tauri::{
+    AppHandle, Emitter, Manager, Runtime,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, Runtime,
 };
 #[cfg(not(target_os = "linux"))]
 use tauri_plugin_positioner::{Position, WindowExt};
@@ -196,10 +196,13 @@ fn get_status_icon(state: &AgentState) -> tauri::image::Image<'_> {
         for y in (center_y - dot_radius as i32)..(center_y + dot_radius as i32) {
             let dx = x - center_x;
             let dy = y - center_y;
-            if dx * dx + dy * dy <= (dot_radius * dot_radius) as i32 {
-                if x >= 0 && x < width as i32 && y >= 0 && y < height as i32 {
-                    img.put_pixel(x as u32, y as u32, color);
-                }
+            if dx * dx + dy * dy <= (dot_radius * dot_radius) as i32
+                && x >= 0
+                && x < width as i32
+                && y >= 0
+                && y < height as i32
+            {
+                img.put_pixel(x as u32, y as u32, color);
             }
         }
     }

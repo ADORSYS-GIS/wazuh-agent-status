@@ -25,12 +25,10 @@ pub fn extract_groups<P: AsRef<Path>>(path: P) -> io::Result<Vec<String>> {
             continue;
         }
 
-        if !first_comment_added {
-            if let Some(group) = extract_first_comment_group(&line) {
-                groups.push(group);
-                first_comment_added = true;
-                continue;
-            }
+        if !first_comment_added && let Some(group) = extract_first_comment_group(&line) {
+            groups.push(group);
+            first_comment_added = true;
+            continue;
         }
 
         if let Some(group) = extract_source_file_group(&line) {

@@ -85,12 +85,12 @@ impl StatusProvider for LinuxStatusProvider {
     fn get_agent_version(&self) -> Result<String> {
         match fs::read_to_string(&self.paths.version_json) {
             Ok(content) => {
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                    if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
-                        let version = v.to_string();
-                        tracing::debug!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
-                        return Ok(version);
-                    }
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
+                    && let Some(v) = json.get("version").and_then(|v| v.as_str())
+                {
+                    let version = v.to_string();
+                    tracing::debug!(version = %version, path = %self.paths.version_json.display(), "Read agent version from VERSION.json");
+                    return Ok(version);
                 }
                 tracing::warn!(path = %self.paths.version_json.display(), "Failed to parse version from VERSION.json");
                 Ok("Unknown".to_string())

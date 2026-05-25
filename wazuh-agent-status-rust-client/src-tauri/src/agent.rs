@@ -64,7 +64,7 @@ impl AgentManager {
         let (state_tx, state_rx) = watch::channel(AgentState::default());
 
         // Environment variable override takes precedence
-        let server_addr = std::env::var("WAZUH_SERVER_ADDR").unwrap_or_else(|_| default_addr);
+        let server_addr = std::env::var("WAZUH_SERVER_ADDR").unwrap_or(default_addr);
 
         let addr_for_loop = server_addr.clone();
 
@@ -109,11 +109,11 @@ impl AgentManager {
 
         let mut reader = tokio::io::BufReader::new(stream);
         let mut line = String::new();
-        if reader.read_line(&mut line).await? > 0 {
-            if let Some(json) = line.strip_prefix("VERSION_CHECK: ") {
-                let parsed: serde_json::Value = serde_json::from_str(json.trim())?;
-                return Ok(parsed);
-            }
+        if reader.read_line(&mut line).await? > 0
+            && let Some(json) = line.strip_prefix("VERSION_CHECK: ")
+        {
+            let parsed: serde_json::Value = serde_json::from_str(json.trim())?;
+            return Ok(parsed);
         }
         Err(anyhow::anyhow!(
             "Failed to get update info from server at {}",
