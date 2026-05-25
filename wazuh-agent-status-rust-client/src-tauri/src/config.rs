@@ -35,22 +35,18 @@ impl AppConfig {
         use tauri::Manager;
 
         // 1. Try bundled resource (allows override in .deb/.msi/.app installs)
-<<<<<<< HEAD
-        let resource_path = app
+        match app
             .path()
             .resolve("app_config.json", tauri::path::BaseDirectory::Resource)
-            .map_err(|e| format!("Failed to resolve resource path: {}", e))?;
-
-        if resource_path.exists() {
-            return Self::load_from_path(resource_path);
-=======
-        match app.path().resolve("app_config.json", tauri::path::BaseDirectory::Resource) {
+        {
             Ok(resource_path) if resource_path.exists() => {
                 return Self::load_from_path(resource_path);
             }
             Ok(_) => log::info!("Bundled app_config.json not found in resources."),
-            Err(e) => log::debug!("Could not resolve resource path (expected when not bundled): {}", e),
->>>>>>> origin/user-main
+            Err(e) => log::debug!(
+                "Could not resolve resource path (expected when not bundled): {}",
+                e
+            ),
         }
 
         // 2. Fallback: current working directory (for dev / cargo run / npm run tauri dev)
