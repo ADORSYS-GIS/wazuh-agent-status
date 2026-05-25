@@ -7,9 +7,6 @@ on:
       - "wazuh-agent-status-rust-client/src-tauri/**"
       - ".github/workflows/ci.yml"
   workflow_dispatch:
-  push:
-    branches:
-      - "ci/setup-rust-workflow"
 
 env:
   CARGO_TERM_COLOR: always
