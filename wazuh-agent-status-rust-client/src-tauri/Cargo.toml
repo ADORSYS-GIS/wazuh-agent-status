@@ -5,6 +5,9 @@ description = "A Tauri App"
 authors = ["you"]
 edition = "2024"
 
+[package.metadata.cargo-machete]
+ignored = ["tauri-build"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
@@ -27,6 +30,4 @@ anyhow = "1.0"
 tauri-plugin-log = "2.8.0"
 tauri-plugin-positioner = { version = "2.3.1", features = ["tray-icon"] }
 tokio = { version = "1", features = ["full"] }
-thiserror = "2.0"
-tracing = "0.1"
 log = "0.4"
