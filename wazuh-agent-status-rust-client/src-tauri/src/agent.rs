@@ -126,30 +126,15 @@ impl AgentManager {
             };
 
             use tokio::io::{AsyncWriteExt, AsyncBufReadExt};
+            // Send the update command - the server will stream progress back on this same connection
             let cmd = if is_prerelease { "update-prerelease\n" } else { "update\n" };
             if let Err(e) = stream.write_all(cmd.as_bytes()).await {
                 let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to send update command: {e}")).await;
                 return;
             }
 
-            // The 'update' command in the server triggers a background self-dial update stream.
-            // However, it's actually easier for the client to just call 'initiate-update-stream' directly
-            // if we want to pipe the logs back to the UI.
-            // Let's call initiate-update-stream on a new connection.
-            
-            let stream = match tokio::net::TcpStream::connect(&server_addr).await {
-                Ok(s) => s,
-                Err(e) => {
-                    let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to connect for logs: {e}")).await;
-                    return;
-                }
-            };
-            let (reader, mut writer) = tokio::io::split(stream);
-            let mut reader = tokio::io::BufReader::new(reader);
-            
-            let stream_cmd = if is_prerelease { "initiate-prerelease-update-stream\n" } else { "initiate-update-stream\n" };
-            let _ = writer.write_all(stream_cmd.as_bytes()).await;
-
+            // Read the streaming response from the server (same pattern as Go client)
+            let mut reader = tokio::io::BufReader::new(stream);
             let mut line = String::new();
             while let Ok(n) = reader.read_line(&mut line).await {
                 if n == 0 { break; }

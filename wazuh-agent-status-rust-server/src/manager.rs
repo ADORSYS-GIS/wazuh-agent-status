@@ -209,19 +209,28 @@ impl AgentManager {
             None
         };
 
+        info!(is_prerelease, update_script = %paths.update_script.display(), "Spawning update task");
+
         tokio::spawn(async move {
-            let _ = tx.send("UPDATE_PROGRESS: [STATUS] Starting update process...".to_string()).await;
+            info!("Update task started, sending initial progress message");
+            if let Err(e) = tx.send("UPDATE_PROGRESS: [STATUS] Starting update process...".to_string()).await {
+                warn!(error = %e, "Failed to send initial progress message");
+                return;
+            }
+            info!("Initial progress message sent successfully");
 
             let mut cmd = Command::new("sudo");
             if is_prerelease {
                 let version = match prerelease_version {
                     Some(v) if v != "Unknown" => v,
                     _ => {
+                        warn!("Could not determine latest prerelease version");
                         let _ = tx.send("UPDATE_PROGRESS: [FAILURE] Could not determine latest prerelease version".to_string()).await;
                         return;
                     }
                 };
 
+                info!(version = %version, "Processing prerelease update");
                 let _ = tx.send(format!("UPDATE_PROGRESS: [STATUS] Downloading setup script for v{}...", version)).await;
                 let url = format!("https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v{}/scripts/setup-agent.sh", version);
                 
@@ -229,27 +238,33 @@ impl AgentManager {
                     Ok(bytes) => {
                         let tmp_script = format!("/tmp/setup-agent-{}.sh", version);
                         if let Err(e) = std::fs::write(&tmp_script, bytes) {
+                            warn!(error = %e, "Failed to save setup script");
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to save setup script: {e}")).await;
                             return;
                         }
                         let _ = std::process::Command::new("chmod").arg("+x").arg(&tmp_script).status();
                         
+                        info!(script = %tmp_script, "Executing prerelease setup script");
                         let _ = tx.send("UPDATE_PROGRESS: [STATUS] Executing prerelease setup...".to_string()).await;
                         cmd.arg(tmp_script);
                     }
                     Err(e) => {
+                        warn!(error = %e, "Failed to download setup script");
                         let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to download setup script: {e}")).await;
                         return;
                     }
                 }
             } else {
+                info!(script = %paths.update_script.display(), "Executing standard update script");
                 cmd.arg(&paths.update_script);
             }
 
             cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
+            info!("Spawning sudo command");
             match cmd.spawn() {
                 Ok(mut child) => {
+                    info!("Sudo command spawned successfully");
                     let stdout = child.stdout.take().unwrap();
                     let stderr = child.stderr.take().unwrap();
                     let tx_clone = tx.clone();
@@ -258,6 +273,7 @@ impl AgentManager {
                     tokio::spawn(async move {
                         let mut reader = BufReader::new(stdout).lines();
                         while let Ok(Some(line)) = reader.next_line().await {
+                            info!(line = %line, "Update stdout");
                             let _ = tx_clone.send(format!("UPDATE_PROGRESS: {}", line)).await;
                         }
                     });
@@ -267,23 +283,28 @@ impl AgentManager {
                     tokio::spawn(async move {
                         let mut reader = BufReader::new(stderr).lines();
                         while let Ok(Some(line)) = reader.next_line().await {
+                            warn!(line = %line, "Update stderr");
                             let _ = tx_clone.send(format!("UPDATE_PROGRESS: [ERROR] {}", line)).await;
                         }
                     });
 
                     match child.wait().await {
                         Ok(status) if status.success() => {
+                            info!(exit_code = ?status.code(), "Update script completed successfully");
                             let _ = tx.send("UPDATE_PROGRESS: [SUCCESS] Update completed successfully".to_string()).await;
                         }
                         Ok(status) => {
+                            warn!(exit_code = ?status.code(), "Update script failed");
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Update script exited with code: {:?}", status.code())).await;
                         }
                         Err(e) => {
+                            warn!(error = %e, "Failed to wait for update script");
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to wait for update script: {e}")).await;
                         }
                     }
                 }
                 Err(e) => {
+                    warn!(error = %e, "Failed to spawn sudo command for update");
                     let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to start update script (check sudoers): {e}")).await;
                 }
             }
@@ -369,17 +390,31 @@ impl AgentManager {
     /// Return the human-readable version status string.
     ///
     /// Results are cached for `config.version_cache_ttl` to avoid hammering
-    /// the remote manifest endpoint.
+    /// the remote manifest endpoint. The cache is invalidated if the local
+    /// version changes (e.g., after an update or manual version file modification).
     pub async fn get_version_status(&self) -> UpdateStatus {
         let now = Instant::now();
         let current_state = self.get_state().await;
 
-        // 1. Try to return fresh cached value
+        // 1. Try to return fresh cached value (but invalidate if local version changed)
         {
             let cache = self.version_cache.read().await;
             if let Some(c) = &*cache {
-                if now.duration_since(c.fetched_at) < self.config.version_cache_ttl {
+                let cache_is_fresh = now.duration_since(c.fetched_at) < self.config.version_cache_ttl;
+                // Invalidate cache if local version has changed since cache was created
+                let local_version_changed = c.status.wazuh.current_version != current_state.version
+                    || c.status.tray.current_version != current_state.tray_version;
+                
+                if cache_is_fresh && !local_version_changed {
                     return c.status.clone();
+                }
+                
+                if local_version_changed {
+                    info!(
+                        old_cached = ?c.status.wazuh.current_version,
+                        current = ?current_state.version,
+                        "Local version changed since cache was created; invalidating cache"
+                    );
                 }
             }
         }
