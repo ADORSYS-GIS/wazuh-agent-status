@@ -21,14 +21,14 @@ use crate::status_provider::StatusProvider;
 
 pub struct MacosStatusProvider {
     paths: AgentPaths,
-    sys:   std::sync::Mutex<System>,
+    sys: std::sync::Mutex<System>,
 }
 
 impl MacosStatusProvider {
     pub fn new(paths: AgentPaths) -> Self {
         let mut sys = System::new();
         sys.refresh_all();
-        Self { 
+        Self {
             paths,
             sys: std::sync::Mutex::new(sys),
         }
@@ -40,7 +40,10 @@ impl MacosStatusProvider {
     fn is_agent_running(&self) -> bool {
         if let Ok(mut sys) = self.sys.lock() {
             sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-            let is_running = sys.processes().values().any(|p| p.name().to_string_lossy() == "wazuh-agentd");
+            let is_running = sys
+                .processes()
+                .values()
+                .any(|p| p.name().to_string_lossy() == "wazuh-agentd");
             if !is_running {
                 tracing::info!("Process list check confirms wazuh-agentd is NOT running");
             }
@@ -122,9 +125,10 @@ impl StatusProvider for MacosStatusProvider {
     }
 
     fn get_system_metrics(&self) -> Result<crate::models::SystemMetrics> {
-        let mut sys = self.sys.lock().map_err(|_| {
-            ServerError::PlatformError("Failed to lock system metrics".to_string())
-        })?;
+        let mut sys = self
+            .sys
+            .lock()
+            .map_err(|_| ServerError::PlatformError("Failed to lock system metrics".to_string()))?;
 
         sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
         sys.refresh_memory();

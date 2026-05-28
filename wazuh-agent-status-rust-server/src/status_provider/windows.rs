@@ -18,14 +18,14 @@ use tracing::{debug, trace};
 
 pub struct WindowsStatusProvider {
     paths: AgentPaths,
-    sys:   std::sync::Mutex<System>,
+    sys: std::sync::Mutex<System>,
 }
 
 impl WindowsStatusProvider {
     pub fn new(paths: AgentPaths) -> Self {
         let mut sys = System::new();
         sys.refresh_all();
-        Self { 
+        Self {
             paths,
             sys: std::sync::Mutex::new(sys),
         }
@@ -49,7 +49,8 @@ impl WindowsStatusProvider {
 impl StatusProvider for WindowsStatusProvider {
     fn get_agent_status(&self) -> Result<AgentStatus> {
         // PowerShell is the only practical way to query service state on Windows.
-        let output = self.run_powershell("(Get-Service -Name WazuhSvc -ErrorAction SilentlyContinue).Status")?;
+        let output = self
+            .run_powershell("(Get-Service -Name WazuhSvc -ErrorAction SilentlyContinue).Status")?;
         if output.eq_ignore_ascii_case("running") {
             Ok(AgentStatus::Active)
         } else {
@@ -113,9 +114,10 @@ impl StatusProvider for WindowsStatusProvider {
     }
 
     fn get_system_metrics(&self) -> Result<crate::models::SystemMetrics> {
-        let mut sys = self.sys.lock().map_err(|_| {
-            ServerError::PlatformError("Failed to lock system metrics".to_string())
-        })?;
+        let mut sys = self
+            .sys
+            .lock()
+            .map_err(|_| ServerError::PlatformError("Failed to lock system metrics".to_string()))?;
 
         sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
         sys.refresh_memory();
@@ -137,7 +139,9 @@ impl StatusProvider for WindowsStatusProvider {
         }
 
         if !found {
-            let available: Vec<_> = sys.processes().values()
+            let available: Vec<_> = sys
+                .processes()
+                .values()
                 .map(|p| p.name().to_string_lossy().into_owned())
                 .collect();
             debug!(processes = ?available, "No Wazuh processes matched; available process names shown above");

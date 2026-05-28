@@ -14,7 +14,7 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::broadcast;
 use tokio::time::{self, timeout};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 use crate::manager::AgentManager;
 
@@ -31,8 +31,8 @@ impl TcpServer {
     /// Create a new server bound to `addr` using the provided `manager`.
     pub fn new(addr: String, manager: Arc<AgentManager>) -> Self {
         let max_conns = manager.config().max_connections;
-        Self { 
-            addr, 
+        Self {
+            addr,
             manager,
             limit: Arc::new(tokio::sync::Semaphore::new(max_conns)),
         }
@@ -55,7 +55,7 @@ impl TcpServer {
                 Err(_) => {
                     let limit = self.manager.config().max_connections;
                     warn!(peer = %peer_addr, "Server full (limit {}); dropping connection", limit);
-                    continue; 
+                    continue;
                 }
             };
 
@@ -65,7 +65,7 @@ impl TcpServer {
 
                 // Enable TCP keepalives to detect dead/ghost peers faster
                 let _ = socket.set_nodelay(true);
-                
+
                 if let Err(e) = handle_connection(socket, manager).await {
                     error!(error = %e, peer = %peer_addr, "Connection handler error");
                 }
@@ -90,19 +90,23 @@ async fn handle_connection(
 
     loop {
         line.clear();
-        
+
         // Wrap the read operation in a timeout to prevent leaked/hung connections.
         let read_result = timeout(IDLE_TIMEOUT, async {
             let mut handle = (&mut reader).take(MAX_LINE_LENGTH as u64);
             let bytes = handle.read_line(&mut line).await?;
             Ok::<usize, tokio::io::Error>(bytes)
-        }).await;
+        })
+        .await;
 
         let bytes = match read_result {
             Ok(Ok(n)) => n,
             Ok(Err(e)) => return Err(e),
             Err(_) => {
-                warn!("Connection timed out after {}s of inactivity", IDLE_TIMEOUT.as_secs());
+                warn!(
+                    "Connection timed out after {}s of inactivity",
+                    IDLE_TIMEOUT.as_secs()
+                );
                 let _ = writer.write_all(b"ERROR: Connection idle timeout\n").await;
                 let _ = writer.flush().await;
                 break;
@@ -115,11 +119,12 @@ async fn handle_connection(
 
         // Lenient command parsing: lowercase and treat space/underscore as hyphen.
         let raw_command = line.trim();
-        let normalized = raw_command.to_lowercase()
-            .replace([' ', '_'], "-");
+        let normalized = raw_command.to_lowercase().replace([' ', '_'], "-");
 
-        if normalized.is_empty() { continue; }
-        
+        if normalized.is_empty() {
+            continue;
+        }
+
         info!(command = %normalized, raw = %raw_command, "Command received");
 
         match normalized.as_str() {
@@ -154,7 +159,9 @@ async fn handle_connection(
 
             "update-prerelease" => {
                 start_update_stream_async(&manager, true).await;
-                writer.write_all(b"OK: Prerelease update process initiated\n").await?;
+                writer
+                    .write_all(b"OK: Prerelease update process initiated\n")
+                    .await?;
             }
 
             // ── Update streams ────────────────────────────────────────────────
@@ -261,10 +268,7 @@ where
 
 /// Handle a `subscribe-logs` session: tail `ossec.log` in real-time and
 /// pipe structured JSON lines back to the client.
-async fn handle_log_stream<W>(
-    writer: &mut W,
-    manager: &AgentManager,
-) -> tokio::io::Result<()>
+async fn handle_log_stream<W>(writer: &mut W, manager: &AgentManager) -> tokio::io::Result<()>
 where
     W: AsyncWriteExt + Unpin,
 {
@@ -287,11 +291,11 @@ where
 /// update session.
 async fn start_update_stream_async(manager: &AgentManager, is_prerelease: bool) {
     let listen_addr = manager.config().listen_addr.clone();
-    
+
     // Parse the port from the listen address
-    let port = listen_addr.split(':').last().unwrap_or("50505");
+    let port = listen_addr.split(':').next_back().unwrap_or("50505");
     let addr = format!("127.0.0.1:{}", port);
-    
+
     tokio::spawn(async move {
         // Give the current connection a moment to close/return if needed,
         // though not strictly required by the protocol.
@@ -308,13 +312,15 @@ async fn start_update_stream_async(manager: &AgentManager, is_prerelease: bool) 
                     error!(error = %e, "Failed to send streaming command to self");
                     return;
                 }
-                
+
                 // Keep the connection alive while the update happens.
                 // We don't need to read anything here; the server-side task
                 // of this new connection will handle the stream.
                 let mut buf = [0u8; 1024];
                 while let Ok(n) = stream.read(&mut buf).await {
-                    if n == 0 { break; }
+                    if n == 0 {
+                        break;
+                    }
                 }
             }
             Err(e) => {

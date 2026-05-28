@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::watch;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentStatus {
@@ -38,16 +38,16 @@ pub struct AgentState {
 impl Default for AgentState {
     fn default() -> Self {
         Self {
-            status:       AgentStatus::Unknown,
-            connection:   ConnectionStatus::Unknown,
-            version:      "Unknown".to_string(),
+            status: AgentStatus::Unknown,
+            connection: ConnectionStatus::Unknown,
+            version: "Unknown".to_string(),
             tray_version: "Unknown".to_string(),
-            groups:       Vec::new(),
-            metrics:      SystemMetrics {
-                cpu_usage:    0.0,
+            groups: Vec::new(),
+            metrics: SystemMetrics {
+                cpu_usage: 0.0,
                 memory_usage: 0.0,
                 total_memory: 0,
-                used_memory:  0,
+                used_memory: 0,
             },
             self_healing_enabled: true,
         }
@@ -62,13 +62,12 @@ pub struct AgentManager {
 impl AgentManager {
     pub fn new(default_addr: String) -> Arc<Self> {
         let (state_tx, state_rx) = watch::channel(AgentState::default());
-        
+
         // Environment variable override takes precedence
-        let server_addr = std::env::var("WAZUH_SERVER_ADDR")
-            .unwrap_or_else(|_| default_addr);
-            
+        let server_addr = std::env::var("WAZUH_SERVER_ADDR").unwrap_or(default_addr);
+
         let addr_for_loop = server_addr.clone();
-        
+
         // Spawn background task to keep the state in sync with the server
         tauri::async_runtime::spawn(async move {
             loop {
@@ -78,14 +77,21 @@ impl AgentManager {
                         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                     }
                     Err(e) => {
-                        log::error!("Server sync loop error for {}: {}; retrying in 5s", addr_for_loop, e);
+                        log::error!(
+                            "Server sync loop error for {}: {}; retrying in 5s",
+                            addr_for_loop,
+                            e
+                        );
                         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                     }
                 }
             }
         });
 
-        Arc::new(Self { state_rx, server_addr })
+        Arc::new(Self {
+            state_rx,
+            server_addr,
+        })
     }
 
     pub fn get_state(&self) -> AgentState {
@@ -98,21 +104,27 @@ impl AgentManager {
 
     pub async fn check_updates(&self) -> anyhow::Result<serde_json::Value> {
         let mut stream = tokio::net::TcpStream::connect(&self.server_addr).await?;
-        use tokio::io::{AsyncWriteExt, AsyncBufReadExt};
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
         stream.write_all(b"get-version\n").await?;
 
         let mut reader = tokio::io::BufReader::new(stream);
         let mut line = String::new();
-        if reader.read_line(&mut line).await? > 0 {
-            if let Some(json) = line.strip_prefix("VERSION_CHECK: ") {
-                let parsed: serde_json::Value = serde_json::from_str(json.trim())?;
-                return Ok(parsed);
-            }
+        if reader.read_line(&mut line).await? > 0
+            && let Some(json) = line.strip_prefix("VERSION_CHECK: ")
+        {
+            let parsed: serde_json::Value = serde_json::from_str(json.trim())?;
+            return Ok(parsed);
         }
-        Err(anyhow::anyhow!("Failed to get update info from server at {}", self.server_addr))
+        Err(anyhow::anyhow!(
+            "Failed to get update info from server at {}",
+            self.server_addr
+        ))
     }
 
-    pub async fn run_update(&self, is_prerelease: bool) -> anyhow::Result<tokio::sync::mpsc::Receiver<String>> {
+    pub async fn run_update(
+        &self,
+        is_prerelease: bool,
+    ) -> anyhow::Result<tokio::sync::mpsc::Receiver<String>> {
         let (tx, rx) = tokio::sync::mpsc::channel(100);
         let server_addr = self.server_addr.clone();
 
@@ -120,15 +132,27 @@ impl AgentManager {
             let mut stream = match tokio::net::TcpStream::connect(&server_addr).await {
                 Ok(s) => s,
                 Err(e) => {
-                    let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to connect to server: {e}")).await;
+                    let _ = tx
+                        .send(format!(
+                            "UPDATE_PROGRESS: [FAILURE] Failed to connect to server: {e}"
+                        ))
+                        .await;
                     return;
                 }
             };
 
-            use tokio::io::{AsyncWriteExt, AsyncBufReadExt};
-            let cmd = if is_prerelease { "update-prerelease\n" } else { "update\n" };
+            use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+            let cmd = if is_prerelease {
+                "update-prerelease\n"
+            } else {
+                "update\n"
+            };
             if let Err(e) = stream.write_all(cmd.as_bytes()).await {
-                let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to send update command: {e}")).await;
+                let _ = tx
+                    .send(format!(
+                        "UPDATE_PROGRESS: [FAILURE] Failed to send update command: {e}"
+                    ))
+                    .await;
                 return;
             }
 
@@ -136,23 +160,33 @@ impl AgentManager {
             // However, it's actually easier for the client to just call 'initiate-update-stream' directly
             // if we want to pipe the logs back to the UI.
             // Let's call initiate-update-stream on a new connection.
-            
+
             let stream = match tokio::net::TcpStream::connect(&server_addr).await {
                 Ok(s) => s,
                 Err(e) => {
-                    let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to connect for logs: {e}")).await;
+                    let _ = tx
+                        .send(format!(
+                            "UPDATE_PROGRESS: [FAILURE] Failed to connect for logs: {e}"
+                        ))
+                        .await;
                     return;
                 }
             };
             let (reader, mut writer) = tokio::io::split(stream);
             let mut reader = tokio::io::BufReader::new(reader);
-            
-            let stream_cmd = if is_prerelease { "initiate-prerelease-update-stream\n" } else { "initiate-update-stream\n" };
+
+            let stream_cmd = if is_prerelease {
+                "initiate-prerelease-update-stream\n"
+            } else {
+                "initiate-update-stream\n"
+            };
             let _ = writer.write_all(stream_cmd.as_bytes()).await;
 
             let mut line = String::new();
             while let Ok(n) = reader.read_line(&mut line).await {
-                if n == 0 { break; }
+                if n == 0 {
+                    break;
+                }
                 let _ = tx.send(line.trim().to_string()).await;
                 line.clear();
             }
@@ -169,21 +203,27 @@ impl AgentManager {
             let mut stream = match tokio::net::TcpStream::connect(&server_addr).await {
                 Ok(s) => s,
                 Err(e) => {
-                    let _ = tx.send(format!("[ERROR] Failed to connect to server for logs: {e}")).await;
+                    let _ = tx
+                        .send(format!("[ERROR] Failed to connect to server for logs: {e}"))
+                        .await;
                     return;
                 }
             };
 
-            use tokio::io::{AsyncWriteExt, AsyncBufReadExt};
+            use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
             if let Err(e) = stream.write_all(b"subscribe-logs\n").await {
-                let _ = tx.send(format!("[ERROR] Failed to send log subscription: {e}")).await;
+                let _ = tx
+                    .send(format!("[ERROR] Failed to send log subscription: {e}"))
+                    .await;
                 return;
             }
 
             let mut reader = tokio::io::BufReader::new(stream);
             let mut line = String::new();
             while let Ok(n) = reader.read_line(&mut line).await {
-                if n == 0 { break; }
+                if n == 0 {
+                    break;
+                }
                 if let Some(json) = line.strip_prefix("LOG_LINE: ") {
                     let _ = tx.send(json.trim().to_string()).await;
                 }
@@ -195,7 +235,10 @@ impl AgentManager {
     }
 }
 
-async fn run_sync_loop(addr: String, tx: tokio::sync::watch::Sender<AgentState>) -> anyhow::Result<()> {
+async fn run_sync_loop(
+    addr: String,
+    tx: tokio::sync::watch::Sender<AgentState>,
+) -> anyhow::Result<()> {
     log::info!("Connecting to Wazuh status server at {}...", addr);
 
     let stream = tokio::net::TcpStream::connect(&addr).await?;
@@ -204,7 +247,7 @@ async fn run_sync_loop(addr: String, tx: tokio::sync::watch::Sender<AgentState>)
     let (reader, mut writer) = tokio::io::split(stream);
     let mut reader = tokio::io::BufReader::new(reader);
 
-    use tokio::io::{AsyncWriteExt, AsyncBufReadExt};
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
     writer.write_all(b"subscribe-status\n").await?;
     log::info!("Sent subscribe-status command");
 
@@ -217,7 +260,11 @@ async fn run_sync_loop(addr: String, tx: tokio::sync::watch::Sender<AgentState>)
                     log::debug!("Received state update: {:?}", state.status);
                 }
                 Err(e) => {
-                    log::warn!("Failed to parse STATUS_UPDATE JSON: {} — payload: {}", e, json.trim());
+                    log::warn!(
+                        "Failed to parse STATUS_UPDATE JSON: {} — payload: {}",
+                        e,
+                        json.trim()
+                    );
                 }
             }
         } else {

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use tracing::{error, info};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 use wazuh_agent_status_rust_server::config::{AgentPaths, Config};
 use wazuh_agent_status_rust_server::manager::AgentManager;
@@ -15,8 +15,9 @@ use wazuh_agent_status_rust_server::server::TcpServer;
 
 #[cfg(target_os = "windows")]
 use windows_service::{
-    define_windows_service, service_control_handler, service_dispatcher,
+    define_windows_service,
     service::{ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceStatus, ServiceType},
+    service_control_handler, service_dispatcher,
 };
 
 #[cfg(target_os = "windows")]
@@ -68,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
 
     // ── Normal Main Execution (Console) ──────────────────────────────────────
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-    
+
     // Spawn a task to handle Ctrl+C for console mode
     tokio::spawn(async move {
         if let Ok(()) = tokio::signal::ctrl_c().await {
@@ -82,7 +83,7 @@ async fn main() -> anyhow::Result<()> {
 async fn run_server(mut shutdown_rx: tokio::sync::oneshot::Receiver<()>) -> anyhow::Result<()> {
     // ── Logging setup ─────────────────────────────────────────────────────────
     let log_file = AgentPaths::log_file_path();
-    let log_dir  = log_file.parent().unwrap_or(std::path::Path::new("/tmp"));
+    let log_dir = log_file.parent().unwrap_or(std::path::Path::new("/tmp"));
     let log_name = log_file
         .file_name()
         .and_then(|n| n.to_str())
@@ -96,13 +97,13 @@ async fn run_server(mut shutdown_rx: tokio::sync::oneshot::Receiver<()>) -> anyh
 
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
-        .with(fmt::layer().with_writer(std::io::stderr))   // console
+        .with(fmt::layer().with_writer(std::io::stderr)) // console
         .with(fmt::layer().with_writer(non_blocking).with_ansi(false)) // rotating file
         .init();
 
     // ── Configuration ─────────────────────────────────────────────────────────
     let config = Arc::new(Config::from_env());
-    let paths  = Arc::new(AgentPaths::native());
+    let paths = Arc::new(AgentPaths::native());
 
     info!(
         version     = env!("CARGO_PKG_VERSION"),
@@ -143,20 +144,23 @@ fn windows_service_main(_arguments: Vec<std::ffi::OsString>) {
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     let tx_arc = Arc::new(std::sync::Mutex::new(Some(tx)));
 
-    let event_handler = move |control_event| -> service_control_handler::ServiceControlHandlerResult {
-        match control_event {
-            ServiceControl::Stop | ServiceControl::Shutdown => {
-                if let Ok(mut tx_opt) = tx_arc.lock() {
-                    if let Some(tx) = tx_opt.take() {
-                        let _ = tx.send(());
+    let event_handler =
+        move |control_event| -> service_control_handler::ServiceControlHandlerResult {
+            match control_event {
+                ServiceControl::Stop | ServiceControl::Shutdown => {
+                    if let Ok(mut tx_opt) = tx_arc.lock() {
+                        if let Some(tx) = tx_opt.take() {
+                            let _ = tx.send(());
+                        }
                     }
+                    service_control_handler::ServiceControlHandlerResult::NoError
                 }
-                service_control_handler::ServiceControlHandlerResult::NoError
+                ServiceControl::Interrogate => {
+                    service_control_handler::ServiceControlHandlerResult::NoError
+                }
+                _ => service_control_handler::ServiceControlHandlerResult::NotImplemented,
             }
-            ServiceControl::Interrogate => service_control_handler::ServiceControlHandlerResult::NoError,
-            _ => service_control_handler::ServiceControlHandlerResult::NotImplemented,
-        }
-    };
+        };
 
     let status_handle = match service_control_handler::register("WazuhAgentStatus", event_handler) {
         Ok(h) => h,
