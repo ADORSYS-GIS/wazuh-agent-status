@@ -63,6 +63,24 @@ command_exists() {
     return $?
 }
 
+# Ensure the script is running on the expected operating system
+ensure_os() {
+    local expected_os="$1"
+    local actual_os
+    actual_os=$(uname -s)
+
+    if [[ "$actual_os" != "$expected_os" ]]; then
+        local os_name
+        case "$expected_os" in
+            Darwin) os_name="macOS" ;;
+            Linux)  os_name="Linux" ;;
+            *)      os_name="$expected_os" ;;
+        esac
+        error_exit "This script is intended for ${os_name} systems. Detected OS: ${actual_os}. Please use the appropriate script for your operating system."
+    fi
+    return 0
+}
+
 # Detect system architecture
 detect_architecture() {
     local arch

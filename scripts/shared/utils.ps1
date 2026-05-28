@@ -189,6 +189,13 @@ function Download-And-VerifyFile {
     return $true
 }
 
+# Ensure the script is running on Windows
+function EnsureWindows {
+    if ($PSVersionTable.PSEdition -eq "Core" -and -not $IsWindows) {
+        ErrorExit "This script is intended for Windows systems. Please use the appropriate script for your operating system."
+    }
+}
+
 # Ensure the script is running with administrator privileges
 function EnsureAdmin {
     if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {

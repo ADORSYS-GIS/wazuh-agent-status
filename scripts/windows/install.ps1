@@ -20,6 +20,7 @@ try {
     . $U
 } catch { Write-Error "Bootstrap failed: $($_.Exception.Message)"; exit 1 }
 
+EnsureWindows
 EnsureAdmin
 
 # Determine architecture

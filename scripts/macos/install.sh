@@ -51,6 +51,7 @@ if [[ -z "$EXPECTED_HASH" ]] || [[ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]]; then
 fi
 
 . "$TMP_DIR/utils.sh"
+ensure_os "Darwin"
 
 trap cleanup EXIT
 export CHECKSUMS_FILE="$CHECKSUMS_FILE"
