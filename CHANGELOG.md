@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[865eb56](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/865eb566487932169cf73b8e34f0bf5f2ee63f69)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[01635d1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/01635d1ddbc7d6dc8bbb31e07cbe8a2b9994167a)
 
 ### Bug Fixes
 
@@ -26,10 +26,12 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`5d91a90`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5d91a90428b235bb681a29e4223d47d30237f02a))
 - Update CHANGELOG.md and checksums [skip ci] ([`7ee4c7a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7ee4c7a05af2b909c8d01adfef0fa5fd2b693064))
 - Update CHANGELOG.md and checksums [skip ci] ([`105b3bb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/105b3bbe70e1c1e7541fe855d9ea5f111a813107))
+- Update CHANGELOG.md and checksums [skip ci] ([`4fe2a33`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4fe2a33160b01dee2c7294b7294f4a1431c6b576))
 
 ### Features
 
 - Implement Unix update logic ([`10b1c0b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/10b1c0b675e7248e259b48ca74d419efa317c9ca)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Decouple wazuh-agent repo reference from agent-status repo reference using configurable environment variables ([`655658b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/655658b6d3d937050134e650e6449d64e4741299)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ### Miscellaneous Tasks
 
