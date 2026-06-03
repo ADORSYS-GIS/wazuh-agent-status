@@ -151,24 +151,13 @@ async fn handle_connection(
                 break;
             }
 
-            // ── Update triggers (stream response directly like Go server) ─────────────────
-            "update" => {
+            // ── Update triggers ───────────────────────────────────────────────
+            "update" | "initiate-update-stream" => {
                 handle_update_stream(&mut writer, &manager, false).await?;
                 break;
             }
 
-            "update-prerelease" => {
-                handle_update_stream(&mut writer, &manager, true).await?;
-                break;
-            }
-
-            // ── Update streams ────────────────────────────────────────────────
-            "initiate-update-stream" => {
-                handle_update_stream(&mut writer, &manager, false).await?;
-                break;
-            }
-
-            "initiate-prerelease-update-stream" => {
+            "update-prerelease" | "initiate-prerelease-update-stream" => {
                 handle_update_stream(&mut writer, &manager, true).await?;
                 break;
             }

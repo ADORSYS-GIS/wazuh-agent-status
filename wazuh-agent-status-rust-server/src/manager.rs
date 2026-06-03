@@ -218,7 +218,7 @@ impl AgentManager {
         // If prerelease, fetch the version string before spawning the task to avoid lifetime issues
         let prerelease_version = if is_prerelease {
             let status = self.get_version_status().await;
-            Some(status.wazuh.latest_version)
+            Some(status.tray.latest_version)
         } else {
             None
         };
@@ -509,28 +509,67 @@ impl AgentManager {
 
         match new_info {
             Some(info) => {
-                let wazuh_v = info.components.get("wazuh-agent");
-                let wazuh_update = compute_component_update(
-                    "Wazuh Agent",
-                    &current_state.version,
-                    &current_state.groups,
-                    wazuh_v.map(|v| v.version.as_str()).unwrap_or("Unknown"),
-                    wazuh_v.map(|v| v.prerelease_version.as_str()).unwrap_or(""),
-                    &info.prerelease_test_groups,
-                );
+                let show_prerelease =
+                    crate::version_utils::should_show_prerelease(&info, &current_state.groups);
 
-                let tray_update = compute_component_update(
-                    "Tray App",
-                    &current_state.tray_version,
-                    &current_state.groups,
-                    &info.framework.version,
-                    &info.framework.prerelease_version,
-                    &[], // Tray uses global framework version
-                );
+                let check_update = |name: &str, local_version: &str| {
+                    if local_version == "Unknown" || local_version == "Not Installed" {
+                        return crate::models::ComponentUpdate {
+                            name: name.to_string(),
+                            current_version: local_version.to_string(),
+                            latest_version: info.framework.version.to_string(),
+                            state: crate::models::UpdateState::Unknown,
+                            can_update: false,
+                        };
+                    }
 
-                let has_updates = wazuh_update.can_update || tray_update.can_update;
+                    let is_outdated = !info.framework.version.is_empty()
+                        && info.framework.version != "Unknown"
+                        && crate::version_utils::is_version_higher(
+                            &info.framework.version,
+                            local_version,
+                        );
+
+                    let has_prerelease = !info.framework.prerelease_version.is_empty()
+                        && show_prerelease
+                        && crate::version_utils::is_version_higher(
+                            &info.framework.prerelease_version,
+                            local_version,
+                        );
+
+                    let (state, latest, can_update) = if is_outdated {
+                        (
+                            crate::models::UpdateState::Outdated,
+                            info.framework.version.to_string(),
+                            true,
+                        )
+                    } else if has_prerelease {
+                        (
+                            crate::models::UpdateState::PrereleaseAvailable,
+                            info.framework.prerelease_version.to_string(),
+                            true,
+                        )
+                    } else {
+                        (
+                            crate::models::UpdateState::UpToDate,
+                            info.framework.version.to_string(),
+                            false,
+                        )
+                    };
+
+                    crate::models::ComponentUpdate {
+                        name: name.to_string(),
+                        current_version: local_version.to_string(),
+                        latest_version: latest,
+                        state,
+                        can_update,
+                    }
+                };
+
+                let tray_update = check_update("Tray App", &current_state.tray_version);
+
+                let has_updates = tray_update.can_update;
                 let status = UpdateStatus {
-                    wazuh: wazuh_update,
                     tray: tray_update,
                     has_updates,
                 };
@@ -555,15 +594,8 @@ impl AgentManager {
             None => {
                 warn!("Failed to fetch remote version manifest and no cache available");
                 UpdateStatus {
-                    wazuh: ComponentUpdate {
-                        name: "Wazuh Agent".to_string(),
-                        current_version: current_state.version,
-                        latest_version: "Unknown".to_string(),
-                        state: crate::models::UpdateState::Unknown,
-                        can_update: false,
-                    },
                     tray: ComponentUpdate {
-                        name: "Tray App".to_string(),
+                        name: "Wazuh Agent Status".to_string(),
                         current_version: current_state.tray_version,
                         latest_version: "Unknown".to_string(),
                         state: crate::models::UpdateState::Unknown,
@@ -574,71 +606,4 @@ impl AgentManager {
             }
         }
     }
-}
-
-fn compute_component_update(
-    name: &str,
-    local_version: &str,
-    agent_groups: &[String],
-    online_version: &str,
-    online_prerelease: &str,
-    prerelease_groups: &[String],
-) -> crate::models::ComponentUpdate {
-    if local_version == "Unknown" || local_version == "Not Installed" {
-        return crate::models::ComponentUpdate {
-            name: name.to_string(),
-            current_version: local_version.to_string(),
-            latest_version: online_version.to_string(),
-            state: crate::models::UpdateState::Unknown,
-            can_update: false,
-        };
-    }
-
-    let is_outdated = !online_version.is_empty()
-        && online_version != "Unknown"
-        && crate::version_utils::is_version_higher(online_version, local_version);
-
-    let has_prerelease = !online_prerelease.is_empty()
-        && should_show_prerelease_for_component(prerelease_groups, agent_groups)
-        && crate::version_utils::is_version_higher(online_prerelease, local_version);
-
-    let (state, latest, can_update) = if is_outdated {
-        (
-            crate::models::UpdateState::Outdated,
-            online_version.to_string(),
-            true,
-        )
-    } else if has_prerelease {
-        (
-            crate::models::UpdateState::PrereleaseAvailable,
-            online_prerelease.to_string(),
-            true,
-        )
-    } else {
-        (
-            crate::models::UpdateState::UpToDate,
-            online_version.to_string(),
-            false,
-        )
-    };
-
-    crate::models::ComponentUpdate {
-        name: name.to_string(),
-        current_version: local_version.to_string(),
-        latest_version: latest,
-        state,
-        can_update,
-    }
-}
-
-fn should_show_prerelease_for_component(
-    manifest_groups: &[String],
-    agent_groups: &[String],
-) -> bool {
-    if manifest_groups.is_empty() || agent_groups.is_empty() {
-        return false;
-    }
-    agent_groups
-        .iter()
-        .any(|ag| manifest_groups.iter().any(|tg| ag.eq_ignore_ascii_case(tg)))
 }

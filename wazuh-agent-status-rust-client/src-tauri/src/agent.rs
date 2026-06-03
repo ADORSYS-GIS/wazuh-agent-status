@@ -129,7 +129,7 @@ impl AgentManager {
         let server_addr = self.server_addr.clone();
 
         tokio::spawn(async move {
-            let mut stream = match tokio::net::TcpStream::connect(&server_addr).await {
+            let stream = match tokio::net::TcpStream::connect(&server_addr).await {
                 Ok(s) => s,
                 Err(e) => {
                     let _ = tx

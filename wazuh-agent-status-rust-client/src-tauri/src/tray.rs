@@ -7,7 +7,6 @@ use tauri::{
 #[cfg(not(target_os = "linux"))]
 use tauri_plugin_positioner::{Position, WindowExt};
 
-#[allow(dead_code)]
 pub struct TrayMenuState<R: Runtime> {
     pub show_item: MenuItem<R>,
 }
