@@ -30,6 +30,17 @@ export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewPro
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
+  useEffect(() => {
+    if (isUpdating && updateInfo) {
+      const wazuhUpdated = agentStatus.version !== "Unknown" && agentStatus.version === updateInfo.wazuh.latest_version;
+      const trayUpdated = agentStatus.tray_version !== "Unknown" && agentStatus.tray_version === updateInfo.tray.latest_version;
+      
+      if (wazuhUpdated || trayUpdated) {
+        setUpdateStatus("success");
+      }
+    }
+  }, [agentStatus.version, agentStatus.tray_version, isUpdating, updateInfo]);
+
   const handleUpdate = async (isPrerelease: boolean) => {
     setLogs([{ id: crypto.randomUUID(), text: "Starting orchestrated update..." }]);
     setIsUpdating(true);
@@ -101,6 +112,7 @@ export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewPro
             description="Wazuh security framework core services."
             onUpdate={() => {}} 
             isBusy={isUpdating}
+            updateStatus={updateStatus}
             readOnly={true}
           />
           <UpdateCard 
@@ -108,6 +120,7 @@ export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewPro
             description="Unified Status Agent orchestrator. Handles global system updates."
             onUpdate={() => handleUpdate(updateInfo.wazuh.state === "prereleaseavailable" || updateInfo.tray.state === "prereleaseavailable")}
             isBusy={isUpdating}
+            updateStatus={updateStatus}
           />
         </>
       ) : (
@@ -149,10 +162,11 @@ interface UpdateCardProps {
   description: string;
   onUpdate: () => void;
   isBusy?: boolean;
+  updateStatus?: "idle" | "running" | "success" | "error";
   readOnly?: boolean;
 }
 
-function UpdateCard({ component, description, onUpdate, isBusy, readOnly }: Readonly<UpdateCardProps>) {
+function UpdateCard({ component, description, onUpdate, isBusy, updateStatus = "idle", readOnly }: Readonly<UpdateCardProps>) {
   const isOutdated = !readOnly && (component.state === "outdated" || component.state === "prereleaseavailable");
 
   return (
@@ -167,8 +181,14 @@ function UpdateCard({ component, description, onUpdate, isBusy, readOnly }: Read
         {isOutdated && !isBusy && (
           <button className="update-button" onClick={onUpdate}>Update Now</button>
         )}
-        {isBusy && isOutdated && (
+        {isBusy && isOutdated && (updateStatus === "running" || updateStatus === "idle") && (
           <div className="auto-badge">Processing...</div>
+        )}
+        {isBusy && isOutdated && updateStatus === "success" && (
+          <div className="auto-badge" style={{ color: "var(--success)", border: "1px solid var(--success)" }}>Completed</div>
+        )}
+        {isBusy && isOutdated && updateStatus === "error" && (
+          <div className="auto-badge" style={{ color: "var(--warning)", border: "1px solid var(--warning)" }}>Failed</div>
         )}
       </div>
       <p className="card-sub" style={{ margin: 0 }}>{description}</p>
