@@ -97,16 +97,9 @@ export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewPro
       {updateInfo ? (
         <>
           <UpdateCard 
-            component={updateInfo.wazuh} 
-            description="Wazuh security framework core services."
-            onUpdate={() => {}} 
-            isBusy={isUpdating}
-            readOnly={true}
-          />
-          <UpdateCard 
             component={updateInfo.tray} 
             description="Unified Status Agent orchestrator. Handles global system updates."
-            onUpdate={() => handleUpdate(updateInfo.wazuh.state === "prereleaseavailable" || updateInfo.tray.state === "prereleaseavailable")}
+            onUpdate={() => handleUpdate(updateInfo.tray.state === "prereleaseavailable")}
             isBusy={isUpdating}
           />
         </>

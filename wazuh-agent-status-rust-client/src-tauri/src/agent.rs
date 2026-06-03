@@ -129,7 +129,7 @@ impl AgentManager {
         let server_addr = self.server_addr.clone();
 
         tokio::spawn(async move {
-            let mut stream = match tokio::net::TcpStream::connect(&server_addr).await {
+            let stream = match tokio::net::TcpStream::connect(&server_addr).await {
                 Ok(s) => s,
                 Err(e) => {
                     let _ = tx
@@ -142,36 +142,6 @@ impl AgentManager {
             };
 
             use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
-            let cmd = if is_prerelease {
-                "update-prerelease\n"
-            } else {
-                "update\n"
-            };
-            if let Err(e) = stream.write_all(cmd.as_bytes()).await {
-                let _ = tx
-                    .send(format!(
-                        "UPDATE_PROGRESS: [FAILURE] Failed to send update command: {e}"
-                    ))
-                    .await;
-                return;
-            }
-
-            // The 'update' command in the server triggers a background self-dial update stream.
-            // However, it's actually easier for the client to just call 'initiate-update-stream' directly
-            // if we want to pipe the logs back to the UI.
-            // Let's call initiate-update-stream on a new connection.
-
-            let stream = match tokio::net::TcpStream::connect(&server_addr).await {
-                Ok(s) => s,
-                Err(e) => {
-                    let _ = tx
-                        .send(format!(
-                            "UPDATE_PROGRESS: [FAILURE] Failed to connect for logs: {e}"
-                        ))
-                        .await;
-                    return;
-                }
-            };
             let (reader, mut writer) = tokio::io::split(stream);
             let mut reader = tokio::io::BufReader::new(reader);
 
@@ -180,7 +150,14 @@ impl AgentManager {
             } else {
                 "initiate-update-stream\n"
             };
-            let _ = writer.write_all(stream_cmd.as_bytes()).await;
+            if let Err(e) = writer.write_all(stream_cmd.as_bytes()).await {
+                let _ = tx
+                    .send(format!(
+                        "UPDATE_PROGRESS: [FAILURE] Failed to send update command: {e}"
+                    ))
+                    .await;
+                return;
+            }
 
             let mut line = String::new();
             while let Ok(n) = reader.read_line(&mut line).await {

@@ -83,7 +83,6 @@ pub struct ComponentUpdate {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateStatus {
-    pub wazuh: ComponentUpdate,
     pub tray: ComponentUpdate,
     pub has_updates: bool,
 }

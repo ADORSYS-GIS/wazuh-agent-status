@@ -18,7 +18,6 @@ export interface ComponentUpdate {
 }
 
 export interface UpdateStatus {
-    wazuh: ComponentUpdate;
     tray: ComponentUpdate;
     has_updates: boolean;
 }
