@@ -93,6 +93,10 @@ function App() {
     setIsLogStreaming(false);
   }, []);
 
+  const refreshUpdateInfo = useCallback(() => {
+    invoke<UpdateStatus>("check_for_updates").then(setUpdateInfo).catch(console.error);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_VIEW, activeView);
     if (mainContentRef.current) {
@@ -103,7 +107,7 @@ function App() {
   useEffect(() => {
     // Initial data fetch
     invoke<AppConfig>("get_config").then(setConfig).catch(console.error);
-    invoke<UpdateStatus>("check_for_updates").then(setUpdateInfo).catch(console.error);
+    refreshUpdateInfo();
 
     // Polling logic for real-time data
     const refreshData = () => {
@@ -118,7 +122,7 @@ function App() {
       clearInterval(statusTimer);
       if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
     };
-  }, []);
+  }, [refreshUpdateInfo]);
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
@@ -230,7 +234,13 @@ function App() {
             onClear={() => setLogs([])}
           />
         )}
-        {activeView === "updates" && <UpdatesView updateInfo={updateInfo} agentStatus={agentStatus} />}
+        {activeView === "updates" && (
+          <UpdatesView 
+            updateInfo={updateInfo} 
+            agentStatus={agentStatus} 
+            onRefreshUpdates={refreshUpdateInfo} 
+          />
+        )}
         {activeView === "settings" && <SettingsView config={config} agentStatus={agentStatus} />}
       </main>
     </div>

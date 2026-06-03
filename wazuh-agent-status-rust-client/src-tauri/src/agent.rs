@@ -129,7 +129,7 @@ impl AgentManager {
         let server_addr = self.server_addr.clone();
 
         tokio::spawn(async move {
-            let stream = match tokio::net::TcpStream::connect(&server_addr).await {
+            let mut stream = match tokio::net::TcpStream::connect(&server_addr).await {
                 Ok(s) => s,
                 Err(e) => {
                     let _ = tx
@@ -141,9 +141,13 @@ impl AgentManager {
                 }
             };
 
-            use tokio::io::{AsyncWriteExt, AsyncBufReadExt};
+            use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
             // Send the update command - the server will stream progress back on this same connection
-            let cmd = if is_prerelease { "update-prerelease\n" } else { "update\n" };
+            let cmd = if is_prerelease {
+                "update-prerelease\n"
+            } else {
+                "update\n"
+            };
             if let Err(e) = stream.write_all(cmd.as_bytes()).await {
                 let _ = tx
                     .send(format!(

@@ -476,8 +476,8 @@ impl AgentManager {
                 let cache_is_fresh =
                     now.duration_since(c.fetched_at) < self.config.version_cache_ttl;
                 // Invalidate cache if local version has changed since cache was created
-                let local_version_changed = c.status.wazuh.current_version != current_state.version
-                    || c.status.tray.current_version != current_state.tray_version;
+                let local_version_changed =
+                    c.status.tray.current_version != current_state.tray_version;
 
                 if cache_is_fresh && !local_version_changed {
                     return c.status.clone();
@@ -485,8 +485,8 @@ impl AgentManager {
 
                 if local_version_changed {
                     info!(
-                        old_cached = ?c.status.wazuh.current_version,
-                        current = ?current_state.version,
+                        old_cached = ?c.status.tray.current_version,
+                        current = ?current_state.tray_version,
                         "Local version changed since cache was created; invalidating cache"
                     );
                 }
@@ -566,7 +566,7 @@ impl AgentManager {
                     }
                 };
 
-                let tray_update = check_update("Tray App", &current_state.tray_version);
+                let tray_update = check_update("Wazuh Setup", &current_state.tray_version);
 
                 let has_updates = tray_update.can_update;
                 let status = UpdateStatus {
