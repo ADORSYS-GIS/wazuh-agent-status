@@ -227,7 +227,10 @@ impl AgentManager {
 
         tokio::spawn(async move {
             info!("Update task started, sending initial progress message");
-            if let Err(e) = tx.send("UPDATE_PROGRESS: [STATUS] Starting update process...".to_string()).await {
+            if let Err(e) = tx
+                .send("UPDATE_PROGRESS: [STATUS] Starting update process...".to_string())
+                .await
+            {
                 warn!(error = %e, "Failed to send initial progress message");
                 return;
             }
@@ -245,26 +248,50 @@ impl AgentManager {
                 };
 
                 info!(version = %version, "Processing prerelease update");
-                let _ = tx.send(format!("UPDATE_PROGRESS: [STATUS] Downloading setup script for v{}...", version)).await;
-                let url = format!("https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v{}/scripts/setup-agent.sh", version);
-                
+                let _ = tx
+                    .send(format!(
+                        "UPDATE_PROGRESS: [STATUS] Downloading setup script for v{}...",
+                        version
+                    ))
+                    .await;
+                let url = format!(
+                    "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v{}/scripts/setup-agent.sh",
+                    version
+                );
+
                 match crate::http::fetch_bytes(&url, Duration::from_secs(30)).await {
                     Ok(bytes) => {
                         let tmp_script = format!("/tmp/setup-agent-{}.sh", version);
                         if let Err(e) = std::fs::write(&tmp_script, bytes) {
                             warn!(error = %e, "Failed to save setup script");
-                            let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to save setup script: {e}")).await;
+                            let _ = tx
+                                .send(format!(
+                                    "UPDATE_PROGRESS: [FAILURE] Failed to save setup script: {e}"
+                                ))
+                                .await;
                             return;
                         }
-                        let _ = std::process::Command::new("chmod").arg("+x").arg(&tmp_script).status();
-                        
+                        let _ = std::process::Command::new("chmod")
+                            .arg("+x")
+                            .arg(&tmp_script)
+                            .status();
+
                         info!(script = %tmp_script, "Executing prerelease setup script");
-                        let _ = tx.send("UPDATE_PROGRESS: [STATUS] Executing prerelease setup...".to_string()).await;
+                        let _ = tx
+                            .send(
+                                "UPDATE_PROGRESS: [STATUS] Executing prerelease setup..."
+                                    .to_string(),
+                            )
+                            .await;
                         cmd.arg(tmp_script);
                     }
                     Err(e) => {
                         warn!(error = %e, "Failed to download setup script");
-                        let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to download setup script: {e}")).await;
+                        let _ = tx
+                            .send(format!(
+                                "UPDATE_PROGRESS: [FAILURE] Failed to download setup script: {e}"
+                            ))
+                            .await;
                         return;
                     }
                 }
@@ -298,14 +325,21 @@ impl AgentManager {
                         let mut reader = BufReader::new(stderr).lines();
                         while let Ok(Some(line)) = reader.next_line().await {
                             warn!(line = %line, "Update stderr");
-                            let _ = tx_clone.send(format!("UPDATE_PROGRESS: [ERROR] {}", line)).await;
+                            let _ = tx_clone
+                                .send(format!("UPDATE_PROGRESS: [ERROR] {}", line))
+                                .await;
                         }
                     });
 
                     match child.wait().await {
                         Ok(status) if status.success() => {
                             info!(exit_code = ?status.code(), "Update script completed successfully");
-                            let _ = tx.send("UPDATE_PROGRESS: [SUCCESS] Update completed successfully".to_string()).await;
+                            let _ = tx
+                                .send(
+                                    "UPDATE_PROGRESS: [SUCCESS] Update completed successfully"
+                                        .to_string(),
+                                )
+                                .await;
                         }
                         Ok(status) => {
                             warn!(exit_code = ?status.code(), "Update script failed");
@@ -439,15 +473,16 @@ impl AgentManager {
         {
             let cache = self.version_cache.read().await;
             if let Some(c) = &*cache {
-                let cache_is_fresh = now.duration_since(c.fetched_at) < self.config.version_cache_ttl;
+                let cache_is_fresh =
+                    now.duration_since(c.fetched_at) < self.config.version_cache_ttl;
                 // Invalidate cache if local version has changed since cache was created
                 let local_version_changed = c.status.wazuh.current_version != current_state.version
                     || c.status.tray.current_version != current_state.tray_version;
-                
+
                 if cache_is_fresh && !local_version_changed {
                     return c.status.clone();
                 }
-                
+
                 if local_version_changed {
                     info!(
                         old_cached = ?c.status.wazuh.current_version,
