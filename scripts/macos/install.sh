@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Set shell options
-if [ -n "$BASH_VERSION" ]; then
+if [[ -n "$BASH_VERSION" ]]; then
     set -euo pipefail
 else
     set -eu
@@ -12,7 +12,7 @@ APP_VERSION=${APP_VERSION:-"0.5.0"}
 # Common configuration
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"main"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Source shared utilities
@@ -176,7 +176,7 @@ create_launchd_plist_file() {
 "
 
     local label="com.adorsys.$name"
-    if [ "$name" = "$SERVER_NAME" ]; then
+    if [[ "$name" == "$SERVER_NAME" ]]; then
         local target="system/$label"
         if maybe_sudo launchctl print "$target" >/dev/null 2>&1; then
             info_message "Service $label is already loaded, kickstarting..."

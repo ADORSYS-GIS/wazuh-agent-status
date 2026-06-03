@@ -31,8 +31,8 @@ impl TcpServer {
     /// Create a new server bound to `addr` using the provided `manager`.
     pub fn new(addr: String, manager: Arc<AgentManager>) -> Self {
         let max_conns = manager.config().max_connections;
-        Self { 
-            addr, 
+        Self {
+            addr,
             manager,
             limit: Arc::new(tokio::sync::Semaphore::new(max_conns)),
         }
@@ -55,7 +55,7 @@ impl TcpServer {
                 Err(_) => {
                     let limit = self.manager.config().max_connections;
                     warn!(peer = %peer_addr, "Server full (limit {}); dropping connection", limit);
-                    continue; 
+                    continue;
                 }
             };
 
@@ -65,7 +65,7 @@ impl TcpServer {
 
                 // Enable TCP keepalives to detect dead/ghost peers faster
                 let _ = socket.set_nodelay(true);
-                
+
                 if let Err(e) = handle_connection(socket, manager).await {
                     error!(error = %e, peer = %peer_addr, "Connection handler error");
                 }
@@ -90,19 +90,23 @@ async fn handle_connection(
 
     loop {
         line.clear();
-        
+
         // Wrap the read operation in a timeout to prevent leaked/hung connections.
         let read_result = timeout(IDLE_TIMEOUT, async {
             let mut handle = (&mut reader).take(MAX_LINE_LENGTH as u64);
             let bytes = handle.read_line(&mut line).await?;
             Ok::<usize, tokio::io::Error>(bytes)
-        }).await;
+        })
+        .await;
 
         let bytes = match read_result {
             Ok(Ok(n)) => n,
             Ok(Err(e)) => return Err(e),
             Err(_) => {
-                warn!("Connection timed out after {}s of inactivity", IDLE_TIMEOUT.as_secs());
+                warn!(
+                    "Connection timed out after {}s of inactivity",
+                    IDLE_TIMEOUT.as_secs()
+                );
                 let _ = writer.write_all(b"ERROR: Connection idle timeout\n").await;
                 let _ = writer.flush().await;
                 break;
@@ -115,11 +119,12 @@ async fn handle_connection(
 
         // Lenient command parsing: lowercase and treat space/underscore as hyphen.
         let raw_command = line.trim();
-        let normalized = raw_command.to_lowercase()
-            .replace([' ', '_'], "-");
+        let normalized = raw_command.to_lowercase().replace([' ', '_'], "-");
 
-        if normalized.is_empty() { continue; }
-        
+        if normalized.is_empty() {
+            continue;
+        }
+
         info!(command = %normalized, raw = %raw_command, "Command received");
 
         match normalized.as_str() {
@@ -273,10 +278,7 @@ where
 
 /// Handle a `subscribe-logs` session: tail `ossec.log` in real-time and
 /// pipe structured JSON lines back to the client.
-async fn handle_log_stream<W>(
-    writer: &mut W,
-    manager: &AgentManager,
-) -> tokio::io::Result<()>
+async fn handle_log_stream<W>(writer: &mut W, manager: &AgentManager) -> tokio::io::Result<()>
 where
     W: AsyncWriteExt + Unpin,
 {

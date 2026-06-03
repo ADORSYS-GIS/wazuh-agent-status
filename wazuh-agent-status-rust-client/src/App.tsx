@@ -146,9 +146,7 @@ function App() {
     "--primary-metallic": `linear-gradient(135deg, ${primaryColor}, #ffffff44, ${primaryColor})` 
   } as CSSProperties;
 
-  const indicatorTop = (
-    { status: "10px", logs: "70px", updates: "130px", settings: "190px" } as Record<View, string>
-  )[activeView];
+  const activeViewIndex = { status: 0, logs: 1, updates: 2, settings: 3 }[activeView];
 
   return (
     <div className="app-wrapper" style={cssVars}>
@@ -157,11 +155,17 @@ function App() {
           <img src="/adorsys-logo.png" alt="Adorsys" />
         </div>
 
-        <div className="nav-items" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div 
-            className="nav-indicator" 
-            style={{ top: indicatorTop }} 
-          />
+        <div 
+          className="nav-items" 
+          style={{ 
+            position: 'relative', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            "--nav-active-index": activeViewIndex
+          } as CSSProperties}
+        >
+          <div className="nav-indicator" />
           
           <div className="tooltip-container">
             <button

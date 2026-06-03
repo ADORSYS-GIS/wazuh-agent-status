@@ -3,6 +3,9 @@ name = "wazuh-agent-status-rust-server"
 version = "0.1.0"
 edition = "2024"
 
+[package.metadata.cargo-machete]
+ignored = ["thiserror", "tracing", "openssl"]
+
 [dependencies]
 tokio        = { version = "1",    features = ["full"] }
 serde        = { version = "1",    features = ["derive"] }

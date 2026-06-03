@@ -55,14 +55,13 @@ pub struct SystemMetrics {
 impl Default for SystemMetrics {
     fn default() -> Self {
         Self {
-            cpu_usage:    0.0,
+            cpu_usage: 0.0,
             memory_usage: 0.0,
             total_memory: 0,
-            used_memory:  0,
+            used_memory: 0,
         }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -113,12 +112,12 @@ pub struct AgentState {
 impl Default for AgentState {
     fn default() -> Self {
         Self {
-            status:               AgentStatus::Unknown,
-            connection:           ConnectionStatus::Unknown,
-            version:              "Unknown".to_string(),
-            tray_version:         "Unknown".to_string(),
-            groups:               Vec::new(),
-            metrics:              SystemMetrics::default(),
+            status: AgentStatus::Unknown,
+            connection: ConnectionStatus::Unknown,
+            version: "Unknown".to_string(),
+            tray_version: "Unknown".to_string(),
+            groups: Vec::new(),
+            metrics: SystemMetrics::default(),
             self_healing_enabled: true,
         }
     }
@@ -148,17 +147,18 @@ impl LogLine {
     /// Create a new LogLine by analysing the raw text for known keywords.
     pub fn from_raw(raw: String) -> Self {
         let upper = raw.to_uppercase();
-        let level = if upper.contains("ERROR") || upper.contains("CRITICAL") || upper.contains("FATAL") {
-            LogLevel::Error
-        } else if upper.contains("WARNING") || upper.contains("WARN") {
-            LogLevel::Warning
-        } else if upper.contains("DEBUG") {
-            LogLevel::Debug
-        } else if upper.contains("INFO") {
-            LogLevel::Info
-        } else {
-            LogLevel::Unknown
-        };
+        let level =
+            if upper.contains("ERROR") || upper.contains("CRITICAL") || upper.contains("FATAL") {
+                LogLevel::Error
+            } else if upper.contains("WARNING") || upper.contains("WARN") {
+                LogLevel::Warning
+            } else if upper.contains("DEBUG") {
+                LogLevel::Debug
+            } else if upper.contains("INFO") {
+                LogLevel::Info
+            } else {
+                LogLevel::Unknown
+            };
         Self { raw, level }
     }
 }
