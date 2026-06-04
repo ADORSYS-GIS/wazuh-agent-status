@@ -16,6 +16,7 @@ try {
     . $U
 } catch { Write-Error "Bootstrap failed"; exit 1 }
 
+EnsureWindows
 EnsureAdmin
 
 # Environment Variables with Defaults

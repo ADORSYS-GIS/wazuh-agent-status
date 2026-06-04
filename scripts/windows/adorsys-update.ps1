@@ -52,6 +52,7 @@ try {
     . $U
 } catch { Write-Error "Bootstrap failed"; exit 1 }
 
+EnsureWindows
 EnsureAdmin
 
 # Cleanup bootstrap files on exit
