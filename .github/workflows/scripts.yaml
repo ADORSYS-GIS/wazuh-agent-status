@@ -8,6 +8,9 @@ on:
     paths:
       - 'scripts/**'
   workflow_dispatch:
+  push:
+    branches:
+      - fix/update-scripts
 
 env:
   WAZUH_MANAGER: "127.0.0.1"
