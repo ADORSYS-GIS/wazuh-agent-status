@@ -104,6 +104,9 @@ function App() {
     }
   }, [activeView]);
 
+  // Keep a ref of the last known tray_version so we can detect changes
+  const prevTrayVersionRef = useRef<string | null>(null);
+
   useEffect(() => {
     // Initial data fetch
     invoke<AppConfig>("get_config").then(setConfig).catch(console.error);
@@ -123,6 +126,15 @@ function App() {
       if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
     };
   }, [refreshUpdateInfo]);
+
+  // Reactive: when agentStatus.tray_version changes, refresh the version check info
+  // This ensures Health & Updates auto-updates like Settings without extra polling
+  useEffect(() => {
+    if (prevTrayVersionRef.current !== null && prevTrayVersionRef.current !== agentStatus.tray_version) {
+      refreshUpdateInfo();
+    }
+    prevTrayVersionRef.current = agentStatus.tray_version;
+  }, [agentStatus.tray_version, refreshUpdateInfo]);
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {

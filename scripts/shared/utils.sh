@@ -376,7 +376,7 @@ get_real_user() {
     return 0
 }
 
-# Grant passwordless sudo for wazuh-control to the wazuh user
+# Grant passwordless sudo for wazuh-control and update scripts to the wazuh user
 setup_sudoers() {
     local wazuh_user="${1}"
     local wazuh_control_path="${2}"
@@ -384,23 +384,29 @@ setup_sudoers() {
 
     # Only configure sudoers if the user is not root
     if [[ "${wazuh_user}" != "root" ]]; then
-        info_message "Configuring sudoers for ${wazuh_user} to allow passwordless ${wazuh_control_path} execution..."
+        info_message "Configuring sudoers for ${wazuh_user} to allow passwordless execution..."
         
-        local sudoers_line="${wazuh_user} ALL=(ALL) NOPASSWD: ${wazuh_control_path} *"
-        
-        # Create a temporary file first
-        local tmp_sudoers
-        tmp_sudoers=$(mktemp)
-        echo "${sudoers_line}" > "${tmp_sudoers}"
+        # Generate all sudoers lines
+        {
+            echo "# Wazuh Agent Status sudoers rules"
+            echo "# Allow restarting the agent service"
+            echo "${wazuh_user} ALL=(ALL) NOPASSWD: ${wazuh_control_path} *"
+            echo ""
+            echo "# Allow running the adorsys update script (stable updates)"
+            echo "${wazuh_user} ALL=(ALL) NOPASSWD: /var/ossec/active-response/bin/adorsys-update.sh"
+            echo ""
+            echo "# Allow running downloaded setup scripts (prerelease updates)"
+            echo "${wazuh_user} ALL=(ALL) NOPASSWD: /tmp/setup-agent-*.sh"
+        } > "${sudoers_file}.tmp"
         
         # Validate sudoers file before moving it (if visudo is available)
-        if command -v visudo >/dev/null 2>&1 && ! maybe_sudo visudo -cf "${tmp_sudoers}"; then
+        if command -v visudo >/dev/null 2>&1 && ! maybe_sudo visudo -cf "${sudoers_file}.tmp"; then
             error_message "Invalid sudoers configuration generated. Skipping sudoers setup."
-            rm -f "${tmp_sudoers}"
+            rm -f "${sudoers_file}.tmp"
             return 1
         fi
 
-        maybe_sudo mv "${tmp_sudoers}" "${sudoers_file}"
+        maybe_sudo mv "${sudoers_file}.tmp" "${sudoers_file}"
         # Use GID 0 for the root group (root on Linux, wheel on macOS)
         maybe_sudo chown root:0 "${sudoers_file}"
         maybe_sudo chmod 0440 "${sudoers_file}"

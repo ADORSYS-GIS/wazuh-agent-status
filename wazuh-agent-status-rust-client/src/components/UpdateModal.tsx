@@ -38,7 +38,9 @@ function StepIndicator({ step, current }: { step: Step; current: Step }) {
   const idx = order.indexOf(step);
   const curIdx = order.indexOf(current);
   const isActive = step === current;
-  const isComplete = curIdx > idx && current !== "failed";
+  const isComplete = current === "done"
+    ? true
+    : (curIdx > idx && current !== "failed");
   const isFailed = current === "failed";
 
   return (

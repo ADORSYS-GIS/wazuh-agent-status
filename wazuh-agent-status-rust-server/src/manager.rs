@@ -236,7 +236,8 @@ impl AgentManager {
             }
             info!("Initial progress message sent successfully");
 
-            let mut cmd = Command::new("sudo");
+            // Determine the script path first, then build the command
+            let script_path: std::path::PathBuf;
             if is_prerelease {
                 let version = match prerelease_version {
                     Some(v) if v != "Unknown" => v,
@@ -283,7 +284,7 @@ impl AgentManager {
                                     .to_string(),
                             )
                             .await;
-                        cmd.arg(tmp_script);
+                        script_path = std::path::PathBuf::from(&tmp_script);
                     }
                     Err(e) => {
                         warn!(error = %e, "Failed to download setup script");
@@ -297,9 +298,25 @@ impl AgentManager {
                 }
             } else {
                 info!(script = %paths.update_script.display(), "Executing standard update script");
-                cmd.arg(&paths.update_script);
+                script_path = paths.update_script.clone();
             }
 
+            // Build the command — skip sudo if already running as root
+            let is_root = std::process::Command::new("id")
+                .arg("-u")
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
+                .unwrap_or(false);
+
+            let mut cmd = if is_root {
+                info!("Running as root — executing update script directly");
+                Command::new(script_path.as_os_str())
+            } else {
+                info!("Running as non-root — using sudo for update script");
+                let mut c = Command::new("sudo");
+                c.arg(script_path.as_os_str());
+                c
+            };
             cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
             info!("Spawning sudo command");
