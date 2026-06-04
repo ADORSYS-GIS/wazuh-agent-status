@@ -9,12 +9,6 @@ else
     set -eu
 fi
 
-# OS guard early in the script
-if [[ "$(uname -s)" != "Linux" ]]; then
-    printf "%s\n" "[ERROR] This installation script is intended for Linux systems. Please use the appropriate script for your operating system." >&2
-    exit 1
-fi
-
 readonly WAZUH_AGENT_STATUS_REPO_REF="user-main"
 readonly WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 readonly WAZUH_AGENT_REPO_REF="${WAZUH_AGENT_REPO_REF:-main}"
@@ -56,6 +50,7 @@ if [[ -z "$EXPECTED_HASH" ]] || [[ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]]; then
 fi
 
 . "$TMP_DIR/utils.sh"
+ensure_os "Linux"
 
 trap cleanup EXIT
 
