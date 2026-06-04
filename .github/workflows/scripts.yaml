@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - fix/update-scripts
+      - fix/update-feature
 
 env:
   WAZUH_MANAGER: "127.0.0.1"
