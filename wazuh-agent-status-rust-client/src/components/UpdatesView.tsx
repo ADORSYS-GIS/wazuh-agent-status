@@ -18,7 +18,9 @@ export function UpdatesView({ updateInfo, agentStatus, onRefreshUpdates }: Reado
   useEffect(() => {
     const unlisten = listen<string>("update-log", (event) => {
       setLogs((prev) => [...prev, { id: crypto.randomUUID(), text: event.payload }]);
-      if (event.payload.includes("[SUCCESS]")) {
+      // Only consider the update fully successful when the server sends the final "completed" message,
+      // not on intermediate [SUCCESS] messages from the script (e.g. "Installation validated successfully").
+      if (event.payload.includes("UPDATE_PROGRESS: [SUCCESS] Update completed successfully")) {
         setUpdateStatus("success");
         onRefreshUpdates();
       }

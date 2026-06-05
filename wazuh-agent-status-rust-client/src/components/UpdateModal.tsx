@@ -17,9 +17,11 @@ type Step = "connecting" | "preparing" | "downloading" | "installing" | "done" |
 function inferStep(logs: LogEntry[]): Step {
   if (logs.length === 0) return "connecting";
 
-  // Terminal states are driven by the last line only
+  // Terminal states are driven by the last line only.
+  // Only the server's final "[SUCCESS] Update completed successfully" message counts,
+  // not intermediate [SUCCESS] lines from the script (e.g. "Installation validated successfully").
   const last = logs[logs.length - 1]?.text ?? "";
-  if (last.includes("[SUCCESS]")) return "done";
+  if (last.includes("UPDATE_PROGRESS: [SUCCESS] Update completed successfully")) return "done";
   // Only [FAILURE] triggers failed — [ERROR] lines are intermediate (e.g. stderr from the script)
   if (last.includes("[FAILURE]")) return "failed";
 

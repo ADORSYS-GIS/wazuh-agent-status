@@ -382,6 +382,14 @@ setup_sudoers() {
     local wazuh_control_path="${2}"
     local sudoers_file="/etc/sudoers.d/wazuh-agent-status"
 
+    # Determine the correct update script path based on the OS
+    local adorsys_script_path
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        adorsys_script_path="/Library/Ossec/active-response/bin/adorsys-update.sh"
+    else
+        adorsys_script_path="/var/ossec/active-response/bin/adorsys-update.sh"
+    fi
+
     # Only configure sudoers if the user is not root
     if [[ "${wazuh_user}" != "root" ]]; then
         info_message "Configuring sudoers for ${wazuh_user} to allow passwordless execution..."
@@ -393,7 +401,7 @@ setup_sudoers() {
             echo "${wazuh_user} ALL=(ALL) NOPASSWD: ${wazuh_control_path} *"
             echo ""
             echo "# Allow running the adorsys update script (stable updates)"
-            echo "${wazuh_user} ALL=(ALL) NOPASSWD: /var/ossec/active-response/bin/adorsys-update.sh"
+            echo "${wazuh_user} ALL=(ALL) NOPASSWD: ${adorsys_script_path}"
             echo ""
             echo "# Allow running downloaded setup scripts (prerelease updates)"
             echo "${wazuh_user} ALL=(ALL) NOPASSWD: /tmp/setup-agent-*.sh"
