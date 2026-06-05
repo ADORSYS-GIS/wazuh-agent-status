@@ -238,6 +238,10 @@ impl AgentManager {
 
             // Determine the script path first, then build the command
             let script_path: std::path::PathBuf;
+            // Track the tag for prerelease updates so the setup script downloads
+            // components and version.txt from the correct release tag
+            let prerelease_tag: Option<String>;
+
             if is_prerelease {
                 let version = match prerelease_version {
                     Some(v) if v != "Unknown" => v,
@@ -249,20 +253,35 @@ impl AgentManager {
                 };
 
                 info!(version = %version, "Processing prerelease update");
+                prerelease_tag = Some(format!("refs/tags/v{version}"));
+
                 let _ = tx
                     .send(format!(
                         "UPDATE_PROGRESS: [STATUS] Downloading setup script for v{}...",
                         version
                     ))
                     .await;
-                let url = format!(
-                    "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v{}/scripts/setup-agent.sh",
-                    version
-                );
+                let url = if cfg!(target_os = "windows") {
+                    format!(
+                        "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v{}/scripts/windows/setup-agent.ps1",
+                        version
+                    )
+                } else {
+                    format!(
+                        "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v{}/scripts/setup-agent.sh",
+                        version
+                    )
+                };
 
                 match crate::http::fetch_bytes(&url, Duration::from_secs(30)).await {
                     Ok(bytes) => {
-                        let tmp_script = format!("/tmp/setup-agent-{}.sh", version);
+                        let tmp_script: std::path::PathBuf = if cfg!(target_os = "windows") {
+                            let mut tmp_dir = std::env::temp_dir();
+                            tmp_dir.push(format!("setup-agent-{}.ps1", version));
+                            tmp_dir
+                        } else {
+                            std::path::PathBuf::from(format!("/tmp/setup-agent-{}.sh", version))
+                        };
                         if let Err(e) = std::fs::write(&tmp_script, bytes) {
                             warn!(error = %e, "Failed to save setup script");
                             let _ = tx
@@ -272,12 +291,15 @@ impl AgentManager {
                                 .await;
                             return;
                         }
-                        let _ = std::process::Command::new("chmod")
-                            .arg("+x")
-                            .arg(&tmp_script)
-                            .status();
+                        // Make executable on Unix
+                        if !cfg!(target_os = "windows") {
+                            let _ = std::process::Command::new("chmod")
+                                .arg("+x")
+                                .arg(&tmp_script)
+                                .status();
+                        }
 
-                        info!(script = %tmp_script, "Executing prerelease setup script");
+                        info!(script = %tmp_script.display(), "Executing prerelease setup script");
                         let _ = tx
                             .send(
                                 "UPDATE_PROGRESS: [STATUS] Executing prerelease setup..."
@@ -298,31 +320,69 @@ impl AgentManager {
                 }
             } else {
                 info!(script = %paths.update_script.display(), "Executing standard update script");
+                prerelease_tag = None;
                 script_path = paths.update_script.clone();
             }
 
-            // Build the command — skip sudo if already running as root
-            let is_root = std::process::Command::new("id")
-                .arg("-u")
-                .output()
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
-                .unwrap_or(false);
-
-            let mut cmd = if is_root {
-                info!("Running as root — executing update script directly");
-                Command::new(script_path.as_os_str())
+            // Build the command — platform-specific execution
+            let mut cmd = if cfg!(target_os = "windows") {
+                let script_str = script_path.to_str().unwrap_or_default();
+                if script_str.ends_with(".ps1") {
+                    info!("Running PowerShell script directly");
+                    let mut c = Command::new("powershell.exe");
+                    c.args([
+                        "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-File",
+                        script_str,
+                    ]);
+                    // Always pass -Update so the setup script runs in upgrade mode
+                    c.arg("-Update");
+                    // Set the tag so the setup script downloads components from the correct release
+                    if let Some(ref tag) = prerelease_tag {
+                        c.env("WAZUH_AGENT_REPO_REF", tag);
+                    }
+                    c
+                } else {
+                    info!("Running batch script via cmd.exe");
+                    let mut c = Command::new("cmd.exe");
+                    c.args(["/c", script_str]);
+                    c
+                }
             } else {
-                info!("Running as non-root — using sudo for update script");
-                let mut c = Command::new("sudo");
-                c.arg(script_path.as_os_str());
-                c
+                let is_root = std::process::Command::new("id")
+                    .arg("-u")
+                    .output()
+                    .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
+                    .unwrap_or(false);
+
+                if is_root {
+                    info!("Running as root — executing update script directly");
+                    let mut c = Command::new(script_path.as_os_str());
+                    // Direct execution: set env var directly on child process
+                    if let Some(ref tag) = prerelease_tag {
+                        c.env("WAZUH_AGENT_REPO_REF", tag);
+                    }
+                    c
+                } else {
+                    info!("Running as non-root — using sudo for update script");
+                    let mut c = Command::new("sudo");
+                    // sudo resets the environment by default (env_reset), so .env() won't work.
+                    // Use sudo's native VAR=value command syntax which is universally supported.
+                    if let Some(ref tag) = prerelease_tag {
+                        c.arg(format!("WAZUH_AGENT_REPO_REF={}", tag));
+                    }
+                    c.arg(script_path.as_os_str());
+                    c
+                }
             };
             cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
-            info!("Spawning sudo command");
+            info!("Spawning update command");
             match cmd.spawn() {
                 Ok(mut child) => {
-                    info!("Sudo command spawned successfully");
+                    info!("Update command spawned successfully");
                     let stdout = child.stdout.take().unwrap();
                     let stderr = child.stderr.take().unwrap();
                     let tx_clone = tx.clone();
@@ -369,8 +429,13 @@ impl AgentManager {
                     }
                 }
                 Err(e) => {
-                    warn!(error = %e, "Failed to spawn sudo command for update");
-                    let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to start update script (check sudoers): {e}")).await;
+                    warn!(error = %e, "Failed to spawn update command");
+                    let error_hint = if cfg!(target_os = "windows") {
+                        "check that PowerShell and the script path are available"
+                    } else {
+                        "check sudoers configuration"
+                    };
+                    let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to start update script ({error_hint}): {e}")).await;
                 }
             }
         });

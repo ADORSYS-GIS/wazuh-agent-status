@@ -16,12 +16,29 @@ type Step = "connecting" | "preparing" | "downloading" | "installing" | "done" |
 
 function inferStep(logs: LogEntry[]): Step {
   if (logs.length === 0) return "connecting";
+
+  // Terminal states are driven by the last line only
   const last = logs[logs.length - 1]?.text ?? "";
   if (last.includes("[SUCCESS]")) return "done";
-  if (last.includes("[FAILURE]") || last.includes("[ERROR]")) return "failed";
-  if (last.toLowerCase().includes("download")) return "downloading";
-  if (last.toLowerCase().includes("install") || last.toLowerCase().includes("setup") || last.toLowerCase().includes("execut")) return "installing";
-  return "preparing";
+  // Only [FAILURE] triggers failed — [ERROR] lines are intermediate (e.g. stderr from the script)
+  if (last.includes("[FAILURE]")) return "failed";
+
+  // Monotonic progression: scan ALL logs to find the highest step reached,
+  // so progress only moves forward and never jumps back (fixes UI blinking)
+  const order: Step[] = ["connecting", "preparing", "downloading", "installing"];
+  let highest = 0;
+
+  for (const log of logs) {
+    const text = log.text ?? "";
+    let step: Step = "preparing";
+    if (text.toLowerCase().includes("download")) step = "downloading";
+    else if (text.toLowerCase().includes("install") || text.toLowerCase().includes("setup") || text.toLowerCase().includes("execut")) step = "installing";
+
+    const idx = order.indexOf(step);
+    if (idx > highest) highest = idx;
+  }
+
+  return order[highest];
 }
 
 const STEP_LABELS: Record<Step, string> = {
