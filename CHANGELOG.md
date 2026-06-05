@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[4fe583f](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4fe583fb24ac330a2e849d77340102ab99cb520d)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[0599a18](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0599a1847b49f8c86e5e7e355dccef81c59dbed4)
 
 ### Bug Fixes
 
@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - Update push trigger branch to fix/update-feature in workflow ([`4ef9f64`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4ef9f64639017eaa9044aefd77490f19c77c513b))
 - Centralize OS guard into shared utils and apply to all platform scripts ([`1d960a1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1d960a10dc4db97983d1874abb785d323d0d8524)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Fix update process ([`4fe583f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4fe583fb24ac330a2e849d77340102ab99cb520d))
+- Fix ui flinking and update failures ([`0599a18`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0599a1847b49f8c86e5e7e355dccef81c59dbed4))
 
 ### Documentation
 
@@ -41,6 +42,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`95b4fd5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/95b4fd5bc1ff9790e0b4668b9b95a5d289673723))
 - Update CHANGELOG.md and checksums [skip ci] ([`5a924d7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5a924d70486cd8f5c41696b817247acb91f56505))
 - Update CHANGELOG.md and checksums [skip ci] ([`79d39c3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/79d39c38ffc7ccb821602d59c5d3328f786d7bf5))
+- Update CHANGELOG.md and checksums [skip ci] ([`61f2285`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/61f2285b498909e47fb2715c2ac415ec6c5ba877))
 
 ### Features
 
