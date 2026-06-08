@@ -2,13 +2,17 @@
   "server_addr": "127.0.0.1:50505",
   "brand": {
     "name": "Wazuh Agent Monitor",
-    "company": "adorsys",
+    "company": "SkyEng Pro",
     "managed_by": "adorsys",
-    "logo_path": "adorsys-logo.png",
+    "logo_path": "skyengpro-logo.png",
     "theme": {
-        "primary_color": "#00aaff",
-        "secondary_color": "#ffffff",
-        "dark_mode": true
+        "primary_color": "#FF991C",
+        "secondary_color": "#FF991C",
+        "dark_mode": false,
+        "bg": "#f8f6f3",
+        "sidebar_bg": "#ffffff",
+        "text": "#1a1a2e",
+        "text_dim": "#78716c"
     }
   },
   "features": {
