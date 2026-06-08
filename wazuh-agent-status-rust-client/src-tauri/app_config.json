@@ -1,8 +1,9 @@
 {
   "server_addr": "127.0.0.1:50505",
   "brand": {
-    "name": "Wazuh Agent Status",
+    "name": "Wazuh Agent Monitor",
     "company": "adorsys",
+    "managed_by": "adorsys",
     "logo_path": "adorsys-logo.png",
     "theme": {
         "primary_color": "#00aaff",

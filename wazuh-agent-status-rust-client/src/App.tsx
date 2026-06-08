@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type CSSProperties } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
@@ -11,6 +11,8 @@ import { StatusView } from "./components/StatusView";
 import { LogsView } from "./components/LogsView";
 import { UpdatesView } from "./components/UpdatesView";
 import { SettingsView } from "./components/SettingsView";
+
+import { computeBrandCSS, getBrandLogoUrl } from "./brand";
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
@@ -109,7 +111,9 @@ function App() {
 
   useEffect(() => {
     // Initial data fetch
-    invoke<AppConfig>("get_config").then(setConfig).catch(console.error);
+    invoke<AppConfig>("get_config")
+      .then(setConfig)
+      .catch(console.error);
     refreshUpdateInfo();
 
     // Polling logic for real-time data
@@ -144,6 +148,12 @@ function App() {
     return () => document.removeEventListener("contextmenu", handleContextMenu);
   }, []);
 
+  // ── Brand-driven CSS variables (MUST be before early return — hooks rule) ──
+  const cssVars = useMemo(() => {
+    if (!config) return {};
+    return computeBrandCSS(config.brand);
+  }, [config]);
+
   if (!config) {
     return (
       <div className="app-wrapper loading">
@@ -155,20 +165,13 @@ function App() {
     );
   }
 
-  const primaryColor = config.brand.theme.primary_color;
-  const cssVars = { 
-    "--primary": primaryColor,
-    "--primary-glow": `${primaryColor}99`,
-    "--primary-metallic": `linear-gradient(135deg, ${primaryColor}, #ffffff44, ${primaryColor})` 
-  } as CSSProperties;
-
   const activeViewIndex = { status: 0, logs: 1, updates: 2, settings: 3 }[activeView];
 
   return (
-    <div className="app-wrapper" style={cssVars}>
+    <div className="app-wrapper" style={cssVars as CSSProperties}>
       <nav className="sidebar">
         <div className="sidebar-logo">
-          <img src="/adorsys-logo.png" alt="Adorsys" />
+          <img src={getBrandLogoUrl(config.brand)} alt={config.brand.company} />
         </div>
 
         <div 
@@ -235,7 +238,7 @@ function App() {
       </nav>
 
       <main className="main-content" ref={mainContentRef}>
-        {activeView === "status" && <StatusView agentStatus={agentStatus} metrics={metrics} />}
+        {activeView === "status" && <StatusView agentStatus={agentStatus} metrics={metrics} config={config} />}
         {activeView === "logs" && (
           <LogsView
             logs={logs}

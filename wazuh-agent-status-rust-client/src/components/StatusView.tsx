@@ -1,16 +1,18 @@
+import type { AppConfig } from "../types/app";
 import type { AgentStatus, SystemMetrics } from "../types/agent";
 import { formatBytes } from "../utils/format";
 
 interface StatusViewProps {
   agentStatus: AgentStatus;
   metrics: SystemMetrics;
+  config: AppConfig;
 }
 
-export function StatusView({ agentStatus, metrics }: Readonly<StatusViewProps>) {
+export function StatusView({ agentStatus, metrics, config }: Readonly<StatusViewProps>) {
   return (
     <div className="view-container">
       <div className="subtitle">Real-time Activity</div>
-      <h2 className="header title">Agent Deployment</h2>
+      <h2 className="header title">{config.brand.name}</h2>
 
       <section>
         <div className="section-title">Status Overview</div>

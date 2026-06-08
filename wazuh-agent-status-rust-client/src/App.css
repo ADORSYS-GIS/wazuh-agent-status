@@ -7,8 +7,19 @@
 }
 
 :root {
+  /*
+   * All brand-driven CSS custom properties are now set dynamically at runtime
+   * by src/brand/index.ts → computeBrandCSS().
+   *
+   * The values below serve as fallback defaults only — they are overridden
+   * by inline styles on .app-wrapper (which is the parent of everything).
+   *
+   * To change branding:
+   *   1. Edit app_config.json → brand → theme
+   *   2. Swap the logo in public/
+   *   3. Set dark_mode: false for light theme
+   */
   --primary: #00aaff;
-  /* These are now driven by AppConfig to support Whitelabeling */
   --primary-glow: rgba(0, 170, 170, 0.6);
   --primary-metallic: linear-gradient(135deg, #00aaff, #38bdf8, #00aaff);
   --secondary: #ffffff;
@@ -21,6 +32,31 @@
   --error: #f43f5e;
   --warning: #fbbf24;
   --border: rgba(255, 255, 255, 0.08);
+  --overlay-white-05: rgba(255, 255, 255, 0.05);
+  --overlay-white-08: rgba(255, 255, 255, 0.08);
+  --overlay-white-10: rgba(255, 255, 255, 0.10);
+  --overlay-white-12: rgba(255, 255, 255, 0.12);
+  --overlay-white-20: rgba(255, 255, 255, 0.20);
+  --overlay-black-30: rgba(0, 0, 0, 0.30);
+  --overlay-black-40: rgba(0, 0, 0, 0.40);
+  --overlay-black-50: rgba(0, 0, 0, 0.50);
+  --tooltip-bg: #1e293b;
+  --tooltip-color: #ffffff;
+  --terminal-bg: #0a0a0f;
+  --terminal-border: #1e1e2a;
+  --terminal-line-color: #8b8b9e;
+  --progress-track-bg: rgba(255, 255, 255, 0.05);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --shimmer-color: rgba(255, 255, 255, 0.05);
+  --card-hover-bg: rgba(30, 41, 59, 0.8);
+  --text-on-primary: #ffffff;
+  --primary-alpha-04: rgba(0, 170, 255, 0.04);
+  --primary-alpha-08: rgba(0, 170, 255, 0.08);
+  --primary-alpha-10: rgba(0, 170, 255, 0.10);
+  --primary-alpha-15: rgba(0, 170, 255, 0.15);
+  --primary-alpha-20: rgba(0, 170, 255, 0.20);
+  --primary-alpha-30: rgba(0, 170, 255, 0.30);
+  --primary-alpha-40: rgba(0, 170, 255, 0.40);
   --titlebar-height: 32px;
   --sidebar-width: 64px;
   --nav-item-size: 40px;
@@ -82,7 +118,7 @@ body {
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--overlay-white-05);
   color: var(--text);
 }
 
@@ -93,8 +129,8 @@ body {
 
 .nav-item.active {
   background: var(--primary);
-  color: white;
-  box-shadow: 0 0 20px rgba(0, 170, 255, 0.4);
+  color: var(--text-on-primary);
+  box-shadow: 0 0 20px var(--primary-alpha-40);
 }
 
 .sidebar-logo {
@@ -110,8 +146,8 @@ body {
   height: 44px;
   border-radius: 12px;
   object-fit: cover;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 16px var(--overlay-black-40);
+  border: 1px solid var(--overlay-white-05);
 }
 
 .nav-items {
@@ -164,8 +200,8 @@ body {
   display: flex;
   flex-direction: column;
   background-color: var(--bg);
-  background-image: radial-gradient(circle at 100% 0%, rgba(0, 170, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 0% 100%, rgba(0, 170, 255, 0.05) 0%, transparent 50%);
+  background-image: radial-gradient(circle at 100% 0%, var(--primary-alpha-10) 0%, transparent 50%),
+    radial-gradient(circle at 0% 100%, var(--primary-alpha-04) 0%, transparent 50%);
   overflow-y: auto;
   position: relative;
   overflow-x: hidden;
@@ -178,7 +214,7 @@ body {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle at center, rgba(0, 170, 255, 0.03) 0%, transparent 70%);
+  background: radial-gradient(circle at center, var(--primary-alpha-04) 0%, transparent 70%);
   animation: auraRotate 30s linear infinite;
   pointer-events: none;
   z-index: 0;
@@ -227,8 +263,8 @@ body {
 .card {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--overlay-white-12);
+  border-left: 1px solid var(--overlay-white-08);
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 16px;
@@ -236,7 +272,7 @@ body {
   align-items: center;
   gap: 16px;
   backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px var(--overlay-black-30);
   position: relative;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -253,7 +289,7 @@ body {
   height: 100%;
   background: linear-gradient(90deg,
       transparent,
-      rgba(255, 255, 255, 0.05),
+      var(--shimmer-color),
       transparent);
   transform: skewX(-20deg);
   animation: glintSweep 8s infinite;
@@ -276,9 +312,9 @@ body {
 
 .card:hover {
   transform: translateY(-2px) scale(1.01);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 170, 255, 0.1);
-  background: rgba(30, 41, 59, 0.8);
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 40px var(--overlay-black-40), 0 0 15px var(--primary-alpha-10);
+  background: var(--card-hover-bg);
+  border-top: 1px solid var(--overlay-white-20);
 }
 
 .status-dot {
@@ -358,6 +394,7 @@ body {
 .card-value {
   font-size: 0.9375rem;
   font-weight: 600;
+  color: var(--text);
 }
 
 /* Metrics */
@@ -384,7 +421,7 @@ body {
 
 .progress-track {
   height: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--progress-track-bg);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -448,7 +485,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--scrollbar-thumb);
   border-radius: 2px;
 }
 
@@ -460,7 +497,7 @@ body {
   background: linear-gradient(
     90deg, 
     var(--card-bg) 25%, 
-    rgba(255, 255, 255, 0.05) 50%, 
+    var(--shimmer-color) 50%, 
     var(--card-bg) 75%
   );
   background-size: 200% 100%;
@@ -494,8 +531,8 @@ body {
   left: calc(100% + 12px);
   top: 50%;
   transform: translateY(-50%) translateX(-8px);
-  background: #1e293b;
-  color: white;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-color);
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 11px;
@@ -503,7 +540,7 @@ body {
   opacity: 0;
   pointer-events: none;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 12px var(--overlay-black-50);
   border: 1px solid var(--border);
   z-index: 100;
 }
@@ -516,7 +553,7 @@ body {
   transform: translateY(-50%) rotate(45deg);
   width: 8px;
   height: 8px;
-  background: #1e293b;
+  background: var(--tooltip-bg);
   border-left: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
@@ -550,20 +587,20 @@ body {
   background: var(--primary-metallic);
   background-size: 200% 100%;
   border: none;
-  color: white;
+  color: var(--text-on-primary);
   padding: 8px 16px;
   border-radius: 8px;
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(0, 170, 255, 0.3);
+  box-shadow: 0 4px 12px var(--primary-alpha-30);
   animation: shimmer 3s linear infinite;
 }
 
 .update-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0, 170, 255, 0.4);
+  box-shadow: 0 6px 16px var(--primary-alpha-40);
 }
 
 .auto-badge {
@@ -598,7 +635,7 @@ body {
 .update-modal {
   background: var(--sidebar-bg);
   border: 1px solid var(--border);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 1px solid var(--overlay-white-12);
   border-radius: 16px;
   padding: 24px 24px 20px;
   width: 480px;
@@ -607,7 +644,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 80px var(--overlay-black-50);
   animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -657,9 +694,9 @@ body {
 }
 
 .update-status-badge.running {
-  background: rgba(0, 170, 255, 0.15);
+  background: var(--primary-alpha-15);
   color: var(--primary);
-  border: 1px solid rgba(0, 170, 255, 0.3);
+  border: 1px solid var(--primary-alpha-30);
 }
 
 .update-status-badge.success {
@@ -698,7 +735,7 @@ body {
 }
 
 .update-step.active {
-  background: rgba(0, 170, 255, 0.08);
+  background: var(--primary-alpha-08);
 }
 
 .update-step.complete {
@@ -721,7 +758,7 @@ body {
 .step-icon .spinner-ring {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(0, 170, 255, 0.2);
+  border: 2px solid var(--primary-alpha-20);
   border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -807,13 +844,13 @@ body {
 }
 
 .update-terminal-toggle:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--overlay-white-05);
   color: var(--text);
 }
 
 .update-terminal {
-  background: #0a0a0f;
-  border: 1px solid #1e1e2a;
+  background: var(--terminal-bg);
+  border: 1px solid var(--terminal-border);
   border-radius: 8px;
   padding: 10px 0;
   max-height: 280px;
@@ -824,12 +861,12 @@ body {
 }
 
 .terminal-line {
-  color: #8b8b9e;
+  color: var(--terminal-line-color);
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: break-word;
   padding: 3px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--overlay-white-05);
   transition: background 0.15s ease;
 }
 
@@ -838,7 +875,7 @@ body {
 }
 
 .terminal-line:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--overlay-white-05);
 }
 
 .terminal-line.success {
@@ -859,14 +896,14 @@ body {
   background: var(--primary-metallic);
   background-size: 200% 100%;
   border: none;
-  color: white;
+  color: var(--text-on-primary);
   padding: 10px 24px;
   border-radius: 8px;
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(0, 170, 255, 0.3);
+  box-shadow: 0 4px 12px var(--primary-alpha-30);
   animation: shimmer 3s linear infinite;
   width: 100%;
   flex-shrink: 0;
@@ -875,5 +912,5 @@ body {
 
 .update-modal-dismiss:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 170, 255, 0.4);
+  box-shadow: 0 6px 20px var(--primary-alpha-40);
 }
