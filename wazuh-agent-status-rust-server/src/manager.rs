@@ -286,94 +286,36 @@ impl AgentManager {
                         };
 
                         info!(script_path = %tmp_script.display(), "Saving setup script to temporary file");
-                        // Write script to /tmp using sudo, handling the case where the file already exists
-                        let write_result = {
-                            // We'll try at most two attempts: first normal write, second after removing any existing file
-                            let mut attempt = 0;
-                            const MAX_ATTEMPTS: usize = 2;
-                            loop {
-                                // Build the shell command that writes the file and makes it executable
-                                let cmd_str = format!(
-                                    "cat > {} && chmod +x {}",
-                                    tmp_script.display(),
-                                    tmp_script.display()
-                                );
-                                info!(command = %cmd_str, attempt = attempt, "Attempting sudo write of setup script");
-
-                                let mut cmd = Command::new("sudo");
-                                cmd.arg("-n")
-                                    .arg("sh")
-                                    .arg("-c")
-                                    .arg(&cmd_str)
-                                    .stdin(Stdio::piped())
-                                    .stdout(Stdio::piped())
-                                    .stderr(Stdio::piped());
-
-                                match cmd.spawn() {
-                                    Ok(mut child) => {
-                                        // Feed the script bytes into the child’s stdin
-                                        if let Some(mut stdin) = child.stdin.take() {
-                                            // write_all returns a Result, we propagate any error up
-                                            if let Err(e) = stdin.write_all(&bytes).await {
-                                                break Err(e);
-                                            }
-                                            drop(stdin); // close stdin so cat finishes
-                                        }
-                                        // Wait for command and capture output
-                                        match child.wait_with_output().await {
-                                            Ok(out) if out.status.success() => break Ok(()),
-                                            Ok(out) => {
-                                                let stderr = String::from_utf8_lossy(&out.stderr);
-                                                warn!(stderr = %stderr, "sudo write failed");
-                                                // If we hit a permission problem on the first try, try to delete the file and retry
-                                                if attempt + 1 < MAX_ATTEMPTS
-                                                    && stderr.contains("Permission denied")
-                                                {
-                                                    attempt += 1;
-                                                    // Remove any existing file via sudo rm -f
-                                                    let mut rm_cmd = Command::new("sudo");
-                                                    rm_cmd
-                                                        .arg("-n")
-                                                        .arg("rm")
-                                                        .arg("-f")
-                                                        .arg(tmp_script.display().to_string())
-                                                        .stdout(Stdio::null())
-                                                        .stderr(Stdio::piped());
-                                                    match rm_cmd.spawn() {
-                                                        Ok(rm_child) => {
-                                                            let rm_out =
-                                                                rm_child.wait_with_output().await;
-                                                            if let Ok(rm_out) = rm_out {
-                                                                if !rm_out.status.success() {
-                                                                    let rm_err =
-                                                                        String::from_utf8_lossy(
-                                                                            &rm_out.stderr,
-                                                                        );
-                                                                    warn!(stderr = %rm_err, "sudo rm -f failed");
-                                                                }
-                                                            }
-                                                        }
-                                                        Err(e) => {
-                                                            warn!(error = %e, "Failed to spawn sudo rm command");
-                                                        }
-                                                    }
-                                                    continue; // retry the write
-                                                } else {
-                                                    break Err(std::io::Error::new(
-                                                        std::io::ErrorKind::Other,
-                                                        format!("sudo error: {}", stderr.trim()),
-                                                    ));
-                                                }
-                                            }
-                                            Err(e) => break Err(e),
-                                        }
+                        
+                        let save_result = if cfg!(target_os = "windows") {
+                            tokio::fs::write(&tmp_script, bytes).await
+                        } else {
+                            let cmd_str = format!("cat > {}", tmp_script.display());
+                            let mut cmd = Command::new("sudo");
+                            cmd.arg("sh")
+                               .arg("-c")
+                               .arg(&cmd_str)
+                               .stdin(Stdio::piped())
+                               .stdout(Stdio::null())
+                               .stderr(Stdio::piped());
+                            match cmd.spawn() {
+                                Ok(mut child) => {
+                                    if let Some(mut stdin) = child.stdin.take() {
+                                        let _ = stdin.write_all(&bytes).await;
+                                        drop(stdin);
                                     }
-                                    Err(e) => break Err(e),
+                                    match child.wait_with_output().await {
+                                        Ok(out) if out.status.success() => Ok(()),
+                                        Ok(out) => Err(std::io::Error::new(std::io::ErrorKind::Other, String::from_utf8_lossy(&out.stderr))),
+                                        Err(e) => Err(e),
+                                    }
                                 }
+                                Err(e) => Err(e),
                             }
                         };
-                        if let Err(e) = write_result {
-                            warn!(error = %e, "Failed to save setup script with sudo");
+
+                        if let Err(e) = save_result {
+                            warn!(error = %e, "Failed to save setup script");
                             let _ = tx
                                 .send(format!(
                                     "UPDATE_PROGRESS: [FAILURE] Failed to save setup script: {e}"
