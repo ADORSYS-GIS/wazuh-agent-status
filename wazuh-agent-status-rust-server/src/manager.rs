@@ -13,7 +13,7 @@ use crate::models::{AgentState, ComponentUpdate, LogLine, UpdateStatus, VersionI
 use crate::status_provider::StatusProvider;
 use crate::version_utils::fetch_version_info;
 use std::process::Stdio;
-use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncSeekExt, BufReader, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::sync::mpsc;
 
@@ -280,17 +280,100 @@ impl AgentManager {
                             tmp_dir.push(format!("setup-agent-{}.ps1", version));
                             tmp_dir
                         } else {
-                            std::path::PathBuf::from(format!("/tmp/setup-agent-{}.sh", version))
+                            let mut tmp_dir = std::env::temp_dir();
+                            tmp_dir.push(format!("setup-agent-{}.sh", version));
+                            tmp_dir
                         };
-                        if let Err(e) = std::fs::write(&tmp_script, bytes) {
-                            warn!(error = %e, "Failed to save setup script");
-                            let _ = tx
-                                .send(format!(
-                                    "UPDATE_PROGRESS: [FAILURE] Failed to save setup script: {e}"
-                                ))
-                                .await;
-                            return;
+
+                        info!(script_path = %tmp_script.display(), "Saving setup script to temporary file");
+                        // Write script to /tmp using sudo, handling the case where the file already exists
+        let write_result = {
+            // We'll try at most two attempts: first normal write, second after removing any existing file
+            let mut attempt = 0;
+            const MAX_ATTEMPTS: usize = 2;
+            loop {
+                // Build the shell command that writes the file and makes it executable
+                let cmd_str = format!(
+                    "cat > {} && chmod +x {}",
+                    tmp_script.display(),
+                    tmp_script.display()
+                );
+                info!(command = %cmd_str, attempt = attempt, "Attempting sudo write of setup script");
+
+                let mut cmd = Command::new("sudo");
+                cmd.arg("-n")
+                    .arg("sh")
+                    .arg("-c")
+                    .arg(&cmd_str)
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped());
+
+                match cmd.spawn() {
+                    Ok(mut child) => {
+                        // Feed the script bytes into the child’s stdin
+                        if let Some(mut stdin) = child.stdin.take() {
+                            // write_all returns a Result, we propagate any error up
+                            if let Err(e) = stdin.write_all(&bytes).await {
+                                break Err(e);
+                            }
+                            drop(stdin); // close stdin so cat finishes
                         }
+                        // Wait for command and capture output
+                        match child.wait_with_output().await {
+                            Ok(out) if out.status.success() => break Ok(()),
+                            Ok(out) => {
+                                let stderr = String::from_utf8_lossy(&out.stderr);
+                                warn!(stderr = %stderr, "sudo write failed");
+                                // If we hit a permission problem on the first try, try to delete the file and retry
+                                if attempt + 1 < MAX_ATTEMPTS && stderr.contains("Permission denied") {
+                                    attempt += 1;
+                                    // Remove any existing file via sudo rm -f
+                                    let mut rm_cmd = Command::new("sudo");
+                                    rm_cmd.arg("-n")
+                                        .arg("rm")
+                                        .arg("-f")
+                                        .arg(tmp_script.display().to_string())
+                                        .stdout(Stdio::null())
+                                        .stderr(Stdio::piped());
+                                    match rm_cmd.spawn() {
+                                        Ok(rm_child) => {
+                                            let rm_out = rm_child.wait_with_output().await;
+                                            if let Ok(rm_out) = rm_out {
+                                                if !rm_out.status.success() {
+                                                    let rm_err = String::from_utf8_lossy(&rm_out.stderr);
+                                                    warn!(stderr = %rm_err, "sudo rm -f failed");
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            warn!(error = %e, "Failed to spawn sudo rm command");
+                                        }
+                                    }
+                                    continue; // retry the write
+                                } else {
+                                    break Err(std::io::Error::new(
+                                        std::io::ErrorKind::Other,
+                                        format!("sudo error: {}", stderr.trim()),
+                                    ));
+                                }
+                            }
+                            Err(e) => break Err(e),
+                        }
+                    }
+                    Err(e) => break Err(e),
+                }
+            }
+        };
+        if let Err(e) = write_result {
+            warn!(error = %e, "Failed to save setup script with sudo");
+            let _ = tx
+                .send(format!(
+                    "UPDATE_PROGRESS: [FAILURE] Failed to save setup script: {e}"
+                ))
+                .await;
+            return;
+        }
                         // Make executable on Unix
                         if !cfg!(target_os = "windows") {
                             let _ = std::process::Command::new("chmod")
@@ -359,12 +442,12 @@ impl AgentManager {
 
                 if is_root {
                     info!("Running as root — executing update script directly");
-                    let mut c = Command::new(script_path.as_os_str());
+                let mut c = Command::new(script_path.as_os_str());
                     // Direct execution: set env var directly on child process
-                    if let Some(ref tag) = prerelease_tag {
-                        c.env("WAZUH_AGENT_REPO_REF", tag);
-                    }
-                    c
+                if let Some(ref tag) = prerelease_tag {
+                    c.env("WAZUH_AGENT_REPO_REF", tag);
+                }
+                c
                 } else {
                     info!("Running as non-root — using sudo for update script");
                     let mut c = Command::new("sudo");
