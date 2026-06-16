@@ -85,24 +85,10 @@ const THEME_DEFAULTS: Record<ThemeMode, ThemeDefaults> = {
     navItemSize: "40px",
   },
   light: {
-    bg: "#f1f5f9",
-    sidebarBg: "#ffffff",
-    cardBg: "rgba(255, 255, 255, 0.85)",
-    text: "#0f172a",
-    textDim: "#64748b",
-    border: "rgba(0, 0, 0, 0.10)",
-    success: "#16a34a",
-    error: "#dc2626",
-    warning: "#d97706",
-    // Overlay / effect colours — dark overlays on light backgrounds
-    overlayWhite05: "rgba(0, 0, 0, 0.04)",
-    overlayWhite08: "rgba(0, 0, 0, 0.06)",
-    overlayWhite10: "rgba(0, 0, 0, 0.08)",
-    overlayWhite12: "rgba(0, 0, 0, 0.10)",
-    overlayWhite20: "rgba(0, 0, 0, 0.12)",
-    overlayBlack30: "rgba(0, 0, 0, 0.15)",
-    overlayBlack40: "rgba(0, 0, 0, 0.20)",
-    overlayBlack50: "rgba(0, 0, 0, 0.25)",
+    // Layout
+    titlebarHeight: "32px",
+    sidebarWidth: "64px",
+    navItemSize: "40px",
     // Misc
     tooltipBg: "#1e293b",
     tooltipColor: "#ffffff",
@@ -113,10 +99,25 @@ const THEME_DEFAULTS: Record<ThemeMode, ThemeDefaults> = {
     scrollbarThumb: "rgba(0, 0, 0, 0.15)",
     shimmerColor: "rgba(0, 0, 0, 0.04)",
     cardHoverBg: "rgba(255, 255, 255, 0.95)",
-    // Layout
-    titlebarHeight: "32px",
-    sidebarWidth: "64px",
-    navItemSize: "40px",
+    // Overlay / effect colours — dark overlays on light backgrounds
+    overlayWhite05: "rgba(0, 0, 0, 0.04)",
+    overlayWhite08: "rgba(0, 0, 0, 0.06)",
+    overlayWhite10: "rgba(0, 0, 0, 0.08)",
+    overlayWhite12: "rgba(0, 0, 0, 0.10)",
+    overlayWhite20: "rgba(0, 0, 0, 0.12)",
+    overlayBlack30: "rgba(0, 0, 0, 0.15)",
+    overlayBlack40: "rgba(0, 0, 0, 0.20)",
+    overlayBlack50: "rgba(0, 0, 0, 0.25)",
+    // Core Base
+    bg: "#f1f5f9",
+    sidebarBg: "#ffffff",
+    cardBg: "rgba(255, 255, 255, 0.85)",
+    text: "#0f172a",
+    textDim: "#64748b",
+    border: "rgba(0, 0, 0, 0.10)",
+    success: "#16a34a",
+    error: "#dc2626",
+    warning: "#d97706",
   },
 };
 
