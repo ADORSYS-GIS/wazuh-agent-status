@@ -72,9 +72,11 @@ impl AgentManager {
         let (tx, _) = broadcast::channel(128);
 
         let (agent_id, agent_name) = Self::read_client_keys(&paths);
-        let mut initial_state = AgentState::default();
-        initial_state.agent_id = agent_id.clone();
-        initial_state.agent_name = agent_name.clone();
+        let initial_state = AgentState {
+            agent_id: agent_id.clone(),
+            agent_name: agent_name.clone(),
+            ..Default::default()
+        };
 
         Self {
             state: Arc::new(RwLock::new(initial_state)),
