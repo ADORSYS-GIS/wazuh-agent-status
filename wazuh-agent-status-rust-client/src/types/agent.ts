@@ -5,6 +5,8 @@ export interface AgentStatus {
     tray_version: string;
     groups: string[];
     self_healing_enabled: boolean;
+    agent_id: string;
+    agent_name: string;
 }
 
 export type UpdateState = "uptodate" | "outdated" | "prereleaseavailable" | "unknown";
@@ -28,6 +30,37 @@ export interface SystemMetrics {
     total_memory: number;
     used_memory: number;
     agent_running: boolean;
+}
+
+// ── SCA / Compliance Types ──────────────────────────────────────────────────────
+
+export interface ComplianceCheckResult {
+    check_id: number;
+    title: string;
+    status: string;
+    mandatory: boolean;
+    remediation: string;
+}
+
+export interface ComplianceCategory {
+    name: string;
+    status: string;
+    passed_count: number;
+    failed_count: number;
+    untested_count: number;
+    checks: ComplianceCheckResult[];
+}
+
+export interface ComplianceReport {
+    agent_id: string;
+    agent_name: string;
+    os: string;
+    score: number;
+    compliance_status: string;
+    total_passed_count: number;
+    total_failed_count: number;
+    total_untested_count: number;
+    categories: ComplianceCategory[];
 }
 
 export type LogLevel = "ERROR" | "WARNING" | "INFO" | "DEBUG" | "UNKNOWN";
