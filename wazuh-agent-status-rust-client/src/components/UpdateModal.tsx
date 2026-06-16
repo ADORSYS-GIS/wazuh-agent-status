@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, JSX } from "react";
 
 interface LogEntry {
   id: string;
@@ -62,19 +62,25 @@ function StepIndicator({ step, current }: Readonly<{ step: Step; current: Step }
     : (curIdx > idx && current !== "failed");
   const isFailed = current === "failed";
 
-  const icon = isComplete ? (
+  let icon: JSX.Element;
+if (isComplete) {
+  icon = (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
       <path d="M3 7.5L5.5 10L11 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
-  ) : isActive && current === "failed" ? (
+  );
+} else if (isActive && current === "failed") {
+  icon = (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
       <path d="M4 4L10 10M10 4L4 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
     </svg>
-  ) : isActive ? (
-    <div className="spinner-ring" />
-  ) : (
-    <div className="step-dot" />
   );
+} else if (isActive) {
+  icon = <div className="spinner-ring" />;
+} else {
+  icon = <div className="step-dot" />;
+}
+
 
   return (
     <div className={`update-step ${isActive ? "active" : ""} ${isComplete ? "complete" : ""} ${isFailed && isActive ? "failed" : ""} ${isFailed && !isActive && !isComplete ? "failed" : ""}`}>

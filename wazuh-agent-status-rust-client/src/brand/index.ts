@@ -147,11 +147,11 @@ export function computeBrandCSS(brand: BrandConfig): Record<string, string> {
     // ── Primary-alpha helpers (driven by primary_color) ─────────────────
     "--primary-alpha-04": P(primary_color, 0.04),
     "--primary-alpha-08": P(primary_color, 0.08),
-    "--primary-alpha-10": P(primary_color, 0.10),
+    "--primary-alpha-10": P(primary_color, 0.1),
     "--primary-alpha-15": P(primary_color, 0.15),
-    "--primary-alpha-20": P(primary_color, 0.20),
-    "--primary-alpha-30": P(primary_color, 0.30),
-    "--primary-alpha-40": P(primary_color, 0.40),
+    "--primary-alpha-20": P(primary_color, 0.2),
+    "--primary-alpha-30": P(primary_color, 0.3),
+    "--primary-alpha-40": P(primary_color, 0.4),
 
     // ── Layout ──────────────────────────────────────────────────────────
     "--titlebar-height": mode.titlebarHeight,
