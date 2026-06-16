@@ -15,75 +15,110 @@ import type { BrandConfig } from "../types/app";
 
 // ─── Default palettes ────────────────────────────────────────────────────────
 
-export const DARK_DEFAULTS = {
-  bg: "#0b1120",
-  sidebarBg: "#111827",
-  cardBg: "rgba(17, 24, 39, 0.7)",
-  text: "#f8fafc",
-  textDim: "#94a3b8",
-  border: "rgba(255, 255, 255, 0.08)",
-  success: "#10b981",
-  error: "#f43f5e",
-  warning: "#fbbf24",
-  // Overlay / effect colours (var(--overlay-*) used in App.css)
-  overlayWhite05: "rgba(255, 255, 255, 0.05)",
-  overlayWhite08: "rgba(255, 255, 255, 0.08)",
-  overlayWhite10: "rgba(255, 255, 255, 0.10)",
-  overlayWhite12: "rgba(255, 255, 255, 0.12)",
-  overlayWhite20: "rgba(255, 255, 255, 0.20)",
-  overlayBlack30: "rgba(0, 0, 0, 0.30)",
-  overlayBlack40: "rgba(0, 0, 0, 0.40)",
-  overlayBlack50: "rgba(0, 0, 0, 0.50)",
-  // Misc
-  tooltipBg: "#1e293b",
-  tooltipColor: "#ffffff",
-  terminalBg: "#0a0a0f",
-  terminalBorder: "#1e1e2a",
-  terminalLineColor: "#8b8b9e",
-  progressTrackBg: "rgba(255, 255, 255, 0.05)",
-  scrollbarThumb: "rgba(255, 255, 255, 0.1)",
-  shimmerColor: "rgba(255, 255, 255, 0.05)",
-  cardHoverBg: "rgba(30, 41, 59, 0.8)",
-  // Layout
-  titlebarHeight: "32px",
-  sidebarWidth: "64px",
-  navItemSize: "40px",
-} as const;
+type ThemeMode = "dark" | "light";
 
-export const LIGHT_DEFAULTS = {
-  bg: "#f1f5f9",
-  sidebarBg: "#ffffff",
-  cardBg: "rgba(255, 255, 255, 0.85)",
-  text: "#0f172a",
-  textDim: "#64748b",
-  border: "rgba(0, 0, 0, 0.10)",
-  success: "#16a34a",
-  error: "#dc2626",
-  warning: "#d97706",
-  // Overlay / effect colours — dark overlays on light backgrounds
-  overlayWhite05: "rgba(0, 0, 0, 0.04)",
-  overlayWhite08: "rgba(0, 0, 0, 0.06)",
-  overlayWhite10: "rgba(0, 0, 0, 0.08)",
-  overlayWhite12: "rgba(0, 0, 0, 0.10)",
-  overlayWhite20: "rgba(0, 0, 0, 0.12)",
-  overlayBlack30: "rgba(0, 0, 0, 0.15)",
-  overlayBlack40: "rgba(0, 0, 0, 0.20)",
-  overlayBlack50: "rgba(0, 0, 0, 0.25)",
-  // Misc
-  tooltipBg: "#1e293b",
-  tooltipColor: "#ffffff",
-  terminalBg: "#f8fafc",
-  terminalBorder: "#e2e8f0",
-  terminalLineColor: "#475569",
-  progressTrackBg: "rgba(0, 0, 0, 0.06)",
-  scrollbarThumb: "rgba(0, 0, 0, 0.15)",
-  shimmerColor: "rgba(0, 0, 0, 0.04)",
-  cardHoverBg: "rgba(255, 255, 255, 0.95)",
-  // Layout
-  titlebarHeight: "32px",
-  sidebarWidth: "64px",
-  navItemSize: "40px",
-} as const;
+type ThemeDefaults = {
+  bg: string;
+  sidebarBg: string;
+  cardBg: string;
+  text: string;
+  textDim: string;
+  border: string;
+  success: string;
+  error: string;
+  warning: string;
+  overlayWhite05: string;
+  overlayWhite08: string;
+  overlayWhite10: string;
+  overlayWhite12: string;
+  overlayWhite20: string;
+  overlayBlack30: string;
+  overlayBlack40: string;
+  overlayBlack50: string;
+  tooltipBg: string;
+  tooltipColor: string;
+  terminalBg: string;
+  terminalBorder: string;
+  terminalLineColor: string;
+  progressTrackBg: string;
+  scrollbarThumb: string;
+  shimmerColor: string;
+  cardHoverBg: string;
+  titlebarHeight: string;
+  sidebarWidth: string;
+  navItemSize: string;
+};
+
+const THEME_DEFAULTS: Record<ThemeMode, ThemeDefaults> = {
+  dark: {
+    bg: "#0b1120",
+    sidebarBg: "#111827",
+    cardBg: "rgba(17, 24, 39, 0.7)",
+    text: "#f8fafc",
+    textDim: "#94a3b8",
+    border: "rgba(255, 255, 255, 0.08)",
+    success: "#10b981",
+    error: "#f43f5e",
+    warning: "#fbbf24",
+    // Overlay / effect colours (var(--overlay-*) used in App.css)
+    overlayWhite05: "rgba(255, 255, 255, 0.05)",
+    overlayWhite08: "rgba(255, 255, 255, 0.08)",
+    overlayWhite10: "rgba(255, 255, 255, 0.10)",
+    overlayWhite12: "rgba(255, 255, 255, 0.12)",
+    overlayWhite20: "rgba(255, 255, 255, 0.20)",
+    overlayBlack30: "rgba(0, 0, 0, 0.30)",
+    overlayBlack40: "rgba(0, 0, 0, 0.40)",
+    overlayBlack50: "rgba(0, 0, 0, 0.50)",
+    // Misc
+    tooltipBg: "#1e293b",
+    tooltipColor: "#ffffff",
+    terminalBg: "#0a0a0f",
+    terminalBorder: "#1e1e2a",
+    terminalLineColor: "#8b8b9e",
+    progressTrackBg: "rgba(255, 255, 255, 0.05)",
+    scrollbarThumb: "rgba(255, 255, 255, 0.1)",
+    shimmerColor: "rgba(255, 255, 255, 0.05)",
+    cardHoverBg: "rgba(30, 41, 59, 0.8)",
+    // Layout
+    titlebarHeight: "32px",
+    sidebarWidth: "64px",
+    navItemSize: "40px",
+  },
+  light: {
+    bg: "#f1f5f9",
+    sidebarBg: "#ffffff",
+    cardBg: "rgba(255, 255, 255, 0.85)",
+    text: "#0f172a",
+    textDim: "#64748b",
+    border: "rgba(0, 0, 0, 0.10)",
+    success: "#16a34a",
+    error: "#dc2626",
+    warning: "#d97706",
+    // Overlay / effect colours — dark overlays on light backgrounds
+    overlayWhite05: "rgba(0, 0, 0, 0.04)",
+    overlayWhite08: "rgba(0, 0, 0, 0.06)",
+    overlayWhite10: "rgba(0, 0, 0, 0.08)",
+    overlayWhite12: "rgba(0, 0, 0, 0.10)",
+    overlayWhite20: "rgba(0, 0, 0, 0.12)",
+    overlayBlack30: "rgba(0, 0, 0, 0.15)",
+    overlayBlack40: "rgba(0, 0, 0, 0.20)",
+    overlayBlack50: "rgba(0, 0, 0, 0.25)",
+    // Misc
+    tooltipBg: "#1e293b",
+    tooltipColor: "#ffffff",
+    terminalBg: "#f8fafc",
+    terminalBorder: "#e2e8f0",
+    terminalLineColor: "#475569",
+    progressTrackBg: "rgba(0, 0, 0, 0.06)",
+    scrollbarThumb: "rgba(0, 0, 0, 0.15)",
+    shimmerColor: "rgba(0, 0, 0, 0.04)",
+    cardHoverBg: "rgba(255, 255, 255, 0.95)",
+    // Layout
+    titlebarHeight: "32px",
+    sidebarWidth: "64px",
+    navItemSize: "40px",
+  },
+};
 
 // ─── CSS variable computation ────────────────────────────────────────────────
 
@@ -100,7 +135,7 @@ export function computeBrandCSS(brand: BrandConfig): Record<string, string> {
 
   const P = (hex: string, a: number) => toRgba(hex, a);
 
-  const mode = dark_mode ? DARK_DEFAULTS : LIGHT_DEFAULTS;
+  const mode = THEME_DEFAULTS[dark_mode ? "dark" : "light"];
 
   return {
     // ── Core brand colours ──────────────────────────────────────────────
@@ -173,45 +208,43 @@ export function getBrandLogoUrl(brand: BrandConfig): string {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
+ * Parse a 3- or 6-digit hex colour into [r, g, b] components.
+ * Returns null if the input is not a recognised format.
+ */
+function hexToRgb(hex: string): [number, number, number] | null {
+  const clean = hex.replace("#", "");
+
+  if (clean.length === 3) {
+    return [
+      Number.parseInt(clean[0] + clean[0], 16),
+      Number.parseInt(clean[1] + clean[1], 16),
+      Number.parseInt(clean[2] + clean[2], 16),
+    ];
+  }
+  if (clean.length === 6) {
+    return [
+      Number.parseInt(clean.slice(0, 2), 16),
+      Number.parseInt(clean.slice(2, 4), 16),
+      Number.parseInt(clean.slice(4, 6), 16),
+    ];
+  }
+  return null;
+}
+
+/**
  * Returns `true` if a hex colour is perceptually light (text-on-primary
  * should switch to dark for readability).
  */
 function isLightColor(hex: string): boolean {
-  const clean = hex.replace("#", "");
-  let r: number, g: number, b: number;
-
-  if (clean.length === 3) {
-    r = Number.parseInt(clean[0] + clean[0], 16);
-    g = Number.parseInt(clean[1] + clean[1], 16);
-    b = Number.parseInt(clean[2] + clean[2], 16);
-  } else if (clean.length === 6) {
-    r = Number.parseInt(clean.slice(0, 2), 16);
-    g = Number.parseInt(clean.slice(2, 4), 16);
-    b = Number.parseInt(clean.slice(4, 6), 16);
-  } else {
-    return false;
-  }
-
+  const rgb = hexToRgb(hex);
+  if (!rgb) return false;
   // Relative luminance (sRGB coefficients)
-  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  const luminance = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
   return luminance > 160;
 }
 
 function toRgba(hex: string, alpha: number): string {
-  const clean = hex.replace("#", "");
-  let r: number, g: number, b: number;
-
-  if (clean.length === 3) {
-    r = Number.parseInt(clean[0] + clean[0], 16);
-    g = Number.parseInt(clean[1] + clean[1], 16);
-    b = Number.parseInt(clean[2] + clean[2], 16);
-  } else if (clean.length === 6) {
-    r = Number.parseInt(clean.slice(0, 2), 16);
-    g = Number.parseInt(clean.slice(2, 4), 16);
-    b = Number.parseInt(clean.slice(4, 6), 16);
-  } else {
-    return `rgba(0, 170, 255, ${alpha})`;
-  }
-
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  const rgb = hexToRgb(hex);
+  if (!rgb) return `rgba(0, 170, 255, ${alpha})`;
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
 }
