@@ -4,22 +4,6 @@ import type { AgentStatus, ComplianceReport, ComplianceCheckResult } from "../ty
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Find the actual Wazuh agent (not the manager node) from the agent list. */
-function findActualAgent(agents: any[]): { id: string; name: string } | null {
-  // Prefer the first agent whose name does NOT contain "manager" or "master"
-  const candidate = agents.find(
-    (a: any) =>
-      !a.name?.toLowerCase().includes("manager") &&
-      !a.name?.toLowerCase().includes("master")
-  );
-  if (candidate) return { id: candidate.id, name: candidate.name };
-  // Fallback: just use the first agent
-  if (agents.length > 0) return { id: agents[0].id, name: agents[0].name };
-  return null;
-}
-
 function scoreColor(score: number): string {
   if (score >= 80) return "var(--success)";
   if (score >= 50) return "var(--warning)";
@@ -54,30 +38,11 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
     try {
       setError(null);
 
-      // 1. Use agent_id/agent_name from the server's AgentState (polled via get_agent_status)
-      let agentId = agentStatus.agent_id;
-      let agentName = agentStatus.agent_name;
-
-      // Fallback if server hasn't provided agent ID yet
-      if (!agentId) {
-        try {
-          const localAgent = await invoke<{ id: string; name: string }>("get_local_agent_id");
-          agentId = localAgent.id;
-          agentName = localAgent.name;
-        } catch {
-          const agentsData = await invoke<any>("fetch_agents");
-          const agents: any[] = agentsData?.data?.affected_items ?? [];
-          if (agents.length === 0) throw new Error("No agents found");
-          const agent = findActualAgent(agents);
-          if (!agent) throw new Error("Could not identify a valid agent");
-          agentId = agent.id;
-          agentName = agent.name;
-        }
-      }
+      const agentId = agentStatus.agent_id;
+      const agentName = agentStatus.agent_name;
 
       setAgentInfo({ id: agentId, name: agentName });
 
-      // 2. Fetch compliance for this agent
       const result = await invoke<ComplianceReport>("fetch_compliance", {
         agentId,
         statusFilter: null,

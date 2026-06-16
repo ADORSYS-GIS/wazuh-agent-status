@@ -112,67 +112,6 @@ fn gateway_http_client() -> Result<reqwest::Client, String> {
         .map_err(|e| format!("Failed to build HTTP client: {}", e))
 }
 
-/// Read the local agent ID from the Wazuh agent's client.keys file.
-/// This avoids needing to fetch the agent list from the gateway.
-/// The file format is: `<id> <name> <group> <key>` per line.
-#[tauri::command]
-pub fn get_local_agent_id() -> Result<serde_json::Value, String> {
-    let client_keys_path = "/var/ossec/etc/client.keys";
-
-    let content = std::fs::read_to_string(client_keys_path)
-        .map_err(|e| format!("Failed to read {}: {}", client_keys_path, e))?;
-
-    let first_line = content.lines().next()
-        .ok_or_else(|| format!("{} is empty", client_keys_path))?;
-
-    let parts: Vec<&str> = first_line.split_whitespace().collect();
-    if parts.len() < 2 {
-        return Err(format!("Invalid format in {}: expected at least 2 fields", client_keys_path));
-    }
-
-    let id = parts[0];
-    let name = parts[1];
-
-    log::info!("Read local agent ID from {}: id={}, name={}", client_keys_path, id, name);
-
-    Ok(serde_json::json!({
-        "id": id,
-        "name": name
-    }))
-}
-
-/// Fetch the list of agents from the Wazuh Gateway.
-#[tauri::command]
-pub async fn fetch_agents(
-    config: State<'_, AppConfig>,
-) -> Result<serde_json::Value, String> {
-    let base = config.gateway_url.trim_end_matches('/');
-    let url = format!("{}/agents", base);
-
-    log::info!("Fetching agents from: {}", url);
-
-    let client = gateway_http_client()?;
-
-    let resp = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch agents: {}", e))?;
-
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(format!("Gateway returned {}: {}", status, body));
-    }
-
-    let json: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse agents response: {}", e))?;
-
-    Ok(json)
-}
-
 /// Fetch compliance report for an agent from the Wazuh Gateway.
 #[tauri::command]
 pub async fn fetch_compliance(
