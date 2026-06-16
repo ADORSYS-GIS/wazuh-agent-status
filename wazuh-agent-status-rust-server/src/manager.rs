@@ -286,18 +286,18 @@ impl AgentManager {
                         };
 
                         info!(script_path = %tmp_script.display(), "Saving setup script to temporary file");
-                        
+
                         let save_result = if cfg!(target_os = "windows") {
                             tokio::fs::write(&tmp_script, bytes).await
                         } else {
                             let cmd_str = format!("cat > {}", tmp_script.display());
                             let mut cmd = Command::new("sudo");
                             cmd.arg("sh")
-                               .arg("-c")
-                               .arg(&cmd_str)
-                               .stdin(Stdio::piped())
-                               .stdout(Stdio::null())
-                               .stderr(Stdio::piped());
+                                .arg("-c")
+                                .arg(&cmd_str)
+                                .stdin(Stdio::piped())
+                                .stdout(Stdio::null())
+                                .stderr(Stdio::piped());
                             match cmd.spawn() {
                                 Ok(mut child) => {
                                     if let Some(mut stdin) = child.stdin.take() {
@@ -306,7 +306,10 @@ impl AgentManager {
                                     }
                                     match child.wait_with_output().await {
                                         Ok(out) if out.status.success() => Ok(()),
-                                        Ok(out) => Err(std::io::Error::new(std::io::ErrorKind::Other, String::from_utf8_lossy(&out.stderr))),
+                                        Ok(out) => Err(std::io::Error::new(
+                                            std::io::ErrorKind::Other,
+                                            String::from_utf8_lossy(&out.stderr),
+                                        )),
                                         Err(e) => Err(e),
                                     }
                                 }

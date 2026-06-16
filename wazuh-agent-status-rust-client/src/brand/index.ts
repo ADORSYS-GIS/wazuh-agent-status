@@ -145,13 +145,13 @@ export function computeBrandCSS(brand: BrandConfig): Record<string, string> {
     "--card-hover-bg": mode.cardHoverBg,
 
     // ── Primary-alpha helpers (driven by primary_color) ─────────────────
-    "--primary-alpha-04": P(primary_color, 0.04),
-    "--primary-alpha-08": P(primary_color, 0.08),
-    "--primary-alpha-10": P(primary_color, 0.10),
-    "--primary-alpha-15": P(primary_color, 0.15),
-    "--primary-alpha-20": P(primary_color, 0.20),
-    "--primary-alpha-30": P(primary_color, 0.30),
-    "--primary-alpha-40": P(primary_color, 0.40),
+    "--primary-alpha-04": P(primary_color, .04),
+    "--primary-alpha-08": P(primary_color, .08),
+    "--primary-alpha-10": P(primary_color, .10),
+    "--primary-alpha-15": P(primary_color, .15),
+    "--primary-alpha-20": P(primary_color, .20),
+    "--primary-alpha-30": P(primary_color, .30),
+    "--primary-alpha-40": P(primary_color, .40),
 
     // ── Layout ──────────────────────────────────────────────────────────
     "--titlebar-height": mode.titlebarHeight,

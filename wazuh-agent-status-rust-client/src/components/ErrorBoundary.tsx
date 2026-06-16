@@ -75,7 +75,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <button
             onClick={() => {
               this.setState({ hasError: false, error: null });
-              window.location.reload();
+              globalThis.location.reload();
             }}
             style={{
               background: "linear-gradient(135deg, #00aaff, #38bdf8)",
