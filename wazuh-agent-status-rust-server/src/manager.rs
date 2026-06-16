@@ -306,10 +306,7 @@ impl AgentManager {
                                     }
                                     match child.wait_with_output().await {
                                         Ok(out) if out.status.success() => Ok(()),
-                                        Ok(out) => Err(std::io::Error::new(
-                                            std::io::ErrorKind::Other,
-                                            String::from_utf8_lossy(&out.stderr),
-                                        )),
+                                        Ok(out) => Err(std::io::Error::other(String::from_utf8_lossy(&out.stderr).into_owned())),
                                         Err(e) => Err(e),
                                     }
                                 }
