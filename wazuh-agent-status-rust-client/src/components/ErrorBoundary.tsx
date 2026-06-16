@@ -31,8 +31,8 @@ export class ErrorBoundary extends Component<Props, State> {
             padding: "24px",
             fontFamily: "monospace",
             fontSize: "13px",
-            color: "#f43f5e",
-            background: "#0b1120",
+            color: "var(--error)",
+            background: "var(--bg)",
             height: "100vh",
             display: "flex",
             flexDirection: "column",
@@ -40,16 +40,16 @@ export class ErrorBoundary extends Component<Props, State> {
             overflow: "auto",
           }}
         >
-          <h2 style={{ color: "#f8fafc", margin: 0, fontSize: "16px" }}>
+          <h2 style={{ color: "var(--text)", margin: 0, fontSize: "16px" }}>
             ⚠️ Application Error
           </h2>
           <div
             style={{
-              background: "rgba(244, 63, 94, 0.1)",
-              border: "1px solid rgba(244, 63, 94, 0.2)",
+              background: "var(--overlay-white-05)",
+              border: "1px solid var(--border)",
               borderRadius: "8px",
               padding: "12px",
-              color: "#f87171",
+              color: "var(--error)",
             }}
           >
             {this.state.error?.message ?? "Unknown error"}
@@ -57,10 +57,10 @@ export class ErrorBoundary extends Component<Props, State> {
           {this.state.error?.stack && (
             <pre
               style={{
-                background: "#111827",
+                background: "var(--sidebar-bg)",
                 borderRadius: "8px",
                 padding: "12px",
-                color: "#94a3b8",
+                color: "var(--text-dim)",
                 fontSize: "11px",
                 lineHeight: 1.6,
                 overflow: "auto",
@@ -78,9 +78,9 @@ export class ErrorBoundary extends Component<Props, State> {
               globalThis.location.reload();
             }}
             style={{
-              background: "linear-gradient(135deg, #00aaff, #38bdf8)",
+              background: "var(--primary-metallic)",
               border: "none",
-              color: "white",
+              color: "var(--text-on-primary)",
               padding: "10px 20px",
               borderRadius: "8px",
               fontSize: "13px",
