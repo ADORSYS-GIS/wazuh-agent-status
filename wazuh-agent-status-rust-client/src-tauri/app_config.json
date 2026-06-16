@@ -1,5 +1,6 @@
 {
   "server_addr": "127.0.0.1:50505",
+  "gateway_url": "http://localhost:8080",
   "brand": {
     "name": "Wazuh Agent Monitor",
     "company": "adorsys",

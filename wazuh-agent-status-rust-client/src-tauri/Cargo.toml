@@ -30,4 +30,5 @@ anyhow = "1.0"
 tauri-plugin-log = "2.8.0"
 tauri-plugin-positioner = { version = "2.3.1", features = ["tray-icon"] }
 tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 log = "0.4"

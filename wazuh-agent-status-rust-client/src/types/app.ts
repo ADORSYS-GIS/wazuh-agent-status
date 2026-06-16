@@ -23,10 +23,12 @@ export interface FeaturesConfig {
 }
 
 export interface AppConfig {
+    server_addr: string;
+    gateway_url: string;
     brand: BrandConfig;
     features: FeaturesConfig;
 }
 
 // Removed UpdateInfo — version status is now a string from server
 
-export type View = "status" | "logs" | "updates" | "settings";
+export type View = "status" | "logs" | "updates" | "settings" | "compliance";

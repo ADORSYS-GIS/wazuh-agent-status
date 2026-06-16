@@ -56,6 +56,8 @@ pub trait StatusProvider: Send + Sync {
             groups: self.get_agent_groups()?,
             metrics: self.get_system_metrics()?,
             self_healing_enabled: true, // Initial placeholder; overridden by Manager config
+            agent_id: String::new(),    // Populated by AgentManager from client.keys
+            agent_name: String::new(),
         })
     }
 }
