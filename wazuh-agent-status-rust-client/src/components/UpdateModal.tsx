@@ -52,7 +52,7 @@ const STEP_LABELS: Record<Step, string> = {
   failed: "Update failed",
 };
 
-function StepIndicator({ step, current }: { step: Step; current: Step }) {
+function StepIndicator({ step, current }: Readonly<{ step: Step; current: Step }>) {
   const order: Step[] = ["connecting", "preparing", "downloading", "installing", "done"];
   const idx = order.indexOf(step);
   const curIdx = order.indexOf(current);
