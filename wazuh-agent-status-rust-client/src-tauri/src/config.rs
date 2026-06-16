@@ -89,7 +89,10 @@ impl AppConfig {
 
         // 4. Environment variable override for gateway URL
         if let Ok(url) = std::env::var("WAZUH_GATEWAY_URL") {
-            log::info!("Overriding gateway_url from WAZUH_GATEWAY_URL env var: {}", url);
+            log::info!(
+                "Overriding gateway_url from WAZUH_GATEWAY_URL env var: {}",
+                url
+            );
             Ok(AppConfig {
                 gateway_url: url,
                 ..config

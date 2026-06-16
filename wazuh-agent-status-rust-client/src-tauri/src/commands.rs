@@ -146,8 +146,12 @@ pub async fn fetch_compliance(
     }
 
     if has_params {
-        log::info!("With query parameters: status={:?}, mandatory={:?}, category={:?}",
-            status_filter, mandatory, category);
+        log::info!(
+            "With query parameters: status={:?}, mandatory={:?}, category={:?}",
+            status_filter,
+            mandatory,
+            category
+        );
     }
 
     let resp = req
