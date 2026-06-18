@@ -478,9 +478,62 @@ impl AgentManager {
                         }
                     });
 
+                    // Tail the active-responses.log since adorsys-update.sh writes there instead of stdout
+                    let active_response_log = if cfg!(target_os = "macos") {
+                        std::path::PathBuf::from("/Library/Ossec/logs/active-responses.log")
+                    } else if cfg!(target_os = "linux") {
+                        std::path::PathBuf::from("/var/ossec/logs/active-responses.log")
+                    } else {
+                        std::path::PathBuf::new() // Windows doesn't need this, outputs to stdout
+                    };
+
+                    let (kill_tx, mut kill_rx) = tokio::sync::oneshot::channel::<()>();
+                    if !active_response_log.as_os_str().is_empty() {
+                        let tx_log = tx.clone();
+                        tokio::spawn(async move {
+                            let initial_len = match tokio::fs::metadata(&active_response_log).await
+                            {
+                                Ok(m) => m.len(),
+                                Err(_) => 0,
+                            };
+
+                            let mut file = match tokio::fs::File::open(&active_response_log).await {
+                                Ok(f) => f,
+                                Err(_) => return,
+                            };
+
+                            let _ = file.seek(std::io::SeekFrom::Start(initial_len)).await;
+                            let mut reader = BufReader::new(file);
+                            let mut line = String::new();
+
+                            loop {
+                                tokio::select! {
+                                    _ = &mut kill_rx => break,
+                                    res = reader.read_line(&mut line) => {
+                                        match res {
+                                            Ok(0) => {
+                                                tokio::time::sleep(Duration::from_millis(200)).await;
+                                            }
+                                            Ok(_) => {
+                                                let t = line.trim();
+                                                if !t.is_empty() {
+                                                    let _ = tx_log.send(format!("UPDATE_PROGRESS: {}", t)).await;
+                                                }
+                                                line.clear();
+                                            }
+                                            Err(_) => break,
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+
                     match child.wait().await {
                         Ok(status) if status.success() => {
+                            let _ = kill_tx.send(());
                             info!(exit_code = ?status.code(), "Update script completed successfully");
+                            tokio::time::sleep(Duration::from_millis(500)).await;
                             let _ = tx
                                 .send(
                                     "UPDATE_PROGRESS: [SUCCESS] Update completed successfully"
@@ -489,10 +542,12 @@ impl AgentManager {
                                 .await;
                         }
                         Ok(status) => {
+                            let _ = kill_tx.send(());
                             warn!(exit_code = ?status.code(), "Update script failed");
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Update script exited with code: {:?}", status.code())).await;
                         }
                         Err(e) => {
+                            let _ = kill_tx.send(());
                             warn!(error = %e, "Failed to wait for update script");
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to wait for update script: {e}")).await;
                         }
