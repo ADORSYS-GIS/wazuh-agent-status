@@ -20,19 +20,10 @@ pub enum ConnectionStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionInfo {
-    /// Mapping of component versions
-    pub components: std::collections::HashMap<String, ComponentVersion>,
     /// Global framework versioning
     pub framework: FrameworkVersion,
     #[serde(alias = "prerelease_test_groups", default)]
     pub prerelease_test_groups: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComponentVersion {
-    pub version: String,
-    #[serde(default)]
-    pub prerelease_version: String,
 }
 
 /// Version numbers within the online manifest for the framework (tray app).

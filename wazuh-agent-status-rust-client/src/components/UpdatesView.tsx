@@ -1,92 +1,79 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { UpdateStatus, ComponentUpdate, AgentStatus } from "../types/agent";
+import { UpdateModal } from "./UpdateModal";
 
 interface UpdatesViewProps {
   updateInfo: UpdateStatus | null;
   agentStatus: AgentStatus;
+  onRefreshUpdates: () => void;
 }
 
-export function UpdatesView({ updateInfo, agentStatus }: Readonly<UpdatesViewProps>) {
+export function UpdatesView({ updateInfo, agentStatus, onRefreshUpdates }: Readonly<UpdatesViewProps>) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [logs, setLogs] = useState<{ id: string; text: string }[]>([]);
   const [updateStatus, setUpdateStatus] = useState<"idle" | "running" | "success" | "error">("idle");
-  const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unlisten = listen<string>("update-log", (event) => {
       setLogs((prev) => [...prev, { id: crypto.randomUUID(), text: event.payload }]);
-      if (event.payload.includes("[SUCCESS]")) setUpdateStatus("success");
+      // Only consider the update fully successful when the server sends the final "completed" message,
+      // not on intermediate [SUCCESS] messages from the script (e.g. "Installation validated successfully").
+      if (event.payload.includes("UPDATE_PROGRESS: [SUCCESS] Update completed successfully")) {
+        setUpdateStatus("success");
+        onRefreshUpdates();
+      }
       if (event.payload.includes("[FAILURE]")) setUpdateStatus("error");
     });
 
     return () => {
       unlisten.then((f) => f());
     };
-  }, []);
+  }, [onRefreshUpdates]);
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
+    if (isUpdating && updateInfo) {
+      const trayUpdated = agentStatus.tray_version !== "Unknown" && agentStatus.tray_version === updateInfo.tray.latest_version;
+      
+      if (trayUpdated) {
+        setUpdateStatus("success");
+        onRefreshUpdates();
+      }
+    }
+  }, [agentStatus.tray_version, isUpdating, updateInfo, onRefreshUpdates]);
 
   const handleUpdate = async (isPrerelease: boolean) => {
-    setLogs([{ id: crypto.randomUUID(), text: "Starting orchestrated update..." }]);
+    setLogs([{ id: crypto.randomUUID(), text: "[STATUS] Starting orchestrated update..." }]);
     setIsUpdating(true);
     setUpdateStatus("running");
     try {
       await invoke("start_update", { isPrerelease });
     } catch (error) {
-      setLogs((prev) => [...prev, { id: crypto.randomUUID(), text: `[ERROR] Failed to start update: ${error}` }]);
+      setLogs((prev) => [...prev, { id: crypto.randomUUID(), text: `[FAILURE] Failed to start update: ${error}` }]);
       setUpdateStatus("error");
     }
   };
 
-  const getUpdateStatusColor = () => {
-    if (updateStatus === "success") return "var(--success)";
-    if (updateStatus === "error") return "var(--warning)";
-    return "var(--accent)";
+  const dismissUpdate = () => {
+    setIsUpdating(false);
+    setLogs([]);
+    setUpdateStatus("idle");
+    onRefreshUpdates();
   };
+
   return (
     <div className="view-container">
       <div className="subtitle">Security & Versions</div>
       <h2 className="header title">Health & Updates</h2>
 
-      {isUpdating && (
-        <div className="card update-overlay" style={{ background: "var(--bg)", border: "1px solid var(--border)", marginBottom: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <span style={{ fontWeight: 600 }}>Update in Progress</span>
-            <span style={{ color: getUpdateStatusColor() }}>
-              {updateStatus.toUpperCase()}
-            </span>
-          </div>
-          <div className="log-container" style={{ 
-            background: "#000", 
-            padding: "10px", 
-            borderRadius: "6px", 
-            fontSize: "11px", 
-            fontFamily: "monospace", 
-            maxHeight: "150px", 
-            overflowY: "auto",
-            border: "1px solid #333"
-          }}>
-            {logs.map((log) => (
-              <div key={log.id} style={{ color: log.text.includes("[ERROR]") || log.text.includes("[FAILURE]") ? "#f87171" : "#d1d5db" }}>
-                {log.text}
-              </div>
-            ))}
-            <div ref={logEndRef} />
-          </div>
-          {updateStatus !== "running" && (
-            <button 
-              className="update-button" 
-              style={{ marginTop: "12px", width: "100%" }}
-              onClick={() => { setIsUpdating(false); setLogs([]); setUpdateStatus("idle"); }}
-            >
-              Dismiss
-            </button>
-          )}
-        </div>
+      {isUpdating && updateInfo && (
+        <UpdateModal
+          status={updateStatus === "idle" ? "running" : updateStatus}
+          logs={logs}
+          targetVersion={updateInfo.tray.latest_version}
+          onDismiss={dismissUpdate}
+        />
       )}
 
       <div className="section-title">Deployment Manifest</div>
@@ -150,18 +137,15 @@ function UpdateCard({ component, description, onUpdate, isBusy, readOnly }: Read
 
   return (
     <div className="card" style={{ flexDirection: "column", alignItems: "flex-start", gap: "10px", height: "auto", minHeight: "110px", padding: "18px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
-        <div className="card-info">
+      <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+        <div className="card-info" style={{ minWidth: "200px", flex: "1 1 auto" }}>
           <div className="card-label">{component.name}</div>
-          <div className="card-value" style={{ color: isOutdated ? "var(--warning)" : "var(--success)" }}>
+          <div className="card-value" style={{ color: isOutdated ? "var(--warning)" : "var(--success)", whiteSpace: "nowrap" }}>
             {isOutdated ? `Update Available (v${component.latest_version})` : `Version: v${component.current_version}`}
           </div>
         </div>
         {isOutdated && !isBusy && (
-          <button className="update-button" onClick={onUpdate}>Update Now</button>
-        )}
-        {isBusy && isOutdated && (
-          <div className="auto-badge">Processing...</div>
+          <button className="update-button" style={{ flexShrink: 0 }} onClick={onUpdate}>Update Now</button>
         )}
       </div>
       <p className="card-sub" style={{ margin: 0 }}>{description}</p>

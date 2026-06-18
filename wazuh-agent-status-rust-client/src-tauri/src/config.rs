@@ -6,12 +6,22 @@ pub struct ThemeConfig {
     pub primary_color: String,
     pub secondary_color: String,
     pub dark_mode: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bg: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sidebar_bg: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text_dim: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BrandConfig {
     pub name: String,
     pub company: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub managed_by: Option<String>,
     pub logo_path: String,
     pub theme: ThemeConfig,
 }

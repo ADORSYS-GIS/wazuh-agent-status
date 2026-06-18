@@ -129,7 +129,7 @@ impl AgentManager {
         let server_addr = self.server_addr.clone();
 
         tokio::spawn(async move {
-            let stream = match tokio::net::TcpStream::connect(&server_addr).await {
+            let mut stream = match tokio::net::TcpStream::connect(&server_addr).await {
                 Ok(s) => s,
                 Err(e) => {
                     let _ = tx
@@ -142,15 +142,13 @@ impl AgentManager {
             };
 
             use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
-            let (reader, mut writer) = tokio::io::split(stream);
-            let mut reader = tokio::io::BufReader::new(reader);
-
-            let stream_cmd = if is_prerelease {
-                "initiate-prerelease-update-stream\n"
+            // Send the update command - the server will stream progress back on this same connection
+            let cmd = if is_prerelease {
+                "update-prerelease\n"
             } else {
-                "initiate-update-stream\n"
+                "update\n"
             };
-            if let Err(e) = writer.write_all(stream_cmd.as_bytes()).await {
+            if let Err(e) = stream.write_all(cmd.as_bytes()).await {
                 let _ = tx
                     .send(format!(
                         "UPDATE_PROGRESS: [FAILURE] Failed to send update command: {e}"
@@ -159,6 +157,8 @@ impl AgentManager {
                 return;
             }
 
+            // Read the streaming response from the server (same pattern as Go client)
+            let mut reader = tokio::io::BufReader::new(stream);
             let mut line = String::new();
             while let Ok(n) = reader.read_line(&mut line).await {
                 if n == 0 {

@@ -7,7 +7,13 @@ else
     set -eu
 fi
 
-APP_VERSION=${APP_VERSION:-"0.5.0"}
+# OS guard early in the script
+if [[ "$(uname -s)" != "Linux" ]]; then
+    printf "%s\n" "[ERROR] This installation script is intended for Linux systems. Please use the appropriate script for your operating system." >&2
+    exit 1
+fi
+
+APP_VERSION=${APP_VERSION:-"0.5.0-rc.10"}
 
 # Common configuration
 WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}

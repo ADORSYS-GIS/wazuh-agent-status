@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type CSSProperties } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
@@ -11,6 +11,8 @@ import { StatusView } from "./components/StatusView";
 import { LogsView } from "./components/LogsView";
 import { UpdatesView } from "./components/UpdatesView";
 import { SettingsView } from "./components/SettingsView";
+
+import { computeBrandCSS, getBrandLogoUrl } from "./brand";
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
@@ -93,6 +95,10 @@ function App() {
     setIsLogStreaming(false);
   }, []);
 
+  const refreshUpdateInfo = useCallback(() => {
+    invoke<UpdateStatus>("check_for_updates").then(setUpdateInfo).catch(console.error);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_VIEW, activeView);
     if (mainContentRef.current) {
@@ -100,10 +106,15 @@ function App() {
     }
   }, [activeView]);
 
+  // Keep a ref of the last known tray_version so we can detect changes
+  const prevTrayVersionRef = useRef<string | null>(null);
+
   useEffect(() => {
     // Initial data fetch
-    invoke<AppConfig>("get_config").then(setConfig).catch(console.error);
-    invoke<UpdateStatus>("check_for_updates").then(setUpdateInfo).catch(console.error);
+    invoke<AppConfig>("get_config")
+      .then(setConfig)
+      .catch(console.error);
+    refreshUpdateInfo();
 
     // Polling logic for real-time data
     const refreshData = () => {
@@ -118,7 +129,16 @@ function App() {
       clearInterval(statusTimer);
       if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
     };
-  }, []);
+  }, [refreshUpdateInfo]);
+
+  // Reactive: when agentStatus.tray_version changes, refresh the version check info
+  // This ensures Health & Updates auto-updates like Settings without extra polling
+  useEffect(() => {
+    if (prevTrayVersionRef.current !== null && prevTrayVersionRef.current !== agentStatus.tray_version) {
+      refreshUpdateInfo();
+    }
+    prevTrayVersionRef.current = agentStatus.tray_version;
+  }, [agentStatus.tray_version, refreshUpdateInfo]);
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
@@ -127,6 +147,12 @@ function App() {
     document.addEventListener("contextmenu", handleContextMenu);
     return () => document.removeEventListener("contextmenu", handleContextMenu);
   }, []);
+
+  // ── Brand-driven CSS variables (MUST be before early return — hooks rule) ──
+  const cssVars = useMemo(() => {
+    if (!config) return {};
+    return computeBrandCSS(config.brand);
+  }, [config]);
 
   if (!config) {
     return (
@@ -139,20 +165,13 @@ function App() {
     );
   }
 
-  const primaryColor = config.brand.theme.primary_color;
-  const cssVars = { 
-    "--primary": primaryColor,
-    "--primary-glow": `${primaryColor}99`,
-    "--primary-metallic": `linear-gradient(135deg, ${primaryColor}, #ffffff44, ${primaryColor})` 
-  } as CSSProperties;
-
   const activeViewIndex = { status: 0, logs: 1, updates: 2, settings: 3 }[activeView];
 
   return (
-    <div className="app-wrapper" style={cssVars}>
+    <div className="app-wrapper" style={cssVars as CSSProperties}>
       <nav className="sidebar">
         <div className="sidebar-logo">
-          <img src="/adorsys-logo.png" alt="Adorsys" />
+          <img src={getBrandLogoUrl(config.brand)} alt={config.brand.company} />
         </div>
 
         <div 
@@ -219,7 +238,7 @@ function App() {
       </nav>
 
       <main className="main-content" ref={mainContentRef}>
-        {activeView === "status" && <StatusView agentStatus={agentStatus} metrics={metrics} />}
+        {activeView === "status" && <StatusView agentStatus={agentStatus} metrics={metrics} config={config} />}
         {activeView === "logs" && (
           <LogsView
             logs={logs}
@@ -230,7 +249,13 @@ function App() {
             onClear={() => setLogs([])}
           />
         )}
-        {activeView === "updates" && <UpdatesView updateInfo={updateInfo} agentStatus={agentStatus} />}
+        {activeView === "updates" && (
+          <UpdatesView 
+            updateInfo={updateInfo} 
+            agentStatus={agentStatus} 
+            onRefreshUpdates={refreshUpdateInfo} 
+          />
+        )}
         {activeView === "settings" && <SettingsView config={config} agentStatus={agentStatus} />}
       </main>
     </div>

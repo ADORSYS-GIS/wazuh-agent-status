@@ -240,16 +240,28 @@ async fn handle_update_stream<W>(
 where
     W: AsyncWriteExt + Unpin,
 {
+    info!(is_prerelease, "Starting update stream handler");
     let mut rx = manager.initiate_update(is_prerelease).await;
+    info!("Update channel created, waiting for messages...");
 
-    while let Some(line) = rx.recv().await {
-        if let Err(e) = writer.write_all(format!("{line}\n").as_bytes()).await {
-            warn!(error = %e, "Failed to write update log to client; stopping stream");
-            break;
+    loop {
+        match rx.recv().await {
+            Some(line) => {
+                info!(line = %line, "Received update message, sending to client");
+                if let Err(e) = writer.write_all(format!("{line}\n").as_bytes()).await {
+                    warn!(error = %e, "Failed to write update log to client; stopping stream");
+                    break;
+                }
+                let _ = writer.flush().await;
+            }
+            None => {
+                info!("Update channel closed (no more messages)");
+                break;
+            }
         }
-        let _ = writer.flush().await;
     }
 
+    info!("Update stream handler finished");
     Ok(())
 }
 
