@@ -84,11 +84,14 @@ jobs:
 
       - name: Configure Gateway URL from Secrets
         shell: bash
+        env:
+          GATEWAY_URL_DEV: ${{ secrets.WAZUH_GATEWAY_URL_DEV }}
+          GATEWAY_URL_PROD: ${{ secrets.WAZUH_GATEWAY_URL_PROD }}
         run: |
           if [[ "${{ github.ref_name }}" == *"rc"* ]]; then
-            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_DEV }}"
+            GATEWAY_URL="${GATEWAY_URL_DEV}"
           else
-            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_PROD }}"
+            GATEWAY_URL="${GATEWAY_URL_PROD}"
           fi
           
           if [[ -z "$GATEWAY_URL" ]]; then
@@ -98,7 +101,6 @@ jobs:
             CONFIG_FILE="${{ env.CLIENT_DIR }}/src-tauri/app_config.json"
             jq --arg url "$GATEWAY_URL" '.gateway_url = $url' "$CONFIG_FILE" > temp.json && mv temp.json "$CONFIG_FILE"
           fi
-
       - name: Build Tauri Client (Tray App)
         run: |
           cd ${{ env.CLIENT_DIR }}
@@ -178,11 +180,14 @@ jobs:
 
       - name: Configure Gateway URL from Secrets
         shell: bash
+        env:
+          GATEWAY_URL_DEV: ${{ secrets.WAZUH_GATEWAY_URL_DEV }}
+          GATEWAY_URL_PROD: ${{ secrets.WAZUH_GATEWAY_URL_PROD }}
         run: |
           if [[ "${{ github.ref_name }}" == *"rc"* ]]; then
-            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_DEV }}"
+            GATEWAY_URL="${GATEWAY_URL_DEV}"
           else
-            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_PROD }}"
+            GATEWAY_URL="${GATEWAY_URL_PROD}"
           fi
           
           if [[ -z "$GATEWAY_URL" ]]; then
@@ -252,12 +257,14 @@ jobs:
           copy target\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
       - name: Configure Gateway URL from Secrets
-        shell: bash
+        env:
+          GATEWAY_URL_DEV: ${{ secrets.WAZUH_GATEWAY_URL_DEV }}
+          GATEWAY_URL_PROD: ${{ secrets.WAZUH_GATEWAY_URL_PROD }}
         run: |
           if [[ "${{ github.ref_name }}" == *"rc"* ]]; then
-            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_DEV }}"
+            GATEWAY_URL="${GATEWAY_URL_DEV}"
           else
-            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_PROD }}"
+            GATEWAY_URL="${GATEWAY_URL_PROD}"
           fi
           
           if [[ -z "$GATEWAY_URL" ]]; then
