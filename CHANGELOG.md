@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[c1b92c7](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c1b92c74eb6300c5f99bf027a84643372ba9d950)
+[baff009](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/baff009535c74859941bb45355e6960ec0a37bf7)...[31a492b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/31a492b2df375d0e332024d9a78e6be20fc2b51f)
+
+## 0.5.0-rc.12 - 2026-06-18
+
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[baff009](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/baff009535c74859941bb45355e6960ec0a37bf7)
 
 ### Bug Fixes
 
@@ -18,6 +22,10 @@ All notable changes to this project will be documented in this file.
 - Centralize OS guard into shared utils and apply to all platform scripts ([`1d960a1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1d960a10dc4db97983d1874abb785d323d0d8524)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Fix update process ([`4fe583f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4fe583fb24ac330a2e849d77340102ab99cb520d))
 - Fix ui flinking and update failures ([`0599a18`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0599a1847b49f8c86e5e7e355dccef81c59dbed4))
+- Fix code formatting ([`a9bacd7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a9bacd710764adc57c601dd380bd7a60ad56e3b9))
+- Fix failing ci ([`2b70730`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2b70730401c9e15a6facc5019508ffdee6ad5daa))
+- Fix code formatting ([`acd8406`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/acd8406d1b6f74de71dd89f3d3ec9cfb7b699ec8))
+- Fix failing ci ([`7824de4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7824de4a5213fac8821bb28f15b15821fc9f5b46))
 
 ### Documentation
 
@@ -45,6 +53,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`61f2285`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/61f2285b498909e47fb2715c2ac415ec6c5ba877))
 - Update CHANGELOG.md and checksums [skip ci] ([`1a24c02`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a24c021bbdab6727500e52f308be674d8f9233a))
 - Update CHANGELOG.md and checksums [skip ci] ([`1b3fde1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1b3fde11bd8a0e8812d42149a0e92e1f7d31391d))
+- Update CHANGELOG.md and checksums [skip ci] ([`13f7d0a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/13f7d0ad987490b90f452c5598d0dfca85cb44ec))
 
 ### Features
 
@@ -53,7 +62,9 @@ All notable changes to this project will be documented in this file.
 - Implement update completion status monitoring and add macOS testing documentation ([`122812d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/122812dae215b1a045df547d0e88034f6941557d))
 - Add update modal component and integrate update status handling in UpdatesView ([`57418f6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/57418f64c952960ed8fead1879c1cc139dd10e4c)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Use sudo to save and manage setup scripts to handle permission restrictions ([`00fdbb2`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/00fdbb2167f8711eca3db01b5589587703673963))
+- Add SCA compliance dashboard with agent identity propagation ([`ce44e33`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce44e339dc83fc05e1a2336901dc72743da70644)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Add active-responses.log tailing to capture update progress for stable releases and fixed npm  package vulnerabilities ([`e9b687f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e9b687f0aa53cf635904f22b14703be91f14b4fb))
+- Add SCA compliance dashboard with agent identity propagation ([`7df3cfc`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7df3cfcee3fe11ed4ecfebe4ce2f7b3ccab23716)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ### Miscellaneous Tasks
 
@@ -65,6 +76,12 @@ All notable changes to this project will be documented in this file.
 - Explicitize stable Rust toolchain in release workflows ([`e772b8c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e772b8c96901efc4b936a25ca41afd787709adc9))
 - Remove unused push trigger from scripts workflow ([`cba86f7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cba86f706e8baec58884efe664b5d93513d7115c)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Update branding assets in wazuh-agent-status-rust-client index configuration ([`5371ef0`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5371ef0ad8c3c2d233bcc0382af018cc5d32c12a))
+- Updated wazuh version to 0.5.0-rc-12 ([`baff009`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/baff009535c74859941bb45355e6960ec0a37bf7))
+
+### Performance
+
+- Perform cleanup by removing dead code ([`106c4bf`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/106c4bf6c2d5552db71bc0f788176898ab2d5b9f))
+- Perform cleanup by removing dead code ([`b547b08`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b547b082c6ec5e70a89415e16fd0caf51111403d))
 
 ### Refactor
 
