@@ -97,6 +97,10 @@ pub struct AgentState {
     pub metrics: SystemMetrics,
     /// Whether self-healing is currently active on the server.
     pub self_healing_enabled: bool,
+    /// Agent ID assigned by the Wazuh manager, read from client.keys.
+    pub agent_id: String,
+    /// Agent name/hostname as registered with the Wazuh manager.
+    pub agent_name: String,
 }
 
 impl Default for AgentState {
@@ -109,6 +113,8 @@ impl Default for AgentState {
             groups: Vec::new(),
             metrics: SystemMetrics::default(),
             self_healing_enabled: true,
+            agent_id: String::new(),
+            agent_name: String::new(),
         }
     }
 }

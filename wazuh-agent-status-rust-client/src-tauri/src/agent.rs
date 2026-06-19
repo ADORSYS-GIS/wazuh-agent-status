@@ -33,6 +33,8 @@ pub struct AgentState {
     pub groups: Vec<String>,
     pub metrics: SystemMetrics,
     pub self_healing_enabled: bool,
+    pub agent_id: String,
+    pub agent_name: String,
 }
 
 impl Default for AgentState {
@@ -50,6 +52,8 @@ impl Default for AgentState {
                 used_memory: 0,
             },
             self_healing_enabled: true,
+            agent_id: String::new(),
+            agent_name: String::new(),
         }
     }
 }

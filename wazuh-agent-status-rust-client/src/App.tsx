@@ -6,11 +6,12 @@ import "./App.css";
 import type { AppConfig, View } from "./types/app";
 import type { AgentStatus, SystemMetrics, UpdateStatus, LogLine } from "./types/agent";
 
-import { IconHome, IconLogs, IconShield, IconSettings } from "./components/Icons";
+import { IconHome, IconLogs, IconShield, IconSettings, IconCheckSquare } from "./components/Icons";
 import { StatusView } from "./components/StatusView";
 import { LogsView } from "./components/LogsView";
 import { UpdatesView } from "./components/UpdatesView";
 import { SettingsView } from "./components/SettingsView";
+import { ComplianceView } from "./components/ComplianceView";
 
 import { computeBrandCSS, getBrandLogoUrl } from "./brand";
 
@@ -23,6 +24,8 @@ const DEFAULT_STATUS: AgentStatus = {
   tray_version: "Unknown",
   groups: [],
   self_healing_enabled: true,
+  agent_id: "",
+  agent_name: "",
 };
 
 const DEFAULT_METRICS: SystemMetrics = {
@@ -165,7 +168,7 @@ function App() {
     );
   }
 
-  const activeViewIndex = { status: 0, logs: 1, updates: 2, settings: 3 }[activeView];
+  const activeViewIndex = { status: 0, compliance: 1, logs: 2, updates: 3, settings: 4 }[activeView] ?? 0;
 
   return (
     <div className="app-wrapper" style={cssVars as CSSProperties}>
@@ -195,6 +198,17 @@ function App() {
               <IconHome />
             </button>
             <span className="tooltip">Overview</span>
+          </div>
+
+          <div className="tooltip-container">
+            <button
+              className={`nav-item ${activeView === "compliance" ? "active" : ""}`}
+              onClick={() => setActiveView("compliance")}
+              aria-label="Compliance"
+            >
+              <IconCheckSquare />
+            </button>
+            <span className="tooltip">Compliance</span>
           </div>
 
           <div className="tooltip-container">
@@ -256,6 +270,7 @@ function App() {
             onRefreshUpdates={refreshUpdateInfo} 
           />
         )}
+        {activeView === "compliance" && <ComplianceView agentStatus={agentStatus} />}
         {activeView === "settings" && <SettingsView config={config} agentStatus={agentStatus} />}
       </main>
     </div>

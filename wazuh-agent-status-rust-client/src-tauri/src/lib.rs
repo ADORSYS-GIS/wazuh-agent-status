@@ -64,7 +64,8 @@ pub fn run() {
             commands::get_system_metrics,
             commands::check_for_updates,
             commands::start_update,
-            commands::start_log_stream
+            commands::start_log_stream,
+            commands::fetch_compliance
         ])
         .run(tauri::generate_context!());
 
