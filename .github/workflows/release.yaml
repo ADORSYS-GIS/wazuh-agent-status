@@ -192,7 +192,8 @@ jobs:
           fi
           
           if [[ -z "$GATEWAY_URL" ]]; then
-            echo "Warning: WAZUH_GATEWAY_URL secret is not set!"
+            echo "Error: WAZUH_GATEWAY_URL secret is not set!"
+            exit 1
           else
             echo "Configuring gateway_url..."
             CONFIG_FILE="${{ env.CLIENT_DIR }}/src-tauri/app_config.json"
@@ -269,7 +270,8 @@ jobs:
           fi
           
           if [[ -z "$GATEWAY_URL" ]]; then
-            echo "Warning: WAZUH_GATEWAY_URL secret is not set!"
+            echo "Error: WAZUH_GATEWAY_URL secret is not set!"
+            exit 1
           else
             echo "Configuring gateway_url..."
             CONFIG_FILE="${{ env.CLIENT_DIR }}/src-tauri/app_config.json"
