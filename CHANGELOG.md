@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+[8c47868](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8c478688a4d2d07b9bfe793ac42049a622b5dcd2)...[90280b0](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/90280b0cb5458af668cbaf1c2bdc7f6b9f5538fe)
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`0dc41a3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0dc41a337d444d701c45b409650cf42edeafa1b3))
+
+### Features
+
+- Add opencode workflow for PR review and issue tasks ([`47cb1b3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47cb1b3f8e9b8021d7f5c1ea89f755bba2f4602a))
+
+### Refactor
+
+- Simplify comments and improve clarity in opencode workflow ([`bf422c1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/bf422c195609eb464c7fa59b753aa30763e2d25e))
+
+## 0.5.0-rc.12 - 2026-06-19
+
 [5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[8c47868](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8c478688a4d2d07b9bfe793ac42049a622b5dcd2)
 
 ### Bug Fixes
