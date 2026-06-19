@@ -82,6 +82,23 @@ jobs:
           mkdir -p ../dist
           cp target/x86_64-unknown-linux-musl/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
+      - name: Configure Gateway URL from Secrets
+        shell: bash
+        run: |
+          if [[ "${{ github.ref_name }}" == *"rc"* ]]; then
+            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_DEV }}"
+          else
+            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_PROD }}"
+          fi
+          
+          if [[ -z "$GATEWAY_URL" ]]; then
+            echo "Warning: WAZUH_GATEWAY_URL secret is not set!"
+          else
+            echo "Configuring gateway_url..."
+            CONFIG_FILE="${{ env.CLIENT_DIR }}/src-tauri/app_config.json"
+            jq --arg url "$GATEWAY_URL" '.gateway_url = $url' "$CONFIG_FILE" > temp.json && mv temp.json "$CONFIG_FILE"
+          fi
+
       - name: Build Tauri Client (Tray App)
         run: |
           cd ${{ env.CLIENT_DIR }}
@@ -159,6 +176,23 @@ jobs:
           mkdir -p ../dist
           cp target/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
 
+      - name: Configure Gateway URL from Secrets
+        shell: bash
+        run: |
+          if [[ "${{ github.ref_name }}" == *"rc"* ]]; then
+            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_DEV }}"
+          else
+            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_PROD }}"
+          fi
+          
+          if [[ -z "$GATEWAY_URL" ]]; then
+            echo "Warning: WAZUH_GATEWAY_URL secret is not set!"
+          else
+            echo "Configuring gateway_url..."
+            CONFIG_FILE="${{ env.CLIENT_DIR }}/src-tauri/app_config.json"
+            jq --arg url "$GATEWAY_URL" '.gateway_url = $url' "$CONFIG_FILE" > temp.json && mv temp.json "$CONFIG_FILE"
+          fi
+
       - name: Build Tauri Client (Tray App)
         run: |
           cd ${{ env.CLIENT_DIR }}
@@ -216,6 +250,23 @@ jobs:
           cargo build --release
           if not exist ..\dist mkdir ..\dist
           copy target\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
+
+      - name: Configure Gateway URL from Secrets
+        shell: bash
+        run: |
+          if [[ "${{ github.ref_name }}" == *"rc"* ]]; then
+            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_DEV }}"
+          else
+            GATEWAY_URL="${{ secrets.WAZUH_GATEWAY_URL_PROD }}"
+          fi
+          
+          if [[ -z "$GATEWAY_URL" ]]; then
+            echo "Warning: WAZUH_GATEWAY_URL secret is not set!"
+          else
+            echo "Configuring gateway_url..."
+            CONFIG_FILE="${{ env.CLIENT_DIR }}/src-tauri/app_config.json"
+            jq --arg url "$GATEWAY_URL" '.gateway_url = $url' "$CONFIG_FILE" > temp.json && mv temp.json "$CONFIG_FILE"
+          fi
 
       - name: Build Tauri Client (Tray App)
         shell: bash
