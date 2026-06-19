@@ -4,11 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[baff009](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/baff009535c74859941bb45355e6960ec0a37bf7)...[31a492b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/31a492b2df375d0e332024d9a78e6be20fc2b51f)
-
-## 0.5.0-rc.12 - 2026-06-18
-
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[baff009](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/baff009535c74859941bb45355e6960ec0a37bf7)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[f1b36f7](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f1b36f71c9f37fcf493664600d13cb5998a5ad6d)
 
 ### Bug Fixes
 
@@ -54,6 +50,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`1a24c02`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a24c021bbdab6727500e52f308be674d8f9233a))
 - Update CHANGELOG.md and checksums [skip ci] ([`1b3fde1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1b3fde11bd8a0e8812d42149a0e92e1f7d31391d))
 - Update CHANGELOG.md and checksums [skip ci] ([`13f7d0a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/13f7d0ad987490b90f452c5598d0dfca85cb44ec))
+- Update CHANGELOG.md and checksums [skip ci] ([`bb72cea`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/bb72cea4e5752970f75f1c0b6348f37177ca5616))
 
 ### Features
 
@@ -77,6 +74,7 @@ All notable changes to this project will be documented in this file.
 - Remove unused push trigger from scripts workflow ([`cba86f7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cba86f706e8baec58884efe664b5d93513d7115c)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Update branding assets in wazuh-agent-status-rust-client index configuration ([`5371ef0`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5371ef0ad8c3c2d233bcc0382af018cc5d32c12a))
 - Updated wazuh version to 0.5.0-rc-12 ([`baff009`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/baff009535c74859941bb45355e6960ec0a37bf7))
+- Update release workflow to trigger on tag creation ([`f1b36f7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f1b36f71c9f37fcf493664600d13cb5998a5ad6d))
 
 ### Performance
 
