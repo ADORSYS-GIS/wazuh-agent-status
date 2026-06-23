@@ -1,3 +1,5 @@
+pub mod ai_commands;
+
 use crate::agent::{AgentManager, AgentState, AgentStatus};
 use crate::config::AppConfig;
 use serde::{Deserialize, Serialize};
