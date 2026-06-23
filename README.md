@@ -38,12 +38,14 @@ To build the application from source, follow these steps:
 4. Install Node.js for the Tauri client.
 
 ### Build the Server
+
 ```bash
 cd wazuh-agent-status-rust-server
 cargo build --release
 ```
 
 ### Build the Client (Tray App)
+
 ```bash
 cd wazuh-agent-status-rust-client
 npm install
@@ -73,9 +75,10 @@ To understand the project vertically—from the business vision down to the tech
 
 1.  **[Improvement Roadmap](docs/roadmap.md)**: Start here to understand the 6-phase strategic vision.
 2.  **[Architecture Overview](docs/architecture/architecture.md)**: A high-level view of the "Brains & Face" design.
-3.  **[Rust Migration Technical Proposal](docs/rust-migration-technical-proposal.md)**: Detailed strategy for the Rust transition.
-4.  **[Self-Healing Design](docs/architecture/adr/self-healing.md)**: Details on the reactive health orchestration.
-5.  **[Decision Log (ADRs)](docs/architecture/adr/)**: A record of architectural decisions.
+3.  **[AI Compliance Fixes](docs/AI_COMPLIANCE_FIXES.md)**: Technical detail on AI fix generation, execution, and security controls.
+4.  **[Rust Migration Technical Proposal](docs/rust-migration-technical-proposal.md)**: Detailed strategy for the Rust transition.
+5.  **[Self-Healing Design](docs/architecture/adr/self-healing.md)**: Details on the reactive health orchestration.
+6.  **[Decision Log (ADRs)](docs/architecture/adr/)**: A record of architectural decisions.
 
 ---
 

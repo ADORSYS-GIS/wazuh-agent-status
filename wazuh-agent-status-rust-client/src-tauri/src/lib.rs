@@ -1,4 +1,5 @@
 mod agent;
+mod ai;
 mod commands;
 mod config;
 mod tray;
@@ -65,7 +66,18 @@ pub fn run() {
             commands::check_for_updates,
             commands::start_update,
             commands::start_log_stream,
-            commands::fetch_compliance
+            commands::fetch_compliance,
+            commands::ai_commands::save_ai_config,
+            commands::ai_commands::get_ai_status,
+            commands::ai_commands::test_ai_connection,
+            commands::ai_commands::clear_ai_config,
+            commands::ai_commands::list_ai_models,
+            commands::ai_commands::ai_fix_check,
+            commands::ai_commands::ai_fix_batch,
+            commands::ai_commands::ai_chat,
+            commands::ai_commands::execute_fix_command,
+            commands::ai_commands::execute_fix_command_sudo,
+            commands::ai_commands::trigger_sca_rescan,
         ])
         .run(tauri::generate_context!());
 
