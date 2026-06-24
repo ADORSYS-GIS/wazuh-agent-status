@@ -19,51 +19,61 @@ struct FileConfig {
 
 // ── Path helpers ──────────────────────────────────────────────────────────────
 
-fn config_dir() -> PathBuf {
+fn config_dir() -> Result<PathBuf, String> {
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
-        .unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".config/wazuh-agent-status")
+        .map_err(|_| {
+            "Cannot determine home directory: neither HOME nor USERPROFILE is set. \
+             Refusing to store API key in an unknown location."
+                .to_string()
+        })?;
+    Ok(PathBuf::from(home).join(".config/wazuh-agent-status"))
 }
 
-fn config_file() -> PathBuf {
-    config_dir().join("ai-config.json")
+fn config_file() -> Result<PathBuf, String> {
+    Ok(config_dir()?.join("ai-config.json"))
 }
 
 // ── File read/write ───────────────────────────────────────────────────────────
 
 fn write_config(cfg: &FileConfig) -> Result<(), String> {
-    let dir = config_dir();
+    let dir = config_dir()?;
     fs::create_dir_all(&dir).map_err(|e| format!("Failed to create config directory: {e}"))?;
 
     let json = serde_json::to_string_pretty(cfg)
         .map_err(|e| format!("Failed to serialize config: {e}"))?;
 
-    let path = config_file();
+    let path = config_file()?;
     fs::write(&path, &json).map_err(|e| format!("Failed to write config file: {e}"))?;
 
-    // Restrict permissions (owner read/write only) on Unix
+    // Restrict permissions (owner read/write only) on Unix.
+    // Failure is treated as a hard error: we must not leave the API key
+    // world-readable if the permission change cannot be applied.
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        if let Ok(meta) = fs::metadata(&path) {
-            let mut perms = meta.permissions();
-            perms.set_mode(0o600);
-            let _ = fs::set_permissions(&path, perms);
-        }
+        let meta =
+            fs::metadata(&path).map_err(|e| format!("Failed to read config file metadata: {e}"))?;
+        let mut perms = meta.permissions();
+        perms.set_mode(0o600);
+        fs::set_permissions(&path, perms)
+            .map_err(|e| format!("Failed to restrict config file permissions: {e}"))?;
     }
 
     Ok(())
 }
 
 fn read_config_raw() -> Result<FileConfig, String> {
-    let path = config_file();
+    let path = config_file()?;
     let json = fs::read_to_string(&path).map_err(|_| "No AI provider configured".to_string())?;
     serde_json::from_str(&json).map_err(|e| format!("Failed to parse config file: {e}"))
 }
 
 fn remove_config_file() {
-    let _ = fs::remove_file(config_file());
+    // Best-effort removal: silently ignore errors (file may not exist).
+    if let Ok(path) = config_file() {
+        let _ = fs::remove_file(path);
+    }
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -76,7 +86,9 @@ pub fn store_config(config: &AiProviderConfig) -> Result<(), String> {
         api_key: config.api_key.clone(),
     };
     write_config(&fc)?;
-    log::info!("AI config saved to {}", config_file().display());
+    if let Ok(path) = config_file() {
+        log::info!("AI config saved to {}", path.display());
+    }
     Ok(())
 }
 

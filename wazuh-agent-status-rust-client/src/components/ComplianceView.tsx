@@ -315,9 +315,11 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
   // Detect if a command needs sudo
   const commandNeedsSudo = (cmd: string) => /(?:^|\s)sudo\s/.test(cmd);
 
-  // Detect interactive-only commands that can never run non-interactively
+  // Detect interactive-only commands that can never run non-interactively.
+  // Covers: text editors, pagers, interactive monitors, and streaming watchers
+  // that would block forever without a TTY or require terminal control sequences.
   const commandIsInteractive = (cmd: string) =>
-    /\b(nano|vim?|emacs|gedit|kate|mousepad|xed)\b/.test(cmd);
+    /\b(nano|vim?|emacs|gedit|kate|mousepad|xed|less|more|most|htop|top|man|watch|tail\s+-f)\b/.test(cmd);
 
   const handleRunCommand = useCallback(async (cmd: string, idx: number) => {
     setCommandStates((prev) => ({
