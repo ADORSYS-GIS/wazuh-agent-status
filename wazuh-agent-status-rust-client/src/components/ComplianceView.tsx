@@ -312,14 +312,17 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
     setCopiedIndex(null);
   }, []);
 
-  // Detect if a command needs sudo
   const commandNeedsSudo = (cmd: string) => /(?:^|\s)sudo\s/.test(cmd);
 
-  // Detect interactive-only commands that can never run non-interactively.
-  // Covers: text editors, pagers, interactive monitors, and streaming watchers
-  // that would block forever without a TTY or require terminal control sequences.
   const commandIsInteractive = (cmd: string) =>
     /\b(nano|vim?|emacs|gedit|kate|mousepad|xed|less|more|most|htop|top|man|watch|tail\s+-f)\b/.test(cmd);
+
+  const commandIsDestructive = (cmd: string) =>
+    /\brm\s+-[a-zA-Z]*[rf]/.test(cmd) ||
+    /\bdd\s+(if|of)=/.test(cmd) ||
+    /\bmkfs\b/.test(cmd) ||
+    /\bshred\b/.test(cmd) ||
+    cmd.includes(":(){ :|:& };");
 
   const handleRunCommand = useCallback(async (cmd: string, idx: number) => {
     setCommandStates((prev) => ({
@@ -750,6 +753,13 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
                             {commandIsInteractive(chunk.content) && (
                               <div className="compliance-command-interactive-warn">
                                 ⚠ This command opens an interactive editor and cannot run inside the app. Copy it and run it in a terminal.
+                              </div>
+                            )}
+
+                            {/* Destructive command warning */}
+                            {commandIsDestructive(chunk.content) && !commandIsInteractive(chunk.content) && (
+                              <div className="compliance-command-interactive-warn" style={{ borderColor: "var(--error)", color: "var(--error)" }}>
+                                ⚠ This command may be destructive (e.g. deletes files, writes to a disk, or wipes data). Review carefully before executing.
                               </div>
                             )}
 
