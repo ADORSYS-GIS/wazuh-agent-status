@@ -4,7 +4,13 @@ import type { AppConfig } from "../types/app";
 import type { AgentStatus } from "../types/agent";
 import type { AiProviderConfig, AiProviderStatus, AiModel } from "../types/ai";
 
-const stripSlash = (s: string) => s.replace(/\/+$/, "");
+const stripSlash = (s: string) => {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === "/") {
+    end--;
+  }
+  return s.slice(0, end);
+};
 
 interface SettingsViewProps {
   config: AppConfig;
