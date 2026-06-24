@@ -282,7 +282,7 @@ body {
 }
 
 .card .card-value {
-  word-break: break-word;
+  overflow-wrap: break-word;
   overflow-wrap: break-word;
   max-width: 100%;
 }
@@ -871,7 +871,7 @@ body {
   color: var(--terminal-line-color);
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  word-break: break-word;
+  overflow-wrap: break-word;
   padding: 3px 14px;
   border-bottom: 1px solid var(--overlay-white-05);
   transition: background 0.15s ease;
@@ -1322,7 +1322,7 @@ body {
   color: var(--text);
   margin-bottom: 1px;
   overflow-wrap: break-word;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .compliance-category-meta {
   font-size: 0.6rem;
@@ -1442,7 +1442,7 @@ body {
   flex-wrap: wrap;
   line-height: 1.4;
   overflow-wrap: break-word;
-  word-break: break-word;
+  overflow-wrap: break-word;
   user-select: text;
   -webkit-user-select: text;
 }
@@ -1474,7 +1474,7 @@ body {
   color: var(--text-dim);
   line-height: 1.5;
   overflow-wrap: break-word;
-  word-break: break-word;
+  overflow-wrap: break-word;
   user-select: text;
   -webkit-user-select: text;
 }
@@ -2534,7 +2534,7 @@ body {
 }
 .ai-chat-msg-content {
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: break-word;
   color: var(--text);
 }
 
@@ -2697,5 +2697,5 @@ body {
   color: var(--text-dim);
   line-height: 1.6;
   margin-bottom: 16px;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
