@@ -11,67 +11,76 @@ interface MarkdownChunk {
   language?: string;
 }
 
+const CODE_FENCE_RE = /```(bash|sh|powershell|cmd|shell|zsh)?\n([\s\S]*?)```/;
+
+function parseCodeBlock(part: string): MarkdownChunk {
+  const match = CODE_FENCE_RE.exec(part);
+  if (match) {
+    return { type: "code_block", content: match[2].trim(), language: match[1] || "bash" };
+  }
+  return { type: "code_block", content: part.replace(/```/g, "").trim(), language: "bash" };
+}
+
+type ParseState = { riskLevel: string | null; impact: string | null; currentSection: "risk" | "impact" | null };
+
+function parseTextLine(trimmed: string, chunks: MarkdownChunk[], state: ParseState): void {
+  if (trimmed.startsWith("## Risk Level")) {
+    state.currentSection = "risk";
+    return;
+  }
+  if (trimmed.startsWith("## Impact")) {
+    state.currentSection = "impact";
+    return;
+  }
+  if (trimmed.startsWith("## ")) {
+    state.currentSection = null;
+    chunks.push({ type: "heading2", content: trimmed.slice(3) });
+    return;
+  }
+  if (trimmed.startsWith("### ")) {
+    state.currentSection = null;
+    chunks.push({ type: "heading3", content: trimmed.slice(4) });
+    return;
+  }
+  if (/^\d+\.\s/.test(trimmed)) {
+    state.currentSection = null;
+    chunks.push({ type: "step", content: trimmed });
+    return;
+  }
+  if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+    state.currentSection = null;
+    chunks.push({ type: "list_item", content: trimmed.replace(/^[-*]\s+/, "") });
+    return;
+  }
+  if (state.currentSection === "risk") {
+    state.riskLevel = trimmed;
+  } else if (state.currentSection === "impact") {
+    state.impact = (state.impact ? state.impact + " " : "") + trimmed;
+  } else {
+    chunks.push({ type: "text", content: trimmed });
+  }
+}
+
 function parseMarkdownIntoChunks(markdown: string) {
   const chunks: MarkdownChunk[] = [];
-  let riskLevel: string | null = null;
-  let impact: string | null = null;
+  const state: ParseState = { riskLevel: null, impact: null, currentSection: null };
 
-  if (!markdown) return { chunks, riskLevel, impact };
+  if (!markdown) return { chunks, riskLevel: state.riskLevel, impact: state.impact };
 
-  const parts = markdown.split(/(```[\s\S]*?```)/g);
-
-  for (const part of parts) {
+  for (const part of markdown.split(/(```[\s\S]*?```)/g)) {
     if (part.startsWith("```")) {
-      const match = part.match(/```(bash|sh|powershell|cmd|shell|zsh)?\n([\s\S]*?)```/);
-      if (match) {
-        const language = match[1] || "bash";
-        const content = match[2].trim();
-        chunks.push({ type: "code_block", content, language });
-      } else {
-        const content = part.replace(/```/g, "").trim();
-        chunks.push({ type: "code_block", content, language: "bash" });
-      }
+      chunks.push(parseCodeBlock(part));
     } else {
-      const lines = part.split("\n");
-      let currentSection: "risk" | "impact" | null = null;
-
-      for (const line of lines) {
+      for (const line of part.split("\n")) {
         const trimmed = line.trim();
-        if (trimmed === "") continue;
-
-        if (trimmed.startsWith("## Risk Level")) {
-          currentSection = "risk";
-          continue;
-        } else if (trimmed.startsWith("## Impact")) {
-          currentSection = "impact";
-          continue;
-        } else if (trimmed.startsWith("## ")) {
-          currentSection = null;
-          chunks.push({ type: "heading2", content: trimmed.replace("## ", "") });
-        } else if (trimmed.startsWith("### ")) {
-          currentSection = null;
-          chunks.push({ type: "heading3", content: trimmed.replace("### ", "") });
-        } else if (/^\d+\.\s/.test(trimmed)) {
-          currentSection = null;
-          chunks.push({ type: "step", content: trimmed });
-        } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-          currentSection = null;
-          chunks.push({ type: "list_item", content: trimmed.replace(/^[-*]\s+/, "") });
-        } else {
-          if (currentSection === "risk") {
-            riskLevel = trimmed;
-          } else if (currentSection === "impact") {
-            impact = (impact ? impact + " " : "") + trimmed;
-          } else {
-            chunks.push({ type: "text", content: trimmed });
-          }
-        }
+        if (trimmed) parseTextLine(trimmed, chunks, state);
       }
     }
   }
 
-  return { chunks, riskLevel, impact };
+  return { chunks, riskLevel: state.riskLevel, impact: state.impact };
 }
+
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
