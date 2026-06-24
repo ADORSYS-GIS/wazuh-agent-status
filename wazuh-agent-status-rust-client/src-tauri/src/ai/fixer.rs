@@ -113,10 +113,23 @@ pub async fn generate_fix(input: FailedCheckInput) -> AiFixResult {
 ///
 /// This sends each check as a separate prompt so the AI can give focused,
 /// check-specific answers rather than one long confusing response.
+///
+/// A short inter-request delay is applied between calls to avoid
+/// hammering rate-limited API endpoints when there are many failed checks.
 pub async fn generate_fixes_batch(inputs: Vec<FailedCheckInput>) -> Vec<AiFixResult> {
-    let mut results = Vec::with_capacity(inputs.len());
-    for input in inputs {
+    const INTER_REQUEST_DELAY_MS: u64 = 300;
+
+    let total = inputs.len();
+    let mut results = Vec::with_capacity(total);
+
+    for (i, input) in inputs.into_iter().enumerate() {
         results.push(generate_fix(input).await);
+
+        // Throttle between requests (skip delay after the last item)
+        if i + 1 < total {
+            tokio::time::sleep(tokio::time::Duration::from_millis(INTER_REQUEST_DELAY_MS)).await;
+        }
     }
+
     results
 }
