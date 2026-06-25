@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, type CSSProperties } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { AgentStatus, ComplianceReport, ComplianceCheckResult } from "../types/agent";
 import type { AiFixResult, AiProviderStatus, FailedCheckInput, ChatMessage } from "../types/ai";
@@ -158,6 +158,7 @@ function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Readonly<C
   const [sharedPassword, setSharedPassword] = useState("");
   const [scaRescanState, setScaRescanState] = useState<{ status: "idle" | "running" | "success" | "failed"; output: string }>({ status: "idle", output: "" });
   const [showRefreshAfterRescan, setShowRefreshAfterRescan] = useState(false);
+  const messageIdRef = useRef(0);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
@@ -207,8 +208,9 @@ function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Readonly<C
     const msg = chatInput.trim();
     if (!msg || chatSending) return;
 
+    const msgId = ++messageIdRef.current;
     setChatInput("");
-    setChatMessages((prev) => [...prev, { role: "user", content: msg }]);
+    setChatMessages((prev) => [...prev, { id: msgId, role: "user", content: msg }]);
     setChatSending(true);
 
     try {
@@ -216,11 +218,13 @@ function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Readonly<C
         prompt: msg,
         context: fixResult.markdown || null,
       });
-      setChatMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      const replyId = ++messageIdRef.current;
+      setChatMessages((prev) => [...prev, { id: replyId, role: "assistant", content: reply }]);
     } catch (e) {
+      const errId = ++messageIdRef.current;
       setChatMessages((prev) => [
         ...prev,
-        { role: "assistant", content: `Error: ${e}` },
+        { id: errId, role: "assistant", content: `Error: ${e}` },
       ]);
     } finally {
       setChatSending(false);
@@ -228,8 +232,14 @@ function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Readonly<C
   }, [chatInput, chatSending, fixResult.markdown]);
 
   return (
-    <div className="update-modal-backdrop" onClick={onClose}>
-      <div className="ai-fix-modal" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="update-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      role="presentation"
+    >
+      <div className="ai-fix-modal">
         <div className="update-modal-header">
           <div className="update-modal-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--primary)" }}>
@@ -448,7 +458,7 @@ function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Readonly<C
 
                 {showRefreshAfterRescan && (
                   <div className="sca-rescan-refresh-hint">
-                    <span>SCA scan started. Results typically appear within 30–60 seconds.</span>
+                    <span>SCA scan started. Results typically appear within 3–5 minutes.</span>
                     <button className="compliance-verify-btn" onClick={onRefreshResults}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <path d="M23 4v6h-6" />
@@ -474,8 +484,8 @@ function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Readonly<C
                       Ask any questions or request clarification about these steps here.
                     </div>
                   )}
-                  {chatMessages.map((m, i) => (
-                    <div key={i} className={`ai-chat-msg ${m.role}`}>
+                  {chatMessages.map((m) => (
+                    <div key={m.id} className={`ai-chat-msg ${m.role}`}>
                       <div className="ai-chat-msg-role">
                         {m.role === "user" ? "You" : "AI"}
                       </div>
@@ -895,7 +905,7 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
       {!aiStatus?.configured && failedCount > 0 && (
         <div style={{ marginBottom: "10px", padding: "8px 12px", fontSize: "0.75rem", color: "var(--text-dim)", background: "var(--card-bg)", borderRadius: "8px", border: "1px solid var(--border)" }}>
           <span style={{ marginRight: "6px" }}>💡</span>
-          Configure an AI provider in Settings to get AI-powered fix suggestions for failed checks.
+          <span>Configure an AI provider in Settings to get AI-powered fix suggestions for failed checks.</span>
         </div>
       )}
 
@@ -987,12 +997,12 @@ function ComplianceCheckRow({
   aiConfigured,
   onFix,
   fixing,
-}: {
+}: Readonly<{
   check: ComplianceCheckResult;
   aiConfigured: boolean;
   onFix: () => void;
   fixing: boolean;
-}) {
+}>) {
   const isPassed = check.status === "Passed";
   const isFailed = check.status === "Failed";
 
