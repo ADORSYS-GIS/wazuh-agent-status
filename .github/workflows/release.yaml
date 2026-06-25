@@ -110,14 +110,19 @@ jobs:
 
   build-macos:
     name: Build for macOS (AMD64, ARM64)
-    runs-on: ${{ matrix.os }}
+    # Using self-hosted runner due to billing issues with GitHub-hosted macOS runners
+    runs-on: [self-hosted, dip-dev-wazuh-help]
+    # runs-on: ${{ matrix.os }}  # old approach: used GitHub-hosted macOS runners
     strategy:
       matrix:
         include:
-          - os: macos-14-large
-            arch: amd64
-          - os: macos-latest
-            arch: arm64
+          - arch: amd64
+          - arch: arm64
+          # old approach: GitHub-hosted runners were selected via the os field below
+          # - os: macos-14-large
+          #   arch: amd64
+          # - os: macos-latest
+          #   arch: arm64
 
     steps:
       - name: Checkout code
