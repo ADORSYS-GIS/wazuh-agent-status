@@ -4,23 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[8c47868](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8c478688a4d2d07b9bfe793ac42049a622b5dcd2)...[90280b0](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/90280b0cb5458af668cbaf1c2bdc7f6b9f5538fe)
-
-### Documentation
-
-- Update CHANGELOG.md and checksums [skip ci] ([`0dc41a3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0dc41a337d444d701c45b409650cf42edeafa1b3))
-
-### Features
-
-- Add opencode workflow for PR review and issue tasks ([`47cb1b3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47cb1b3f8e9b8021d7f5c1ea89f755bba2f4602a))
-
-### Refactor
-
-- Simplify comments and improve clarity in opencode workflow ([`bf422c1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/bf422c195609eb464c7fa59b753aa30763e2d25e))
-
-## 0.5.0-rc.12 - 2026-06-19
-
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[8c47868](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8c478688a4d2d07b9bfe793ac42049a622b5dcd2)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[21e10b3](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/21e10b30fa61e43e718ee1fb0f96582751758c0d)
 
 ### Bug Fixes
 
@@ -38,6 +22,7 @@ All notable changes to this project will be documented in this file.
 - Fix failing ci ([`2b70730`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2b70730401c9e15a6facc5019508ffdee6ad5daa))
 - Fix code formatting ([`acd8406`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/acd8406d1b6f74de71dd89f3d3ec9cfb7b699ec8))
 - Fix failing ci ([`7824de4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7824de4a5213fac8821bb28f15b15821fc9f5b46))
+- Enforce failure in release workflow when WAZUH_GATEWAY_URL secret is missing ([`6d7b679`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6d7b67965175a64fa04869c8cceea5bb5556f1d2))
 
 ### Documentation
 
@@ -68,6 +53,8 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`13f7d0a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/13f7d0ad987490b90f452c5598d0dfca85cb44ec))
 - Update CHANGELOG.md and checksums [skip ci] ([`bb72cea`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/bb72cea4e5752970f75f1c0b6348f37177ca5616))
 - Update CHANGELOG.md and checksums [skip ci] ([`d8f111c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d8f111cf5fad3372c906573a2788088e21284c7a))
+- Update CHANGELOG.md and checksums [skip ci] ([`0dc41a3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0dc41a337d444d701c45b409650cf42edeafa1b3))
+- Update CHANGELOG.md and checksums [skip ci] ([`e408aab`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e408aabfe8fc7df8c976dc81b5866f74e6a4d5e3))
 
 ### Features
 
@@ -79,6 +66,7 @@ All notable changes to this project will be documented in this file.
 - Add SCA compliance dashboard with agent identity propagation ([`ce44e33`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce44e339dc83fc05e1a2336901dc72743da70644)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Add active-responses.log tailing to capture update progress for stable releases and fixed npm  package vulnerabilities ([`e9b687f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e9b687f0aa53cf635904f22b14703be91f14b4fb))
 - Add SCA compliance dashboard with agent identity propagation ([`7df3cfc`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7df3cfcee3fe11ed4ecfebe4ce2f7b3ccab23716)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Add opencode workflow for PR review and issue tasks ([`47cb1b3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47cb1b3f8e9b8021d7f5c1ea89f755bba2f4602a))
 
 ### Miscellaneous Tasks
 
@@ -93,6 +81,8 @@ All notable changes to this project will be documented in this file.
 - Updated wazuh version to 0.5.0-rc-12 ([`baff009`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/baff009535c74859941bb45355e6960ec0a37bf7))
 - Update release workflow to trigger on tag creation ([`f1b36f7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f1b36f71c9f37fcf493664600d13cb5998a5ad6d))
 - Update gateway_url to development environment endpoint ([`8c47868`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8c478688a4d2d07b9bfe793ac42049a622b5dcd2))
+- Inject gateway url from github secrets during build ([`84545d9`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/84545d9578f951d010df96330cb4c614f20e024a))
+- Fail release workflow when WAZUH_GATEWAY_URL secret is missing ([`528de52`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/528de5239660910832858c6dd31528f6f0f25402))
 
 ### Performance
 
@@ -118,6 +108,8 @@ All notable changes to this project will be documented in this file.
 - Simplify UpdateModal icon rendering logic and update type imports ([`99da827`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/99da8277e1dc0c966576a288482f3c0cd5e622ce))
 - Update brand styling and module configuration in index.ts ([`2d7b21c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2d7b21c5250bbc2c7faf5a0e8bf2f8258ea48629))
 - Replace hardcoded colors in ErrorBoundary with CSS custom properties ([`44fd84c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/44fd84cba742701b9b6ab6d22c6338beadd6dc60))
+- Simplify comments and improve clarity in opencode workflow ([`bf422c1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/bf422c195609eb464c7fa59b753aa30763e2d25e))
+- Addressed sonarQube issues ([`fc8df6d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/fc8df6d580eb8cf9af09b5a53c8ef6edfc1ba542))
 
 ## 0.4.2.rc1-user - 2025-07-16
 
