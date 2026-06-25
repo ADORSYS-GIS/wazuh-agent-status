@@ -246,7 +246,7 @@ create_desktop_unit_file() {
     mkdir -p "$DESKTOP_APPS_FOLDER"
 
     local desktop_content="[Desktop Entry]
-Name=Wazuh Agent Monitoring Tray Icon App
+Name=Wazuh Agent Monitor
 GenericName=Wazuh Agent Status
 Comment=Monitors the Wazuh agent status and provides a tray icon dashboard
 Exec=$BIN_DIR/$CLIENT_NAME

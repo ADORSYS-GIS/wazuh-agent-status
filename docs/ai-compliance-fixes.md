@@ -10,51 +10,7 @@ This document describes how the AI remediation feature works, its technical arch
 
 When a compliance check fails (e.g., password expiration policy, unused services enabled), the UI offers a **"Fix with AI"** option.
 
-```text
-                     FIX GENERATION FLOW
-
-  ┌──────────────────┐    ① Request      ┌──────────────────┐    ② API         ┌──────────────────┐
-  │  Desktop Client  │ ──────────────────► │  Backend Runtime │ ─────────────────► │  AI Provider     │
-  │  (UI)            │ ◄────────────────── │                  │ ◄───────────────── │  (Gemini,         │
-  └──────────────────┘    ④ Render        └──────────────────┘    ③ Markdown     │  DeepSeek, etc.)  │
-                                                                                   └──────────────────┘
-
-
-                    COMMAND EXECUTION FLOW
-
-  ┌──────────┐   ⑤ Execute   ┌──────────────────────┐
-  │ Desktop  │ ─────────────► │  Validation Layer    │
-  │ Client   │                │                      │
-  │          │                │  • Executable        │
-  │          │                │    Allowlist         │
-  │          │                │  • Shell Injection   │
-  │          │                │    Detection         │
-  │          │                │  • find -exec Check  │
-  │          │                │  • Multi-line        │
-  │          │                │    Rejection         │
-  │          │                └──────────┬───────────┘
-  │          │                           │
-  │          │                    ┌──────┴──────┐
-  │          │                    │             │
-  │          │               ✅ Allowed    ❌ Rejected
-  │          │                    │             │
-  │          │                    ▼             ▼
-  │          │             ┌────────────┐ ┌──────────────┐
-  │          │             │  Backend   │ │  Error       │
-  │          │             │  Runtime   │ │  Response    │
-  │          │             └──────┬─────┘ └──────┬───────┘
-  │          │                    │ ⑥ sh -c      │
-  │          │                    ▼               │
-  │          │             ┌────────────┐         │
-  │          │             │  Host      │         │
-  │          │             │  System    │         │
-  │          │             │  (bash/sh) │         │
-  │          │             └────────────┘         │
-  │          │                    │               │
-  │          ◄────────────────────┘◄──────────────┘
-  │      ⑦ Result / Error
-  └──────────┘
-```
+![AI Compliance Fix Flow](images/ai-compliance-fix-flow.png)
 
 ### Fix Generation Flow
 
@@ -104,6 +60,7 @@ To resolve this:
 ### Force SCA Rescan
 
 The **"Trigger SCA Rescan"** action executes a service restart via:
+
 ```
 echo <password> | sudo -S -p '' systemctl restart wazuh-agent
 ```
@@ -154,7 +111,9 @@ Every command received from the frontend is validated on the backend **before** 
 
 To enable AI remediation:
 
-1. Navigate to the **Settings** tab in the Wazuh Agent Status app.
-2. Select your preferred **AI Provider** (e.g. Gemini, OpenAI, Anthropic, DeepSeek, or custom endpoint).
+1. Navigate to the **Settings** tab in the Wazuh Agent Monitor app.
+2. Configure the **AI provider** endpoint URL (e.g. Gemini, OpenAI, Anthropic, DeepSeek, or custom endpoint).
 3. Provide the required **API Key** and **Model Name** (e.g., `deepseek-chat`, `gemini-1.5-flash`).
 4. Click **Test Connection** to verify connectivity. Once saved, the "Fix with AI" buttons will activate on the Compliance tab.
+
+> Note: The “Fix with AI” action is only displayed when at least one **SCA check** has failed.
