@@ -179,14 +179,13 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
             <div className="settings-ai-connected-body">
               <div className="settings-ai-connected-name">
                 {aiStatus.base_url
-                  .replace(/^https?:\/\//, "")
-                  .replace(/\/+$/, "")}
+                  .replace(/^https?:\/\//, "")}
               </div>
               <div className="settings-ai-connected-model">{aiStatus.model}</div>
             </div>
             <div className="settings-ai-connected-badge">
               <span className="settings-ai-dot" />
-              Connected
+              <span>Connected</span>
             </div>
           </div>
           <div className="settings-ai-connected-actions">
@@ -220,8 +219,9 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
             {/* URL + Key side by side */}
             <div className="settings-ai-form-row">
               <div className="settings-ai-field">
-                <label className="settings-ai-label">API Base URL</label>
+                <label className="settings-ai-label" htmlFor="ai-base-url">API Base URL</label>
                 <input
+                  id="ai-base-url"
                   className="settings-ai-input"
                   type="text"
                   placeholder="https://api.ai.camer.digital/v1"
@@ -237,8 +237,9 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
                 />
               </div>
               <div className="settings-ai-field">
-                <label className="settings-ai-label">API Key</label>
+                <label className="settings-ai-label" htmlFor="ai-api-key">API Key</label>
                 <input
+                  id="ai-api-key"
                   className="settings-ai-input"
                   type="password"
                   placeholder="sk-..."
@@ -258,7 +259,7 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
             {/* Model — always editable, with dropdown overlay when models are loaded */}
             <div className="settings-ai-field">
               <div className="settings-ai-label-row">
-                <label className="settings-ai-label">Model</label>
+                <label className="settings-ai-label" htmlFor="ai-model">Model</label>
                 <div className="settings-ai-model-actions">
                   {models.length > 0 && (
                     <span className="settings-ai-skip-hint">{models.length} available</span>
@@ -283,6 +284,7 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
               {models.length > 0 && useModelSelect ? (
                 <>
                   <select
+                    id="ai-model"
                     className="settings-ai-select"
                     value={models.some((m) => m.id === model) ? model : "__custom__"}
                     onChange={(e) => {
@@ -312,6 +314,7 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
               ) : (
                 <>
                   <input
+                    id="ai-model"
                     className="settings-ai-input"
                     type="text"
                     placeholder="reviewer, gpt-4o, deepseek-chat..."

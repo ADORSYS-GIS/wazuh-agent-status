@@ -58,6 +58,8 @@ export interface AiFixResult {
 
 /** A single message in the AI follow-up chat. */
 export interface ChatMessage {
+  /** Unique identifier for list keys */
+  id: number;
   role: "user" | "assistant";
   content: string;
 }
