@@ -13,7 +13,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
     exit 1
 fi
 
-APP_VERSION=${APP_VERSION:-"0.5.0-rc.12"}
+APP_VERSION=${APP_VERSION:-"0.5.1"}
 
 # Common configuration
 WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
@@ -246,7 +246,7 @@ create_desktop_unit_file() {
     mkdir -p "$DESKTOP_APPS_FOLDER"
 
     local desktop_content="[Desktop Entry]
-Name=Wazuh Agent Monitoring Tray Icon App
+Name=Wazuh Agent Monitor
 GenericName=Wazuh Agent Status
 Comment=Monitors the Wazuh agent status and provides a tray icon dashboard
 Exec=$BIN_DIR/$CLIENT_NAME

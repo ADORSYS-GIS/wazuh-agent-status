@@ -1,6 +1,86 @@
-import { useState, useEffect, useCallback, useMemo, type CSSProperties } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { AgentStatus, ComplianceReport, ComplianceCheckResult } from "../types/agent";
+import type { AiFixResult, AiProviderStatus, FailedCheckInput, ChatMessage } from "../types/ai";
+
+// ─── Markdown Parser ──────────────────────────────────────────────────────────
+
+interface MarkdownChunk {
+  type: "text" | "heading2" | "heading3" | "step" | "list_item" | "code_block";
+  content: string;
+  language?: string;
+}
+
+const CODE_FENCE_RE = /```(bash|sh|powershell|cmd|shell|zsh)?\n([\s\S]*?)```/;
+
+function parseCodeBlock(part: string): MarkdownChunk {
+  const match = CODE_FENCE_RE.exec(part);
+  if (match) {
+    return { type: "code_block", content: match[2].trim(), language: match[1] || "bash" };
+  }
+  return { type: "code_block", content: part.replace(/```/g, "").trim(), language: "bash" };
+}
+
+type ParseState = { riskLevel: string | null; impact: string | null; currentSection: "risk" | "impact" | null };
+
+function parseTextLine(trimmed: string, chunks: MarkdownChunk[], state: ParseState): void {
+  if (trimmed.startsWith("## Risk Level")) {
+    state.currentSection = "risk";
+    return;
+  }
+  if (trimmed.startsWith("## Impact")) {
+    state.currentSection = "impact";
+    return;
+  }
+  if (trimmed.startsWith("## ")) {
+    state.currentSection = null;
+    chunks.push({ type: "heading2", content: trimmed.slice(3) });
+    return;
+  }
+  if (trimmed.startsWith("### ")) {
+    state.currentSection = null;
+    chunks.push({ type: "heading3", content: trimmed.slice(4) });
+    return;
+  }
+  if (/^\d+\.\s/.test(trimmed)) {
+    state.currentSection = null;
+    chunks.push({ type: "step", content: trimmed });
+    return;
+  }
+  if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+    state.currentSection = null;
+    chunks.push({ type: "list_item", content: trimmed.replace(/^[-*]\s+/, "") });
+    return;
+  }
+  if (state.currentSection === "risk") {
+    state.riskLevel = trimmed;
+  } else if (state.currentSection === "impact") {
+    state.impact = (state.impact ? state.impact + " " : "") + trimmed;
+  } else {
+    chunks.push({ type: "text", content: trimmed });
+  }
+}
+
+function parseMarkdownIntoChunks(markdown: string) {
+  const chunks: MarkdownChunk[] = [];
+  const state: ParseState = { riskLevel: null, impact: null, currentSection: null };
+
+  if (!markdown) return { chunks, riskLevel: state.riskLevel, impact: state.impact };
+
+  for (const part of markdown.split(/(```[\s\S]*?```)/g)) {
+    if (part.startsWith("```")) {
+      chunks.push(parseCodeBlock(part));
+    } else {
+      for (const line of part.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed) parseTextLine(trimmed, chunks, state);
+      }
+    }
+  }
+
+  return { chunks, riskLevel: state.riskLevel, impact: state.impact };
+}
+
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -14,6 +94,463 @@ function scoreLabel(score: number): string {
   if (score >= 80) return "Good";
   if (score >= 50) return "Fair";
   return "Poor";
+}
+
+const commandNeedsSudo = (cmd: string) => /(?:^|\s)sudo\s/.test(cmd);
+
+const commandIsInteractive = (cmd: string) =>
+  /\b(nano|vim?|emacs|gedit|kate|mousepad|xed|less|more|most|htop|top|man|watch|tail\s+-f)\b/.test(cmd);
+
+const commandIsDestructive = (cmd: string) =>
+  /\brm\s+-[a-zA-Z]*[rf]/.test(cmd) ||
+  /\bdd\s+(if|of)=/.test(cmd) ||
+  /\bmkfs\b/.test(cmd) ||
+  /\bshred\b/.test(cmd) ||
+  cmd.includes(":(){ :|:& };:");
+
+// ─── Sub-Components ──────────────────────────────────────────────────────────
+
+function ComplianceSkeleton() {
+  return (
+    <div className="view-container">
+      <div className="subtitle">Security Configuration Assessment</div>
+      <h2 className="header title">System Compliance</h2>
+      <div className="skeleton" style={{ height: "140px", marginBottom: "16px" }} />
+      <div className="skeleton" style={{ height: "80px", marginBottom: "16px" }} />
+      <div className="skeleton" style={{ height: "60px", marginBottom: "8px" }} />
+      <div className="skeleton" style={{ height: "60px", marginBottom: "8px" }} />
+      <div className="skeleton" style={{ height: "60px", marginBottom: "8px" }} />
+    </div>
+  );
+}
+
+interface ComplianceErrorProps {
+  error: string;
+  onRetry: () => void;
+}
+
+function ComplianceError({ error, onRetry }: Readonly<ComplianceErrorProps>) {
+  return (
+    <div className="view-container">
+      <div className="subtitle">Security Configuration Assessment</div>
+      <h2 className="header title">System Compliance</h2>
+      <div className="compliance-error">
+        <div className="compliance-error-icon">!</div>
+        <div className="compliance-error-title">Failed to load compliance data</div>
+        <div className="compliance-error-text">{error}</div>
+        <button className="update-button" onClick={onRetry}>
+          Retry
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface ComplianceFixModalProps {
+  fixResult: AiFixResult;
+  onClose: () => void;
+  onRefreshResults: () => void;
+}
+
+function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Readonly<ComplianceFixModalProps>) {
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [commandStates, setCommandStates] = useState<Record<number, { status: "idle" | "running" | "success" | "failed"; output: string }>>({});
+  const [sharedPassword, setSharedPassword] = useState("");
+  const [scaRescanState, setScaRescanState] = useState<{ status: "idle" | "running" | "success" | "failed"; output: string }>({ status: "idle", output: "" });
+  const [showRefreshAfterRescan, setShowRefreshAfterRescan] = useState(false);
+  const messageIdRef = useRef(0);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+
+  const parsedData = useMemo(() => {
+    return parseMarkdownIntoChunks(fixResult.markdown || "");
+  }, [fixResult.markdown]);
+
+  const handleRunCommand = useCallback(async (cmd: string, idx: number) => {
+    setCommandStates((prev) => ({
+      ...prev,
+      [idx]: { status: "running", output: "Starting execution...\n" },
+    }));
+
+    try {
+      let output: string;
+      if (commandNeedsSudo(cmd)) {
+        output = await invoke<string>("execute_fix_command_sudo", { command: cmd, sudoPassword: sharedPassword });
+      } else {
+        output = await invoke<string>("execute_fix_command", { command: cmd });
+      }
+      setCommandStates((prev) => ({
+        ...prev,
+        [idx]: { status: "success", output },
+      }));
+    } catch (e) {
+      setCommandStates((prev) => ({
+        ...prev,
+        [idx]: { status: "failed", output: String(e) },
+      }));
+    }
+  }, [sharedPassword]);
+
+  const handleSCARescan = useCallback(async () => {
+    setScaRescanState({ status: "running", output: "Restarting wazuh-agent..." });
+    setShowRefreshAfterRescan(false);
+    try {
+      const output = await invoke<string>("trigger_sca_rescan", { sudoPassword: sharedPassword });
+      setScaRescanState({ status: "success", output });
+      setShowRefreshAfterRescan(true);
+    } catch (e) {
+      setScaRescanState({ status: "failed", output: String(e) });
+    }
+  }, [sharedPassword]);
+
+  const handleChatSend = useCallback(async () => {
+    const msg = chatInput.trim();
+    if (!msg || chatSending) return;
+
+    const msgId = ++messageIdRef.current;
+    setChatInput("");
+    setChatMessages((prev) => [...prev, { id: msgId, role: "user", content: msg }]);
+    setChatSending(true);
+
+    try {
+      const reply = await invoke<string>("ai_chat", {
+        prompt: msg,
+        context: fixResult.markdown || null,
+      });
+      const replyId = ++messageIdRef.current;
+      setChatMessages((prev) => [...prev, { id: replyId, role: "assistant", content: reply }]);
+    } catch (e) {
+      const errId = ++messageIdRef.current;
+      setChatMessages((prev) => [
+        ...prev,
+        { id: errId, role: "assistant", content: `Error: ${e}` },
+      ]);
+    } finally {
+      setChatSending(false);
+    }
+  }, [chatInput, chatSending, fixResult.markdown]);
+
+  return (
+    <div
+      className="update-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      role="presentation"
+    >
+      <div className="ai-fix-modal">
+        <div className="update-modal-header">
+          <div className="update-modal-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--primary)" }}>
+              <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16l-6 4.8L8.4 14l-6-4.8h7.6z" />
+            </svg>
+            {fixResult.success ? "AI Fix Suggestions" : "Fix Generation Failed"}
+          </div>
+          <button onClick={onClose} className="compliance-refresh-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {fixResult.success ? (
+          <div className="ai-fix-modal-panes">
+            {/* Left Pane: Fix steps & Interactive Command Executions */}
+            <div className="ai-fix-modal-left">
+              {/* Risk & Impact Alert Card */}
+              {(parsedData.riskLevel || parsedData.impact) && (
+                <div className={`compliance-fix-impact-card ${parsedData.riskLevel?.toLowerCase() || "low"}`}>
+                  <div className="compliance-fix-impact-header">
+                    <div className="compliance-fix-risk-title">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                      Risk Evaluation
+                    </div>
+                    <span className={`compliance-fix-risk-badge ${parsedData.riskLevel?.toLowerCase() || "low"}`}>
+                      {parsedData.riskLevel || "Low"}
+                    </span>
+                  </div>
+                  {parsedData.impact && (
+                    <div className="compliance-fix-impact-desc">
+                      {parsedData.impact}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="ai-fix-markdown">
+                {parsedData.chunks.map((chunk, i) => {
+                  if (chunk.type === "heading2") {
+                    return <h3 key={i} className="ai-fix-heading">{chunk.content}</h3>;
+                  }
+                  if (chunk.type === "heading3") {
+                    return <h4 key={i} className="ai-fix-subheading">{chunk.content}</h4>;
+                  }
+                  if (chunk.type === "step") {
+                    return <div key={i} className="ai-fix-step">{chunk.content}</div>;
+                  }
+                  if (chunk.type === "list_item") {
+                    return <li key={i} className="ai-fix-list-item">{chunk.content}</li>;
+                  }
+                  if (chunk.type === "text") {
+                    return <p key={i} className="ai-fix-paragraph">{chunk.content}</p>;
+                  }
+                  if (chunk.type === "code_block") {
+                    const execState = commandStates[i] || { status: "idle", output: "" };
+                    return (
+                      <div key={i} className={`compliance-command-card ${execState.status}`}>
+                        <div className="compliance-command-card-header">
+                          <span className="compliance-command-title">
+                            Suggested Shell Command
+                          </span>
+                          <div className="compliance-command-actions">
+                            <button
+                              className={`ai-copy-btn ${copiedIndex === i ? "copied" : ""}`}
+                              onClick={() => {
+                                navigator.clipboard.writeText(chunk.content);
+                                setCopiedIndex(i);
+                                setTimeout(() => setCopiedIndex((prev) => prev === i ? null : prev), 1500);
+                              }}
+                              title="Copy Command"
+                            >
+                              {copiedIndex === i ? (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              ) : (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                </svg>
+                              )}
+                            </button>
+                            <button
+                              className="compliance-command-run-btn"
+                              onClick={() => handleRunCommand(chunk.content, i)}
+                              disabled={execState.status === "running" || commandIsInteractive(chunk.content)}
+                            >
+                              {execState.status === "running" ? (
+                                <span className="settings-ai-spinner" />
+                              ) : (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <polygon points="5 3 19 12 5 21 5 3" />
+                                </svg>
+                              )}
+                              {execState.status === "running" ? "Running..." : "Execute"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Interactive editor warning */}
+                        {commandIsInteractive(chunk.content) && (
+                          <div className="compliance-command-interactive-warn">
+                            ⚠ This command opens an interactive editor and cannot run inside the app. Copy it and run it in a terminal.
+                          </div>
+                        )}
+
+                        {/* Destructive command warning */}
+                        {commandIsDestructive(chunk.content) && !commandIsInteractive(chunk.content) && (
+                          <div className="compliance-command-interactive-warn" style={{ borderColor: "var(--error)", color: "var(--error)" }}>
+                            ⚠ This command may be destructive (e.g. deletes files, writes to a disk, or wipes data). Review carefully before executing.
+                          </div>
+                        )}
+
+                        <pre className="compliance-command-text">
+                          <code>{chunk.content}</code>
+                        </pre>
+
+                        {/* Sudo password row */}
+                        {commandNeedsSudo(chunk.content) && !commandIsInteractive(chunk.content) && (
+                          <div className="compliance-sudo-row">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            <input
+                              type="password"
+                              className="compliance-sudo-input"
+                              placeholder="sudo password"
+                              value={sharedPassword}
+                              onChange={(e) => setSharedPassword(e.target.value)}
+                              spellCheck={false}
+                              autoComplete="current-password"
+                            />
+                          </div>
+                        )}
+
+                        {execState.output && (
+                          <div className={`compliance-command-terminal ${execState.status}`}>
+                            <div className="compliance-command-terminal-header">
+                              <span>Console Output</span>
+                              <span className={`terminal-status-dot ${execState.status}`} />
+                            </div>
+                            <pre className="compliance-command-terminal-log">
+                              {execState.output}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
+              {/* SCA Rescan Card */}
+              <div className="sca-rescan-card">
+                <div className="sca-rescan-card-header">
+                  <div className="sca-rescan-card-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="23 4 23 10 17 10" />
+                      <polyline points="1 20 1 14 7 14" />
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                    Trigger SCA Rescan
+                  </div>
+                  <span className="sca-rescan-card-hint">Restarts wazuh-agent to force a fresh compliance scan</span>
+                </div>
+
+                <div className="sca-rescan-password-row">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <input
+                    type="password"
+                    className="compliance-sudo-input"
+                    placeholder="sudo password"
+                    value={sharedPassword}
+                    onChange={(e) => setSharedPassword(e.target.value)}
+                    spellCheck={false}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    className="compliance-command-run-btn"
+                    onClick={handleSCARescan}
+                    disabled={scaRescanState.status === "running" || !sharedPassword.trim()}
+                  >
+                    {scaRescanState.status === "running" ? (
+                      <><span className="settings-ai-spinner" /> Restarting...</>
+                    ) : (
+                      <>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                        Restart &amp; Rescan
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {scaRescanState.output && (
+                  <div className={`compliance-command-terminal ${scaRescanState.status}`}>
+                    <div className="compliance-command-terminal-header">
+                      <span>Restart Output</span>
+                      <span className={`terminal-status-dot ${scaRescanState.status}`} />
+                    </div>
+                    <pre className="compliance-command-terminal-log">{scaRescanState.output}</pre>
+                  </div>
+                )}
+
+                {showRefreshAfterRescan && (
+                  <div className="sca-rescan-refresh-hint">
+                    <span>SCA scan started. Results typically appear within 3–5 minutes.</span>
+                    <button className="compliance-verify-btn" onClick={onRefreshResults}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M23 4v6h-6" />
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                      </svg>
+                      Refresh Results
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Pane: Follow-up Chat */}
+            <div className="ai-fix-modal-right">
+              <div className="ai-chat-section">
+                <div className="ai-chat-divider">
+                  <span>Ask a follow-up question</span>
+                </div>
+
+                <div className="ai-chat-messages">
+                  {chatMessages.length === 0 && (
+                    <div className="ai-chat-empty-state">
+                      Ask any questions or request clarification about these steps here.
+                    </div>
+                  )}
+                  {chatMessages.map((m) => (
+                    <div key={m.id} className={`ai-chat-msg ${m.role}`}>
+                      <div className="ai-chat-msg-role">
+                        {m.role === "user" ? "You" : "AI"}
+                      </div>
+                      <div className="ai-chat-msg-content">{m.content}</div>
+                    </div>
+                  ))}
+                  {chatSending && (
+                    <div className="ai-chat-typing-indicator">
+                      <div className="ai-chat-typing-dot" />
+                      <div className="ai-chat-typing-dot" />
+                      <div className="ai-chat-typing-dot" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="ai-chat-input-row">
+                  <textarea
+                    className="ai-chat-input"
+                    placeholder="Ask a follow-up question..."
+                    rows={2}
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleChatSend();
+                      }
+                    }}
+                    disabled={chatSending}
+                    spellCheck={false}
+                  />
+                  <button
+                    className="ai-chat-send-btn"
+                    onClick={handleChatSend}
+                    disabled={!chatInput.trim() || chatSending}
+                  >
+                    {chatSending ? (
+                      <span className="settings-ai-spinner" />
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="ai-fix-modal-body">
+            <div className="compliance-error">
+              <div className="compliance-error-icon">!</div>
+              <div className="compliance-error-title">Failed to generate fix</div>
+              <div className="compliance-error-text">{fixResult.error}</div>
+            </div>
+          </div>
+        )}
+
+        <button className="update-modal-dismiss" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -31,6 +568,17 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
 
   // Last-updated timestamp
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  // ── AI Fix State ──────────────────────────────────────────────────────────
+  const [aiStatus, setAiStatus] = useState<AiProviderStatus | null>(null);
+  const [fixingCheck, setFixingCheck] = useState<string | null>(null); // check title being fixed
+  const [fixResult, setFixResult] = useState<AiFixResult | null>(null);
+  const [fixingAll, setFixingAll] = useState(false);
+
+  // Load AI provider status (never fails — returns { configured: false } if unset)
+  useEffect(() => {
+    invoke<AiProviderStatus>("get_ai_status").then(setAiStatus);
+  }, []);
 
   // ── Fetch data ──────────────────────────────────────────────────────────
 
@@ -103,39 +651,91 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
     ? report.total_passed_count + report.total_failed_count + report.total_untested_count
     : 0;
 
+  // ── AI Fix Handlers ─────────────────────────────────────────────────────
+
+  const handleAIFix = useCallback(async (check: ComplianceCheckResult, category: string) => {
+    if (!report || !agentInfo) return;
+
+    setFixingCheck(check.title);
+    setFixResult(null);
+
+    try {
+      const input: FailedCheckInput = {
+        title: check.title,
+        remediation: check.remediation,
+        os: report.os,
+        mandatory: check.mandatory,
+        category,
+      };
+      const result = await invoke<AiFixResult>("ai_fix_check", { input });
+      setFixResult(result);
+    } catch (e) {
+      setFixResult({ markdown: "", success: false, error: String(e) });
+    } finally {
+      setFixingCheck(null);
+    }
+  }, [report, agentInfo]);
+
+  const handleAIFixAll = useCallback(async () => {
+    if (!report || !agentInfo) return;
+
+    setFixingAll(true);
+    setFixResult(null);
+
+    const failedChecks: FailedCheckInput[] = [];
+    for (const cat of report.categories) {
+      for (const check of cat.checks) {
+        if (check.status === "Failed") {
+          failedChecks.push({
+            title: check.title,
+            remediation: check.remediation,
+            os: report.os,
+            mandatory: check.mandatory,
+            category: cat.name,
+          });
+        }
+      }
+    }
+
+    try {
+      const results = await invoke<AiFixResult[]>("ai_fix_batch", { inputs: failedChecks });
+      const allMarkdown = results
+        .filter((r) => r.success)
+        .map((r, i) => `## ${i + 1}. ${failedChecks[i].title}\n\n${r.markdown}`)
+        .join("\n\n---\n\n");
+
+      const errors = results.filter((r) => !r.success);
+      setFixResult({
+        markdown: allMarkdown,
+        success: errors.length === 0,
+        error: errors.length > 0 ? `${errors.length} fix(es) failed` : null,
+      });
+    } catch (e) {
+      setFixResult({ markdown: "", success: false, error: String(e) });
+    } finally {
+      setFixingAll(false);
+    }
+  }, [report, agentInfo]);
+
+  const closeFixResult = useCallback(() => {
+    setFixResult(null);
+    setFixingCheck(null);
+  }, []);
+
+  const handleRefreshResults = useCallback(async () => {
+    await fetchReport();
+  }, [fetchReport]);
+
   // ── Loading ─────────────────────────────────────────────────────────────
 
   if (loading) {
-    return (
-      <div className="view-container">
-        <div className="subtitle">Security Configuration Assessment</div>
-        <h2 className="header title">System Compliance</h2>
-        <div className="skeleton" style={{ height: "140px", marginBottom: "16px" }} />
-        <div className="skeleton" style={{ height: "80px", marginBottom: "16px" }} />
-        <div className="skeleton" style={{ height: "60px", marginBottom: "8px" }} />
-        <div className="skeleton" style={{ height: "60px", marginBottom: "8px" }} />
-        <div className="skeleton" style={{ height: "60px", marginBottom: "8px" }} />
-      </div>
-    );
+    return <ComplianceSkeleton />;
   }
 
   // ── Error ───────────────────────────────────────────────────────────────
 
   if (error) {
-    return (
-      <div className="view-container">
-        <div className="subtitle">Security Configuration Assessment</div>
-        <h2 className="header title">System Compliance</h2>
-        <div className="compliance-error">
-          <div className="compliance-error-icon">!</div>
-          <div className="compliance-error-title">Failed to load compliance data</div>
-          <div className="compliance-error-text">{error}</div>
-          <button className="update-button" onClick={fetchReport}>
-            Retry
-          </button>
-        </div>
-      </div>
-    );
+    return <ComplianceError error={error} onRetry={fetchReport} />;
   }
 
   if (!report || !agentInfo) return null;
@@ -147,6 +747,8 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
   // Start at empty (offset = circ), animate to target
   const targetOffset = circ - (report.score / 100) * circ;
   const offset = animateScore ? targetOffset : circ;
+
+  const failedCount = report.total_failed_count;
 
   return (
     <div className="view-container">
@@ -173,7 +775,7 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
       <div className="compliance-hero">
         <div className="compliance-score-block">
           <div className="compliance-score-ring" style={{ "--bubble-color": scoreColorVal } as CSSProperties}>
-            <svg width="80" height="80" viewBox="0 0 128 128">
+            <svg width="96" height="96" viewBox="0 0 128 128">
               <circle cx="64" cy="64" r="52" fill="none" stroke="var(--border)" strokeWidth="8" />
               <circle
                 cx="64" cy="64" r="52"
@@ -279,6 +881,34 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
         </div>
       </div>
 
+      {/* ── AI Fix All Button ──────────────────────────────────────────── */}
+      {aiStatus?.configured && failedCount > 0 && (
+        <div style={{ marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <button
+            className="update-button"
+            style={{ fontSize: "0.75rem", padding: "6px 14px", display: "flex", alignItems: "center", gap: "6px" }}
+            onClick={handleAIFixAll}
+            disabled={fixingAll}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16l-6 4.8L8.4 14l-6-4.8h7.6z" />
+            </svg>
+            {fixingAll ? "Fixing all..." : `Fix All ${failedCount} Failed`}
+          </button>
+          {fixingAll && (
+            <span className="compliance-last-updated" style={{ fontSize: "0.75rem" }}>Processing, please wait...</span>
+          )}
+        </div>
+      )}
+
+      {/* ── AI Not Configured Banner ───────────────────────────────────── */}
+      {!aiStatus?.configured && failedCount > 0 && (
+        <div style={{ marginBottom: "10px", padding: "8px 12px", fontSize: "0.75rem", color: "var(--text-dim)", background: "var(--card-bg)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+          <span style={{ marginRight: "6px" }}>💡</span>
+          <span>Configure an AI provider in Settings to get AI-powered fix suggestions for failed checks.</span>
+        </div>
+      )}
+
       <div className="compliance-categories">
         {filteredReport && filteredReport.categories.length === 0 ? (
           <div className="compliance-empty-state">
@@ -331,7 +961,13 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
                 {isExpanded && (
                   <div className="compliance-category-body">
                     {cat.checks.map((check) => (
-                      <ComplianceCheckRow key={check.check_id} check={check} />
+                      <ComplianceCheckRow
+                        key={check.check_id}
+                        check={check}
+                        aiConfigured={aiStatus?.configured ?? false}
+                        onFix={() => handleAIFix(check, cat.name)}
+                        fixing={fixingCheck === check.title}
+                      />
                     ))}
                   </div>
                 )}
@@ -341,6 +977,14 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
         )}
       </div>
 
+      {/* ── AI Fix Result Modal + Follow-up Chat ───────────────────────── */}
+      {fixResult && (
+        <ComplianceFixModal
+          fixResult={fixResult}
+          onClose={closeFixResult}
+          onRefreshResults={handleRefreshResults}
+        />
+      )}
 
     </div>
   );
@@ -348,7 +992,17 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
 
 // ─── Check Row ────────────────────────────────────────────────────────────────
 
-function ComplianceCheckRow({ check }: { check: ComplianceCheckResult }) {
+function ComplianceCheckRow({
+  check,
+  aiConfigured,
+  onFix,
+  fixing,
+}: Readonly<{
+  check: ComplianceCheckResult;
+  aiConfigured: boolean;
+  onFix: () => void;
+  fixing: boolean;
+}>) {
   const isPassed = check.status === "Passed";
   const isFailed = check.status === "Failed";
 
@@ -385,6 +1039,20 @@ function ComplianceCheckRow({ check }: { check: ComplianceCheckResult }) {
             </svg>
             <span>{check.remediation}</span>
           </div>
+        )}
+
+        {/* AI Fix button for failed checks */}
+        {isFailed && aiConfigured && (
+          <button
+            className="ai-fix-btn"
+            onClick={onFix}
+            disabled={fixing}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16l-6 4.8L8.4 14l-6-4.8h7.6z" />
+            </svg>
+            {fixing ? "Generating fix..." : "Fix with AI"}
+          </button>
         )}
       </div>
     </div>
