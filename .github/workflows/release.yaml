@@ -264,6 +264,7 @@ jobs:
           copy target\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
       - name: Configure Gateway URL from Secrets
+        shell: bash
         env:
           GATEWAY_URL_DEV: ${{ secrets.WAZUH_GATEWAY_URL_DEV }}
           GATEWAY_URL_PROD: ${{ secrets.WAZUH_GATEWAY_URL_PROD }}
