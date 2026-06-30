@@ -12,7 +12,7 @@ This roadmap details the transformation of **Wazuh Agent Status** into a premium
 - **Technical Logic**: We will implement **TLS Encryption** for transport and **JWT/Token-based Authentication** for commands.
 - **Why We Need It**: In an enterprise, security tools are prime targets. Without these, a malicious script could easily "pause" your security monitoring without you knowing.
 - **Market Value**: This allows you to sell the tool as **"Zero-Trust Compliant."**
-- **⚡ Rust Edge**: Rust's `rustls` and `jsonwebtoken` crates provide industry-leading performance and safety for encrypted handshakes, ensuring zero-trust enforcement without slowing down the workstation.
+- **Rust Foundation**: The entire application is now built in Rust, providing memory safety, performance, and cross-platform consistency.
 
 ### 🔏 Code Signing (The Seal of Quality)
 

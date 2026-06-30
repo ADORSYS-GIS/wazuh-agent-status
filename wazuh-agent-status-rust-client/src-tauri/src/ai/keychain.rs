@@ -79,11 +79,25 @@ fn remove_config_file() {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /// Store a full [`AiProviderConfig`] to the config file.
+///
+/// If `api_key` is empty, the existing API key from the config file is
+/// preserved — this allows the frontend to update base URL / model
+/// without requiring the user to re-enter the key every time.
 pub fn store_config(config: &AiProviderConfig) -> Result<(), String> {
+    let api_key = if config.api_key.is_empty() {
+        // Preserve existing API key when not explicitly provided
+        match read_config_raw() {
+            Ok(existing) => existing.api_key,
+            Err(_) => config.api_key.clone(),
+        }
+    } else {
+        config.api_key.clone()
+    };
+
     let fc = FileConfig {
         base_url: config.base_url.clone(),
         model: config.model.clone(),
-        api_key: config.api_key.clone(),
+        api_key,
     };
     write_config(&fc)?;
     if let Ok(path) = config_file() {
