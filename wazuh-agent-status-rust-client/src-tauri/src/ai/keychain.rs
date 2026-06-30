@@ -142,3 +142,180 @@ pub fn clear_config() -> Result<(), String> {
     log::info!("AI config cleared");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::Path;
+    use std::sync::Mutex;
+
+    /// Serialize filesystem-based tests to avoid `HOME` / temp-dir collisions.
+    static FS_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Create a temporary `$HOME`, run `f`, then restore the original.
+    fn with_temp_home<F>(f: F)
+    where
+        F: FnOnce(&Path),
+    {
+        let _lock = FS_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+        let tmp = std::env::temp_dir().join(format!("ai_keychain_test_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("failed to create temp dir");
+
+        let prev = std::env::var("HOME").ok();
+        // SAFETY: tests are serialized via FS_LOCK, so concurrent env var
+        // modification cannot happen. HOME is restored before the lock is
+        // released.
+        unsafe { std::env::set_var("HOME", &tmp) };
+
+        f(&tmp);
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("HOME", v) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    // ── store_config persistence tests ────────────────────────────────────
+
+    #[test]
+    fn test_store_config_preserves_api_key_when_empty() {
+        with_temp_home(|_home| {
+            // 1. Save a config WITH an API key.
+            store_config(&AiProviderConfig {
+                base_url: "https://api.openai.com/v1".into(),
+                model: "gpt-4o".into(),
+                api_key: "sk-test-123".into(),
+                ..Default::default()
+            })
+            .expect("first store should succeed");
+
+            // 2. Save a config with EMPTY api_key (e.g. user only changed URL/model).
+            store_config(&AiProviderConfig {
+                base_url: "https://custom-proxy.example.com/v1".into(),
+                model: "gpt-4o-mini".into(),
+                api_key: String::new(),
+                ..Default::default()
+            })
+            .expect("second store should succeed");
+
+            // 3. Read back — api_key should be PRESERVED from step 1.
+            let result = get_config().expect("get_config should succeed");
+            assert_eq!(result.base_url, "https://custom-proxy.example.com/v1");
+            assert_eq!(result.model, "gpt-4o-mini");
+            assert_eq!(
+                result.api_key, "sk-test-123",
+                "API key should be preserved when not explicitly provided"
+            );
+        });
+    }
+
+    #[test]
+    fn test_store_config_overwrites_api_key_when_provided() {
+        with_temp_home(|_home| {
+            // 1. Save with one API key.
+            store_config(&AiProviderConfig {
+                api_key: "sk-old-key".into(),
+                ..Default::default()
+            })
+            .expect("first store should succeed");
+
+            // 2. Save with a DIFFERENT (non-empty) api_key.
+            store_config(&AiProviderConfig {
+                api_key: "sk-new-key".into(),
+                ..Default::default()
+            })
+            .expect("second store should succeed");
+
+            // 3. Read back — api_key should be the NEW value.
+            let result = get_config().expect("get_config should succeed");
+            assert_eq!(
+                result.api_key, "sk-new-key",
+                "API key should be overwritten when a new key is provided"
+            );
+        });
+    }
+
+    #[test]
+    fn test_store_config_empty_key_no_existing_file() {
+        with_temp_home(|_home| {
+            // No config file exists yet → save with empty api_key.
+            store_config(&AiProviderConfig {
+                base_url: "https://ollama.local/v1".into(),
+                model: "llama3".into(),
+                api_key: String::new(),
+                ..Default::default()
+            })
+            .expect("store with empty key on fresh state should succeed");
+
+            let result = get_config().expect("get_config should succeed");
+            assert!(
+                result.api_key.is_empty(),
+                "API key should be empty when no existing file had a key"
+            );
+            assert_eq!(result.base_url, "https://ollama.local/v1");
+            assert_eq!(result.model, "llama3");
+        });
+    }
+
+    // ── clear_config ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_clear_config_removes_file() {
+        with_temp_home(|_home| {
+            store_config(&AiProviderConfig {
+                api_key: "sk-keep".into(),
+                ..Default::default()
+            })
+            .expect("store should succeed");
+
+            assert!(get_config().is_ok(), "config should exist before clear");
+
+            clear_config().expect("clear should succeed");
+            assert!(get_config().is_err(), "config should not exist after clear");
+        });
+    }
+
+    #[test]
+    fn test_clear_config_when_no_file_exists() {
+        with_temp_home(|_home| {
+            // Should not panic or error when there's nothing to clear.
+            clear_config().expect("clearing non-existent config should succeed");
+        });
+    }
+
+    // ── get_provider_status ───────────────────────────────────────────────
+
+    #[test]
+    fn test_provider_status_configured() {
+        with_temp_home(|_home| {
+            store_config(&AiProviderConfig {
+                base_url: "https://example.com/v1".into(),
+                model: "test-model".into(),
+                api_key: "sk-present".into(),
+                ..Default::default()
+            })
+            .expect("store should succeed");
+
+            let status = get_provider_status();
+            assert!(status.configured);
+            assert_eq!(status.base_url, "https://example.com/v1");
+            assert_eq!(status.model, "test-model");
+        });
+    }
+
+    #[test]
+    fn test_provider_status_not_configured() {
+        with_temp_home(|_home| {
+            // No config file written → status should show not configured.
+            let status = get_provider_status();
+            assert!(!status.configured);
+            assert!(status.base_url.is_empty());
+            assert!(status.model.is_empty());
+        });
+    }
+}
