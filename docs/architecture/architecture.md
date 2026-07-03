@@ -60,29 +60,26 @@ The system follows a **Client-Server (Split-Agent)** architecture:
 
 ## 6. Current Architecture
 
-The current Go implementation uses a **Push/Subscribe** model over TCP (port 50505). While the server polls the OS every 5 seconds to detect changes, it pushes those changes instantly to all connected clients, ensuring the UI is reactive.
-
-For a detailed technical breakdown of the performance and security limitations of the current system, see:
-👉 **[Current System Analysis](current-system-analysis.md)**
+The current Rust implementation uses a **Push/Subscribe** model over TCP (port 50505). The server polls the OS every 5 seconds to detect changes and pushes those changes instantly to all connected clients, ensuring the UI is reactive.
 
 ---
 
 ## 7. Target Architecture (Hardened)
 
-Our long-term goal is a Zero-Trust, event-driven architecture based on Rust and gRPC. For a complete technical breakdown of this transition, see:
+Our long-term goal is a Zero-Trust, event-driven architecture with gRPC and mTLS. For a complete technical breakdown of this vision, see:
 👉 **[Rust Migration Proposal](../rust-migration-technical-proposal.md)**
 
 ---
 
 ## 8. Technology Stack
 
-| Layer         | Technology                   |
-| ------------- | ---------------------------- |
-| Client        | Rust (tray-icon, tokio)      |
-| Server        | Go (current) → Rust (target) |
-| Communication | TCP → gRPC                   |
-| Security      | TLS / mTLS                   |
-| Serialization | Plaintext → Protobuf         |
+| Layer         | Technology                           |
+| ------------- | ------------------------------------ |
+| Client        | Rust / Tauri (WebView frontend)      |
+| Server        | Rust (Tokio TCP server)              |
+| Communication | TCP (JSON payloads) → gRPC (planned) |
+| Security      | Localhost binding → mTLS (planned)   |
+| Serialization | JSON (serde) → Protobuf (planned)    |
 
 ---
 

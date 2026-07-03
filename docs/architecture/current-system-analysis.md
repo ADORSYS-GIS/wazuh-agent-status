@@ -1,12 +1,16 @@
-# 🔍 Current System Analysis — Go Implementation
+# 🔍 Historical System Analysis — Go Implementation (Archived)
+
+> **⚠️ This document is for historical reference only.**
+> The Go implementation has been fully removed from the repository as of v0.5.x.
+> The system now uses Rust for both the server and client components.
 
 ## 1. Purpose
 
-This document analyzes the current Go-based implementation to identify architectural limitations and technical debt.
+This document analyzes the previous Go-based implementation to identify architectural limitations and technical debt that motivated the Rust migration.
 
 ---
 
-## 2. Communication Model
+## 2. Communication Model (Historical)
 
 - Protocol: TCP (localhost:50505)
 - Format: Plaintext
@@ -14,7 +18,7 @@ This document analyzes the current Go-based implementation to identify architect
 
 ---
 
-## 3. Sequence Flow
+## 3. Sequence Flow (Historical)
 
 ```mermaid
 sequenceDiagram
@@ -32,7 +36,7 @@ sequenceDiagram
 
 ---
 
-## 4. Server Design
+## 4. Server Design (Historical)
 
 - Uses blocking TCP connections (Go `net` package)
 - Command-based dispatch (switch-case)
@@ -40,7 +44,7 @@ sequenceDiagram
   - **Windows**: Checks state via Service Manager (Scm).
   - **Linux / macOS**: Executes OS commands via `wazuh-control` binary.
 
-### Issues:
+### Issues (Resolved by Rust migration):
 
 - Inefficient process spawning
 - No connection lifecycle control
@@ -48,21 +52,21 @@ sequenceDiagram
 
 ---
 
-## 5. Client Design
+## 5. Client Design (Historical)
 
 - Subscribes to backend via `subscribe-status`
 - Uses a blocking read loop for real-time pushed updates
 - Uses goroutines for concurrency
 - Minimal local state
 
-### Issues:
+### Issues (Resolved by Rust migration):
 
 - Maintaining long-lived TCP connections without heartbeat (potential silent drops)
 - Plaintext communication
 
 ---
 
-## 6. Technical Debt
+## 6. Technical Debt (Resolved)
 
 | Area            | Issue                           |
 | --------------- | ------------------------------- |
@@ -91,22 +95,22 @@ The following metrics were recorded on a standard Linux workstation:
 
 ---
 
-## 8. Logging Infrastructure
+## 7. Logging Infrastructure (Historical)
 
-Both components maintain their own logs using the `lumberjack` rotation library.
+Both components maintained their own logs using the `lumberjack` rotation library.
 
-| Platform    | Server Log Path                                    | Client Log Path                                      |
-| ----------- | -------------------------------------------------- | ---------------------------------------------------- |
-| **Linux**   | `/var/log/wazuh-agent-status.log`                  | `~/.wazuh/wazuh-agent-status-client.log`             |
-| **macOS**   | `/var/log/wazuh-agent-status.log`                  | `~/.wazuh/wazuh-agent-status-client.log`             |
-| **Windows** | `C:\ProgramData\wazuh\logs\wazuh-agent-status.log` | `%APPDATA%\wazuh\logs\wazuh-agent-status-client.log` |
+| Platform    | Server Log Path                                        | Client Log Path                                         |
+| ----------- | ------------------------------------------------------ | ------------------------------------------------------- |
+| **Linux**   | `/var/log/wazuh-agent-status.log`                      | `~/.wazuh/wazuh-agent-status-client.log`                |
+| **macOS**   | `/var/log/wazuh-agent-status.log`                      | `~/.wazuh/wazuh-agent-status-client.log`                |
+| **Windows** | `C:\\ProgramData\\wazuh\\logs\\wazuh-agent-status.log` | `%APPDATA%\\wazuh\\logs\\wazuh-agent-status-client.log` |
 
 ---
 
-## 9. Key Limitations
+## 8. Key Limitations (Now Resolved)
 
 - No secure communication
 - Inefficient resource usage
 - Not enterprise-ready
 
----
+The Rust implementation addresses all of these limitations with improved performance, security, and maintainability.
