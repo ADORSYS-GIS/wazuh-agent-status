@@ -4,7 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[1c3ae93](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1c3ae93e0d396f8ccc090d371606219e1dac4e33)...[457a162](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/457a1620467903f8b4c5459af867039988765bba)
+[1c3ae93](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1c3ae93e0d396f8ccc090d371606219e1dac4e33)...[993d41e](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/993d41ef68ee365624d60e642faf21dc68f94ebe)
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`c9a978e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9a978e8f148e97979274fc76cfc58e55d1a02da))
+
+### Refactor
+
+- Remove unused files and consolidate code for Wazuh agent status ([`8ccd604`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8ccd604f19336ec584db79d550bdcda48b73e8a0)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+
+### Testing
+
+- Add comprehensive unit tests for AI keychain configuration persistence and status tracking ([`79ac802`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/79ac802f86dc6933037fca24e11ff4782a0742b1)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ## 0.5.1 - 2026-06-25
 
