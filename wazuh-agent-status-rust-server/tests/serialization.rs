@@ -14,6 +14,7 @@ fn test_agent_state_serialization() {
         self_healing_enabled: true,
         agent_id: "020".to_string(),
         agent_name: "test-agent".to_string(),
+        agent_key: "ABC123KEY".to_string(),
     };
 
     let json = serde_json::to_string(&state).expect("Failed to serialize");
@@ -24,6 +25,7 @@ fn test_agent_state_serialization() {
     assert!(json.contains("\"metrics\""));
     assert!(json.contains("\"agent_id\":\"020\""));
     assert!(json.contains("\"agent_name\":\"test-agent\""));
+    assert!(json.contains("\"agent_key\":\"ABC123KEY\""));
 }
 
 #[test]
@@ -42,7 +44,8 @@ fn test_agent_state_deserialization() {
         },
         "self_healing_enabled": true,
         "agent_id": "020",
-        "agent_name": "test-agent"
+        "agent_name": "test-agent",
+        "agent_key": "ABC123KEY"
     }"#;
 
     let state: AgentState = serde_json::from_str(json).expect("Failed to deserialize");
@@ -52,4 +55,5 @@ fn test_agent_state_deserialization() {
     assert_eq!(state.tray_version, "1.7.0");
     assert_eq!(state.agent_id, "020");
     assert_eq!(state.agent_name, "test-agent");
+    assert_eq!(state.agent_key, "ABC123KEY");
 }

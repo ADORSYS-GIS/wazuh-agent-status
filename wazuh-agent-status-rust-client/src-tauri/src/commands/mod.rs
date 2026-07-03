@@ -2,8 +2,12 @@ pub mod ai_commands;
 
 use crate::agent::{AgentManager, AgentState, AgentStatus};
 use crate::config::AppConfig;
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, State};
 
 #[tauri::command]
@@ -105,24 +109,56 @@ pub struct ComplianceReport {
     pub categories: Vec<ComplianceCategory>,
 }
 
-/// Create a shared reqwest HTTP client with safe defaults for gateway calls.
 fn gateway_http_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
-        .danger_accept_invalid_certs(true) // Wazuh self-signed certs
+        .danger_accept_invalid_certs(true)
         .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))
 }
 
-/// Fetch compliance report for an agent from the Wazuh Gateway.
+fn generate_nonce() -> String {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let pid = std::process::id();
+    let count = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    format!("{:x}-{:x}-{:x}", pid, nanos, count)
+}
+
+fn compute_hmac_proof(agent_key: &str, agent_id: &str, timestamp: u64, nonce: &str) -> String {
+    let message = format!("{}:{}:{}", agent_id, timestamp, nonce);
+    let mut mac =
+        Hmac::<Sha256>::new_from_slice(agent_key.as_bytes()).expect("HMAC key length is valid");
+    mac.update(message.as_bytes());
+    hex::encode(mac.finalize().into_bytes())
+}
+
 #[tauri::command]
 pub async fn fetch_compliance(
     config: State<'_, AppConfig>,
+    manager: State<'_, Arc<AgentManager>>,
     agent_id: String,
     status_filter: Option<String>,
     mandatory: Option<bool>,
     category: Option<String>,
 ) -> Result<ComplianceReport, String> {
+    let state = manager.get_state();
+    if state.agent_key.is_empty() {
+        return Err(
+            "No agent authentication key available. The agent may not be enrolled.".to_string(),
+        );
+    }
+
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let nonce = generate_nonce();
+    let proof = compute_hmac_proof(&state.agent_key, &agent_id, timestamp, &nonce);
+
     let base = config.gateway_url.trim_end_matches('/');
     let url = format!("{}/agents/{}/compliance", base, agent_id);
 
@@ -130,30 +166,20 @@ pub async fn fetch_compliance(
 
     let client = gateway_http_client()?;
 
-    // Build query params using reqwest's built-in API (handles encoding)
-    let mut req = client.get(&url);
-    let mut has_params = false;
+    let mut req = client
+        .get(&url)
+        .header("x-agent-proof", &proof)
+        .header("x-agent-timestamp", timestamp.to_string())
+        .header("x-agent-nonce", &nonce);
 
     if let Some(ref s) = status_filter {
         req = req.query(&[("status", s.as_str())]);
-        has_params = true;
     }
     if let Some(m) = mandatory {
         req = req.query(&[("mandatory", m)]);
-        has_params = true;
     }
     if let Some(ref c) = category {
         req = req.query(&[("category", c.as_str())]);
-        has_params = true;
-    }
-
-    if has_params {
-        log::info!(
-            "With query parameters: status={:?}, mandatory={:?}, category={:?}",
-            status_filter,
-            mandatory,
-            category
-        );
     }
 
     let resp = req
@@ -162,9 +188,22 @@ pub async fn fetch_compliance(
         .map_err(|e| format!("Failed to fetch compliance: {}", e))?;
 
     if !resp.status().is_success() {
-        let status = resp.status();
+        let status_code = resp.status();
         let body = resp.text().await.unwrap_or_default();
-        return Err(format!("Gateway returned {}: {}", status, body));
+        let error_message = if body.is_empty() {
+            format!("Gateway returned HTTP {}", status_code)
+        } else {
+            // Try to extract error field from JSON response
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&body) {
+                val.get("error")
+                    .and_then(|e| e.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or(body)
+            } else {
+                body
+            }
+        };
+        return Err(error_message);
     }
 
     let report: ComplianceReport = resp

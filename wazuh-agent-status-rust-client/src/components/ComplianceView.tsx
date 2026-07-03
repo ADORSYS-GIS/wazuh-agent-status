@@ -580,9 +580,26 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
     invoke<AiProviderStatus>("get_ai_status").then(setAiStatus);
   }, []);
 
-  // ── Fetch data ──────────────────────────────────────────────────────────
+  const precheckError = useMemo<string | null>(() => {
+    if (!agentStatus.agent_id) {
+      return "No agent enrollment found. This machine does not appear to be registered with any Wazuh Manager. Please enroll the agent first.";
+    }
+    if (agentStatus.status !== "Active") {
+      return "Wazuh agent is not running on this machine. Please start the agent service and try again.";
+    }
+    if (agentStatus.connection !== "Connected") {
+      return "Agent is not connected to the Wazuh Manager. The agent was found but has no active connection \u2014 SCA results are unavailable.";
+    }
+    return null;
+  }, [agentStatus.agent_id, agentStatus.status, agentStatus.connection]);
 
   const fetchReport = useCallback(async () => {
+    if (precheckError) {
+      setError(precheckError);
+      setLoading(false);
+      return;
+    }
+
     try {
       setError(null);
 
@@ -605,12 +622,13 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
     } finally {
       setLoading(false);
     }
-  }, [agentStatus.agent_id, agentStatus.agent_name]);
+  }, [agentStatus.agent_id, agentStatus.agent_name, precheckError]);
 
-  // Fetch only after the server has provided a valid agent ID (avoids fallback flash)
   useEffect(() => {
     if (agentStatus.agent_id) {
       fetchReport();
+    } else {
+      setLoading(false);
     }
   }, [fetchReport, agentStatus.agent_id]);
 

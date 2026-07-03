@@ -35,6 +35,8 @@ pub struct AgentState {
     pub self_healing_enabled: bool,
     pub agent_id: String,
     pub agent_name: String,
+    #[serde(skip_serializing)]
+    pub agent_key: String,
 }
 
 impl Default for AgentState {
@@ -54,6 +56,7 @@ impl Default for AgentState {
             self_healing_enabled: true,
             agent_id: String::new(),
             agent_name: String::new(),
+            agent_key: String::new(),
         }
     }
 }
