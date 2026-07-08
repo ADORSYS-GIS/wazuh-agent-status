@@ -65,7 +65,6 @@ impl StatusProvider for WindowsStatusProvider {
             return Ok(ConnectionStatus::Disconnected);
         }
 
-        // Direct file read — no PowerShell needed.
         let content = match fs::read_to_string(&self.paths.state_file) {
             Ok(c) => c,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -87,7 +86,6 @@ impl StatusProvider for WindowsStatusProvider {
     }
 
     fn get_agent_version(&self) -> Result<String> {
-        // Try VERSION.json first
         if let Ok(content) = fs::read_to_string(&self.paths.version_json) {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
                 if let Some(v) = json.get("version").and_then(|v| v.as_str()) {
@@ -129,13 +127,31 @@ impl StatusProvider for WindowsStatusProvider {
 
         for process in sys.processes().values() {
             let name = process.name().to_string_lossy();
-            trace!(process = %name, cpu = %process.cpu_usage(), mem = process.memory(), "Scanning process");
-            if crate::status_provider::WINDOWS_AGENT_PROCESSES.contains(&name.as_ref()) {
-                debug!(process = %name, cpu = %process.cpu_usage(), mem = process.memory(), "Matched Wazuh process");
-                total_cpu += process.cpu_usage();
-                total_rss += process.memory();
-                found = true;
+            if !crate::status_provider::WINDOWS_AGENT_PROCESSES.contains(&name.as_ref()) {
+                continue;
             }
+
+            let cmd_path = process
+                .cmd()
+                .first()
+                .and_then(|c| c.to_str().map(|s| s.to_lowercase()));
+            let matches_path = cmd_path
+                .as_ref()
+                .map(|p| {
+                    crate::status_provider::WINDOWS_EXE_PREFIXES
+                        .iter()
+                        .any(|prefix| p.starts_with(prefix))
+                })
+                .unwrap_or(true);
+
+            if !matches_path {
+                continue;
+            }
+
+            debug!(process = %name, cpu = %process.cpu_usage(), mem = process.memory(), "Matched Wazuh process");
+            total_cpu += process.cpu_usage();
+            total_rss += process.memory();
+            found = true;
         }
 
         if !found {
@@ -166,6 +182,7 @@ impl StatusProvider for WindowsStatusProvider {
             memory_usage,
             total_memory,
             used_memory: total_rss,
+            agent_found: found,
         })
     }
 }

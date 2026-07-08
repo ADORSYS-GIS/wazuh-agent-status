@@ -4,10 +4,16 @@ use crate::config::AgentPaths;
 use crate::errors::Result;
 use crate::models::{AgentState, AgentStatus, ConnectionStatus, SystemMetrics};
 
+// Linux /proc/[pid]/comm truncates names to 15 characters
+#[cfg(target_os = "linux")]
+const LOGCOLLECTOR_NAME: &str = "wazuh-logcollec";
+#[cfg(not(target_os = "linux"))]
+const LOGCOLLECTOR_NAME: &str = "wazuh-logcollector";
+
 pub const UNIX_AGENT_PROCESSES: &[&str] = &[
     "wazuh-agentd",
     "wazuh-modulesd",
-    "wazuh-logcollector",
+    LOGCOLLECTOR_NAME,
     "wazuh-syscheckd",
     "wazuh-execd",
 ];
@@ -48,13 +54,24 @@ pub trait StatusProvider: Send + Sync {
     /// Note: `online_version_status` is intentionally excluded — it is an
     /// on-demand operation handled by [`crate::manager::AgentManager`].
     fn get_partial_state(&self) -> Result<AgentState> {
+        // Call get_system_metrics first — it does a full process scan and sets
+        // agent_found. We derive agent status from that instead of calling
+        // get_agent_status() separately, which would re-scan the process list.
+        let metrics = self.get_system_metrics()?;
+
+        let status = if metrics.agent_found {
+            AgentStatus::Active
+        } else {
+            AgentStatus::Inactive
+        };
+
         Ok(AgentState {
-            status: self.get_agent_status()?,
+            status,
             connection: self.get_connection_status()?,
             version: self.get_agent_version()?,
             tray_version: self.get_tray_version()?,
             groups: self.get_agent_groups()?,
-            metrics: self.get_system_metrics()?,
+            metrics,
             self_healing_enabled: true, // Initial placeholder; overridden by Manager config
             agent_id: String::new(),
             agent_name: String::new(),
@@ -63,7 +80,14 @@ pub trait StatusProvider: Send + Sync {
     }
 }
 
-// ── Platform module declarations ──────────────────────────────────────────────
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+pub mod unix;
+
+#[cfg(target_os = "windows")]
+pub(crate) const WINDOWS_EXE_PREFIXES: &[&str] = &[
+    "c:\\program files\\wazuh agent\\",
+    "c:\\program files (x86)\\wazuh agent\\",
+];
 
 #[cfg(target_os = "linux")]
 pub mod linux;
@@ -74,8 +98,6 @@ pub mod macos;
 #[cfg(target_os = "windows")]
 pub mod windows;
 
-// ── NativeStatusProvider alias ────────────────────────────────────────────────
-
 #[cfg(target_os = "linux")]
 pub use linux::LinuxStatusProvider as NativeStatusProvider;
 
@@ -85,7 +107,6 @@ pub use macos::MacosStatusProvider as NativeStatusProvider;
 #[cfg(target_os = "windows")]
 pub use windows::WindowsStatusProvider as NativeStatusProvider;
 
-/// Convenience constructor that wires the native provider to the given paths.
 pub fn native_provider(paths: AgentPaths) -> NativeStatusProvider {
     NativeStatusProvider::new(paths)
 }

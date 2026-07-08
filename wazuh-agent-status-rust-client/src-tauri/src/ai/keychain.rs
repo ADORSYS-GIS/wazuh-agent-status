@@ -126,7 +126,7 @@ pub fn get_provider_status() -> super::client::AiProviderStatus {
         Ok(cfg) => super::client::AiProviderStatus {
             base_url: cfg.base_url,
             model: cfg.model,
-            configured: true,
+            configured: !cfg.api_key.is_empty(),
         },
         Err(_) => super::client::AiProviderStatus {
             base_url: String::new(),

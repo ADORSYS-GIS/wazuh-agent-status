@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { AppConfig } from "../types/app";
-import type { AgentStatus } from "../types/agent";
 import type { AiProviderConfig, AiProviderStatus, AiModel } from "../types/ai";
 
 const stripSlash = (s: string) => {
@@ -14,10 +13,9 @@ const stripSlash = (s: string) => {
 
 interface SettingsViewProps {
   config: AppConfig;
-  agentStatus: AgentStatus;
 }
 
-export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps>) {
+export function SettingsView({ config }: Readonly<SettingsViewProps>) {
   const { managed_by, company } = config.brand;
   const managedByName = managed_by ?? company;
   const showCustomer = managed_by !== undefined && managed_by !== company;
@@ -28,7 +26,7 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
   // Form fields
   const [baseUrl, setBaseUrl] = useState("https://api.ai.camer.digital/v1");
   const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("reviewer");
+  const [model, setModel] = useState("deepseek-v4-flash");
 
   // Model listing
   const [models, setModels] = useState<AiModel[]>([]);
@@ -43,6 +41,25 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
   const [testOk, setTestOk] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [showForm, setShowForm] = useState(false);
+
+  // ── Auto-dismiss status messages after 5s ────────────────────────────
+  useEffect(() => {
+    if (!saveMsg) return;
+    const timer = setTimeout(() => setSaveMsg(null), 5000);
+    return () => clearTimeout(timer);
+  }, [saveMsg]);
+
+  useEffect(() => {
+    if (!testError) return;
+    const timer = setTimeout(() => setTestError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [testError]);
+
+  useEffect(() => {
+    if (!testOk) return;
+    const timer = setTimeout(() => setTestOk(false), 5000);
+    return () => clearTimeout(timer);
+  }, [testOk]);
 
   // ── Fetch saved config on mount (never fails — returns { configured: false } if unset) ─
   const fetchAiStatus = useCallback(async () => {
@@ -81,7 +98,7 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
     setTestOk(false);
     setModels([]);
     try {
-      const cfg: AiProviderConfig = { base_url: cleanUrl, api_key: apiKey, model: model.trim() || "reviewer" };
+      const cfg: AiProviderConfig = { base_url: cleanUrl, api_key: apiKey, model: model.trim() || "deepseek-v4-flash" };
       await invoke<string>("test_ai_connection", { config: cfg });
       setTestOk(true);
       fetchModels(cleanUrl, apiKey);
@@ -97,6 +114,7 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
     const cleanUrl = stripSlash(baseUrl);
     if (!cleanUrl) { setSaveMsg({ text: "Base URL is required", ok: false }); return; }
     if (!model.trim()) { setSaveMsg({ text: "Select or type a model name", ok: false }); return; }
+    if (!apiKey.trim()) { setSaveMsg({ text: "API key is required to save the configuration", ok: false }); return; }
     setSaving(true);
     setSaveMsg(null);
     try {
@@ -120,7 +138,7 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
       setModels([]);
       setShowForm(true);
       setBaseUrl("https://api.ai.camer.digital/v1");
-      setModel("reviewer");
+      setModel("deepseek-v4-flash");
       setSaveMsg({ text: "Disconnected", ok: true });
     } catch (e) {
       setSaveMsg({ text: `Failed: ${e}`, ok: false });
@@ -148,11 +166,10 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
           </div>
         </div>
       )}
-
-      <div className="section-title section-title--spaced">Environment</div>
+      
       <div className="card">
         <div className="card-info">
-          <div className="card-label">Status</div>
+          <div className="card-label">Environment</div>
           <div className="card-value">Production</div>
         </div>
       </div>
@@ -310,7 +327,7 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
                     id="ai-model"
                     className="settings-ai-input"
                     type="text"
-                    placeholder="reviewer, gpt-4o, deepseek-chat..."
+                    placeholder="deepseek-v4-flash, gpt-4o..."
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                     spellCheck={false}

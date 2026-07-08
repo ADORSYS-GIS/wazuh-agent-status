@@ -30,6 +30,7 @@ export interface SystemMetrics {
     total_memory: number;
     used_memory: number;
     agent_running: boolean;
+    agent_found?: boolean;
 }
 
 // ── SCA / Compliance Types ──────────────────────────────────────────────────────

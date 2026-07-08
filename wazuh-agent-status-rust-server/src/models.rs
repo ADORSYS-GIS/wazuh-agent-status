@@ -41,6 +41,10 @@ pub struct SystemMetrics {
     pub memory_usage: f32,
     pub total_memory: u64,
     pub used_memory: u64,
+    /// Whether any Wazuh agent processes were found during the metrics scan.
+    /// Used by `get_partial_state()` to derive agent status without a second process scan.
+    #[serde(default)]
+    pub agent_found: bool,
 }
 
 impl Default for SystemMetrics {
@@ -50,6 +54,7 @@ impl Default for SystemMetrics {
             memory_usage: 0.0,
             total_memory: 0,
             used_memory: 0,
+            agent_found: false,
         }
     }
 }

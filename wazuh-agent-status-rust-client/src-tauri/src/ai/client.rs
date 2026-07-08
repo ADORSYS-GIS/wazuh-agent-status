@@ -239,6 +239,10 @@ impl AiClient {
     /// does not expose the models endpoint, a 404 or similar is accepted
     /// as long as the host is reachable.
     pub async fn ping(&self) -> Result<String, String> {
+        if self.config.api_key.is_empty() {
+            return Err("API key is required — configure a valid key before testing".to_string());
+        }
+
         let endpoint = self.config.base_url.trim_end_matches('/').to_string() + "/models";
 
         let resp = self

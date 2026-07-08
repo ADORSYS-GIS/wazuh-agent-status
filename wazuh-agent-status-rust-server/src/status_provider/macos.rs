@@ -34,9 +34,6 @@ impl MacosStatusProvider {
         }
     }
 
-    /// Determine whether the `wazuh-agentd` process is alive by checking the
-    /// process list via `sysinfo`. This avoids lock file race conditions
-    /// inherent in calling `wazuh-control status`.
     fn is_agent_running(&self) -> bool {
         if let Ok(mut sys) = self.sys.lock() {
             sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
@@ -134,43 +131,8 @@ impl StatusProvider for MacosStatusProvider {
         sys.refresh_memory();
         sys.refresh_cpu_all();
 
-        let mut total_cpu: f32 = 0.0;
-        let mut total_rss: u64 = 0;
-        let mut found_names = Vec::new();
-
-        for process in sys.processes().values() {
-            let name = process.name().to_string_lossy();
-            if crate::status_provider::UNIX_AGENT_PROCESSES.contains(&name.as_ref()) {
-                let p_cpu = process.cpu_usage();
-                total_cpu += p_cpu;
-                total_rss += process.memory();
-                found_names.push(format!("{} ({:.1}%)", name, p_cpu));
-            }
-        }
-
-        if !found_names.is_empty() {
-            tracing::debug!("Found Wazuh processes: {}", found_names.join(", "));
-        }
-
-        let cpu_count = sys.cpus().len() as f32;
-        let cpu_usage = if !found_names.is_empty() && cpu_count > 0.0 {
-            total_cpu / cpu_count
-        } else {
-            0.0
-        };
-
-        let total_memory = sys.total_memory();
-        let memory_usage = if total_memory > 0 {
-            total_rss as f32 / total_memory as f32
-        } else {
-            0.0
-        };
-
-        Ok(crate::models::SystemMetrics {
-            cpu_usage,
-            memory_usage,
-            total_memory,
-            used_memory: total_rss,
-        })
+        Ok(crate::status_provider::unix::collect_unix_system_metrics(
+            &sys,
+        ))
     }
 }

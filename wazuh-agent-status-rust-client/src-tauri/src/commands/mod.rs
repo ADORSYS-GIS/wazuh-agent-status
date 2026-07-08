@@ -162,7 +162,7 @@ pub async fn fetch_compliance(
     let base = config.gateway_url.trim_end_matches('/');
     let url = format!("{}/agents/{}/compliance", base, agent_id);
 
-    log::info!("Fetching compliance from: {}", url);
+    log::debug!("Fetching compliance from: {}", url);
 
     let client = gateway_http_client()?;
 
