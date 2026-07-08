@@ -135,13 +135,6 @@ export function SettingsView({ config, agentStatus }: Readonly<SettingsViewProps
 
       <div className="card">
         <div className="card-info">
-          <div className="card-label">Wazuh Agent Setup Version</div>
-          <div className="card-value">{agentStatus.tray_version}</div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-info">
           <div className="card-label">Managed By</div>
           <div className="card-value">{managedByName}</div>
         </div>
