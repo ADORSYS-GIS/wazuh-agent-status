@@ -21,7 +21,9 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        arch: [amd64]
+        include:
+          - arch: amd64
+            target: x86_64-unknown-linux-musl
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -46,6 +48,7 @@ jobs:
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: stable
+          targets: ${{ matrix.target }}
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -53,7 +56,7 @@ jobs:
           workspaces: |
             ${{ env.SERVER_DIR }}
             ${{ env.CLIENT_DIR }}/src-tauri
-          key: rust-release-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          key: rust-release-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install Linux dependencies
         run: |
@@ -63,24 +66,19 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libgtk-3-dev \
             libayatana-appindicator3-dev \
+            musl-tools \
             fuse \
             libfuse2
           sudo modprobe fuse
           sudo chmod 666 /dev/fuse
           sudo chown root:$(id -gn) /dev/fuse
 
-      - name: Install musl-tools and Rust target
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-          rustup target add x86_64-unknown-linux-musl
-
       - name: Build Rust Server
         run: |
           cd ${{ env.SERVER_DIR }}
-          cargo build --release --target x86_64-unknown-linux-musl
+          cargo build --release --target ${{ matrix.target }}
           mkdir -p ../dist
-          cp target/x86_64-unknown-linux-musl/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
+          cp target/${{ matrix.target }}/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
       - name: Configure Gateway URL from Secrets
         shell: bash
@@ -93,7 +91,7 @@ jobs:
           else
             GATEWAY_URL="${GATEWAY_URL_PROD}"
           fi
-          
+
           if [[ -z "$GATEWAY_URL" ]]; then
             echo "Error: WAZUH_GATEWAY_URL secret is not set!"
             exit 1
@@ -102,6 +100,7 @@ jobs:
             CONFIG_FILE="${{ env.CLIENT_DIR }}/src-tauri/app_config.json"
             jq --arg url "$GATEWAY_URL" '.gateway_url = $url' "$CONFIG_FILE" > temp.json && mv temp.json "$CONFIG_FILE"
           fi
+
       - name: Build Tauri Client (Tray App)
         run: |
           cd ${{ env.CLIENT_DIR }}
@@ -137,7 +136,9 @@ jobs:
       matrix:
         include:
           - arch: amd64
+            target: x86_64-apple-darwin
           - arch: arm64
+            target: aarch64-apple-darwin
           # old approach: GitHub-hosted runners were selected via the os field below
           # - os: macos-14-large
           #   arch: amd64
@@ -168,6 +169,7 @@ jobs:
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: stable
+          targets: ${{ matrix.target }}
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -175,14 +177,14 @@ jobs:
           workspaces: |
             ${{ env.SERVER_DIR }}
             ${{ env.CLIENT_DIR }}/src-tauri
-          key: rust-release-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          key: rust-release-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build Rust Server
         run: |
           cd ${{ env.SERVER_DIR }}
-          cargo build --release
+          cargo build --release --target ${{ matrix.target }}
           mkdir -p ../dist
-          cp target/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
+          cp target/${{ matrix.target }}/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Configure Gateway URL from Secrets
         shell: bash
@@ -195,7 +197,7 @@ jobs:
           else
             GATEWAY_URL="${GATEWAY_URL_PROD}"
           fi
-          
+
           if [[ -z "$GATEWAY_URL" ]]; then
             echo "Error: WAZUH_GATEWAY_URL secret is not set!"
             exit 1
@@ -209,8 +211,8 @@ jobs:
         run: |
           cd ${{ env.CLIENT_DIR }}
           npm install
-          npm run tauri build
-          cp src-tauri/target/release/wazuh-agent-status ../dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
+          npm run tauri build -- --target ${{ matrix.target }}
+          cp src-tauri/target/${{ matrix.target }}/release/wazuh-agent-status ../dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Upload MacOS client binaries
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -229,7 +231,9 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        arch: [amd64]
+        include:
+          - arch: amd64
+            target: x86_64-pc-windows-msvc
 
     steps:
       - name: Checkout code
@@ -254,14 +258,15 @@ jobs:
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: stable
+          targets: ${{ matrix.target }}
 
       - name: Build Rust Server
         shell: cmd
         run: |
           cd ${{ env.SERVER_DIR }}
-          cargo build --release
+          cargo build --release --target ${{ matrix.target }}
           if not exist ..\dist mkdir ..\dist
-          copy target\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
+          copy target\${{ matrix.target }}\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
       - name: Configure Gateway URL from Secrets
         shell: bash
@@ -274,7 +279,7 @@ jobs:
           else
             GATEWAY_URL="${GATEWAY_URL_PROD}"
           fi
-          
+
           if [[ -z "$GATEWAY_URL" ]]; then
             echo "Error: WAZUH_GATEWAY_URL secret is not set!"
             exit 1
@@ -289,8 +294,8 @@ jobs:
         run: |
           cd ${{ env.CLIENT_DIR }}
           npm install
-          npm run tauri build
-          cp src-tauri/target/release/wazuh-agent-status.exe ../dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
+          npm run tauri build -- --target ${{ matrix.target }}
+          cp src-tauri/target/${{ matrix.target }}/release/wazuh-agent-status.exe ../dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
       - name: Upload windows client binaries
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
