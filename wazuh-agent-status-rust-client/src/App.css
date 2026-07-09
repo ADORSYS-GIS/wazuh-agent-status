@@ -2792,7 +2792,7 @@ body {
 .logs-message {
   color: #e5e7eb;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* ── Error Boundary ─────────────────────────────────────────────────────────── */
@@ -2831,7 +2831,7 @@ body {
   overflow: auto;
   max-height: 400px;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .error-boundary-reload {
   background: linear-gradient(135deg, #00aaff, #38bdf8);
@@ -2863,7 +2863,7 @@ body {
   border: 1px solid rgba(34, 197, 94, 0.2);
 }
 .self-healing-badge.disabled {
-  background: rgba(234, 88, 12, 0.15);
-  color: #fb923c;
-  border: 1px solid rgba(234, 88, 12, 0.2);
+  background: rgba(234, 88, 12, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(234, 88, 12, 0.3);
 }

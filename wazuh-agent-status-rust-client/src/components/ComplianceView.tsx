@@ -129,7 +129,7 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
     if (!lastUpdated) return;
     const timer = setInterval(() => {
       // Force re-render by creating a new Date
-      setLastUpdated(new Date(lastUpdated.getTime()));
+      setLastUpdated(new Date(lastUpdated));
     }, 10_000);
     return () => clearInterval(timer);
   }, [lastUpdated]);

@@ -11,6 +11,7 @@ pub(crate) const WAZUH_EXE_PREFIXES: &[&str] = &["/var/ossec/", "/Library/Ossec/
 
 /// On Linux, `/proc/[pid]/status` exposes `Tgid` (thread group ID). If it
 /// differs from `Pid`, the entry is a thread, not a process.
+#[cfg(target_os = "linux")]
 fn is_thread(pid: u32) -> bool {
     if let Ok(content) = fs::read_to_string(format!("/proc/{pid}/status")) {
         let mut tgid = pid;
@@ -24,6 +25,13 @@ fn is_thread(pid: u32) -> bool {
     } else {
         false
     }
+}
+
+/// macOS has no `/proc/[pid]/status` — threads are not counted as separate
+/// processes by `sysinfo` so this is a no-op.
+#[cfg(not(target_os = "linux"))]
+fn is_thread(_pid: u32) -> bool {
+    false
 }
 
 /// Collect system metrics from Wazuh agent processes on Unix platforms.

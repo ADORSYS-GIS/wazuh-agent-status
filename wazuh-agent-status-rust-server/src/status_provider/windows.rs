@@ -6,6 +6,7 @@
 //! the file system — no elevated privileges required for those reads.
 
 use std::fs;
+use std::path::Path;
 use std::process::Command;
 use sysinfo::System;
 
@@ -13,7 +14,7 @@ use crate::config::AgentPaths;
 use crate::errors::{Result, ServerError};
 use crate::group_extractor;
 use crate::models::{AgentStatus, ConnectionStatus};
-use crate::status_provider::StatusProvider;
+use crate::status_provider::{StatusProvider, read_connection_from_state_file};
 use tracing::{debug, trace};
 
 pub struct WindowsStatusProvider {
@@ -47,6 +48,10 @@ impl WindowsStatusProvider {
 }
 
 impl StatusProvider for WindowsStatusProvider {
+    fn get_state_file_path(&self) -> Option<&Path> {
+        Some(&self.paths.state_file)
+    }
+
     fn get_agent_status(&self) -> Result<AgentStatus> {
         // PowerShell is the only practical way to query service state on Windows.
         let output = self
@@ -64,25 +69,7 @@ impl StatusProvider for WindowsStatusProvider {
         if !matches!(self.get_agent_status()?, AgentStatus::Active) {
             return Ok(ConnectionStatus::Disconnected);
         }
-
-        let content = match fs::read_to_string(&self.paths.state_file) {
-            Ok(c) => c,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(ConnectionStatus::Disconnected);
-            }
-            Err(e) => {
-                return Err(ServerError::PlatformError(format!(
-                    "Cannot read state file {}: {e}",
-                    self.paths.state_file.display()
-                )));
-            }
-        };
-
-        if content.contains("status='connected'") {
-            Ok(ConnectionStatus::Connected)
-        } else {
-            Ok(ConnectionStatus::Disconnected)
-        }
+        read_connection_from_state_file(&self.paths.state_file)
     }
 
     fn get_agent_version(&self) -> Result<String> {
@@ -124,6 +111,7 @@ impl StatusProvider for WindowsStatusProvider {
         let mut total_cpu: f32 = 0.0;
         let mut total_rss: u64 = 0;
         let mut found = false;
+        let mut agentd_found = false;
 
         for process in sys.processes().values() {
             let name = process.name().to_string_lossy();
@@ -151,6 +139,9 @@ impl StatusProvider for WindowsStatusProvider {
             debug!(process = %name, cpu = %process.cpu_usage(), mem = process.memory(), "Matched Wazuh process");
             total_cpu += process.cpu_usage();
             total_rss += process.memory();
+            if name.as_ref() == "wazuh-agentd.exe" || name.as_ref() == "ossec-agentd.exe" {
+                agentd_found = true;
+            }
             found = true;
         }
 
@@ -183,6 +174,7 @@ impl StatusProvider for WindowsStatusProvider {
             total_memory,
             used_memory: total_rss,
             agent_found: found,
+            agentd_found,
         })
     }
 }

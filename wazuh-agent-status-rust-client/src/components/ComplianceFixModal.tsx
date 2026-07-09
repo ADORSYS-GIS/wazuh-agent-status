@@ -9,7 +9,7 @@ import {
 } from "../utils/compliance";
 
 /** Shared terminal-output block used by command cards and SCA rescan. */
-function TerminalOutput({ label, status, output }: { label: string; status: string; output: string }) {
+function TerminalOutput({ label, status, output }: Readonly<{ label: string; status: string; output: string }>) {
   return (
     <div className={`compliance-command-terminal ${status}`}>
       <div className="compliance-command-terminal-header">
@@ -112,7 +112,6 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      role="presentation"
     >
       <div className="ai-fix-modal">
         <div className="update-modal-header">
@@ -157,35 +156,37 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
 
               <div className="ai-fix-markdown">
                 {parsedData.chunks.map((chunk, i) => {
+                  const key = `${chunk.type}-${chunk.content.slice(0, 40)}`;
                   if (chunk.type === "heading2") {
-                    return <h3 key={i} className="ai-fix-heading">{chunk.content}</h3>;
+                    return <h3 key={key} className="ai-fix-heading">{chunk.content}</h3>;
                   }
                   if (chunk.type === "heading3") {
-                    return <h4 key={i} className="ai-fix-subheading">{chunk.content}</h4>;
+                    return <h4 key={key} className="ai-fix-subheading">{chunk.content}</h4>;
                   }
                   if (chunk.type === "step") {
-                    return <div key={i} className="ai-fix-step">{chunk.content}</div>;
+                    return <div key={key} className="ai-fix-step">{chunk.content}</div>;
                   }
                   if (chunk.type === "list_item") {
-                    return <li key={i} className="ai-fix-list-item">{chunk.content}</li>;
+                    return <li key={key} className="ai-fix-list-item">{chunk.content}</li>;
                   }
                   if (chunk.type === "text") {
-                    return <p key={i} className="ai-fix-paragraph">{chunk.content}</p>;
+                    return <p key={key} className="ai-fix-paragraph">{chunk.content}</p>;
                   }
                   if (chunk.type === "code_block") {
                     const execState = commandStates[i] || { status: "idle", output: "" };
+                    const handleCopy = () => {
+                      navigator.clipboard.writeText(chunk.content);
+                      setCopiedIndex(i);
+                      setTimeout(() => setCopiedIndex((prev) => prev === i ? null : prev), 1500);
+                    };
                     return (
-                      <div key={i} className={`compliance-command-card ${execState.status}`}>
+                      <div key={key} className={`compliance-command-card ${execState.status}`}>
                         <div className="compliance-command-card-header">
                           <span className="compliance-command-title">Suggested Shell Command</span>
                           <div className="compliance-command-actions">
                             <button
                               className={`ai-copy-btn ${copiedIndex === i ? "copied" : ""}`}
-                              onClick={() => {
-                                navigator.clipboard.writeText(chunk.content);
-                                setCopiedIndex(i);
-                                setTimeout(() => setCopiedIndex((prev) => prev === i ? null : prev), 1500);
-                              }}
+                              onClick={handleCopy}
                               title="Copy Command"
                             >
                               {copiedIndex === i ? (
