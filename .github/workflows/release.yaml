@@ -128,17 +128,18 @@ jobs:
           path: dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
   build-macos:
-    name: Build for macOS (AMD64, ARM64)
-    # Using self-hosted runner due to billing issues with GitHub-hosted macOS runners
-    runs-on: [self-hosted, dip-dev-wazuh-help]
-    # runs-on: ${{ matrix.os }}  # old approach: used GitHub-hosted macOS runners
+    name: Build for macOS (${{ matrix.arch }})
+    # Using self-hosted runners due to billing issues with GitHub-hosted macOS runners.
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         include:
           - arch: amd64
             target: x86_64-apple-darwin
+            runner: [self-hosted, wazuh-runner]
           - arch: arm64
             target: aarch64-apple-darwin
+            runner: [self-hosted, dip-dev-wazuh-help]
           # old approach: GitHub-hosted runners were selected via the os field below
           # - os: macos-14-large
           #   arch: amd64
