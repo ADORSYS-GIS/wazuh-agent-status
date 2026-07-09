@@ -136,7 +136,7 @@ jobs:
         include:
           - arch: amd64
             target: x86_64-apple-darwin
-            runner: [self-hosted, wazuh-runner]
+            runner: [self-hosted, wazuh]
           - arch: arm64
             target: aarch64-apple-darwin
             runner: [self-hosted, dip-dev-wazuh-help]
