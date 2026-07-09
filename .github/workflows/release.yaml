@@ -230,11 +230,11 @@ jobs:
   build-windows:
     name: Build for Windows AMD64
     runs-on: windows-latest
+    # No --target flag on Windows: openssl-sys fails to build OpenSSL from source
+    # when an explicit target is set. The default host target works correctly.
     strategy:
       matrix:
-        include:
-          - arch: amd64
-            target: x86_64-pc-windows-msvc
+        arch: [amd64]
 
     steps:
       - name: Checkout code
@@ -259,15 +259,14 @@ jobs:
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: stable
-          targets: ${{ matrix.target }}
 
       - name: Build Rust Server
         shell: cmd
         run: |
           cd ${{ env.SERVER_DIR }}
-          cargo build --release --target ${{ matrix.target }}
+          cargo build --release
           if not exist ..\dist mkdir ..\dist
-          copy target\${{ matrix.target }}\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
+          copy target\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
       - name: Configure Gateway URL from Secrets
         shell: bash
@@ -295,8 +294,8 @@ jobs:
         run: |
           cd ${{ env.CLIENT_DIR }}
           npm install
-          npm run tauri build -- --target ${{ matrix.target }}
-          cp src-tauri/target/${{ matrix.target }}/release/wazuh-agent-status.exe ../dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
+          npm run tauri build
+          cp src-tauri/target/release/wazuh-agent-status.exe ../dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
       - name: Upload windows client binaries
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
