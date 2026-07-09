@@ -56,4 +56,33 @@ fn test_agent_state_deserialization() {
     assert_eq!(state.agent_id, "020");
     assert_eq!(state.agent_name, "test-agent");
     assert_eq!(state.agent_key, "ABC123KEY");
+    // agentd_found defaults to false when not present in JSON (backward compat)
+    assert!(!state.metrics.agentd_found);
+}
+
+#[test]
+fn test_system_metrics_agentd_found_serialization() {
+    let metrics = SystemMetrics {
+        cpu_usage: 5.0,
+        memory_usage: 0.01,
+        total_memory: 16000000000,
+        used_memory: 50000000,
+        agent_found: true,
+        agentd_found: true,
+    };
+    let json = serde_json::to_string(&metrics).unwrap();
+    assert!(json.contains("\"agentd_found\":true"));
+
+    // Round-trip: deserialize and check agentd_found is preserved
+    let deserialized: SystemMetrics = serde_json::from_str(&json).unwrap();
+    assert!(deserialized.agentd_found);
+}
+
+#[test]
+fn test_system_metrics_agentd_found_default() {
+    let json = r#"{"cpu_usage": 2.0, "memory_usage": 0.5, "total_memory": 8000000000, "used_memory": 4000000000, "agent_found": true}"#;
+    let metrics: SystemMetrics = serde_json::from_str(json).unwrap();
+    // agentd_found should default to false when missing from JSON
+    assert!(!metrics.agentd_found);
+    assert!(metrics.agent_found);
 }

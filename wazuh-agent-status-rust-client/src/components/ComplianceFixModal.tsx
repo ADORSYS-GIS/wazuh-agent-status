@@ -8,6 +8,19 @@ import {
   commandIsDestructive,
 } from "../utils/compliance";
 
+/** Shared terminal-output block used by command cards and SCA rescan. */
+function TerminalOutput({ label, status, output }: { label: string; status: string; output: string }) {
+  return (
+    <div className={`compliance-command-terminal ${status}`}>
+      <div className="compliance-command-terminal-header">
+        <span>{label}</span>
+        <span className={`terminal-status-dot ${status}`} />
+      </div>
+      <pre className="compliance-command-terminal-log">{output}</pre>
+    </div>
+  );
+}
+
 interface ComplianceFixModalProps {
   fixResult: AiFixResult;
   onClose: () => void;
@@ -238,13 +251,7 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
                         )}
 
                         {execState.output && (
-                          <div className={`compliance-command-terminal ${execState.status}`}>
-                            <div className="compliance-command-terminal-header">
-                              <span>Console Output</span>
-                              <span className={`terminal-status-dot ${execState.status}`} />
-                            </div>
-                            <pre className="compliance-command-terminal-log">{execState.output}</pre>
-                          </div>
+                          <TerminalOutput label="Console Output" status={execState.status} output={execState.output} />
                         )}
                       </div>
                     );
@@ -300,13 +307,7 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
                 </div>
 
                 {scaRescanState.output && (
-                  <div className={`compliance-command-terminal ${scaRescanState.status}`}>
-                    <div className="compliance-command-terminal-header">
-                      <span>Restart Output</span>
-                      <span className={`terminal-status-dot ${scaRescanState.status}`} />
-                    </div>
-                    <pre className="compliance-command-terminal-log">{scaRescanState.output}</pre>
-                  </div>
+                  <TerminalOutput label="Restart Output" status={scaRescanState.status} output={scaRescanState.output} />
                 )}
 
                 {showRefreshAfterRescan && (

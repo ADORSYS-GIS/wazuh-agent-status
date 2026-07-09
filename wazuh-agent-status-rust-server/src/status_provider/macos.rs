@@ -13,11 +13,13 @@
 use std::fs;
 use sysinfo::System;
 
+use std::path::Path;
+
 use crate::config::AgentPaths;
 use crate::errors::{Result, ServerError};
 use crate::group_extractor;
 use crate::models::{AgentStatus, ConnectionStatus};
-use crate::status_provider::StatusProvider;
+use crate::status_provider::{StatusProvider, read_connection_from_state_file};
 
 pub struct MacosStatusProvider {
     paths: AgentPaths,
@@ -52,6 +54,10 @@ impl MacosStatusProvider {
 }
 
 impl StatusProvider for MacosStatusProvider {
+    fn get_state_file_path(&self) -> Option<&Path> {
+        Some(&self.paths.state_file)
+    }
+
     fn get_agent_status(&self) -> Result<AgentStatus> {
         if self.is_agent_running() {
             Ok(AgentStatus::Active)
@@ -66,25 +72,7 @@ impl StatusProvider for MacosStatusProvider {
         if !self.is_agent_running() {
             return Ok(ConnectionStatus::Disconnected);
         }
-
-        let content = match fs::read_to_string(&self.paths.state_file) {
-            Ok(c) => c,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(ConnectionStatus::Disconnected);
-            }
-            Err(e) => {
-                return Err(ServerError::PlatformError(format!(
-                    "Cannot read state file {}: {e}",
-                    self.paths.state_file.display()
-                )));
-            }
-        };
-
-        if content.contains("status='connected'") {
-            Ok(ConnectionStatus::Connected)
-        } else {
-            Ok(ConnectionStatus::Disconnected)
-        }
+        read_connection_from_state_file(&self.paths.state_file)
     }
 
     fn get_agent_version(&self) -> Result<String> {

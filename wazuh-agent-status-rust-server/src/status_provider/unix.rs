@@ -34,6 +34,7 @@ pub(crate) fn collect_unix_system_metrics(sys: &System) -> SystemMetrics {
     let mut total_cpu: f32 = 0.0;
     let mut total_rss: u64 = 0;
     let mut found_names = Vec::new();
+    let mut agentd_found = false;
 
     for process in sys.processes().values() {
         let name = process.name().to_string_lossy();
@@ -80,6 +81,9 @@ pub(crate) fn collect_unix_system_metrics(sys: &System) -> SystemMetrics {
         let p_cpu = process.cpu_usage();
         total_cpu += p_cpu;
         total_rss += process.memory();
+        if name.as_ref() == "wazuh-agentd" {
+            agentd_found = true;
+        }
         found_names.push(format!("PID {} {} ({:.1}%)", process.pid(), name, p_cpu));
     }
 
@@ -107,5 +111,6 @@ pub(crate) fn collect_unix_system_metrics(sys: &System) -> SystemMetrics {
         total_memory,
         used_memory: total_rss,
         agent_found: !found_names.is_empty(),
+        agentd_found,
     }
 }

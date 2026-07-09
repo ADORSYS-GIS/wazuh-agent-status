@@ -42,9 +42,13 @@ pub struct SystemMetrics {
     pub total_memory: u64,
     pub used_memory: u64,
     /// Whether any Wazuh agent processes were found during the metrics scan.
-    /// Used by `get_partial_state()` to derive agent status without a second process scan.
+    /// Used to determine if the local agent installation is present.
     #[serde(default)]
     pub agent_found: bool,
+    /// Whether the main `wazuh-agentd` daemon was found specifically.
+    /// Used by `get_partial_state()` to derive agent status without an extra process scan.
+    #[serde(default)]
+    pub agentd_found: bool,
 }
 
 impl Default for SystemMetrics {
@@ -55,6 +59,7 @@ impl Default for SystemMetrics {
             total_memory: 0,
             used_memory: 0,
             agent_found: false,
+            agentd_found: false,
         }
     }
 }
