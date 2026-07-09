@@ -38,6 +38,14 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
 
+  const handleCopy = useCallback((content: string, index: number) => {
+    navigator.clipboard.writeText(content);
+    setCopiedIndex(index);
+    setTimeout(() => {
+      setCopiedIndex((prev) => (prev === index ? null : prev));
+    }, 1500);
+  }, []);
+
   const parsedData = useMemo(() => {
     return parseMarkdownIntoChunks(fixResult.markdown || "");
   }, [fixResult.markdown]);
@@ -107,13 +115,21 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
   }, [chatInput, chatSending, fixResult.markdown]);
 
   return (
-    <div
-      className="update-modal-backdrop"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="ai-fix-modal">
+    <div className="update-modal-backdrop">
+      <button
+        type="button"
+        className="update-modal-backdrop-close-button"
+        onClick={onClose}
+        aria-label="Close modal"
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "transparent",
+          border: "none",
+          cursor: "default",
+        }}
+      />
+      <div className="ai-fix-modal" style={{ position: "relative", zIndex: 1 }}>
         <div className="update-modal-header">
           <div className="update-modal-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--primary)" }}>
@@ -174,11 +190,6 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
                   }
                   if (chunk.type === "code_block") {
                     const execState = commandStates[i] || { status: "idle", output: "" };
-                    const handleCopy = () => {
-                      navigator.clipboard.writeText(chunk.content);
-                      setCopiedIndex(i);
-                      setTimeout(() => setCopiedIndex((prev) => prev === i ? null : prev), 1500);
-                    };
                     return (
                       <div key={key} className={`compliance-command-card ${execState.status}`}>
                         <div className="compliance-command-card-header">
@@ -186,7 +197,7 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
                           <div className="compliance-command-actions">
                             <button
                               className={`ai-copy-btn ${copiedIndex === i ? "copied" : ""}`}
-                              onClick={handleCopy}
+                              onClick={() => handleCopy(chunk.content, i)}
                               title="Copy Command"
                             >
                               {copiedIndex === i ? (
