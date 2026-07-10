@@ -574,7 +574,15 @@ body {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  max-width: 100%;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (min-width: 1600px) {
+  html {
+    font-size: 110%; /* Subtle 10% font bump on large monitors */
+  }
 }
 
 @keyframes slideUp {
