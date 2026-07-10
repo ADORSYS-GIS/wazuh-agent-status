@@ -103,56 +103,48 @@ pub async fn execute_fix_command(command: String) -> Result<String, String> {
     run_shell_command(&command)
 }
 
-/// Run a sudo command with the provided password, using `sudo -S` (stdin-based auth).
-/// This avoids the TTY prompt that causes the app to hang.
+/// Run a sudo/elevated command using native OS-level authentication.
 ///
 /// # Security
-/// The original command (before sudo wrapping) is validated against an allowlist.
+/// The original command is validated against an allowlist.
 #[tauri::command]
 pub async fn execute_fix_command_sudo(
     command: String,
-    sudo_password: String,
 ) -> Result<String, String> {
-    log::info!("AI sudo Command Execution requested (password provided)");
+    log::info!("AI sudo Command Execution requested (native elevation)");
 
-    // Validate the original command before wrapping with sudo
+    // Validate the original command before running elevated
     validate_command(&command)?;
 
-    // Strip any leading "sudo" so we can reconstruct the pipeline ourselves
+    // Strip any leading "sudo" so we can run the command via the elevated shell wrapper
     let stripped = command
         .trim()
         .strip_prefix("sudo")
         .unwrap_or(&command)
         .trim()
         .to_string();
-    let sudo_cmd = format!(
-        "echo {pw} | sudo -S -p '' {cmd}",
-        pw = shell_escape(&sudo_password),
-        cmd = stripped
-    );
 
-    run_shell_command(&sudo_cmd)
+    run_elevated_command(&stripped)
 }
 
-/// Restart the local wazuh-agent service to force an immediate SCA rescan.
+/// Restart the local wazuh-agent service to force an immediate SCA rescan using native elevation.
 ///
 /// This is the only native Wazuh method to trigger an on-demand SCA scan.
 /// Wazuh is configured with `<scan_on_start>yes</scan_on_start>` by default,
 /// so a restart immediately runs a fresh scan and pushes results to the manager.
-///
-/// # Security
-/// The command is hardcoded on the backend (`systemctl restart wazuh-agent`),
-/// so it is inherently safe and does not require allowlist validation.
 #[tauri::command]
-pub async fn trigger_sca_rescan(sudo_password: String) -> Result<String, String> {
+pub async fn trigger_sca_rescan() -> Result<String, String> {
     log::info!("Triggering SCA rescan via wazuh-agent restart");
 
-    let cmd = format!(
-        "echo {pw} | sudo -S -p '' systemctl restart wazuh-agent && echo 'Wazuh agent restarted successfully. SCA rescan started.'",
-        pw = shell_escape(&sudo_password)
-    );
+    let cmd = if cfg!(target_os = "windows") {
+        "powershell -NoProfile -Command \"Restart-Service -Name WazuhSvc -Force\" && echo Wazuh agent restarted successfully. SCA rescan started."
+    } else if cfg!(target_os = "macos") {
+        "/Library/Ossec/bin/wazuh-control restart && echo 'Wazuh agent restarted successfully. SCA rescan started.'"
+    } else {
+        "systemctl restart wazuh-agent && echo 'Wazuh agent restarted successfully. SCA rescan started.'"
+    };
 
-    run_shell_command(&cmd)
+    run_elevated_command(cmd)
 }
 
 // ── Command validation ────────────────────────────────────────────────────────
@@ -474,10 +466,97 @@ fn validate_command(command: &str) -> Result<(), String> {
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-/// Shell-escape a string for safe interpolation into a shell command.
-/// This wraps the value in single quotes and escapes any embedded single quotes.
-fn shell_escape(s: &str) -> String {
-    format!("'{}'", s.replace('\'', "'\\''"))
+/// Run a command with elevated privileges using OS-native elevation tools.
+fn run_elevated_command(command: &str) -> Result<String, String> {
+    if cfg!(target_os = "windows") {
+        let random_id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_micros();
+        let temp_file = std::env::temp_dir().join(format!("wazuh_elevated_out_{}.txt", random_id));
+        let temp_file_str = temp_file.to_string_lossy().to_string();
+
+        let start_cmd = format!(
+            "Start-Process cmd.exe -ArgumentList '/c \"{} > \\\"{}\\\" 2>&1\"' -Verb RunAs -Wait -WindowStyle Hidden",
+            command.replace('"', "\\\""),
+            temp_file_str
+        );
+
+        let output = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", &start_cmd])
+            .output();
+
+        match output {
+            Ok(out) => {
+                if !out.status.success() {
+                    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                    let _ = std::fs::remove_file(&temp_file);
+                    return Err(format!("Failed to prompt elevation: {}", stderr));
+                }
+
+                // Read the temp file containing the output
+                if temp_file.exists() {
+                    let file_content = std::fs::read_to_string(&temp_file)
+                        .map_err(|e| format!("Failed to read output file: {}", e))?;
+                    let _ = std::fs::remove_file(&temp_file);
+                    Ok(file_content)
+                } else {
+                    Err("Elevation was cancelled or command output could not be captured.".to_string())
+                }
+            }
+            Err(e) => {
+                let _ = std::fs::remove_file(&temp_file);
+                Err(format!("System failed to execute elevated process: {}", e))
+            }
+        }
+    } else if cfg!(target_os = "macos") {
+        let escaped_cmd = command.replace('\\', "\\\\").replace('"', "\\\"");
+        let script = format!("do shell script \"{}\" with administrator privileges", escaped_cmd);
+        let output = std::process::Command::new("osascript")
+            .args(["-e", &script])
+            .output();
+
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                if out.status.success() {
+                    if stdout.is_empty() {
+                        Ok("Command executed successfully.".to_string())
+                    } else {
+                        Ok(stdout)
+                    }
+                } else {
+                    Err(if !stderr.is_empty() { stderr } else { stdout })
+                }
+            }
+            Err(e) => Err(format!("System failed to execute elevated process: {}", e))
+        }
+    } else {
+        // Linux / Unix fallback (using pkexec)
+        let output = std::process::Command::new("pkexec")
+            .args(["sh", "-c", command])
+            .output();
+
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                if out.status.success() {
+                    if stdout.is_empty() && !stderr.is_empty() {
+                        Ok(stderr)
+                    } else if stdout.is_empty() {
+                        Ok("Command executed successfully.".to_string())
+                    } else {
+                        Ok(stdout)
+                    }
+                } else {
+                    Err(if !stderr.is_empty() { stderr } else { stdout })
+                }
+            }
+            Err(e) => Err(format!("System failed to execute elevated process: {}", e))
+        }
+    }
 }
 
 /// Run a shell command and return combined stdout or a descriptive error.
@@ -509,7 +588,6 @@ fn run_shell_command(command: &str) -> Result<String, String> {
                     Ok(stdout)
                 }
             } else {
-                // Filter out the sudo password prompt echo if it leaked
                 let err_msg = if !stderr.is_empty() {
                     stderr
                 } else if !stdout.is_empty() {

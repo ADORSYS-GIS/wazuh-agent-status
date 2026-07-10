@@ -16,9 +16,9 @@
         "width": 460,
         "height": 580,
         "visible": false,
-        "resizable": false,
+        "resizable": true,
         "minimizable": true,
-        "maximizable": false,
+        "maximizable": true,
         "decorations": true,
         "alwaysOnTop": true
       }

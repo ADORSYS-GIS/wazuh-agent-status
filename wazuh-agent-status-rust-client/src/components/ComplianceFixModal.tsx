@@ -30,7 +30,6 @@ interface ComplianceFixModalProps {
 export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Readonly<ComplianceFixModalProps>) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [commandStates, setCommandStates] = useState<Record<number, { status: "idle" | "running" | "success" | "failed"; output: string }>>({});
-  const [sharedPassword, setSharedPassword] = useState("");
   const [scaRescanState, setScaRescanState] = useState<{ status: "idle" | "running" | "success" | "failed"; output: string }>({ status: "idle", output: "" });
   const [showRefreshAfterRescan, setShowRefreshAfterRescan] = useState(false);
   const messageIdRef = useRef(0);
@@ -59,7 +58,7 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
     try {
       let output: string;
       if (commandNeedsSudo(cmd)) {
-        output = await invoke<string>("execute_fix_command_sudo", { command: cmd, sudoPassword: sharedPassword });
+        output = await invoke<string>("execute_fix_command_sudo", { command: cmd });
       } else {
         output = await invoke<string>("execute_fix_command", { command: cmd });
       }
@@ -73,19 +72,19 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
         [idx]: { status: "failed", output: String(e) },
       }));
     }
-  }, [sharedPassword]);
+  }, []);
 
   const handleSCARescan = useCallback(async () => {
     setScaRescanState({ status: "running", output: "Restarting wazuh-agent..." });
     setShowRefreshAfterRescan(false);
     try {
-      const output = await invoke<string>("trigger_sca_rescan", { sudoPassword: sharedPassword });
+      const output = await invoke<string>("trigger_sca_rescan");
       setScaRescanState({ status: "success", output });
       setShowRefreshAfterRescan(true);
     } catch (e) {
       setScaRescanState({ status: "failed", output: String(e) });
     }
-  }, [sharedPassword]);
+  }, []);
 
   const handleChatSend = useCallback(async () => {
     const msg = chatInput.trim();
@@ -245,20 +244,8 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
                         </pre>
 
                         {commandNeedsSudo(chunk.content) && !commandIsInteractive(chunk.content) && (
-                          <div className="compliance-sudo-row">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
-                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
-                            <input
-                              type="password"
-                              className="compliance-sudo-input"
-                              placeholder="sudo password"
-                              value={sharedPassword}
-                              onChange={(e) => setSharedPassword(e.target.value)}
-                              spellCheck={false}
-                              autoComplete="current-password"
-                            />
+                          <div className="compliance-sudo-row" style={{ fontStyle: "italic", fontSize: "0.7rem", color: "var(--text-dim)", opacity: 0.8 }}>
+                            ℹ This command requires administrative privileges. You will be prompted by your system.
                           </div>
                         )}
 
@@ -287,23 +274,13 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
                 </div>
 
                 <div className="sca-rescan-password-row">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                  <input
-                    type="password"
-                    className="compliance-sudo-input"
-                    placeholder="sudo password"
-                    value={sharedPassword}
-                    onChange={(e) => setSharedPassword(e.target.value)}
-                    spellCheck={false}
-                    autoComplete="current-password"
-                  />
+                  <span style={{ fontSize: "0.7rem", color: "var(--text-dim)", fontStyle: "italic" }}>
+                    ℹ This action will prompt you for administrator privileges.
+                  </span>
                   <button
                     className="compliance-command-run-btn"
                     onClick={handleSCARescan}
-                    disabled={scaRescanState.status === "running" || !sharedPassword.trim()}
+                    disabled={scaRescanState.status === "running"}
                   >
                     {scaRescanState.status === "running" ? (
                       <><span className="settings-ai-spinner" /> Restarting...</>

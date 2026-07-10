@@ -2752,6 +2752,44 @@ body {
 .logs-stream-btn {
   padding: 8px 16px;
   font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+.logs-stream-btn.streaming {
+  background: var(--success);
+  box-shadow: 0 0 12px var(--success);
+  animation: streaming-pulse 1.8s infinite ease-in-out;
+}
+.logs-stream-pulse-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: dot-glow 1.2s infinite alternate;
+}
+@keyframes streaming-pulse {
+  0% {
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  }
+}
+@keyframes dot-glow {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
 }
 .logs-footer {
   margin-top: 12px;
