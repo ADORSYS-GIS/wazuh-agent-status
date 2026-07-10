@@ -196,6 +196,7 @@ function App() {
               aria-label="Overview"
             >
               <IconHome />
+              <span className="nav-label">Overview</span>
             </button>
             <span className="tooltip">Overview</span>
           </div>
@@ -207,6 +208,7 @@ function App() {
               aria-label="Compliance"
             >
               <IconCheckSquare />
+              <span className="nav-label">Compliance</span>
             </button>
             <span className="tooltip">Compliance</span>
           </div>
@@ -218,6 +220,7 @@ function App() {
               aria-label="Logs"
             >
               <IconLogs />
+              <span className="nav-label">Logs</span>
             </button>
             <span className="tooltip">Logs</span>
           </div>
@@ -229,6 +232,7 @@ function App() {
               aria-label="Health & Updates"
             >
               <IconShield />
+              <span className="nav-label">Health & Updates</span>
               {updateInfo?.has_updates && <span className="notification-dot" />}
             </button>
             <span className="tooltip">Health & Updates</span>
@@ -241,6 +245,7 @@ function App() {
               aria-label="Settings"
             >
               <IconSettings />
+              <span className="nav-label">Settings</span>
             </button>
             <span className="tooltip">Settings</span>
           </div>

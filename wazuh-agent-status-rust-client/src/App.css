@@ -71,6 +71,52 @@
   padding: 0;
 }
 
+/* ── Global Button Overrides (Blue, No Animation) ──────────────────────────────── */
+button.compliance-refresh-btn,
+button.settings-ai-link-btn,
+button.settings-ai-fetch-btn,
+button.settings-ai-btn-primary,
+button.settings-ai-btn-secondary,
+button.settings-ai-btn-danger,
+button.settings-ai-btn-ghost,
+button.ai-fix-btn,
+button.ai-copy-btn,
+button.compliance-command-run-btn,
+button.compliance-verify-btn,
+button.ai-chat-send-btn,
+button.compliance-retry-btn,
+button.logs-stream-btn,
+button.update-modal-dismiss {
+  background: var(--primary) !important;
+  color: var(--text-on-primary) !important;
+  border: none !important;
+  box-shadow: 0 0 20px var(--primary-alpha-40) !important;
+  animation: none !important;
+  transform: none !important;
+  background-image: none !important;
+}
+
+button.compliance-refresh-btn:hover,
+button.settings-ai-link-btn:hover,
+button.settings-ai-fetch-btn:hover,
+button.settings-ai-btn-primary:hover,
+button.settings-ai-btn-secondary:hover,
+button.settings-ai-btn-danger:hover,
+button.settings-ai-btn-ghost:hover,
+button.ai-fix-btn:hover,
+button.ai-copy-btn:hover,
+button.compliance-command-run-btn:hover,
+button.compliance-verify-btn:hover,
+button.ai-chat-send-btn:hover,
+button.compliance-retry-btn:hover,
+button.logs-stream-btn:hover,
+button.update-modal-dismiss:hover {
+  background: var(--primary) !important;
+  box-shadow: 0 0 20px var(--primary-alpha-40) !important;
+  transform: none !important;
+  animation: none !important;
+}
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--bg);
@@ -98,6 +144,7 @@ body {
   border-right: 1px solid var(--border);
   position: relative;
   flex-shrink: 0;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .nav-item {
@@ -116,7 +163,21 @@ body {
   padding: 0;
   pointer-events: auto;
   position: relative;
+  transition: all 0.2s ease, width 0.3s cubic-bezier(0.16, 1, 0.3, 1), justify-content 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+.nav-label {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: opacity 0.2s ease, width 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(-10px);
+  margin-left: 0;
+}
+
 
 .nav-item:hover {
   background: var(--overlay-white-05);
@@ -477,6 +538,12 @@ body {
   margin-top: auto;
 }
 
+@media (min-height: 1000px) {
+  .metrics-section {
+    margin-top: 150px;
+  }
+}
+
 .app-wrapper.loading {
   display: flex;
   align-items: center;
@@ -597,9 +664,52 @@ body {
   }
 }
 
+/* Sidebar Expanded Mode */
+@media (min-width: 1400px) {
+  .sidebar {
+    width: 240px !important;
+  }
+  
+  .metric-box {
+    padding: 20px 24px;
+    border-radius: 16px;
+  }
+  
+  .metric-box .metric-label {
+    font-size: 0.85rem;
+    margin-bottom: 14px;
+  }
+  
+  .metric-box .progress-track {
+    height: 8px;
+    border-radius: 4px;
+  }
+  
+  .nav-items {
+    align-items: stretch !important;
+    padding: 0 16px;
+  }
+  
+  .nav-item {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 16px;
+  }
+  
+  .nav-label {
+    opacity: 1;
+    width: auto;
+    transform: translateX(0);
+    margin-left: 12px;
+  }
+  
+  .tooltip-container .tooltip {
+    display: none !important;
+  }
+}
+
 .update-button {
-  background: var(--primary-metallic);
-  background-size: 200% 100%;
+  background: var(--primary);
   border: none;
   color: var(--text-on-primary);
   padding: 8px 16px;
@@ -607,14 +717,12 @@ body {
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px var(--primary-alpha-30);
-  animation: shimmer 3s linear infinite;
+  box-shadow: 0 0 20px var(--primary-alpha-40);
 }
 
 .update-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px var(--primary-alpha-40);
+  /* No animation on hover as requested */
+  background: var(--primary);
 }
 
 .auto-badge {
@@ -2766,9 +2874,9 @@ body {
   justify-content: center;
 }
 .logs-stream-btn.streaming {
-  background: var(--success);
-  box-shadow: 0 0 12px var(--success);
-  animation: streaming-pulse 1.8s infinite ease-in-out;
+  background: var(--primary);
+  box-shadow: 0 0 12px var(--primary-alpha-40);
+  /* Animation removed per request */
 }
 .logs-stream-pulse-dot {
   width: 8px;
