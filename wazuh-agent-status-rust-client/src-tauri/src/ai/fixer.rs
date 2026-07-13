@@ -1,46 +1,23 @@
-//! SCA fix generation — the bridge between failed compliance checks and AI.
-//!
-//! Takes a description of a failed SCA check, constructs a well-crafted prompt
-//! that includes the check title, remediation text, and OS context, then calls
-//! the configured AI provider and returns a structured, actionable fix.
-
 use crate::ai::client::AiClient;
 use crate::ai::keychain;
 use serde::{Deserialize, Serialize};
 
-// ── Input ─────────────────────────────────────────────────────────────────────
-
-/// A failed SCA check that the user wants AI help fixing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FailedCheckInput {
-    /// Title of the failed check (e.g. "Ensure sshd PermitRootLogin is disabled").
     pub title: String,
-    /// Pre-written remediation text from the compliance profile.
     pub remediation: String,
-    /// Target OS (e.g. "Ubuntu 22.04", "Windows Server 2022", "macOS 14").
     pub os: String,
-    /// Whether this is a mandatory check.
     pub mandatory: bool,
-    /// The compliance category this check belongs to.
     pub category: String,
 }
 
-// ── Output ────────────────────────────────────────────────────────────────────
-
-/// A structured fix returned by the AI.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiFixResult {
-    /// Raw markdown from the AI model.
     pub markdown: String,
-    /// Whether the AI call succeeded.
     pub success: bool,
-    /// Error message if `success` is `false`.
     pub error: Option<String>,
 }
 
-// ── Prompt construction ───────────────────────────────────────────────────────
-
-/// Build a detailed prompt for the AI to fix a failed SCA check.
 fn build_fix_prompt(input: &FailedCheckInput) -> String {
     format!(
         r#"I need to fix a failed Wazuh SCA security check on my system.
@@ -63,13 +40,6 @@ Please provide the exact steps to fix this issue, including all CLI commands and
     )
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
-/// Generate an AI-powered fix for a single failed SCA check.
-///
-/// 1. Reads the provider config from the OS keychain.
-/// 2. Constructs an [`AiClient`] and sends the prompt.
-/// 3. Returns a structured [`AiFixResult`].
 pub async fn generate_fix(input: FailedCheckInput) -> AiFixResult {
     let config = match keychain::get_config() {
         Ok(c) => c,
@@ -109,13 +79,6 @@ pub async fn generate_fix(input: FailedCheckInput) -> AiFixResult {
     }
 }
 
-/// Generate an AI-powered fix for **all** failed checks in a batch.
-///
-/// This sends each check as a separate prompt so the AI can give focused,
-/// check-specific answers rather than one long confusing response.
-///
-/// A short inter-request delay is applied between calls to avoid
-/// hammering rate-limited API endpoints when there are many failed checks.
 pub async fn generate_fixes_batch(inputs: Vec<FailedCheckInput>) -> Vec<AiFixResult> {
     const INTER_REQUEST_DELAY_MS: u64 = 300;
 
@@ -124,8 +87,6 @@ pub async fn generate_fixes_batch(inputs: Vec<FailedCheckInput>) -> Vec<AiFixRes
 
     for (i, input) in inputs.into_iter().enumerate() {
         results.push(generate_fix(input).await);
-
-        // Throttle between requests (skip delay after the last item)
         if i + 1 < total {
             tokio::time::sleep(tokio::time::Duration::from_millis(INTER_REQUEST_DELAY_MS)).await;
         }

@@ -1,8 +1,3 @@
-//! Entry point for the Wazuh Agent Status Rust server.
-//!
-//! Run with `--version` / `-v` to print the build version and exit.
-//! All other configuration is via environment variables (see [`crate::config::Config`]).
-
 use std::sync::Arc;
 
 use tracing::{error, info};
@@ -25,7 +20,6 @@ define_windows_service!(ffi_service_main, windows_service_main);
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // ── CLI Argument Parsing ─────────────────────────────────────────────────
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
         match args[1].as_str() {
@@ -34,43 +28,31 @@ async fn main() -> anyhow::Result<()> {
                 return Ok(());
             }
             "--help" | "-h" => {
-                println!("Wazuh Agent Status Server v{}\n", env!("CARGO_PKG_VERSION"));
-                println!("Usage: wazuh-agent-status-rust-server [OPTIONS]\n");
-                println!("Options:");
-                println!("  -v, --version    Print version and exit");
-                println!("  -h, --help       Print this help message and exit\n");
-                println!("Configuration is via environment variables.");
+                println!("Wazuh Agent Status Server v{}", env!("CARGO_PKG_VERSION"));
+                println!("Usage: wazuh-agent-status-rust-server [OPTIONS]");
+                println!("  -v, --version    Print version");
+                println!("  -h, --help       Print this help message");
                 return Ok(());
             }
             unknown => {
-                anyhow::bail!(
-                    "Unknown argument: '{}'\nUse --help to see available options.",
-                    unknown
-                );
+                anyhow::bail!("Unknown argument: '{}'. Use --help.", unknown);
             }
         }
     }
 
-    // ── Windows Service Check ────────────────────────────────────────────────
     #[cfg(target_os = "windows")]
     {
-        // Try to run as a service. If it fails (e.g. run from console),
-        // we fall back to the normal main loop below.
         if let Err(e) = service_dispatcher::start("WazuhAgentStatus", ffi_service_main) {
-            // Check if error is "not running in a service context" (1063)
             if !e.to_string().contains("1063") {
                 error!("Windows service dispatcher failed: {:?}", e);
             }
         } else {
-            // If service_dispatcher::start succeeds, it blocks until service stops.
             return Ok(());
         }
     }
 
-    // ── Normal Main Execution (Console) ──────────────────────────────────────
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
 
-    // Spawn a task to handle Ctrl+C for console mode
     tokio::spawn(async move {
         if let Ok(()) = tokio::signal::ctrl_c().await {
             let _ = tx.send(());
@@ -81,7 +63,6 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn run_server(mut shutdown_rx: tokio::sync::oneshot::Receiver<()>) -> anyhow::Result<()> {
-    // ── Logging setup ─────────────────────────────────────────────────────────
     let log_file = AgentPaths::log_file_path();
     let log_dir = log_file.parent().unwrap_or(std::path::Path::new("/tmp"));
     let log_name = log_file
@@ -89,7 +70,6 @@ async fn run_server(mut shutdown_rx: tokio::sync::oneshot::Receiver<()>) -> anyh
         .and_then(|n| n.to_str())
         .unwrap_or("wazuh-agent-status.log");
 
-    // Create log dir if it doesn't exist (best-effort)
     let _ = std::fs::create_dir_all(log_dir);
 
     let file_appender = RollingFileAppender::new(Rotation::DAILY, log_dir, log_name);
@@ -97,31 +77,27 @@ async fn run_server(mut shutdown_rx: tokio::sync::oneshot::Receiver<()>) -> anyh
 
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
-        .with(fmt::layer().with_writer(std::io::stderr)) // console
-        .with(fmt::layer().with_writer(non_blocking).with_ansi(false)) // rotating file
+        .with(fmt::layer().with_writer(std::io::stderr))
+        .with(fmt::layer().with_writer(non_blocking).with_ansi(false))
         .init();
 
-    // ── Configuration ─────────────────────────────────────────────────────────
     let config = Arc::new(Config::from_env());
     let paths = Arc::new(AgentPaths::native());
 
     info!(
-        version     = env!("CARGO_PKG_VERSION"),
+        version = env!("CARGO_PKG_VERSION"),
         listen_addr = %config.listen_addr,
-        poll_secs   = config.poll_interval.as_secs(),
+        poll_secs = config.poll_interval.as_secs(),
         "Starting Wazuh Agent Status Rust Server"
     );
 
-    // ── Manager ───────────────────────────────────────────────────────────────
     let manager = Arc::new(AgentManager::new(Arc::clone(&config), Arc::clone(&paths)));
 
-    // Background polling task
     let polling_manager = Arc::clone(&manager);
     tokio::spawn(async move {
         polling_manager.start_polling().await;
     });
 
-    // ── TCP Server + graceful shutdown ────────────────────────────────────────
     let server = TcpServer::new(config.listen_addr.clone(), Arc::clone(&manager));
 
     tokio::select! {
@@ -177,7 +153,6 @@ fn windows_service_main(_arguments: Vec<std::ffi::OsString>) {
         process_id: None,
     });
 
-    // Run the server in the main thread (blocking until shutdown)
     let rt = tokio::runtime::Runtime::new().unwrap();
     if let Err(e) = rt.block_on(run_server(rx)) {
         error!("Windows Service error: {:?}", e);

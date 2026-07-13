@@ -1,8 +1,5 @@
-//! Core data models shared across the server.
-
 use serde::{Deserialize, Serialize};
 
-/// Running state of the local Wazuh agent daemon.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AgentStatus {
     Active,
@@ -10,7 +7,6 @@ pub enum AgentStatus {
     Unknown,
 }
 
-/// Network connection state of the local Wazuh agent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConnectionStatus {
     Connected,
@@ -20,13 +16,11 @@ pub enum ConnectionStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionInfo {
-    /// Global framework versioning
     pub framework: FrameworkVersion,
     #[serde(alias = "prerelease_test_groups", default)]
     pub prerelease_test_groups: Vec<String>,
 }
 
-/// Version numbers within the online manifest for the framework (tray app).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrameworkVersion {
     pub version: String,
@@ -34,19 +28,14 @@ pub struct FrameworkVersion {
     pub prerelease_version: String,
 }
 
-/// Real-time system performance indicators.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SystemMetrics {
     pub cpu_usage: f32,
     pub memory_usage: f32,
     pub total_memory: u64,
     pub used_memory: u64,
-    /// Whether any Wazuh agent processes were found during the metrics scan.
-    /// Used to determine if the local agent installation is present.
     #[serde(default)]
     pub agent_found: bool,
-    /// Whether the main `wazuh-agentd` daemon was found specifically.
-    /// Used by `get_partial_state()` to derive agent status without an extra process scan.
     #[serde(default)]
     pub agentd_found: bool,
 }
@@ -88,24 +77,14 @@ pub struct UpdateStatus {
     pub has_updates: bool,
 }
 
-/// Complete local state of the Wazuh agent, polled on each tick.
-///
-/// This is what gets broadcast to subscribers on every change.
-/// The online version status is intentionally excluded here — it is
-/// fetched on-demand via [`crate::manager::AgentManager::get_version_status`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgentState {
     pub status: AgentStatus,
     pub connection: ConnectionStatus,
-    /// Locally installed agent version string (e.g. `"4.7.2"`).
     pub version: String,
-    /// Tray application version string.
     pub tray_version: String,
-    /// Agent group memberships parsed from `merged.mg`.
     pub groups: Vec<String>,
-    /// System performance indicators.
     pub metrics: SystemMetrics,
-    /// Whether self-healing is currently active on the server.
     pub self_healing_enabled: bool,
     pub agent_id: String,
     pub agent_name: String,
@@ -129,16 +108,12 @@ impl Default for AgentState {
     }
 }
 
-/// A single line from the ossec.log file, structured for streaming to clients.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogLine {
-    /// The raw, unmodified text of the log line.
     pub raw: String,
-    /// Inferred severity level based on line content.
     pub level: LogLevel,
 }
 
-/// Severity levels inferred from ossec.log content.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum LogLevel {
@@ -150,7 +125,6 @@ pub enum LogLevel {
 }
 
 impl LogLine {
-    /// Create a new LogLine by analysing the raw text for known keywords.
     pub fn from_raw(raw: String) -> Self {
         let upper = raw.to_uppercase();
         let level =

@@ -76,6 +76,7 @@ pub fn run() {
             commands::fetch_compliance,
             commands::ai_commands::save_ai_config,
             commands::ai_commands::get_ai_status,
+            commands::ai_commands::get_ai_config,
             commands::ai_commands::test_ai_connection,
             commands::ai_commands::clear_ai_config,
             commands::ai_commands::list_ai_models,

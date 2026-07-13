@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tokio::sync::watch;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,7 +112,6 @@ impl AgentManager {
 
     pub async fn check_updates(&self) -> anyhow::Result<serde_json::Value> {
         let mut stream = tokio::net::TcpStream::connect(&self.server_addr).await?;
-        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
         stream.write_all(b"get-version\n").await?;
 
         let mut reader = tokio::io::BufReader::new(stream);
@@ -148,8 +148,6 @@ impl AgentManager {
                 }
             };
 
-            use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
-            // Send the update command - the server will stream progress back on this same connection
             let cmd = if is_prerelease {
                 "update-prerelease\n"
             } else {
@@ -194,7 +192,6 @@ impl AgentManager {
                 }
             };
 
-            use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
             if let Err(e) = stream.write_all(b"subscribe-logs\n").await {
                 let _ = tx
                     .send(format!("[ERROR] Failed to send log subscription: {e}"))
@@ -231,7 +228,6 @@ async fn run_sync_loop(
     let (reader, mut writer) = tokio::io::split(stream);
     let mut reader = tokio::io::BufReader::new(reader);
 
-    use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
     writer.write_all(b"subscribe-status\n").await?;
     log::info!("Sent subscribe-status command");
 

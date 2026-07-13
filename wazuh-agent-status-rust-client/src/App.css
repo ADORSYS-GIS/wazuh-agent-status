@@ -71,51 +71,6 @@
   padding: 0;
 }
 
-/* ── Global Button Overrides (Blue, No Animation) ──────────────────────────────── */
-button.compliance-refresh-btn,
-button.settings-ai-link-btn,
-button.settings-ai-fetch-btn,
-button.settings-ai-btn-primary,
-button.settings-ai-btn-secondary,
-button.settings-ai-btn-danger,
-button.settings-ai-btn-ghost,
-button.ai-fix-btn,
-button.ai-copy-btn,
-button.compliance-command-run-btn,
-button.compliance-verify-btn,
-button.ai-chat-send-btn,
-button.compliance-retry-btn,
-button.logs-stream-btn,
-button.update-modal-dismiss {
-  background: var(--primary) !important;
-  color: var(--text-on-primary) !important;
-  border: none !important;
-  box-shadow: 0 0 20px var(--primary-alpha-40) !important;
-  animation: none !important;
-  transform: none !important;
-  background-image: none !important;
-}
-
-button.compliance-refresh-btn:hover,
-button.settings-ai-link-btn:hover,
-button.settings-ai-fetch-btn:hover,
-button.settings-ai-btn-primary:hover,
-button.settings-ai-btn-secondary:hover,
-button.settings-ai-btn-danger:hover,
-button.settings-ai-btn-ghost:hover,
-button.ai-fix-btn:hover,
-button.ai-copy-btn:hover,
-button.compliance-command-run-btn:hover,
-button.compliance-verify-btn:hover,
-button.ai-chat-send-btn:hover,
-button.compliance-retry-btn:hover,
-button.logs-stream-btn:hover,
-button.update-modal-dismiss:hover {
-  background: var(--primary) !important;
-  box-shadow: 0 0 20px var(--primary-alpha-40) !important;
-  transform: none !important;
-  animation: none !important;
-}
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -244,14 +199,26 @@ body {
 
 .notification-dot {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 10px;
+  right: 10px;
   width: 8px;
   height: 8px;
   background-color: var(--error);
   border-radius: 50%;
   border: 2px solid var(--sidebar-bg);
-  box-shadow: 0 0 6px var(--error);
+  box-shadow: 0 0 10px var(--error);
+}
+.notification-dot::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 50%;
+  background: var(--error);
+  opacity: 0.4;
+  animation: pulse 2s infinite;
 }
 
 /* Main Content */
@@ -664,7 +631,7 @@ body {
   }
 }
 
-/* Sidebar Expanded Mode */
+/* Sidebar Expanded Mode - only highlight the icon area, not the full label */
 @media (min-width: 1400px) {
   .sidebar {
     width: 240px !important;
@@ -696,6 +663,21 @@ body {
     padding: 0 16px;
   }
   
+  .nav-item.active {
+    background: transparent;
+    box-shadow: none;
+  }
+  
+  .nav-item.active svg {
+    background: var(--primary);
+    border-radius: 8px;
+    padding: 8px;
+    width: 32px;
+    height: 32px;
+    color: var(--text-on-primary);
+    box-shadow: 0 0 12px var(--primary-alpha-40);
+  }
+  
   .nav-label {
     opacity: 1;
     width: auto;
@@ -705,6 +687,12 @@ body {
   
   .tooltip-container .tooltip {
     display: none !important;
+  }
+  
+  .notification-dot {
+    top: 10px;
+    left: 32px;
+    right: auto;
   }
 }
 
@@ -2013,11 +2001,13 @@ body {
   cursor: not-allowed;
 }
 .settings-ai-btn-primary {
-  background: var(--primary-metallic);
-  background-size: 200% 100%;
+  background: var(--primary);
   color: var(--text-on-primary);
   box-shadow: 0 4px 12px var(--primary-alpha-30);
-  animation: shimmer 3s linear infinite;
+  border: none;
+}
+.settings-ai-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.15);
 }
 .settings-ai-btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
@@ -2209,7 +2199,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--overlay-white-08);
+  background: transparent;
   border: none;
   border-left: 1px solid var(--terminal-border);
   color: var(--text-dim);
@@ -2217,7 +2207,7 @@ body {
   transition: all 0.15s ease;
 }
 .ai-copy-btn:hover {
-  background: var(--terminal-bg);
+  background: var(--overlay-white-08);
   color: var(--primary);
 }
 .ai-copy-btn:active {
@@ -2872,11 +2862,25 @@ body {
   align-items: center;
   gap: 8px;
   justify-content: center;
+  background: var(--overlay-white-08);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  font-family: inherit;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.logs-stream-btn:hover {
+  background: var(--overlay-white-12);
 }
 .logs-stream-btn.streaming {
   background: var(--primary);
+  color: var(--text-on-primary);
+  border-color: transparent;
   box-shadow: 0 0 12px var(--primary-alpha-40);
-  /* Animation removed per request */
 }
 .logs-stream-pulse-dot {
   width: 8px;
@@ -2916,6 +2920,23 @@ body {
 .logs-count {
   font-size: 11px;
   color: #9ca3af;
+}
+
+.logs-clear-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.logs-clear-btn:hover {
+  background: var(--overlay-white-08);
+  color: var(--text);
 }
 .logs-error-banner {
   color: #f87171;
