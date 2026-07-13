@@ -1002,8 +1002,7 @@ body {
 /* Dismiss button */
 
 .update-modal-dismiss {
-  background: var(--primary-metallic);
-  background-size: 200% 100%;
+  background: var(--primary);
   border: none;
   color: var(--text-on-primary);
   padding: 10px 24px;
@@ -1013,7 +1012,6 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 4px 12px var(--primary-alpha-30);
-  animation: shimmer 3s linear infinite;
   width: 100%;
   flex-shrink: 0;
   margin-top: 16px;
