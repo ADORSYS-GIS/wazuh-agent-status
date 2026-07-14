@@ -41,7 +41,7 @@ fn is_thread(_pid: u32) -> bool {
 pub(crate) fn collect_unix_system_metrics(sys: &System) -> SystemMetrics {
     let mut total_cpu: f32 = 0.0;
     let mut total_rss: u64 = 0;
-    let mut found_names = Vec::new();
+    let mut found_count: u32 = 0;
     let mut agentd_found = false;
 
     for process in sys.processes().values() {
@@ -92,15 +92,15 @@ pub(crate) fn collect_unix_system_metrics(sys: &System) -> SystemMetrics {
         if name.as_ref() == "wazuh-agentd" {
             agentd_found = true;
         }
-        found_names.push(format!("PID {} {} ({:.1}%)", process.pid(), name, p_cpu));
+        found_count += 1;
     }
 
-    if !found_names.is_empty() {
-        tracing::debug!("Found {} Wazuh processes", found_names.len());
+    if found_count > 0 {
+        tracing::debug!("Found {} Wazuh processes", found_count);
     }
 
     let cpu_count = sys.cpus().len() as f32;
-    let cpu_usage = if !found_names.is_empty() && cpu_count > 0.0 {
+    let cpu_usage = if found_count > 0 && cpu_count > 0.0 {
         total_cpu / cpu_count
     } else {
         0.0
@@ -118,7 +118,7 @@ pub(crate) fn collect_unix_system_metrics(sys: &System) -> SystemMetrics {
         memory_usage,
         total_memory,
         used_memory: total_rss,
-        agent_found: !found_names.is_empty(),
+        agent_found: found_count > 0,
         agentd_found,
     }
 }

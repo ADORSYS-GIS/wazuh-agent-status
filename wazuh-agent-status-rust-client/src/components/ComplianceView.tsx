@@ -128,8 +128,7 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
   useEffect(() => {
     if (!lastUpdated) return;
     const timer = setInterval(() => {
-      // Force re-render by creating a new Date
-      setLastUpdated(new Date(lastUpdated));
+      setLastUpdated(new Date());
     }, 10_000);
     return () => clearInterval(timer);
   }, [lastUpdated]);
