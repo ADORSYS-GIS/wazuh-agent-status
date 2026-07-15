@@ -4,7 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[84182de](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/84182dec9604c2733b1e1a0189fbfbd71ea487f3)
+[1a2b18a](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a2b18a0c2a6c025eb5cb2d8ef7f5b390170e601)...[f36f3b5](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f36f3b57078212d01a62192d75b37917dbfc5688)
+
+## 0.5.1-cr.2 - 2026-07-09
+
+[ab945ce](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ab945ced1173972c8c68886a6a4b8449a4bcec9c)...[1a2b18a](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a2b18a0c2a6c025eb5cb2d8ef7f5b390170e601)
+
+### Bug Fixes
+
+- Simplify Windows build configuration by removing explicit target and adjusting paths ([`54205c3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/54205c38aa5211aa4f16c793b2326a228ca0becf))
+- Update macOS build configuration to use correct self-hosted runner labels ([`1a2b18a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a2b18a0c2a6c025eb5cb2d8ef7f5b390170e601))
+
+## 0.5.1-cr.1 - 2026-07-09
+
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[ab945ce](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ab945ced1173972c8c68886a6a4b8449a4bcec9c)
 
 ### Bug Fixes
 
@@ -24,6 +37,7 @@ All notable changes to this project will be documented in this file.
 - Fix failing ci ([`7824de4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7824de4a5213fac8821bb28f15b15821fc9f5b46))
 - Enforce failure in release workflow when WAZUH_GATEWAY_URL secret is missing ([`6d7b679`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6d7b67965175a64fa04869c8cceea5bb5556f1d2))
 - Specify bash shell for Gateway URL configuration step in release workflow ([`1c3ae93`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1c3ae93e0d396f8ccc090d371606219e1dac4e33))
+- Update macOS build configuration to use specific self-hosted runners ([`ab945ce`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ab945ced1173972c8c68886a6a4b8449a4bcec9c))
 
 ### Documentation
 
@@ -59,6 +73,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`0b43051`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0b430519a830a19ce1be0fb9306d0ac235f5422e))
 - Update CHANGELOG.md and checksums [skip ci] ([`c9a978e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9a978e8f148e97979274fc76cfc58e55d1a02da))
 - Update CHANGELOG.md and checksums [skip ci] ([`a0098c7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a0098c7f622d21cf22e4b44ae577c4fe758ea989))
+- Update CHANGELOG.md and checksums [skip ci] ([`92b1f29`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/92b1f298a29fd2454d16ae7e68c15bacbf15f536))
 
 ### Features
 
@@ -73,6 +88,7 @@ All notable changes to this project will be documented in this file.
 - Add opencode workflow for PR review and issue tasks ([`47cb1b3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47cb1b3f8e9b8021d7f5c1ea89f755bba2f4602a))
 - Integrate AI-driven compliance remediation with secure and configuration support ([`176f199`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/176f199a0c159a46e8ec85c470fd56b02b863bd4)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Add HMAC auth for SCA compliance requests ([`9a775b6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9a775b695e08ebc087f318ecb125c5a91f0df920)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Add matrix-based cross-compilation support for Linux, MacOS, and Windows in release workflow ([`895472c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/895472c0e73f229cfb4405afc12730d67f081fa0))
 
 ### Miscellaneous Tasks
 
