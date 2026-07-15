@@ -2348,6 +2348,7 @@ body {
   gap: 6px;
   padding: 6px 12px;
   background: var(--primary-metallic);
+  background-size: 200% 100%;
   border: none;
   border-radius: 6px;
   color: var(--text-on-primary);
@@ -2355,6 +2356,8 @@ body {
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 4px 12px var(--primary-alpha-30);
+  animation: shimmer 3s linear infinite;
 }
 .compliance-command-run-btn:hover:not(:disabled) {
   transform: translateY(-1px);

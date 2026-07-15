@@ -129,7 +129,6 @@ const ALLOWED_COMMANDS: &[&str] = &[
     "chmod",
     "chown",
     "chgrp",
-    "rm",
     "cp",
     "mv",
     "ln",
@@ -323,7 +322,6 @@ const ALLOWED_COMMANDS: &[&str] = &[
     "Write-Output",
     "Write-Error",
     "New-Object",
-    "Invoke-Expression",
     // Windows system tools via cmd
     "Reg",
     "reg",
@@ -460,7 +458,7 @@ fn run_elevated_command(command: &str) -> Result<String, String> {
         let random_id = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_micros();
+            .as_nanos();
         let temp_file = std::env::temp_dir().join(format!("wazuh_elevated_out_{}.txt", random_id));
         let temp_file_str = temp_file.to_string_lossy().to_string();
 

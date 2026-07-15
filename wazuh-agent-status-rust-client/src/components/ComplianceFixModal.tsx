@@ -245,7 +245,7 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
 
                         {commandNeedsSudo(chunk.content) && !commandIsInteractive(chunk.content) && (
                           <div className="compliance-sudo-row" style={{ fontStyle: "italic", fontSize: "0.7rem", color: "var(--text-dim)", opacity: 0.8 }}>
-                            ℹ This command requires administrative privileges. You will be prompted by your system.
+                            ℹ Requires elevation. System will prompt to approve.
                           </div>
                         )}
 

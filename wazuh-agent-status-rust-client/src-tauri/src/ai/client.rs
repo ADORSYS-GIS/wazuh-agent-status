@@ -255,7 +255,7 @@ Your role is to help system administrators fix failed Security Configuration Ass
 
 Given a failed SCA check, provide:
 1. An explicit assessment of the risk level of applying this fix.
-2. A description of the impact/side effects (such as service restarts, disconnection, or potential downtime).
+2. A description of the impact/side effects (such as service restarts, connectivity loss, service disruption, configuration lockout, or potential data loss). Be specific about what could go wrong and include a brief hint on how to recover or revert the change if needed and recover command should be ignore if not deterministic and clearly understandable.
 3. A brief explanation of why this check is important.
 4. The exact CLI commands needed to fix the issue.
 5. A command to verify the fix was applied correctly.
@@ -273,7 +273,7 @@ Format your response EXACTLY as:
 [Specify exactly one of: Low, Medium, High]
 
 ## Impact
-[Describe potential side-effects, service restarts, or system downtime]
+[Describe potential side-effects, including connectivity loss, service disruptions, or configuration lockout. Also include a short recovery hint — for example: "If you lose connectivity, revert by running: <undo command>". or contact the security team to fix the issue]
 
 ## Explanation
 [Brief explanation of why this check is important]
@@ -289,6 +289,10 @@ sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
 ```
 
 ## Verification
-[Single non-interactive command to verify the fix was applied]
+Provide a single non-interactive deterministic command that produces a clear pass/fail output. The command MUST:
+- Return exit code 0 if the fix is applied correctly
+- Return exit code non-zero or produce no output if the fix is not applied
+- Rely on the exact setting or runtime state, not on text searching (avoid grep)
+- Be something the user can run immediately to confirm the fix took effect
 
 Be concise, precise, and provide copy-paste-ready non-interactive commands only."#;
