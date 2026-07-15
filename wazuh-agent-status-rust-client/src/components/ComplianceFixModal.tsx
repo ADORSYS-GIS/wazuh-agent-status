@@ -24,14 +24,12 @@ function TerminalOutput({ label, status, output }: Readonly<{ label: string; sta
 interface ComplianceFixModalProps {
   fixResult: AiFixResult;
   onClose: () => void;
-  onRefreshResults: () => void;
 }
 
-export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Readonly<ComplianceFixModalProps>) {
+export function ComplianceFixModal({ fixResult, onClose }: Readonly<ComplianceFixModalProps>) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [commandStates, setCommandStates] = useState<Record<number, { status: "idle" | "running" | "success" | "failed"; output: string }>>({});
   const [scaRescanState, setScaRescanState] = useState<{ status: "idle" | "running" | "success" | "failed"; output: string }>({ status: "idle", output: "" });
-  const [showRefreshAfterRescan, setShowRefreshAfterRescan] = useState(false);
   const messageIdRef = useRef(0);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -76,15 +74,14 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
 
   const handleSCARescan = useCallback(async () => {
     setScaRescanState({ status: "running", output: "Restarting wazuh-agent..." });
-    setShowRefreshAfterRescan(false);
     try {
       const output = await invoke<string>("trigger_sca_rescan");
       setScaRescanState({ status: "success", output });
-      setShowRefreshAfterRescan(true);
+      onClose();
     } catch (e) {
       setScaRescanState({ status: "failed", output: String(e) });
     }
-  }, []);
+  }, [onClose]);
 
   const handleChatSend = useCallback(async () => {
     const msg = chatInput.trim();
@@ -147,120 +144,122 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
           <div className="ai-fix-modal-panes">
             {/* Left Pane */}
             <div className="ai-fix-modal-left">
-              {/* Risk & Impact Alert */}
-              {(parsedData.riskLevel || parsedData.impact) && (
-                <div className={`compliance-fix-impact-card ${parsedData.riskLevel?.toLowerCase() || "low"}`}>
-                  <div className="compliance-fix-impact-header">
-                    <div className="compliance-fix-risk-title">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                        <line x1="12" y1="9" x2="12" y2="13" />
-                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                      </svg>
-                      Risk Evaluation
-                    </div>
-                    <span className={`compliance-fix-risk-badge ${parsedData.riskLevel?.toLowerCase() || "low"}`}>
-                      {parsedData.riskLevel || "Low"}
-                    </span>
-                  </div>
-                  {parsedData.impact && (
-                    <div className="compliance-fix-impact-desc">{parsedData.impact}</div>
-                  )}
-                </div>
-              )}
-
-              <div className="ai-fix-markdown">
-                {parsedData.chunks.map((chunk, i) => {
-                  const key = `${chunk.type}-${chunk.content.slice(0, 40)}`;
-                  if (chunk.type === "heading2") {
-                    return <h3 key={key} className="ai-fix-heading">{chunk.content}</h3>;
-                  }
-                  if (chunk.type === "heading3") {
-                    return <h4 key={key} className="ai-fix-subheading">{chunk.content}</h4>;
-                  }
-                  if (chunk.type === "step") {
-                    return <div key={key} className="ai-fix-step">{chunk.content}</div>;
-                  }
-                  if (chunk.type === "list_item") {
-                    return <li key={key} className="ai-fix-list-item">{chunk.content}</li>;
-                  }
-                  if (chunk.type === "text") {
-                    return <p key={key} className="ai-fix-paragraph">{chunk.content}</p>;
-                  }
-                  if (chunk.type === "code_block") {
-                    const execState = commandStates[i] || { status: "idle", output: "" };
-                    return (
-                      <div key={key} className={`compliance-command-card ${execState.status}`}>
-                        <div className="compliance-command-card-header">
-                          <span className="compliance-command-title">Suggested Shell Command</span>
-                          <div className="compliance-command-actions">
-                            <button
-                              className={`ai-copy-btn ${copiedIndex === i ? "copied" : ""}`}
-                              onClick={() => handleCopy(chunk.content, i)}
-                              title="Copy Command"
-                            >
-                              {copiedIndex === i ? (
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                              ) : (
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                </svg>
-                              )}
-                            </button>
-                            <button
-                              className="compliance-command-run-btn"
-                              onClick={() => handleRunCommand(chunk.content, i)}
-                              disabled={execState.status === "running" || commandIsInteractive(chunk.content)}
-                            >
-                              {execState.status === "running" ? (
-                                <span className="settings-ai-spinner" />
-                              ) : (
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <polygon points="5 3 19 12 5 21 5 3" />
-                                </svg>
-                              )}
-                              {execState.status === "running" ? "Running..." : "Execute"}
-                            </button>
-                          </div>
-                        </div>
-
-                        {commandIsInteractive(chunk.content) && (
-                          <div className="compliance-command-interactive-warn">
-                            ⚠ This command opens an interactive editor and cannot run inside the app. Copy it and run it in a terminal.
-                          </div>
-                        )}
-
-                        {commandIsDestructive(chunk.content) && !commandIsInteractive(chunk.content) && (
-                          <div className="compliance-command-interactive-warn" style={{ borderColor: "var(--error)", color: "var(--error)" }}>
-                            ⚠ This command may be destructive (e.g. deletes files, writes to a disk, or wipes data). Review carefully before executing.
-                          </div>
-                        )}
-
-                        <pre className="compliance-command-text">
-                          <code>{chunk.content}</code>
-                        </pre>
-
-                        {commandNeedsSudo(chunk.content) && !commandIsInteractive(chunk.content) && (
-                          <div className="compliance-sudo-row" style={{ fontStyle: "italic", fontSize: "0.7rem", color: "var(--text-dim)", opacity: 0.8 }}>
-                            ℹ Requires elevation. System will prompt to approve.
-                          </div>
-                        )}
-
-                        {execState.output && (
-                          <TerminalOutput label="Console Output" status={execState.status} output={execState.output} />
-                        )}
+              <div className="ai-fix-modal-left-scroll">
+                {/* Risk & Impact Alert */}
+                {(parsedData.riskLevel || parsedData.impact) && (
+                  <div className={`compliance-fix-impact-card ${parsedData.riskLevel?.toLowerCase() || "low"}`}>
+                    <div className="compliance-fix-impact-header">
+                      <div className="compliance-fix-risk-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                          <line x1="12" y1="9" x2="12" y2="13" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        Risk Evaluation
                       </div>
-                    );
-                  }
-                  return null;
-                })}
+                      <span className={`compliance-fix-risk-badge ${parsedData.riskLevel?.toLowerCase() || "low"}`}>
+                        {parsedData.riskLevel || "Low"}
+                      </span>
+                    </div>
+                    {parsedData.impact && (
+                      <div className="compliance-fix-impact-desc">{parsedData.impact}</div>
+                    )}
+                  </div>
+                )}
+
+                <div className="ai-fix-markdown">
+                  {parsedData.chunks.map((chunk, i) => {
+                    const key = `${chunk.type}-${chunk.content.slice(0, 40)}`;
+                    if (chunk.type === "heading2") {
+                      return <h3 key={key} className="ai-fix-heading">{chunk.content}</h3>;
+                    }
+                    if (chunk.type === "heading3") {
+                      return <h4 key={key} className="ai-fix-subheading">{chunk.content}</h4>;
+                    }
+                    if (chunk.type === "step") {
+                      return <div key={key} className="ai-fix-step">{chunk.content}</div>;
+                    }
+                    if (chunk.type === "list_item") {
+                      return <li key={key} className="ai-fix-list-item">{chunk.content}</li>;
+                    }
+                    if (chunk.type === "text") {
+                      return <p key={key} className="ai-fix-paragraph">{chunk.content}</p>;
+                    }
+                    if (chunk.type === "code_block") {
+                      const execState = commandStates[i] || { status: "idle", output: "" };
+                      return (
+                        <div key={key} className={`compliance-command-card ${execState.status}`}>
+                          <div className="compliance-command-card-header">
+                            <span className="compliance-command-title">Suggested Shell Command</span>
+                            <div className="compliance-command-actions">
+                              <button
+                                className={`ai-copy-btn ${copiedIndex === i ? "copied" : ""}`}
+                                onClick={() => handleCopy(chunk.content, i)}
+                                title="Copy Command"
+                              >
+                                {copiedIndex === i ? (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                ) : (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                  </svg>
+                                )}
+                              </button>
+                              <button
+                                className="compliance-command-run-btn"
+                                onClick={() => handleRunCommand(chunk.content, i)}
+                                disabled={execState.status === "running" || commandIsInteractive(chunk.content)}
+                              >
+                                {execState.status === "running" ? (
+                                  <span className="settings-ai-spinner" />
+                                ) : (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <polygon points="5 3 19 12 5 21 5 3" />
+                                  </svg>
+                                )}
+                                {execState.status === "running" ? "Running..." : "Execute"}
+                              </button>
+                            </div>
+                          </div>
+
+                          {commandIsInteractive(chunk.content) && (
+                            <div className="compliance-command-interactive-warn">
+                              ⚠ This command opens an interactive editor and cannot run inside the app. Copy it and run it in a terminal.
+                            </div>
+                          )}
+
+                          {commandIsDestructive(chunk.content) && !commandIsInteractive(chunk.content) && (
+                            <div className="compliance-command-interactive-warn" style={{ borderColor: "var(--error)", color: "var(--error)" }}>
+                              ⚠ This command may be destructive (e.g. deletes files, writes to a disk, or wipes data). Review carefully before executing.
+                            </div>
+                          )}
+
+                          <pre className="compliance-command-text">
+                            <code>{chunk.content}</code>
+                          </pre>
+
+                          {commandNeedsSudo(chunk.content) && !commandIsInteractive(chunk.content) && (
+                            <div className="compliance-sudo-row" style={{ fontStyle: "italic", fontSize: "0.7rem", color: "var(--text-dim)", opacity: 0.8 }}>
+                              ℹ Requires elevation. System will prompt to approve.
+                            </div>
+                          )}
+
+                          {execState.output && (
+                            <TerminalOutput label="Console Output" status={execState.status} output={execState.output} />
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
               </div>
 
-              {/* SCA Rescan */}
-              <div className="sca-rescan-card">
+              {/* SCA Rescan - pinned at bottom */}
+              <div className="sca-rescan-card" style={{ flexShrink: 0 }}>
                 <div className="sca-rescan-card-header">
                   <div className="sca-rescan-card-title">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -289,7 +288,7 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <polygon points="5 3 19 12 5 21 5 3" />
                         </svg>
-                        Restart &amp; Rescan
+                        Rescan Now
                       </>
                     )}
                   </button>
@@ -297,19 +296,6 @@ export function ComplianceFixModal({ fixResult, onClose, onRefreshResults }: Rea
 
                 {scaRescanState.output && (
                   <TerminalOutput label="Restart Output" status={scaRescanState.status} output={scaRescanState.output} />
-                )}
-
-                {showRefreshAfterRescan && (
-                  <div className="sca-rescan-refresh-hint">
-                    <span>SCA scan started. Results typically appear within 3–5 minutes.</span>
-                    <button className="compliance-verify-btn" onClick={onRefreshResults}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M23 4v6h-6" />
-                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                      </svg>
-                      Refresh Results
-                    </button>
-                  </div>
                 )}
               </div>
             </div>

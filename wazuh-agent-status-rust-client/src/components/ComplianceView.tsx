@@ -273,10 +273,6 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
     setFixingCheck(null);
   }, []);
 
-  const handleRefreshResults = useCallback(async () => {
-    await fetchReport();
-  }, [fetchReport]);
-
   // ── Loading ─────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -315,7 +311,7 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
       <div className="header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2 className="title">System Compliance</h2>
         <div style={{ display: "flex", gap: "6px" }}>
-          <button className="compliance-refresh-btn" onClick={fetchReport} title="Refresh now">
+          <button className="compliance-refresh-btn" onClick={() => { closeFixResult(); fetchReport(); }} title="Refresh now">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
@@ -563,7 +559,6 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
         <ComplianceFixModal
           fixResult={fixResult}
           onClose={closeFixResult}
-          onRefreshResults={handleRefreshResults}
         />
       )}
 
