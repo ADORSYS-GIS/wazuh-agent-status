@@ -101,19 +101,7 @@ export function UpdatesView({ updateInfo, agentStatus, onRefreshUpdates }: Reado
 
       <div className="section-title section-title--spaced" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span>Self-Healing</span>
-        <span style={{ 
-          background: agentStatus.self_healing_enabled ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 88, 12, 0.15)', 
-          color: agentStatus.self_healing_enabled ? '#4ade80' : '#fb923c', 
-          padding: '4px 10px', 
-          borderRadius: '12px', 
-          fontSize: '11px', 
-          fontWeight: 700, 
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          border: agentStatus.self_healing_enabled ? '1px solid rgba(34, 197, 94, 0.2)' : '1px solid rgba(234, 88, 12, 0.2)',
-          display: 'inline-flex',
-          alignItems: 'center'
-        }}>
+        <span className={`self-healing-badge ${agentStatus.self_healing_enabled ? 'active' : 'disabled'}`}>
           {agentStatus.self_healing_enabled ? 'Active' : 'Disabled'}
         </span>
       </div>

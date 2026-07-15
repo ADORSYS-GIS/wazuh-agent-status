@@ -271,7 +271,7 @@ function App() {
           />
         )}
         {activeView === "compliance" && <ComplianceView agentStatus={agentStatus} />}
-        {activeView === "settings" && <SettingsView config={config} agentStatus={agentStatus} />}
+        {activeView === "settings" && <SettingsView config={config} />}
       </main>
     </div>
   );

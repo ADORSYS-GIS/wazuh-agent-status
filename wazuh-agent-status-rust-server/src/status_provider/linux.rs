@@ -4,11 +4,13 @@
 use std::fs;
 use sysinfo::System;
 
+use std::path::Path;
+
 use crate::config::AgentPaths;
 use crate::errors::{Result, ServerError};
 use crate::group_extractor;
 use crate::models::{AgentStatus, ConnectionStatus};
-use crate::status_provider::StatusProvider;
+use crate::status_provider::{StatusProvider, read_connection_from_state_file};
 
 pub struct LinuxStatusProvider {
     paths: AgentPaths,
@@ -18,7 +20,6 @@ pub struct LinuxStatusProvider {
 impl LinuxStatusProvider {
     pub fn new(paths: AgentPaths) -> Self {
         let mut sys = System::new();
-        // Initial refresh so we have something for first poll
         sys.refresh_all();
         Self {
             paths,
@@ -26,9 +27,6 @@ impl LinuxStatusProvider {
         }
     }
 
-    /// Determine whether the `wazuh-agentd` process is alive by checking the
-    /// process list via `sysinfo`. This avoids lock file race conditions
-    /// inherent in calling `wazuh-control status`.
     fn is_agent_running(&self) -> bool {
         if let Ok(mut sys) = self.sys.lock() {
             sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
@@ -47,6 +45,10 @@ impl LinuxStatusProvider {
 }
 
 impl StatusProvider for LinuxStatusProvider {
+    fn get_state_file_path(&self) -> Option<&Path> {
+        Some(&self.paths.state_file)
+    }
+
     fn get_agent_status(&self) -> Result<AgentStatus> {
         if self.is_agent_running() {
             Ok(AgentStatus::Active)
@@ -61,25 +63,7 @@ impl StatusProvider for LinuxStatusProvider {
         if !self.is_agent_running() {
             return Ok(ConnectionStatus::Disconnected);
         }
-
-        let content = match fs::read_to_string(&self.paths.state_file) {
-            Ok(c) => c,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(ConnectionStatus::Disconnected);
-            }
-            Err(e) => {
-                return Err(ServerError::PlatformError(format!(
-                    "Cannot read state file {}: {e}",
-                    self.paths.state_file.display()
-                )));
-            }
-        };
-
-        if content.contains("status='connected'") {
-            Ok(ConnectionStatus::Connected)
-        } else {
-            Ok(ConnectionStatus::Disconnected)
-        }
+        read_connection_from_state_file(&self.paths.state_file)
     }
 
     fn get_agent_version(&self) -> Result<String> {
@@ -129,44 +113,12 @@ impl StatusProvider for LinuxStatusProvider {
             .lock()
             .map_err(|_| ServerError::PlatformError("Failed to lock system metrics".to_string()))?;
 
-        // Refresh all processes to find the Wazuh ones
         sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
         sys.refresh_memory();
-        sys.refresh_cpu_all(); // Ensure core information is fresh for delta calculation
+        sys.refresh_cpu_all();
 
-        let mut total_cpu: f32 = 0.0;
-        let mut total_rss: u64 = 0;
-        let mut found_names = Vec::new();
-
-        for process in sys.processes().values() {
-            let name = process.name().to_string_lossy();
-            if crate::status_provider::UNIX_AGENT_PROCESSES.contains(&name.as_ref()) {
-                let p_cpu = process.cpu_usage();
-                total_cpu += p_cpu;
-                total_rss += process.memory();
-                found_names.push(format!("{} ({:.1}%)", name, p_cpu));
-            }
-        }
-
-        let cpu_count = sys.cpus().len() as f32;
-        let cpu_usage = if !found_names.is_empty() && cpu_count > 0.0 {
-            total_cpu / cpu_count
-        } else {
-            0.0
-        };
-
-        let total_memory = sys.total_memory();
-        let memory_usage = if total_memory > 0 {
-            total_rss as f32 / total_memory as f32
-        } else {
-            0.0
-        };
-
-        Ok(crate::models::SystemMetrics {
-            cpu_usage,
-            memory_usage,
-            total_memory,
-            used_memory: total_rss,
-        })
+        Ok(crate::status_provider::unix::collect_unix_system_metrics(
+            &sys,
+        ))
     }
 }

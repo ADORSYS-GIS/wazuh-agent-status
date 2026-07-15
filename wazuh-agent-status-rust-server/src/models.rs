@@ -41,6 +41,14 @@ pub struct SystemMetrics {
     pub memory_usage: f32,
     pub total_memory: u64,
     pub used_memory: u64,
+    /// Whether any Wazuh agent processes were found during the metrics scan.
+    /// Used to determine if the local agent installation is present.
+    #[serde(default)]
+    pub agent_found: bool,
+    /// Whether the main `wazuh-agentd` daemon was found specifically.
+    /// Used by `get_partial_state()` to derive agent status without an extra process scan.
+    #[serde(default)]
+    pub agentd_found: bool,
 }
 
 impl Default for SystemMetrics {
@@ -50,6 +58,8 @@ impl Default for SystemMetrics {
             memory_usage: 0.0,
             total_memory: 0,
             used_memory: 0,
+            agent_found: false,
+            agentd_found: false,
         }
     }
 }
@@ -97,10 +107,9 @@ pub struct AgentState {
     pub metrics: SystemMetrics,
     /// Whether self-healing is currently active on the server.
     pub self_healing_enabled: bool,
-    /// Agent ID assigned by the Wazuh manager, read from client.keys.
     pub agent_id: String,
-    /// Agent name/hostname as registered with the Wazuh manager.
     pub agent_name: String,
+    pub agent_key: String,
 }
 
 impl Default for AgentState {
@@ -115,6 +124,7 @@ impl Default for AgentState {
             self_healing_enabled: true,
             agent_id: String::new(),
             agent_name: String::new(),
+            agent_key: String::new(),
         }
     }
 }

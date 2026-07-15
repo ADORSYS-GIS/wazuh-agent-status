@@ -155,7 +155,7 @@ pub fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
 
             // Update tray icon
             let _ = tray_icon_handle.set_icon(Some(get_status_icon(&state)));
-            log::info!(
+            log::trace!(
                 "Updated tray icon and menu for status: {:?}, connection: {:?}",
                 state.status,
                 state.connection

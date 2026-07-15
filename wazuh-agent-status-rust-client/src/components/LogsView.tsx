@@ -56,88 +56,48 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
       <div className="subtitle">Diagnostics</div>
       <h2 className="header title">Agent Logs</h2>
 
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", alignItems: "center" }}>
+      <div className="logs-filter-row">
         <input
+          className="logs-filter-input"
           type="text"
           placeholder="Filter logs (e.g. ERROR, WARNING)..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          style={{
-            flex: 1,
-            padding: "8px 12px",
-            borderRadius: "6px",
-            border: "1px solid var(--border)",
-            background: "var(--bg-secondary)",
-            color: "var(--text)",
-            fontSize: "13px",
-          }}
         />
         <button
-          className="update-button"
+          className="update-button logs-stream-btn"
           onClick={isStreaming ? onStop : onStart}
-          style={{ padding: "8px 16px", fontSize: "13px" }}
         >
           {isStreaming ? "Stop" : "Stream"}
         </button>
       </div>
 
-      <div
-        className="log-container"
-        ref={logContainerRef}
-        style={{
-          background: "#0a0a0a",
-          padding: "12px",
-          borderRadius: "8px",
-          fontSize: "11px",
-          fontFamily: "monospace",
-          maxHeight: "320px",
-          overflowY: "auto",
-          border: "1px solid #222",
-          lineHeight: 1.5,
-        }}
-      >
+      <div className="logs-container" ref={logContainerRef}>
         {error && (
-          <div style={{ color: "#f87171", textAlign: "center", padding: "12px", marginBottom: "8px", background: "#450a0a", borderRadius: "4px", fontWeight: 600 }}>
-            {error}
-          </div>
+          <div className="logs-error-banner">{error}</div>
         )}
         {filteredLogs.length === 0 ? (
-          <div style={{ color: "#6b7280", textAlign: "center", padding: "20px" }}>
-            {emptyMessage}
-          </div>
+          <div className="logs-empty">{emptyMessage}</div>
         ) : (
           filteredLogs.map((log, i) => (
-            <div key={`${log.level}-${log.raw}-${i}`} style={{ display: "flex", gap: "8px" }}>
+            <div className="logs-line" key={`${log.level}-${log.raw}-${i}`}>
               <span
-                style={{
-                  color: levelColor(log.level),
-                  fontWeight: 700,
-                  minWidth: "70px",
-                  textTransform: "uppercase",
-                  fontSize: "10px",
-                  letterSpacing: "0.05em",
-                  userSelect: "none",
-                }}
+                className="logs-level"
+                style={{ color: levelColor(log.level) }}
               >
                 {log.level}
               </span>
-              <span style={{ color: "#e5e7eb", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                {log.raw}
-              </span>
+              <span className="logs-message">{log.raw}</span>
             </div>
           ))
         )}
       </div>
 
-      <div style={{ marginTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: "11px", color: "#9ca3af" }}>
+      <div className="logs-footer">
+        <span className="logs-count">
           Showing {filteredLogs.length} of {logs.length} lines
         </span>
-        <button
-          className="update-button"
-          onClick={onClear}
-          style={{ padding: "6px 12px", fontSize: "12px" }}
-        >
+        <button className="update-button" onClick={onClear}>
           Clear
         </button>
       </div>

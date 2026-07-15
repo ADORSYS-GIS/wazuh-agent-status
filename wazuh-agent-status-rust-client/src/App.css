@@ -870,7 +870,6 @@ body {
   color: var(--terminal-line-color);
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  overflow-wrap: break-word;
   padding: 3px 14px;
   border-bottom: 1px solid var(--overlay-white-05);
   transition: background 0.15s ease;
@@ -1321,7 +1320,6 @@ body {
   color: var(--text);
   margin-bottom: 1px;
   overflow-wrap: break-word;
-  overflow-wrap: break-word;
 }
 .compliance-category-meta {
   font-size: 0.6rem;
@@ -1441,7 +1439,6 @@ body {
   flex-wrap: wrap;
   line-height: 1.4;
   overflow-wrap: break-word;
-  overflow-wrap: break-word;
   user-select: text;
   -webkit-user-select: text;
 }
@@ -1472,7 +1469,6 @@ body {
   font-size: 0.65rem;
   color: var(--text-dim);
   line-height: 1.5;
-  overflow-wrap: break-word;
   overflow-wrap: break-word;
   user-select: text;
   -webkit-user-select: text;
@@ -1612,7 +1608,7 @@ body {
   border-top: 1px solid var(--overlay-white-12);
   border-left: 1px solid var(--overlay-white-08);
   border-radius: 14px;
-  padding: 20px;
+  padding: 24px;
   margin-bottom: 16px;
   backdrop-filter: blur(12px);
   box-shadow: 0 8px 32px var(--overlay-black-30);
@@ -1683,7 +1679,7 @@ body {
 .settings-ai-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
 }
 .settings-ai-field {
   display: flex;
@@ -1711,7 +1707,7 @@ body {
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   color: var(--text);
   font-size: 0.8125rem;
   font-family: inherit;
@@ -1756,7 +1752,7 @@ body {
 .settings-ai-form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 16px;
 }
 @media (max-width: 500px) {
   .settings-ai-form-row {
@@ -1802,7 +1798,7 @@ body {
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 10px 36px 10px 12px;
+  padding: 12px 36px 12px 14px;
   color: var(--text);
   font-size: 0.8125rem;
   font-family: inherit;
@@ -1877,16 +1873,16 @@ body {
 /* Action buttons row */
 .settings-ai-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 10px;
+  margin-top: 8px;
   flex-wrap: wrap;
 }
 
 .settings-ai-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+  gap: 8px;
+  padding: 10px 18px;
   border-radius: 8px;
   font-size: 0.78rem;
   font-weight: 600;
@@ -2697,4 +2693,177 @@ body {
   line-height: 1.6;
   margin-bottom: 16px;
   overflow-wrap: break-word;
+}
+
+/* Retry button inside compliance error */
+.compliance-retry-btn {
+  background: var(--primary-metallic);
+  background-size: 200% 100%;
+  border: none;
+  color: var(--text-on-primary);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px var(--primary-alpha-30);
+  animation: shimmer 3s linear infinite;
+}
+.compliance-retry-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px var(--primary-alpha-40);
+}
+
+/* ── Logs View ──────────────────────────────────────────────────────────────── */
+
+.logs-filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+.logs-filter-input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.logs-filter-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-alpha-15);
+}
+.logs-container {
+  background: #0a0a0a;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid #222;
+  line-height: 1.5;
+}
+.logs-stream-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+.logs-footer {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.logs-count {
+  font-size: 11px;
+  color: #9ca3af;
+}
+.logs-error-banner {
+  color: #f87171;
+  text-align: center;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: #450a0a;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.logs-empty {
+  color: #6b7280;
+  text-align: center;
+  padding: 20px;
+}
+.logs-line {
+  display: flex;
+  gap: 8px;
+}
+.logs-level {
+  font-weight: 700;
+  min-width: 70px;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+.logs-message {
+  color: #e5e7eb;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ── Error Boundary ─────────────────────────────────────────────────────────── */
+
+.error-boundary {
+  padding: 24px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #f43f5e;
+  background: #0b1120;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+}
+.error-boundary h2 {
+  color: #f8fafc;
+  margin: 0;
+  font-size: 16px;
+}
+.error-boundary-card {
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  color: #f87171;
+}
+.error-boundary-stack {
+  background: #111827;
+  border-radius: 8px;
+  padding: 12px;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.6;
+  overflow: auto;
+  max-height: 400px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.error-boundary-reload {
+  background: linear-gradient(135deg, #00aaff, #38bdf8);
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: auto;
+}
+
+/* ── Self-Healing Badge ─────────────────────────────────────────────────────── */
+
+.self-healing-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+}
+.self-healing-badge.active {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+.self-healing-badge.disabled {
+  background: rgba(234, 88, 12, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(234, 88, 12, 0.3);
 }

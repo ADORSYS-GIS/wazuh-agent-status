@@ -44,9 +44,9 @@ pub struct AgentManager {
     paths: Arc<AgentPaths>,
     /// Runtime configuration.
     config: Arc<Config>,
-    /// Agent ID and name read from client.keys at startup.
     local_agent_id: String,
     local_agent_name: String,
+    local_agent_key: String,
 }
 
 impl AgentManager {
@@ -71,10 +71,11 @@ impl AgentManager {
     ) -> Self {
         let (tx, _) = broadcast::channel(128);
 
-        let (agent_id, agent_name) = Self::read_client_keys(&paths);
+        let (agent_id, agent_name, agent_key) = Self::read_client_keys(&paths);
         let initial_state = AgentState {
             agent_id: agent_id.clone(),
             agent_name: agent_name.clone(),
+            agent_key: agent_key.clone(),
             ..Default::default()
         };
 
@@ -87,26 +88,32 @@ impl AgentManager {
             config,
             local_agent_id: agent_id,
             local_agent_name: agent_name,
+            local_agent_key: agent_key,
         }
     }
 
-    /// Read agent ID and name from the Wazuh client.keys file.
-    /// File format per line: `<id> <name> <group> <key>`
-    fn read_client_keys(paths: &AgentPaths) -> (String, String) {
+    fn read_client_keys(paths: &AgentPaths) -> (String, String, String) {
         match std::fs::read_to_string(&paths.client_keys) {
             Ok(content) => {
                 if let Some(first_line) = content.lines().next() {
                     let parts: Vec<&str> = first_line.split_whitespace().collect();
+                    if parts.len() >= 4 {
+                        return (
+                            parts[0].to_string(),
+                            parts[1].to_string(),
+                            parts[3].to_string(),
+                        );
+                    }
                     if parts.len() >= 2 {
-                        return (parts[0].to_string(), parts[1].to_string());
+                        return (parts[0].to_string(), parts[1].to_string(), String::new());
                     }
                 }
                 warn!("client.keys file is empty or malformed");
-                (String::new(), String::new())
+                (String::new(), String::new(), String::new())
             }
             Err(e) => {
                 warn!(path = %paths.client_keys.display(), error = %e, "Could not read client.keys");
-                (String::new(), String::new())
+                (String::new(), String::new(), String::new())
             }
         }
     }
@@ -229,9 +236,9 @@ impl AgentManager {
 
                     let mut final_state = new_state;
                     final_state.self_healing_enabled = self.config.self_healing;
-                    // Preserve the agent ID/name from client.keys (stable across poll cycles)
                     final_state.agent_id = self.local_agent_id.clone();
                     final_state.agent_name = self.local_agent_name.clone();
+                    final_state.agent_key = self.local_agent_key.clone();
 
                     if *current != final_state {
                         info!(state = ?final_state, "Agent state changed");
