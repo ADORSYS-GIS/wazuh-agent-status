@@ -75,8 +75,6 @@ pub async fn start_log_stream(
     Ok(())
 }
 
-// ── SCA / Compliance ──────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceCheckResult {
     pub check_id: u32,

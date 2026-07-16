@@ -1,10 +1,3 @@
-//! Windows status provider.
-//!
-//! Agent status is queried via PowerShell `Get-Service` because Windows has no
-//! equivalent of a Unix PID file that can be checked without elevated rights.
-//! All other data (connection state, version, groups) is read directly from
-//! the file system — no elevated privileges required for those reads.
-
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -15,7 +8,7 @@ use crate::errors::{Result, ServerError};
 use crate::group_extractor;
 use crate::models::{AgentStatus, ConnectionStatus};
 use crate::status_provider::{StatusProvider, read_connection_from_state_file};
-use tracing::{debug, trace};
+use tracing::debug;
 
 pub struct WindowsStatusProvider {
     paths: AgentPaths,
@@ -32,15 +25,15 @@ impl WindowsStatusProvider {
         }
     }
 
-    /// Run a PowerShell command and return trimmed stdout.
     fn run_powershell(&self, command: &str) -> Result<String> {
         let output = Command::new("powershell.exe")
             .args(["-NoProfile", "-NonInteractive", "-Command", command])
             .output()?;
 
         if !output.status.success() {
-            let msg = String::from_utf8_lossy(&output.stderr).into_owned();
-            return Err(ServerError::PlatformError(msg));
+            return Err(ServerError::PlatformError(
+                String::from_utf8_lossy(&output.stderr).into_owned(),
+            ));
         }
 
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
@@ -53,19 +46,16 @@ impl StatusProvider for WindowsStatusProvider {
     }
 
     fn get_agent_status(&self) -> Result<AgentStatus> {
-        // PowerShell is the only practical way to query service state on Windows.
         let output = self
             .run_powershell("(Get-Service -Name WazuhSvc -ErrorAction SilentlyContinue).Status")?;
-        if output.eq_ignore_ascii_case("running") {
-            Ok(AgentStatus::Active)
+        Ok(if output.eq_ignore_ascii_case("running") {
+            AgentStatus::Active
         } else {
-            Ok(AgentStatus::Inactive)
-        }
+            AgentStatus::Inactive
+        })
     }
 
     fn get_connection_status(&self) -> Result<ConnectionStatus> {
-        // Optimization: If the agent service is stopped, it's definitely disconnected
-        // regardless of what the stale state file says.
         if !matches!(self.get_agent_status()?, AgentStatus::Active) {
             return Ok(ConnectionStatus::Disconnected);
         }
@@ -80,7 +70,6 @@ impl StatusProvider for WindowsStatusProvider {
                 }
             }
         }
-
         Ok("Unknown".to_string())
     }
 
@@ -92,10 +81,7 @@ impl StatusProvider for WindowsStatusProvider {
     }
 
     fn get_agent_groups(&self) -> Result<Vec<String>> {
-        match group_extractor::extract_groups(&self.paths.merged_mg) {
-            Ok(groups) => Ok(groups),
-            Err(_) => Ok(Vec::new()),
-        }
+        Ok(group_extractor::extract_groups(&self.paths.merged_mg).unwrap_or_default())
     }
 
     fn get_system_metrics(&self) -> Result<crate::models::SystemMetrics> {
@@ -136,7 +122,7 @@ impl StatusProvider for WindowsStatusProvider {
                 continue;
             }
 
-            debug!(process = %name, cpu = %process.cpu_usage(), mem = process.memory(), "Matched Wazuh process");
+            debug!(process = %name, "Matched Wazuh process");
             total_cpu += process.cpu_usage();
             total_rss += process.memory();
             if name.as_ref() == "wazuh-agentd.exe" || name.as_ref() == "ossec-agentd.exe" {
@@ -146,12 +132,7 @@ impl StatusProvider for WindowsStatusProvider {
         }
 
         if !found {
-            let available: Vec<_> = sys
-                .processes()
-                .values()
-                .map(|p| p.name().to_string_lossy().into_owned())
-                .collect();
-            debug!(processes = ?available, "No Wazuh processes matched; available process names shown above");
+            debug!("No Wazuh processes matched");
         }
 
         let cpu_count = sys.cpus().len() as f32;

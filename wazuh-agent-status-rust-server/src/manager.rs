@@ -170,65 +170,49 @@ impl AgentManager {
                             info!("Self-healing: Wazuh agent is inactive. Attempting restart...");
                             last_healing_attempt = Some(now);
 
-                            #[cfg(not(target_os = "windows"))]
-                            {
-                                let control_path = self.paths.wazuh_control.clone();
-                                tokio::spawn(async move {
-                                    let mut cmd = Command::new("sudo");
-                                    cmd.arg(control_path).arg("restart");
+                            let (cmd_name, args): (&str, Vec<String>) =
+                                if cfg!(target_os = "windows") {
+                                    (
+                                        "powershell.exe",
+                                        vec![
+                                            "-NoProfile".into(),
+                                            "-NonInteractive".into(),
+                                            "-Command".into(),
+                                            "Restart-Service -Name WazuhSvc -Force".into(),
+                                        ],
+                                    )
+                                } else {
+                                    (
+                                        "sudo",
+                                        vec![
+                                            self.paths.wazuh_control.to_string_lossy().into_owned(),
+                                            "restart".into(),
+                                        ],
+                                    )
+                                };
+                            tokio::spawn(async move {
+                                let mut cmd = Command::new(cmd_name);
+                                cmd.args(&args);
 
-                                    match cmd.output().await {
-                                        Ok(o) => {
-                                            if o.status.success() {
-                                                info!(
-                                                    "Self-healing: Restart command executed successfully"
-                                                );
-                                            } else {
-                                                warn!(
-                                                    "Self-healing: Restart command failed with exit code {}: {}",
-                                                    o.status.code().unwrap_or(-1),
-                                                    String::from_utf8_lossy(&o.stderr)
-                                                );
-                                            }
+                                match cmd.output().await {
+                                    Ok(o) => {
+                                        if o.status.success() {
+                                            info!(
+                                                "Self-healing: Restart command executed successfully"
+                                            );
+                                        } else {
+                                            warn!(
+                                                "Self-healing: Restart command failed with exit code {}: {}",
+                                                o.status.code().unwrap_or(-1),
+                                                String::from_utf8_lossy(&o.stderr)
+                                            );
                                         }
-                                        Err(e) => warn!(
-                                            "Self-healing: Failed to spawn restart command: {e}"
-                                        ),
                                     }
-                                });
-                            }
-
-                            #[cfg(target_os = "windows")]
-                            {
-                                tokio::spawn(async move {
-                                    let mut cmd = Command::new("powershell.exe");
-                                    cmd.args([
-                                        "-NoProfile",
-                                        "-NonInteractive",
-                                        "-Command",
-                                        "Restart-Service -Name WazuhSvc -Force",
-                                    ]);
-
-                                    match cmd.output().await {
-                                        Ok(o) => {
-                                            if o.status.success() {
-                                                info!(
-                                                    "Self-healing: Restart command executed successfully"
-                                                );
-                                            } else {
-                                                warn!(
-                                                    "Self-healing: Restart command failed with exit code {}: {}",
-                                                    o.status.code().unwrap_or(-1),
-                                                    String::from_utf8_lossy(&o.stderr)
-                                                );
-                                            }
-                                        }
-                                        Err(e) => warn!(
-                                            "Self-healing: Failed to spawn restart command: {e}"
-                                        ),
+                                    Err(e) => {
+                                        warn!("Self-healing: Failed to spawn restart command: {e}")
                                     }
-                                });
-                            }
+                                }
+                            });
                         }
                     } else if new_state.status == crate::models::AgentStatus::Active {
                         // Just broadcast state; don't reset healing clock to maintain strict cooldown

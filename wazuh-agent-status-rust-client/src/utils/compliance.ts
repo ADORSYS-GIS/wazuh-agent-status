@@ -96,7 +96,37 @@ export function scoreLabel(score: number): string {
 
 // ─── Command Helpers ─────────────────────────────────────────────────────────
 
-export const commandNeedsSudo = (cmd: string) => /(?:^|\s)sudo\s/.test(cmd);
+const WINDOWS_ADMIN_VERBS = [
+  "Restart-Service", "Start-Service", "Stop-Service", "Set-Service",
+  "New-Service", "Remove-Service",
+  "Install-WindowsFeature", "Uninstall-WindowsFeature",
+  "Add-WindowsFeature", "Remove-WindowsFeature",
+  "Set-ItemProperty", "Remove-ItemProperty", "New-ItemProperty",
+  "Set-ExecutionPolicy",
+  "New-Item", "Remove-Item", "Set-Item",
+  "New-LocalUser", "Remove-LocalUser", "Set-LocalUser",
+  "Add-LocalGroupMember", "Remove-LocalGroupMember",
+  "Enable-WindowsOptionalFeature", "Disable-WindowsOptionalFeature",
+  "Set-NetFirewallRule", "New-NetFirewallRule", "Remove-NetFirewallRule",
+  "Set-NetIPAddress", "New-NetIPAddress", "Remove-NetIPAddress",
+  "Set-NetAdapter", "Disable-NetAdapter", "Enable-NetAdapter",
+  "Set-NetConnectionProfile",
+  "repadmin", "gpupdate", "gpresult", "secedit",
+  "Reg", "reg", "sc.exe", "sc",
+  "icacls", "takeown",
+];
+
+const ADMIN_VERB_PATTERN = WINDOWS_ADMIN_VERBS.map((v) =>
+  v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+).join("|");
+const ADMIN_VERB_RE = new RegExp(
+  `(?:^|[\\s|;&'\"/])(${ADMIN_VERB_PATTERN})(?=[\\s|;&'\"/]|$)`
+);
+
+export const commandNeedsSudo = (cmd: string) => {
+  if (/(?:^|\s)sudo(?:\s|$)/.test(cmd)) return true;
+  return ADMIN_VERB_RE.test(cmd.trim());
+};
 
 export const commandIsInteractive = (cmd: string) =>
   /\b(nano|vim?|emacs|gedit|kate|mousepad|xed|less|more|most|htop|top|man|watch|tail\s+-f)\b/.test(cmd);

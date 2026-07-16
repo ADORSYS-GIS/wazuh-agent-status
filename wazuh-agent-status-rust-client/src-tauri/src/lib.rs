@@ -19,6 +19,13 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .setup(|app| {
             // Setup positioner only on non-linux
             #[cfg(not(target_os = "linux"))]
@@ -69,6 +76,7 @@ pub fn run() {
             commands::fetch_compliance,
             commands::ai_commands::save_ai_config,
             commands::ai_commands::get_ai_status,
+            commands::ai_commands::get_ai_config,
             commands::ai_commands::test_ai_connection,
             commands::ai_commands::clear_ai_config,
             commands::ai_commands::list_ai_models,

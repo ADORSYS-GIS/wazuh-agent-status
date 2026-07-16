@@ -1,45 +1,13 @@
-//! Provider-agnostic AI client abstraction.
-//!
-//! Uses the OpenAI Chat Completions API format, which is supported by most
-//! major providers (OpenAI, Anthropic via proxy, Ollama, DeepSeek, Groq, etc.).
-//!
-//! # Examples
-//!
-//! ```ignore
-//! let config = AiProviderConfig {
-//!     base_url: "https://api.openai.com/v1".into(),
-//!     api_key: "sk-...".into(),
-//!     model: "gpt-4o".into(),
-//!     ..Default::default()
-//! };
-//! let client = AiClient::new(config)?;
-//! let answer = client.ask("Why is the sky blue?").await?;
-//! ```
-
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-// ── Public Configuration ──────────────────────────────────────────────────────
-
-/// Describes which AI provider and model to use.
-///
-/// `base_url` and `model` are stored alongside the API key so the frontend
-/// can display them, while the actual `api_key` is **never** sent back to the
-/// renderer — it is only held in-memory during a Tauri command invocation
-/// after being fetched from the OS keychain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiProviderConfig {
-    /// Base URL of the OpenAI-compatible API (e.g. `"https://api.openai.com/v1"`).
     pub base_url: String,
-    /// API key / bearer token.
-    #[serde(skip_serializing)]
     pub api_key: String,
-    /// Model identifier (e.g. `"gpt-4o"`, `"claude-sonnet-4-20250514"`).
     pub model: String,
-    /// Optional custom system prompt override.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub system_prompt: Option<String>,
-    /// Request timeout in seconds (default 30).
     #[serde(default = "default_timeout")]
     pub timeout_secs: u64,
 }
@@ -60,7 +28,6 @@ impl Default for AiProviderConfig {
     }
 }
 
-/// Public subset of [`AiProviderConfig`] that is safe to send to the frontend.
 #[derive(Debug, Clone, Serialize)]
 pub struct AiProviderStatus {
     pub base_url: String,
@@ -78,23 +45,16 @@ impl From<&AiProviderConfig> for AiProviderStatus {
     }
 }
 
-/// A model listed by the provider's `/v1/models` endpoint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiModel {
-    /// Model ID (e.g. `"gpt-4o"`, `"deepseek-chat"`).
     pub id: String,
-    /// Object type (typically `"model"`).
     #[serde(default)]
     pub object: String,
-    /// Unix timestamp of model creation.
     #[serde(default)]
     pub created: u64,
-    /// Organization that owns the model.
     #[serde(default)]
     pub owned_by: String,
 }
-
-// ── Request / Response types (OpenAI-compatible) ──────────────────────────────
 
 #[derive(Debug, Serialize)]
 struct ChatCompletionRequest {
@@ -134,7 +94,6 @@ struct ApiError {
     message: String,
 }
 
-/// Response from the `/v1/models` endpoint.
 #[derive(Debug, Deserialize)]
 struct ModelsResponse {
     data: Vec<ModelsDataItem>,
@@ -153,20 +112,12 @@ struct ModelsDataItem {
     owned_by: String,
 }
 
-// ── AI Client ─────────────────────────────────────────────────────────────────
-
-/// A lightweight, provider-agnostic AI client.
-///
-/// All communication goes through the OpenAI-compatible `/v1/chat/completions`
-/// endpoint, so **any** provider that mirrors this API can be used by simply
-/// pointing [`AiProviderConfig::base_url`] at it.
 pub struct AiClient {
     config: AiProviderConfig,
     http: reqwest::Client,
 }
 
 impl AiClient {
-    /// Build a new client from the given configuration.
     pub fn new(config: AiProviderConfig) -> Result<Self, String> {
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(config.timeout_secs.max(5)))
@@ -176,7 +127,6 @@ impl AiClient {
         Ok(Self { config, http })
     }
 
-    /// Send a chat prompt and return the model's text response.
     pub async fn chat(&self, prompt: &str) -> Result<String, String> {
         let endpoint = self.config.base_url.trim_end_matches('/').to_string() + "/chat/completions";
 
@@ -229,18 +179,12 @@ impl AiClient {
         data.choices
             .first()
             .and_then(|c| c.message.content.clone())
-            .ok_or_else(|| "AI returned an empty response — no content in choice".to_string())
+            .ok_or_else(|| "AI returned an empty response".to_string())
     }
 
-    /// Quick connectivity check — hits `GET /v1/models` to verify the provider is reachable.
-    ///
-    /// Unlike [`chat`](Self::chat), this does **not** require a valid model,
-    /// so it works even before the user has selected one. If the provider
-    /// does not expose the models endpoint, a 404 or similar is accepted
-    /// as long as the host is reachable.
     pub async fn ping(&self) -> Result<String, String> {
         if self.config.api_key.is_empty() {
-            return Err("API key is required — configure a valid key before testing".to_string());
+            return Err("API key is required".to_string());
         }
 
         let endpoint = self.config.base_url.trim_end_matches('/').to_string() + "/models";
@@ -254,29 +198,17 @@ impl AiClient {
             .map_err(|e| format!("Provider unreachable: {e}"))?;
 
         let status = resp.status();
-        // Accept any 2xx as success; also accept 404/401/403 (provider reachable
-        // but models endpoint may not be exposed — that's fine).
         if status.is_success() {
-            Ok("Connected — provider is reachable".to_string())
+            Ok("Connected".to_string())
         } else if status.as_u16() == 404 {
-            // Models endpoint not found — provider is still reachable
-            Ok("Connected — provider reachable (models endpoint not exposed)".to_string())
+            Ok("Connected (models endpoint not exposed)".to_string())
         } else if status.as_u16() == 401 || status.as_u16() == 403 {
-            Err(format!(
-                "Authentication failed — check your API key (HTTP {status})"
-            ))
+            Err(format!("Authentication failed (HTTP {status})"))
         } else {
-            Err(format!(
-                "Provider returned HTTP {status} — check the URL and try again"
-            ))
+            Err(format!("Provider returned HTTP {status}"))
         }
     }
 
-    /// Fetch available models from the provider's `/v1/models` endpoint.
-    ///
-    /// Returns a list of model IDs (e.g. `"gpt-4o"`, `"deepseek-chat"`).
-    /// Some providers (e.g. Ollama) may return an empty list or an error
-    /// if the endpoint is not exposed.
     pub async fn list_models(&self) -> Result<Vec<AiModel>, String> {
         let endpoint = self.config.base_url.trim_end_matches('/').to_string() + "/models";
 
@@ -295,12 +227,11 @@ impl AiClient {
             .unwrap_or_else(|_| "<no body>".to_string());
 
         if !status.is_success() {
-            // Non-fatal: many providers don't expose the models endpoint
             return Ok(Vec::new());
         }
 
         let data: ModelsResponse = serde_json::from_str(&raw)
-            .map_err(|e| format!("Failed to parse models response: {e} — body: {raw}"))?;
+            .map_err(|e| format!("Failed to parse models response: {e}"))?;
 
         if let Some(err) = data.error {
             return Err(format!("Models API error: {}", err.message));
@@ -319,14 +250,12 @@ impl AiClient {
     }
 }
 
-// ── Default system prompt ─────────────────────────────────────────────────────
-
 const DEFAULT_SCA_FIX_PROMPT: &str = r#"You are a security configuration assistant for Wazuh agents.
 Your role is to help system administrators fix failed Security Configuration Assessment (SCA) checks.
 
 Given a failed SCA check, provide:
 1. An explicit assessment of the risk level of applying this fix.
-2. A description of the impact/side effects (such as service restarts, disconnection, or potential downtime).
+2. A description of the impact/side effects (such as service restarts, connectivity loss, service disruption, configuration lockout, or potential data loss). Be specific about what could go wrong and include a brief hint on how to recover or revert the change if needed and recover command should be ignore if not deterministic and clearly understandable.
 3. A brief explanation of why this check is important.
 4. The exact CLI commands needed to fix the issue.
 5. A command to verify the fix was applied correctly.
@@ -344,7 +273,7 @@ Format your response EXACTLY as:
 [Specify exactly one of: Low, Medium, High]
 
 ## Impact
-[Describe potential side-effects, service restarts, or system downtime]
+[Describe potential side-effects, including connectivity loss, service disruptions, or configuration lockout. Also include a short recovery hint — for example: "If you lose connectivity, revert by running: <undo command>". or contact the security team to fix the issue]
 
 ## Explanation
 [Brief explanation of why this check is important]
@@ -360,6 +289,10 @@ sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
 ```
 
 ## Verification
-[Single non-interactive command to verify the fix was applied]
+Provide a single non-interactive deterministic command that produces a clear pass/fail output. The command MUST:
+- Return exit code 0 if the fix is applied correctly
+- Return exit code non-zero or produce no output if the fix is not applied
+- Rely on the exact setting or runtime state, not on text searching (avoid grep)
+- Be something the user can run immediately to confirm the fix took effect
 
 Be concise, precise, and provide copy-paste-ready non-interactive commands only."#;

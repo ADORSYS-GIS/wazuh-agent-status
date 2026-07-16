@@ -65,10 +65,17 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
           onChange={(e) => setFilter(e.target.value)}
         />
         <button
-          className="update-button logs-stream-btn"
+          className={`logs-stream-btn ${isStreaming ? "streaming" : ""}`}
           onClick={isStreaming ? onStop : onStart}
         >
-          {isStreaming ? "Stop" : "Stream"}
+          {isStreaming ? (
+            <>
+              <span className="logs-stream-pulse-dot" />
+              Stop Streaming
+            </>
+          ) : (
+            "Stream Logs"
+          )}
         </button>
       </div>
 
@@ -97,7 +104,7 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
         <span className="logs-count">
           Showing {filteredLogs.length} of {logs.length} lines
         </span>
-        <button className="update-button" onClick={onClear}>
+        <button className="logs-clear-btn" onClick={onClear}>
           Clear
         </button>
       </div>

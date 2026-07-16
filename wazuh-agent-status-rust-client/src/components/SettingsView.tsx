@@ -15,8 +15,6 @@ interface SettingsViewProps {
   config: AppConfig;
 }
 
-// ── Connected state card ─────────────────────────────────────────────────────
-
 function AiConnectedCard({
   aiStatus,
   onChange,
@@ -65,8 +63,6 @@ function AiConnectedCard({
   );
 }
 
-// ── Model selector (dropdown or free-text input) ────────────────────────────
-
 function AiModelSelector({
   model,
   models,
@@ -113,8 +109,6 @@ function AiModelSelector({
   );
 }
 
-// ── Status message banner ────────────────────────────────────────────────────
-
 function AiStatusMsg({ msg }: Readonly<{ msg: { text: string; ok: boolean } | null }>) {
   if (!msg) return null;
   return (
@@ -134,8 +128,6 @@ function AiStatusMsg({ msg }: Readonly<{ msg: { text: string; ok: boolean } | nu
     </div>
   );
 }
-
-// ── AI Provider setup form ─────────────────────────────────────────────────
 
 function AiSetupForm({
   aiStatus,
@@ -212,7 +204,6 @@ function AiSetupForm({
           </div>
         </div>
 
-        {/* Model selector */}
         <div className="settings-ai-field">
           <div className="settings-ai-label-row">
             <label className="settings-ai-label" htmlFor="ai-model">Model</label>
@@ -247,7 +238,6 @@ function AiSetupForm({
           {loadingModels && <span className="settings-ai-hint">Loading models...</span>}
         </div>
 
-        {/* Status messages */}
         {testError && (
           <div className="settings-ai-msg error">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -268,7 +258,6 @@ function AiSetupForm({
         )}
         <AiStatusMsg msg={saveMsg} />
 
-        {/* Action buttons */}
         <div className="settings-ai-actions">
           <button
             className="settings-ai-btn settings-ai-btn-outline"
@@ -295,27 +284,21 @@ function AiSetupForm({
   );
 }
 
-// ── Main Component ───────────────────────────────────────────────────────────
-
 export function SettingsView({ config }: Readonly<SettingsViewProps>) {
   const { managed_by, company } = config.brand;
   const managedByName = managed_by ?? company;
   const showCustomer = managed_by !== undefined && managed_by !== company;
 
-  // ── AI Provider State ─────────────────────────────────────────────────
   const [aiStatus, setAiStatus] = useState<AiProviderStatus | null>(null);
 
-  // Form fields
   const [baseUrl, setBaseUrl] = useState("https://api.ai.camer.digital/v1");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("deepseek-v4-flash");
 
-  // Model listing
   const [models, setModels] = useState<AiModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [useModelSelect, setUseModelSelect] = useState(true);
 
-  // UI state
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testError, setTestError] = useState<string | null>(null);
@@ -323,7 +306,6 @@ export function SettingsView({ config }: Readonly<SettingsViewProps>) {
   const [saveMsg, setSaveMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  // ── Auto-dismiss status messages after 5s ────────────────────────────
   useEffect(() => {
     if (!saveMsg) return;
     const timer = setTimeout(() => setSaveMsg(null), 5000);
@@ -342,19 +324,24 @@ export function SettingsView({ config }: Readonly<SettingsViewProps>) {
     return () => clearTimeout(timer);
   }, [testOk]);
 
-  // ── Fetch saved config on mount ────────────────────────────────────────
   const fetchAiStatus = useCallback(async () => {
     const status = await invoke<AiProviderStatus>("get_ai_status");
     setAiStatus(status.configured ? status : null);
-    if (status.configured) {
-      setBaseUrl(status.base_url);
-      setModel(status.model);
-    }
   }, []);
 
   useEffect(() => { fetchAiStatus(); }, [fetchAiStatus]);
 
-  // ── Fetch models ──────────────────────────────────────────────────────
+  const fetchFullAiConfig = useCallback(async () => {
+    try {
+      const cfg = await invoke<AiProviderConfig>("get_ai_config");
+      setBaseUrl(cfg.base_url);
+      setModel(cfg.model);
+      setApiKey(cfg.api_key);
+    } catch {
+      // No existing config - keep defaults
+    }
+  }, []);
+
   const fetchModels = useCallback(async (url: string, key: string) => {
     setLoadingModels(true);
     try {
@@ -368,7 +355,6 @@ export function SettingsView({ config }: Readonly<SettingsViewProps>) {
     }
   }, []);
 
-  // ── Test connection ───────────────────────────────────────────────────
   const handleTest = useCallback(async () => {
     const cleanUrl = stripSlash(baseUrl);
     if (!cleanUrl) { setTestError("Enter a base URL"); return; }
@@ -388,7 +374,6 @@ export function SettingsView({ config }: Readonly<SettingsViewProps>) {
     }
   }, [baseUrl, apiKey, model, fetchModels]);
 
-  // ── Save ──────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     const cleanUrl = stripSlash(baseUrl);
     if (!cleanUrl) { setSaveMsg({ text: "Base URL is required", ok: false }); return; }
@@ -408,7 +393,6 @@ export function SettingsView({ config }: Readonly<SettingsViewProps>) {
     }
   }, [baseUrl, apiKey, model]);
 
-  // ── Disconnect ────────────────────────────────────────────────────────
   const handleDisconnect = useCallback(async () => {
     try {
       await invoke("clear_ai_config");
@@ -449,20 +433,16 @@ export function SettingsView({ config }: Readonly<SettingsViewProps>) {
     setUseModelSelect((prev) => !prev);
   }, []);
 
-  const onChangeClick = useCallback(() => {
+  const onChangeClick = useCallback(async () => {
     setShowForm(true);
-    if (aiStatus) {
-      setBaseUrl(aiStatus.base_url);
-      setModel(aiStatus.model);
-    }
-  }, [aiStatus]);
+    await fetchFullAiConfig();
+  }, [fetchFullAiConfig]);
 
   const onCancel = useCallback(() => {
     setShowForm(false);
     fetchAiStatus();
   }, [fetchAiStatus]);
 
-  // ── Render ────────────────────────────────────────────────────────
   return (
     <div className="view-container">
       <div className="subtitle">System Information</div>

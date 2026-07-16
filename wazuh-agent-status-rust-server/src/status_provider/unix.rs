@@ -1,16 +1,103 @@
-//! Shared Unix system-metrics collection for Linux & macOS providers.
-
 use std::fs;
+use std::path::Path;
 use sysinfo::System;
 
-use crate::models::SystemMetrics;
-use crate::status_provider::UNIX_AGENT_PROCESSES;
+use crate::config::AgentPaths;
+use crate::errors::{Result, ServerError};
+use crate::group_extractor;
+use crate::models::{AgentStatus, ConnectionStatus, SystemMetrics};
+use crate::status_provider::{
+    StatusProvider, UNIX_AGENT_PROCESSES, read_connection_from_state_file,
+};
 
-/// Executable-path prefixes that identify a local Wazuh installation.
 pub(crate) const WAZUH_EXE_PREFIXES: &[&str] = &["/var/ossec/", "/Library/Ossec/"];
 
-/// On Linux, `/proc/[pid]/status` exposes `Tgid` (thread group ID). If it
-/// differs from `Pid`, the entry is a thread, not a process.
+pub struct UnixStatusProvider {
+    paths: AgentPaths,
+    sys: std::sync::Mutex<System>,
+}
+
+impl UnixStatusProvider {
+    pub fn new(paths: AgentPaths) -> Self {
+        let mut sys = System::new();
+        sys.refresh_all();
+        Self {
+            paths,
+            sys: std::sync::Mutex::new(sys),
+        }
+    }
+
+    fn is_agent_running(&self) -> bool {
+        if let Ok(mut sys) = self.sys.lock() {
+            sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+            sys.processes()
+                .values()
+                .any(|p| p.name().to_string_lossy() == "wazuh-agentd")
+        } else {
+            false
+        }
+    }
+}
+
+impl StatusProvider for UnixStatusProvider {
+    fn get_state_file_path(&self) -> Option<&Path> {
+        Some(&self.paths.state_file)
+    }
+
+    fn get_agent_status(&self) -> Result<AgentStatus> {
+        Ok(if self.is_agent_running() {
+            AgentStatus::Active
+        } else {
+            AgentStatus::Inactive
+        })
+    }
+
+    fn get_connection_status(&self) -> Result<ConnectionStatus> {
+        if !self.is_agent_running() {
+            return Ok(ConnectionStatus::Disconnected);
+        }
+        read_connection_from_state_file(&self.paths.state_file)
+    }
+
+    fn get_agent_version(&self) -> Result<String> {
+        match fs::read_to_string(&self.paths.version_json) {
+            Ok(content) => {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
+                    && let Some(v) = json.get("version").and_then(|v| v.as_str())
+                {
+                    return Ok(v.to_string());
+                }
+                Ok("Unknown".to_string())
+            }
+            Err(_) => Ok("Unknown".to_string()),
+        }
+    }
+
+    fn get_tray_version(&self) -> Result<String> {
+        match fs::read_to_string(&self.paths.version_file) {
+            Ok(raw) => Ok(raw.trim().to_string()),
+            Err(_) => Ok("Unknown".to_string()),
+        }
+    }
+
+    fn get_agent_groups(&self) -> Result<Vec<String>> {
+        Ok(group_extractor::extract_groups(&self.paths.merged_mg).unwrap_or_default())
+    }
+
+    fn get_system_metrics(&self) -> Result<SystemMetrics> {
+        let mut sys = self
+            .sys
+            .lock()
+            .map_err(|_| ServerError::PlatformError("Failed to lock system metrics".to_string()))?;
+
+        sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+        sys.refresh_memory();
+        sys.refresh_cpu_all();
+
+        Ok(collect_unix_system_metrics(&sys))
+    }
+}
+
 #[cfg(target_os = "linux")]
 fn is_thread(pid: u32) -> bool {
     if let Ok(content) = fs::read_to_string(format!("/proc/{pid}/status")) {
@@ -27,21 +114,15 @@ fn is_thread(pid: u32) -> bool {
     }
 }
 
-/// macOS has no `/proc/[pid]/status` — threads are not counted as separate
-/// processes by `sysinfo` so this is a no-op.
 #[cfg(not(target_os = "linux"))]
 fn is_thread(_pid: u32) -> bool {
     false
 }
 
-/// Collect system metrics from Wazuh agent processes on Unix platforms.
-///
-/// Uses `process.cmd()` (world-readable `/proc/[pid]/cmdline`) instead of
-/// `process.exe()` (permission-restricted `/proc/[pid]/exe`) for path matching.
 pub(crate) fn collect_unix_system_metrics(sys: &System) -> SystemMetrics {
     let mut total_cpu: f32 = 0.0;
     let mut total_rss: u64 = 0;
-    let mut found_count: u32 = 0;
+    let mut found = false;
     let mut agentd_found = false;
 
     for process in sys.processes().values() {
@@ -50,8 +131,6 @@ pub(crate) fn collect_unix_system_metrics(sys: &System) -> SystemMetrics {
             continue;
         }
 
-        // Use cmd() (world-readable /proc/[pid]/cmdline) instead of exe()
-        // (/proc/[pid]/exe, which needs matching permissions).
         let cmd_path = process
             .cmd()
             .first()
@@ -63,49 +142,26 @@ pub(crate) fn collect_unix_system_metrics(sys: &System) -> SystemMetrics {
                     .iter()
                     .any(|prefix| p.starts_with(prefix))
             })
-            .unwrap_or(true); // fallback: if cmd() is empty, accept name-only match
+            .unwrap_or(true);
 
-        if !matches_path {
-            tracing::trace!(
-                "Skipping process '{}' (PID {}) because its cmd path '{}' does not match Wazuh prefixes",
-                name,
-                process.pid(),
-                cmd_path.as_deref().unwrap_or("<unknown>"),
-            );
+        if !matches_path || is_thread(process.pid().as_u32()) {
             continue;
         }
 
-        // Skip threads so we count each Wazuh daemon only once.
-        if is_thread(process.pid().as_u32()) {
-            tracing::trace!(
-                "Skipping thread '{}' (TID {}, TGID via /proc/{}/status)",
-                name,
-                process.pid(),
-                process.pid(),
-            );
-            continue;
-        }
-
-        let p_cpu = process.cpu_usage();
-        total_cpu += p_cpu;
+        total_cpu += process.cpu_usage();
         total_rss += process.memory();
         if name.as_ref() == "wazuh-agentd" {
             agentd_found = true;
         }
-        found_count += 1;
-    }
-
-    if found_count > 0 {
-        tracing::debug!("Found {} Wazuh processes", found_count);
+        found = true;
     }
 
     let cpu_count = sys.cpus().len() as f32;
-    let cpu_usage = if found_count > 0 && cpu_count > 0.0 {
+    let cpu_usage = if found && cpu_count > 0.0 {
         total_cpu / cpu_count
     } else {
         0.0
     };
-
     let total_memory = sys.total_memory();
     let memory_usage = if total_memory > 0 {
         total_rss as f32 / total_memory as f32
@@ -118,7 +174,7 @@ pub(crate) fn collect_unix_system_metrics(sys: &System) -> SystemMetrics {
         memory_usage,
         total_memory,
         used_memory: total_rss,
-        agent_found: found_count > 0,
+        agent_found: found,
         agentd_found,
     }
 }

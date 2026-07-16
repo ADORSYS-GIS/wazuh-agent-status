@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, type CSSProperties } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { AgentStatus, ComplianceReport, ComplianceCheckResult } from "../types/agent";
 import type { AiFixResult, AiProviderStatus, FailedCheckInput } from "../types/ai";
@@ -58,6 +58,38 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
 
   // Last-updated timestamp
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  // ── SCA Rescan State ────────────────────────────────────────────────────
+  const [scaRescanState, setScaRescanState] = useState<{ status: "idle" | "running" | "success" | "failed"; output: string }>({ status: "idle", output: "" });
+  const scaTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up the rescan auto-clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (scaTimeoutRef.current) {
+        clearTimeout(scaTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleSCARescan = useCallback(async () => {
+    // Cancel any pending auto-clear from a previous rescan
+    if (scaTimeoutRef.current) {
+      clearTimeout(scaTimeoutRef.current);
+    }
+    setScaRescanState({ status: "running", output: "Restarting wazuh-agent to trigger SCA rescan..." });
+    try {
+      const output = await invoke<string>("trigger_sca_rescan");
+      setScaRescanState({ status: "success", output });
+      // Auto-clear the output after 4 seconds so it doesn't linger
+      scaTimeoutRef.current = setTimeout(() => {
+        setScaRescanState({ status: "idle", output: "" });
+        scaTimeoutRef.current = null;
+      }, 4000);
+    } catch (e) {
+      setScaRescanState({ status: "failed", output: String(e) });
+    }
+  }, []);
 
   // ── AI Fix State ──────────────────────────────────────────────────────────
   const [aiStatus, setAiStatus] = useState<AiProviderStatus | null>(null);
@@ -241,10 +273,6 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
     setFixingCheck(null);
   }, []);
 
-  const handleRefreshResults = useCallback(async () => {
-    await fetchReport();
-  }, [fetchReport]);
-
   // ── Loading ─────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -282,13 +310,43 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
       </div>
       <div className="header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2 className="title">System Compliance</h2>
-        <button className="compliance-refresh-btn" onClick={fetchReport} title="Refresh now">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-          </svg>
-        </button>
+        <div style={{ display: "flex", gap: "6px" }}>
+          <button className="compliance-refresh-btn" onClick={() => { closeFixResult(); fetchReport(); }} title="Refresh now">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+          </button>
+          <button
+            className="compliance-refresh-btn"
+            onClick={handleSCARescan}
+            disabled={scaRescanState.status === "running"}
+            title="Restart agent to trigger SCA rescan"
+            style={{ color: scaRescanState.status === "running" ? "var(--primary)" : undefined }}
+          >
+            {scaRescanState.status === "running" ? (
+              <span className="settings-ai-spinner" style={{ width: 12, height: 12 }} />
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* ── SCA Rescan Terminal Output ───────────────────────────────── */}
+      {scaRescanState.output && (
+        <div className={`compliance-command-terminal ${scaRescanState.status}`} style={{ marginBottom: "18px" }}>
+          <div className="compliance-command-terminal-header">
+            <span>SCA Rescan</span>
+            <span className={`terminal-status-dot ${scaRescanState.status}`} />
+          </div>
+          <pre className="compliance-command-terminal-log">{scaRescanState.output}</pre>
+        </div>
+      )}
 
       {/* ── Hero Score Card ────────────────────────────────────────────── */}
       <div className="compliance-hero">
@@ -501,7 +559,6 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
         <ComplianceFixModal
           fixResult={fixResult}
           onClose={closeFixResult}
-          onRefreshResults={handleRefreshResults}
         />
       )}
 

@@ -37,6 +37,15 @@ jobs:
             echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Bump versions
+        shell: bash
+        run: |
+          RAW_VERSION=${GITHUB_REF#refs/tags/v}
+          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
+          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
+          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
+          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
@@ -159,6 +168,15 @@ jobs:
             echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Bump versions
+        shell: bash
+        run: |
+          RAW_VERSION=${GITHUB_REF#refs/tags/v}
+          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
+          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
+          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
+          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
@@ -249,6 +267,15 @@ jobs:
           else
             echo "version=dev-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
           fi
+
+      - name: Bump versions
+        shell: bash
+        run: |
+          RAW_VERSION=${GITHUB_REF#refs/tags/v}
+          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
+          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
+          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
+          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
 
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -350,11 +377,22 @@ jobs:
           config: cliff.toml
           args: --output CHANGELOG.md
 
+      - name: Bump versions
+        shell: bash
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            RAW_VERSION=${GITHUB_REF#refs/tags/v}
+            sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
+            sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
+            jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
+            jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+          fi
+
       - name: Commit and push changes
         run: |
           if [[ -n $(git status --porcelain) ]]; then
-            git add CHANGELOG.md checksums.sha256
-            git commit -m "docs: update CHANGELOG.md and checksums [skip ci]"
+            git add CHANGELOG.md checksums.sha256 ${{ env.SERVER_DIR }}/Cargo.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml ${{ env.CLIENT_DIR }}/package.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+            git commit -m "docs: update CHANGELOG.md, checksums, and app version [skip ci]"
             git push origin ${{ github.head_ref || github.ref_name }}
           else
             echo "No changes to commit"

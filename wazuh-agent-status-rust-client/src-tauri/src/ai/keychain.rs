@@ -1,15 +1,8 @@
-//! File-based AI provider credential storage.
-//!
-//! The config (base URL, model, API key) is stored in
-//! `~/.config/wazuh-agent-status/ai-config.json` with `0o600` permissions.
-//! No OS keychain dependency needed — works reliably on all platforms.
-
 use crate::ai::client::AiProviderConfig;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-/// Full config stored on disk (key included, file permissions restricted).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct FileConfig {
     pub base_url: String,
@@ -17,15 +10,11 @@ struct FileConfig {
     pub api_key: String,
 }
 
-// ── Path helpers ──────────────────────────────────────────────────────────────
-
 fn config_dir() -> Result<PathBuf, String> {
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .map_err(|_| {
-            "Cannot determine home directory: neither HOME nor USERPROFILE is set. \
-             Refusing to store API key in an unknown location."
-                .to_string()
+            "Cannot determine home directory: neither HOME nor USERPROFILE is set".to_string()
         })?;
     Ok(PathBuf::from(home).join(".config/wazuh-agent-status"))
 }
@@ -33,8 +22,6 @@ fn config_dir() -> Result<PathBuf, String> {
 fn config_file() -> Result<PathBuf, String> {
     Ok(config_dir()?.join("ai-config.json"))
 }
-
-// ── File read/write ───────────────────────────────────────────────────────────
 
 fn write_config(cfg: &FileConfig) -> Result<(), String> {
     let dir = config_dir()?;
@@ -46,20 +33,52 @@ fn write_config(cfg: &FileConfig) -> Result<(), String> {
     let path = config_file()?;
     fs::write(&path, &json).map_err(|e| format!("Failed to write config file: {e}"))?;
 
-    // Restrict permissions (owner read/write only) on Unix.
-    // Failure is treated as a hard error: we must not leave the API key
-    // world-readable if the permission change cannot be applied.
     #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let meta =
-            fs::metadata(&path).map_err(|e| format!("Failed to read config file metadata: {e}"))?;
-        let mut perms = meta.permissions();
-        perms.set_mode(0o600);
-        fs::set_permissions(&path, perms)
-            .map_err(|e| format!("Failed to restrict config file permissions: {e}"))?;
-    }
+    restrict_permissions_unix(&path)?;
 
+    #[cfg(windows)]
+    restrict_permissions_windows(&path)?;
+
+    Ok(())
+}
+
+#[cfg(unix)]
+fn restrict_permissions_unix(path: &std::path::Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+    let meta =
+        fs::metadata(path).map_err(|e| format!("Failed to read config file metadata: {e}"))?;
+    let mut perms = meta.permissions();
+    perms.set_mode(0o600);
+    fs::set_permissions(path, perms)
+        .map_err(|e| format!("Failed to restrict config file permissions: {e}"))
+}
+
+#[cfg(windows)]
+fn restrict_permissions_windows(path: &std::path::Path) -> Result<(), String> {
+    use std::process::Command;
+    let path_str = path.to_string_lossy().to_string();
+    let user = std::env::var("USERNAME").unwrap_or_default();
+    if user.is_empty() {
+        return Err(
+            "USERNAME environment variable is empty; cannot restrict file permissions".to_string(),
+        );
+    }
+    let output = Command::new("icacls")
+        .args([
+            &path_str,
+            "/inheritance:r",
+            "/grant",
+            &format!("{user}:(R,W)"),
+        ])
+        .output()
+        .map_err(|e| format!("Failed to run icacls: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "Failed to restrict Windows file permissions: {stderr}"
+        ));
+    }
     Ok(())
 }
 
@@ -70,22 +89,13 @@ fn read_config_raw() -> Result<FileConfig, String> {
 }
 
 fn remove_config_file() {
-    // Best-effort removal: silently ignore errors (file may not exist).
     if let Ok(path) = config_file() {
         let _ = fs::remove_file(path);
     }
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
-/// Store a full [`AiProviderConfig`] to the config file.
-///
-/// If `api_key` is empty, the existing API key from the config file is
-/// preserved — this allows the frontend to update base URL / model
-/// without requiring the user to re-enter the key every time.
 pub fn store_config(config: &AiProviderConfig) -> Result<(), String> {
     let api_key = if config.api_key.is_empty() {
-        // Preserve existing API key when not explicitly provided
         match read_config_raw() {
             Ok(existing) => existing.api_key,
             Err(_) => config.api_key.clone(),
@@ -106,7 +116,6 @@ pub fn store_config(config: &AiProviderConfig) -> Result<(), String> {
     Ok(())
 }
 
-/// Read the full [`AiProviderConfig`] from the config file.
 pub fn get_config() -> Result<AiProviderConfig, String> {
     let fc = read_config_raw()?;
     Ok(AiProviderConfig {
@@ -117,10 +126,6 @@ pub fn get_config() -> Result<AiProviderConfig, String> {
     })
 }
 
-/// Return provider status (safe for frontend — no API key).
-///
-/// Never returns an error: if no config is found, returns
-/// `{ configured: false }`.
 pub fn get_provider_status() -> super::client::AiProviderStatus {
     match get_config() {
         Ok(cfg) => super::client::AiProviderStatus {
@@ -136,7 +141,6 @@ pub fn get_provider_status() -> super::client::AiProviderStatus {
     }
 }
 
-/// Remove the config file.
 pub fn clear_config() -> Result<(), String> {
     remove_config_file();
     log::info!("AI config cleared");
@@ -150,10 +154,8 @@ mod tests {
     use std::path::Path;
     use std::sync::Mutex;
 
-    /// Serialize filesystem-based tests to avoid `HOME` / temp-dir collisions.
     static FS_LOCK: Mutex<()> = Mutex::new(());
 
-    /// Create a temporary `$HOME`, run `f`, then restore the original.
     fn with_temp_home<F>(f: F)
     where
         F: FnOnce(&Path),
@@ -165,9 +167,6 @@ mod tests {
         fs::create_dir_all(&tmp).expect("failed to create temp dir");
 
         let prev = std::env::var("HOME").ok();
-        // SAFETY: tests are serialized via FS_LOCK, so concurrent env var
-        // modification cannot happen. HOME is restored before the lock is
-        // released.
         unsafe { std::env::set_var("HOME", &tmp) };
 
         f(&tmp);
@@ -180,12 +179,9 @@ mod tests {
         let _ = fs::remove_dir_all(&tmp);
     }
 
-    // ── store_config persistence tests ────────────────────────────────────
-
     #[test]
     fn test_store_config_preserves_api_key_when_empty() {
         with_temp_home(|_home| {
-            // 1. Save a config WITH an API key.
             store_config(&AiProviderConfig {
                 base_url: "https://api.openai.com/v1".into(),
                 model: "gpt-4o".into(),
@@ -194,7 +190,6 @@ mod tests {
             })
             .expect("first store should succeed");
 
-            // 2. Save a config with EMPTY api_key (e.g. user only changed URL/model).
             store_config(&AiProviderConfig {
                 base_url: "https://custom-proxy.example.com/v1".into(),
                 model: "gpt-4o-mini".into(),
@@ -203,7 +198,6 @@ mod tests {
             })
             .expect("second store should succeed");
 
-            // 3. Read back — api_key should be PRESERVED from step 1.
             let result = get_config().expect("get_config should succeed");
             assert_eq!(result.base_url, "https://custom-proxy.example.com/v1");
             assert_eq!(result.model, "gpt-4o-mini");
@@ -217,21 +211,18 @@ mod tests {
     #[test]
     fn test_store_config_overwrites_api_key_when_provided() {
         with_temp_home(|_home| {
-            // 1. Save with one API key.
             store_config(&AiProviderConfig {
                 api_key: "sk-old-key".into(),
                 ..Default::default()
             })
             .expect("first store should succeed");
 
-            // 2. Save with a DIFFERENT (non-empty) api_key.
             store_config(&AiProviderConfig {
                 api_key: "sk-new-key".into(),
                 ..Default::default()
             })
             .expect("second store should succeed");
 
-            // 3. Read back — api_key should be the NEW value.
             let result = get_config().expect("get_config should succeed");
             assert_eq!(
                 result.api_key, "sk-new-key",
@@ -243,7 +234,6 @@ mod tests {
     #[test]
     fn test_store_config_empty_key_no_existing_file() {
         with_temp_home(|_home| {
-            // No config file exists yet → save with empty api_key.
             store_config(&AiProviderConfig {
                 base_url: "https://ollama.local/v1".into(),
                 model: "llama3".into(),
@@ -261,8 +251,6 @@ mod tests {
             assert_eq!(result.model, "llama3");
         });
     }
-
-    // ── clear_config ──────────────────────────────────────────────────────
 
     #[test]
     fn test_clear_config_removes_file() {
@@ -283,12 +271,9 @@ mod tests {
     #[test]
     fn test_clear_config_when_no_file_exists() {
         with_temp_home(|_home| {
-            // Should not panic or error when there's nothing to clear.
             clear_config().expect("clearing non-existent config should succeed");
         });
     }
-
-    // ── get_provider_status ───────────────────────────────────────────────
 
     #[test]
     fn test_provider_status_configured() {
@@ -311,7 +296,6 @@ mod tests {
     #[test]
     fn test_provider_status_not_configured() {
         with_temp_home(|_home| {
-            // No config file written → status should show not configured.
             let status = get_provider_status();
             assert!(!status.configured);
             assert!(status.base_url.is_empty());
