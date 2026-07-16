@@ -4,7 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[1a2b18a](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a2b18a0c2a6c025eb5cb2d8ef7f5b390170e601)...[f36f3b5](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f36f3b57078212d01a62192d75b37917dbfc5688)
+[1a2b18a](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a2b18a0c2a6c025eb5cb2d8ef7f5b390170e601)...[63c784d](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/63c784d1be516157abd6f245ed9ed380141569a3)
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`6a9a5bb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6a9a5bbd1ac7f817cad5bb579ee85bde761374f8))
+
+### Features
+
+- Implement responsive sidebar with static button styling ([`3fe2826`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3fe2826d44bc33e6a895541008890231b0f5affa))
+
+### Miscellaneous Tasks
+
+- Adjust layout constraints for improved responsiveness ([`6c52319`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6c523192f9fb1b64a52167b8c37bfd9eb25303bd))
+- Automate version bumping during releases ([`3830226`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3830226da8a31f9b3cbe90e5f30372f60f286471))
+
+### Styling
+
+- Update dismiss button background and remove shimmer animation ([`ca6d565`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ca6d5651d7af4bea151ce6861509a11ca31ce2b1))
 
 ## 0.5.1-cr.2 - 2026-07-09
 
