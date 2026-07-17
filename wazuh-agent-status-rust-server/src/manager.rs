@@ -382,7 +382,30 @@ impl AgentManager {
             } else {
                 info!(script = %paths.update_script.display(), "Executing standard update script");
                 prerelease_tag = None;
-                script_path = paths.update_script.clone();
+                if cfg!(target_os = "windows") {
+                    let tmp_script = std::env::temp_dir().join("adorsys-update.ps1");
+
+                    let _ = tx
+                        .send("UPDATE_PROGRESS: [STATUS] Downloading fresh Windows update wrapper...".to_string())
+                        .await;
+
+                    if let Err(e) = tokio::fs::write(
+                        &tmp_script,
+                        include_str!("../../scripts/windows/adorsys-update.ps1"),
+                    )
+                    .await
+                    {
+                        let _ = tx
+                            .send(format!(
+                                "UPDATE_PROGRESS: [FAILURE] Failed to save update wrapper: {e}"
+                            ))
+                            .await;
+                        return;
+                    }
+                    script_path = tmp_script;
+                } else {
+                    script_path = paths.update_script.clone();
+                }
             }
 
             // Build the command — platform-specific execution
@@ -407,7 +430,16 @@ impl AgentManager {
                     c
                 } else {
                     info!("Running batch script directly");
-                    Command::new(script_path.as_os_str())
+                    let mut c = Command::new("cmd.exe");
+                    let mut cmd_line = format!("\"{}\" -Update", script_path.display());
+                    if prerelease_tag.is_some() {
+                        cmd_line.push_str(" -Prerelease");
+                    }
+                    c.arg("/C").arg(cmd_line);
+                    if let Some(ref tag) = prerelease_tag {
+                        c.env("WAZUH_AGENT_REPO_REF", tag);
+                    }
+                    c
                 }
             } else {
                 let is_root = std::process::Command::new("id")

@@ -105,6 +105,13 @@ impl StatusProvider for WindowsStatusProvider {
         let mut total_rss: u64 = 0;
         let mut found = false;
         let mut agentd_found = false;
+        let mut service_running = false;
+
+        if let Ok(output) = self
+            .run_powershell("(Get-Service -Name WazuhSvc -ErrorAction SilentlyContinue).Status")
+        {
+            service_running = output.to_lowercase().contains("running");
+        }
 
         for process in sys.processes().values() {
             let name = process.name().to_string_lossy();
@@ -132,7 +139,13 @@ impl StatusProvider for WindowsStatusProvider {
             debug!(process = %name, "Matched Wazuh process");
             total_cpu += process.cpu_usage();
             total_rss += process.memory();
-            if name.as_ref() == "wazuh-agentd.exe" || name.as_ref() == "ossec-agentd.exe" {
+            if matches!(
+                name.as_ref(),
+                "wazuh-agent.exe"
+                    | "wazuh-agentd.exe"
+                    | "ossec-agent.exe"
+                    | "ossec-agentd.exe"
+            ) {
                 agentd_found = true;
             }
             found = true;
@@ -161,8 +174,8 @@ impl StatusProvider for WindowsStatusProvider {
             memory_usage,
             total_memory,
             used_memory: total_rss,
-            agent_found: found,
-            agentd_found,
+            agent_found: found || service_running,
+            agentd_found: agentd_found || service_running,
         })
     }
 }

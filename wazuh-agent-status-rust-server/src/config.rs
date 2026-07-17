@@ -205,7 +205,7 @@ impl AgentPaths {
                 version_json: base.join("VERSION.json"),
                 merged_mg: base.join(r"shared\merged.mg"),
                 pid_file: PathBuf::new(), // not applicable on Windows
-                update_script: base.join("adorsys-update.bat"),
+                update_script: base.join(r"active-response\bin\adorsys-update.ps1"),
                 wazuh_control: base.join("wazuh-control.exe"), // Placeholder for Windows
                 ossec_log: ossec_log_override.unwrap_or_else(|| base.join(r"ossec.log")),
                 client_keys: base.join(r"client.keys"),

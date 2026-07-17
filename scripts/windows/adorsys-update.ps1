@@ -1,14 +1,14 @@
 #requires -version 5.1
 
-# Set strict mode for error handling
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-
 # ---- Parameters ----
 param(
     [switch]$Prerelease,
     [switch]$Update
 )
+
+# Set strict mode for error handling
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
 # ---- Elevate ----
 $IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
