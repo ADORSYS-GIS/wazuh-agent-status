@@ -105,6 +105,30 @@ function Remove-StartupShortcut {
     }
 }
 
+function Remove-StartMenuShortcut {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$ShortcutName
+    )
+    $StartMenuPath = [System.IO.Path]::Combine($env:ProgramData, "Microsoft\Windows\Start Menu\Programs", "$ShortcutName.lnk")
+    if (Test-Path $StartMenuPath) {
+        Remove-Item -Path $StartMenuPath -Force
+        InfoMessage "Shortcut '$ShortcutName' removed from Start Menu."
+    } else {
+        WarnMessage "Shortcut '$ShortcutName' not found in Start Menu."
+    }
+}
+
+function Unregister-Uninstaller {
+    $RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\WazuhAgentStatus"
+    if (Test-Path $RegistryPath) {
+        Remove-Item -Path $RegistryPath -Recurse -Force
+        InfoMessage "Application unregistered from Windows Installed Apps."
+    } else {
+        WarnMessage "Application registration not found in Registry."
+    }
+}
+
 function Validate-Uninstallation {
     $ServerService = Get-Service -Name $SERVER_NAME -ErrorAction SilentlyContinue
     $ClientProcess = Get-Process -Name $CLIENT_NAME -ErrorAction SilentlyContinue
@@ -185,7 +209,10 @@ function Remove-Binaries {
 # Function to uninstall application and clean up
 function Uninstall-WazuhAgentStatus {
     try {
-
+        Remove-StartupShortcut -ShortcutName $CLIENT_NAME
+        Remove-StartMenuShortcut -ShortcutName "Wazuh Agent Status"
+        Unregister-Uninstaller
+        
         Remove-WazuhAgentService -ServiceName $SERVER_NAME
 
         Remove-Binaries
