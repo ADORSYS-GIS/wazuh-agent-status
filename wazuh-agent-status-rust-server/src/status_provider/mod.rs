@@ -96,6 +96,8 @@ pub mod unix;
 pub(crate) const WINDOWS_EXE_PREFIXES: &[&str] = &[
     "c:\\program files\\wazuh agent\\",
     "c:\\program files (x86)\\wazuh agent\\",
+    "c:\\program files\\ossec-agent\\",
+    "c:\\program files (x86)\\ossec-agent\\",
 ];
 
 #[cfg(target_os = "linux")]

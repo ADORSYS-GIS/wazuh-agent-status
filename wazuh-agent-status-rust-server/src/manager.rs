@@ -406,10 +406,8 @@ impl AgentManager {
                     }
                     c
                 } else {
-                    info!("Running batch script via cmd.exe");
-                    let mut c = Command::new("cmd.exe");
-                    c.args(["/c", script_str]);
-                    c
+                    info!("Running batch script directly");
+                    Command::new(script_path.as_os_str())
                 }
             } else {
                 let is_root = std::process::Command::new("id")
