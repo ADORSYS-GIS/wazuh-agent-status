@@ -478,21 +478,52 @@ impl AgentManager {
                     let stderr = child.stderr.take().unwrap();
                     let tx_clone = tx.clone();
 
+                    let windows_response_log = if cfg!(target_os = "windows") {
+                        std::path::PathBuf::from(
+                            r"C:\Program Files (x86)\ossec-agent\active-response\active-responses.log",
+                        )
+                    } else {
+                        std::path::PathBuf::new()
+                    };
+
+                    async fn append_update_log(path: &std::path::Path, line: &str) {
+                        if path.as_os_str().is_empty() {
+                            return;
+                        }
+
+                        if let Some(parent) = path.parent() {
+                            let _ = tokio::fs::create_dir_all(parent).await;
+                        }
+
+                        if let Ok(mut file) = tokio::fs::OpenOptions::new()
+                            .create(true)
+                            .append(true)
+                            .open(path)
+                            .await
+                        {
+                            let _ = file.write_all(format!("{}\n", line).as_bytes()).await;
+                        }
+                    }
+
                     // Pipe stdout
+                    let windows_response_log_stdout = windows_response_log.clone();
                     tokio::spawn(async move {
                         let mut reader = BufReader::new(stdout).lines();
                         while let Ok(Some(line)) = reader.next_line().await {
                             info!(line = %line, "Update stdout");
+                            append_update_log(&windows_response_log_stdout, &line).await;
                             let _ = tx_clone.send(format!("UPDATE_PROGRESS: {}", line)).await;
                         }
                     });
 
                     // Pipe stderr
                     let tx_clone = tx.clone();
+                    let windows_response_log_stderr = windows_response_log.clone();
                     tokio::spawn(async move {
                         let mut reader = BufReader::new(stderr).lines();
                         while let Ok(Some(line)) = reader.next_line().await {
                             warn!(line = %line, "Update stderr");
+                            append_update_log(&windows_response_log_stderr, &line).await;
                             let _ = tx_clone
                                 .send(format!("UPDATE_PROGRESS: [ERROR] {}", line))
                                 .await;
@@ -554,6 +585,8 @@ impl AgentManager {
                         Ok(status) if status.success() => {
                             let _ = kill_tx.send(());
                             info!(exit_code = ?status.code(), "Update script completed successfully");
+                            append_update_log(&windows_response_log, "[SUCCESS] Update completed successfully")
+                            .await;
                             tokio::time::sleep(Duration::from_millis(500)).await;
                             let _ = tx
                                 .send(
@@ -565,11 +598,18 @@ impl AgentManager {
                         Ok(status) => {
                             let _ = kill_tx.send(());
                             warn!(exit_code = ?status.code(), "Update script failed");
+                            append_update_log(
+                                &windows_response_log,
+                                &format!("[FAILURE] Update script exited with code: {:?}", status.code()),
+                            )
+                            .await;
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Update script exited with code: {:?}", status.code())).await;
                         }
                         Err(e) => {
                             let _ = kill_tx.send(());
                             warn!(error = %e, "Failed to wait for update script");
+                            append_update_log(&windows_response_log, &format!("[FAILURE] Failed to wait for update script: {e}"))
+                            .await;
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to wait for update script: {e}")).await;
                         }
                     }
