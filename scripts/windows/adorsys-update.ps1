@@ -182,10 +182,10 @@ function Run-Update {
 
         # Flush logs before checking exit code
         if (Test-Path $stdoutLog) {
-            Get-Content $stdoutLog | ForEach-Object { InfoMessage $_ }
+            Get-Content $stdoutLog | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { InfoMessage $_ }
         }
         if (Test-Path $stderrLog) {
-            Get-Content $stderrLog | ForEach-Object { ErrorMessage $_ }
+            Get-Content $stderrLog | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { ErrorMessage $_ }
         }
 
         if ($process.ExitCode -ne 0) {
