@@ -107,8 +107,8 @@ impl StatusProvider for WindowsStatusProvider {
         let mut agentd_found = false;
         let mut service_running = false;
 
-        if let Ok(output) = self
-            .run_powershell("(Get-Service -Name WazuhSvc -ErrorAction SilentlyContinue).Status")
+        if let Ok(output) =
+            self.run_powershell("(Get-Service -Name WazuhSvc -ErrorAction SilentlyContinue).Status")
         {
             service_running = output.to_lowercase().contains("running");
         }
@@ -141,10 +141,7 @@ impl StatusProvider for WindowsStatusProvider {
             total_rss += process.memory();
             if matches!(
                 name.as_ref(),
-                "wazuh-agent.exe"
-                    | "wazuh-agentd.exe"
-                    | "ossec-agent.exe"
-                    | "ossec-agentd.exe"
+                "wazuh-agent.exe" | "wazuh-agentd.exe" | "ossec-agent.exe" | "ossec-agentd.exe"
             ) {
                 agentd_found = true;
             }

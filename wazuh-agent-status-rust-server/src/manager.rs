@@ -386,7 +386,10 @@ impl AgentManager {
                     let tmp_script = std::env::temp_dir().join("adorsys-update.ps1");
 
                     let _ = tx
-                        .send("UPDATE_PROGRESS: [STATUS] Downloading fresh Windows update wrapper...".to_string())
+                        .send(
+                            "UPDATE_PROGRESS: [STATUS] Downloading fresh Windows update wrapper..."
+                                .to_string(),
+                        )
                         .await;
 
                     if let Err(e) = tokio::fs::write(
@@ -585,7 +588,10 @@ impl AgentManager {
                         Ok(status) if status.success() => {
                             let _ = kill_tx.send(());
                             info!(exit_code = ?status.code(), "Update script completed successfully");
-                            append_update_log(&windows_response_log, "[SUCCESS] Update completed successfully")
+                            append_update_log(
+                                &windows_response_log,
+                                "[SUCCESS] Update completed successfully",
+                            )
                             .await;
                             tokio::time::sleep(Duration::from_millis(500)).await;
                             let _ = tx
@@ -600,7 +606,10 @@ impl AgentManager {
                             warn!(exit_code = ?status.code(), "Update script failed");
                             append_update_log(
                                 &windows_response_log,
-                                &format!("[FAILURE] Update script exited with code: {:?}", status.code()),
+                                &format!(
+                                    "[FAILURE] Update script exited with code: {:?}",
+                                    status.code()
+                                ),
                             )
                             .await;
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Update script exited with code: {:?}", status.code())).await;
@@ -608,7 +617,10 @@ impl AgentManager {
                         Err(e) => {
                             let _ = kill_tx.send(());
                             warn!(error = %e, "Failed to wait for update script");
-                            append_update_log(&windows_response_log, &format!("[FAILURE] Failed to wait for update script: {e}"))
+                            append_update_log(
+                                &windows_response_log,
+                                &format!("[FAILURE] Failed to wait for update script: {e}"),
+                            )
                             .await;
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to wait for update script: {e}")).await;
                         }
