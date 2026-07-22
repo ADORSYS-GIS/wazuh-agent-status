@@ -93,7 +93,7 @@ function Remove-StartupShortcut {
     # Define full path of the shortcut
 
     InfoMessage "Removing Shortcut '$ShortcutName' from Startup..."
-    $ShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
+    $ShortcutPath = [System.IO.Path]::Combine($env:ProgramData, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
 
     # Check if the shortcut exists and remove it
     if (Test-Path $ShortcutPath) {
@@ -119,11 +119,21 @@ function Remove-StartMenuShortcut {
 }
 
 function Unregister-Uninstaller {
-    $RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\WazuhAgentStatus"
-    if (Test-Path $RegistryPath) {
-        Remove-Item -Path $RegistryPath -Recurse -Force
-        InfoMessage "Application unregistered from Windows Installed Apps."
-    } else {
+    $RegistryPaths = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\WazuhAgentStatus",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\WazuhAgentStatus"
+    )
+    
+    $found = $false
+    foreach ($RegistryPath in $RegistryPaths) {
+        if (Test-Path $RegistryPath) {
+            Remove-Item -Path $RegistryPath -Recurse -Force
+            InfoMessage "Application unregistered from Windows Installed Apps ($RegistryPath)."
+            $found = $true
+        }
+    }
+    
+    if (-not $found) {
         WarnMessage "Application registration not found in Registry."
     }
 }
