@@ -17,6 +17,25 @@ use tokio::io::{AsyncBufReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::mpsc;
 
+async fn append_update_log(path: &std::path::Path, line: &str) {
+    if path.as_os_str().is_empty() {
+        return;
+    }
+
+    if let Some(parent) = path.parent() {
+        let _ = tokio::fs::create_dir_all(parent).await;
+    }
+
+    if let Ok(mut file) = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .await
+    {
+        let _ = file.write_all(format!("{}\n", line).as_bytes()).await;
+    }
+}
+
 // ── Version cache ─────────────────────────────────────────────────────────────
 
 struct VersionCache {
@@ -414,36 +433,22 @@ impl AgentManager {
             // Build the command — platform-specific execution
             let mut cmd = if cfg!(target_os = "windows") {
                 let script_str = script_path.to_str().unwrap_or_default();
-                if script_str.ends_with(".ps1") {
-                    info!("Running PowerShell script directly");
-                    let mut c = Command::new("powershell.exe");
-                    c.args([
-                        "-NoProfile",
-                        "-ExecutionPolicy",
-                        "Bypass",
-                        "-File",
-                        script_str,
-                    ]);
-                    // Always pass -Update so the setup script runs in upgrade mode
-                    c.arg("-Update");
-                    // Set the tag so the setup script downloads components from the correct release
-                    if let Some(ref tag) = prerelease_tag {
-                        c.env("WAZUH_AGENT_REPO_REF", tag);
-                    }
-                    c
-                } else {
-                    info!("Running batch script directly");
-                    let mut c = Command::new("cmd.exe");
-                    let mut cmd_line = format!("\"{}\" -Update", script_path.display());
-                    if prerelease_tag.is_some() {
-                        cmd_line.push_str(" -Prerelease");
-                    }
-                    c.arg("/C").arg(cmd_line);
-                    if let Some(ref tag) = prerelease_tag {
-                        c.env("WAZUH_AGENT_REPO_REF", tag);
-                    }
-                    c
+                info!("Running PowerShell script directly");
+                let mut c = Command::new("powershell.exe");
+                c.args([
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    script_str,
+                ]);
+                // Always pass -Update so the setup script runs in upgrade mode
+                c.arg("-Update");
+                // Set the tag so the setup script downloads components from the correct release
+                if let Some(ref tag) = prerelease_tag {
+                    c.env("WAZUH_AGENT_REPO_REF", tag);
                 }
+                c
             } else {
                 let is_root = std::process::Command::new("id")
                     .arg("-u")
@@ -482,31 +487,10 @@ impl AgentManager {
                     let tx_clone = tx.clone();
 
                     let windows_response_log = if cfg!(target_os = "windows") {
-                        std::path::PathBuf::from(
-                            r"C:\Program Files (x86)\ossec-agent\active-response\active-responses.log",
-                        )
+                        paths.active_response_log.clone()
                     } else {
                         std::path::PathBuf::new()
                     };
-
-                    async fn append_update_log(path: &std::path::Path, line: &str) {
-                        if path.as_os_str().is_empty() {
-                            return;
-                        }
-
-                        if let Some(parent) = path.parent() {
-                            let _ = tokio::fs::create_dir_all(parent).await;
-                        }
-
-                        if let Ok(mut file) = tokio::fs::OpenOptions::new()
-                            .create(true)
-                            .append(true)
-                            .open(path)
-                            .await
-                        {
-                            let _ = file.write_all(format!("{}\n", line).as_bytes()).await;
-                        }
-                    }
 
                     // Pipe stdout
                     let windows_response_log_stdout = windows_response_log.clone();
@@ -534,12 +518,10 @@ impl AgentManager {
                     });
 
                     // Tail the active-responses.log since adorsys-update.sh writes there instead of stdout
-                    let active_response_log = if cfg!(target_os = "macos") {
-                        std::path::PathBuf::from("/Library/Ossec/logs/active-responses.log")
-                    } else if cfg!(target_os = "linux") {
-                        std::path::PathBuf::from("/var/ossec/logs/active-responses.log")
-                    } else {
+                    let active_response_log = if cfg!(target_os = "windows") {
                         std::path::PathBuf::new() // Windows doesn't need this, outputs to stdout
+                    } else {
+                        paths.active_response_log.clone()
                     };
 
                     let (kill_tx, mut kill_rx) = tokio::sync::oneshot::channel::<()>();

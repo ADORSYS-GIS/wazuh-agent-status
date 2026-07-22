@@ -155,6 +155,8 @@ pub struct AgentPaths {
     pub ossec_log: PathBuf,
     /// Path to the Wazuh agent's client.keys file (contains agent ID and name).
     pub client_keys: PathBuf,
+    /// Path to the Wazuh agent's active-responses log file.
+    pub active_response_log: PathBuf,
 }
 
 impl AgentPaths {
@@ -177,6 +179,7 @@ impl AgentPaths {
                 wazuh_control: base.join("bin/wazuh-control"),
                 ossec_log: ossec_log_override.unwrap_or_else(|| base.join("logs/ossec.log")),
                 client_keys: base.join("etc/client.keys"),
+                active_response_log: base.join("logs/active-responses.log"),
             }
         }
 
@@ -193,6 +196,7 @@ impl AgentPaths {
                 wazuh_control: base.join("bin/wazuh-control"),
                 ossec_log: ossec_log_override.unwrap_or_else(|| base.join("logs/ossec.log")),
                 client_keys: base.join("etc/client.keys"),
+                active_response_log: base.join("logs/active-responses.log"),
             }
         }
 
@@ -209,6 +213,7 @@ impl AgentPaths {
                 wazuh_control: base.join("wazuh-control.exe"), // Placeholder for Windows
                 ossec_log: ossec_log_override.unwrap_or_else(|| base.join(r"ossec.log")),
                 client_keys: base.join(r"client.keys"),
+                active_response_log: base.join(r"active-response\active-responses.log"),
             }
         }
 

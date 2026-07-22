@@ -78,7 +78,6 @@ function Remove-StartupShortcut {
 
 
     # Check if the process is running
-    # Check if the process is running
     $process = Get-Process -Name "wazuh-agent-status*" -ErrorAction SilentlyContinue
 
     if ($process) {
