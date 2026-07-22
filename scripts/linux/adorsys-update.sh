@@ -62,11 +62,11 @@ fi
 
 # Environment Variables with Defaults
 CURRENT_MANAGER=""
-if [ -f "/var/ossec/etc/ossec.conf" ]; then
+if [[ -f "/var/ossec/etc/ossec.conf" ]]; then
     CURRENT_MANAGER=$(grep -m 1 '<address>' /var/ossec/etc/ossec.conf | sed 's/.*<address>\(.*\)<\/address>.*/\1/')
 fi
 
-if [ -n "$CURRENT_MANAGER" ]; then
+if [[ -n "$CURRENT_MANAGER" ]]; then
     WAZUH_MANAGER=${WAZUH_MANAGER:-"$CURRENT_MANAGER"}
 else
     WAZUH_MANAGER=${WAZUH_MANAGER:-"wazuh.example.com"}
