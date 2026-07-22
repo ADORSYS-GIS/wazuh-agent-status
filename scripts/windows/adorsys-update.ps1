@@ -63,7 +63,15 @@ Register-EngineEvent -SourceIdentifier ([System.Guid]::NewGuid().ToString()) -Ac
 Set-StrictMode -Version Latest
 
 # ---- Configuration Variables ----
-$WAZUH_MANAGER           = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
+$CURRENT_MANAGER = $null
+$OssecConfPath = "C:\Program Files (x86)\ossec-agent\ossec.conf"
+if (Test-Path $OssecConfPath) {
+    $addressLine = Select-String -Path $OssecConfPath -Pattern "<address>(.*?)</address>" | Select-Object -First 1
+    if ($addressLine -match "<address>(.*?)</address>") {
+        $CURRENT_MANAGER = $matches[1]
+    }
+}
+$WAZUH_MANAGER           = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } elseif ($CURRENT_MANAGER) { $CURRENT_MANAGER } else { "wazuh.example.com" }
 $OSSEC_PATH              = "C:\Program Files (x86)\ossec-agent\"
 $VERSION_URL             = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$AGENT_REPO_REF/versions.json"
 $STABLE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$AGENT_REPO_REF/scripts/windows/setup-agent.ps1"
