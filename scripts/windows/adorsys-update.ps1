@@ -60,8 +60,6 @@ Register-EngineEvent -SourceIdentifier ([System.Guid]::NewGuid().ToString()) -Ac
     Remove-Item -Path $TMP_DIR -Recurse -Force -ErrorAction SilentlyContinue
 } | Out-Null
 
-Set-StrictMode -Version Latest
-
 # ---- Configuration Variables ----
 $CURRENT_MANAGER = $null
 $OssecConfPath = "C:\Program Files (x86)\ossec-agent\ossec.conf"

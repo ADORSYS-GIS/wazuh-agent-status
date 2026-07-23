@@ -139,10 +139,14 @@ function Create-StartupShortcut {
         [string]$ShortcutName,
         [string]$ExecutablePath
     )
+    if (-not (Test-Path -LiteralPath $ExecutablePath)) {
+        ErrorExit "Executable path does not exist: $ExecutablePath. Cannot create startup shortcut."
+    }
     $ShortcutPath = [System.IO.Path]::Combine($env:ProgramData, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
     $Shortcut.TargetPath = $ExecutablePath
+    $Shortcut.WorkingDirectory = [System.IO.Path]::GetDirectoryName($ExecutablePath)
     $Shortcut.Save()
     InfoMessage "Startup shortcut created: $ShortcutPath."
 }
@@ -174,10 +178,14 @@ function Create-StartMenuShortcut {
         [string]$ShortcutName,
         [string]$ExecutablePath
     )
+    if (-not (Test-Path -LiteralPath $ExecutablePath)) {
+        ErrorExit "Executable path does not exist: $ExecutablePath. Cannot create Start Menu shortcut."
+    }
     $StartMenuPath = [System.IO.Path]::Combine($env:ProgramData, "Microsoft\Windows\Start Menu\Programs", "$ShortcutName.lnk")
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($StartMenuPath)
     $Shortcut.TargetPath = $ExecutablePath
+    $Shortcut.WorkingDirectory = [System.IO.Path]::GetDirectoryName($ExecutablePath)
     $Shortcut.Save()
     InfoMessage "Start Menu shortcut created: $StartMenuPath."
 }
