@@ -13,7 +13,7 @@ use tracing::warn;
 const DEFAULT_VERSION_URL: &str =
     "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/main/versions.json";
 const DEFAULT_POLL_INTERVAL_SECS: u64 = 5;
-const DEFAULT_LISTEN_ADDR: &str = "0.0.0.0:50505";
+const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:50505";
 /// Cache remote version checks for 30 minutes to avoid hammering GitHub.
 const DEFAULT_VERSION_CACHE_TTL_SECS: u64 = 1_800;
 
@@ -25,7 +25,7 @@ const DEFAULT_VERSION_CACHE_TTL_SECS: u64 = 1_800;
 ///
 /// | Field               | Env var                                  | Default            |
 /// |---------------------|------------------------------------------|--------------------|
-/// | `listen_addr`       | `WAZUH_STATUS_ADDR`                      | `0.0.0.0:50505`    |
+/// | `listen_addr`       | `WAZUH_STATUS_ADDR`                      | `127.0.0.1:50505`  |
 /// | `log_file`          | `WAZUH_STATUS_LOG_FILE`                  | `/var/log/...`     |
 /// | `poll_interval`     | `WAZUH_STATUS_POLL_INTERVAL_SECS`        | `5`                |
 /// | `version_url`       | `WAZUH_STATUS_VERSION_URL`               | GitHub manifest    |
@@ -65,15 +65,18 @@ impl Config {
         let mut cfg = Self::default();
 
         if let Ok(addr) = std::env::var("WAZUH_STATUS_ADDR") {
-            // Security check: Warn if binding to non-localhost (as there's no auth)
-            if !addr.contains("localhost") && !addr.contains("127.0.0.1") && !addr.contains("[::1]")
-            {
-                warn!(
-                    addr = %addr,
-                    "WARNING: Server is binding to a public interface without authentication. Ensure it is protected by a firewall."
-                );
-            }
             cfg.listen_addr = addr;
+        }
+
+        // Security check: Warn if binding to non-localhost (as there's no auth)
+        if !cfg.listen_addr.contains("localhost")
+            && !cfg.listen_addr.contains("127.0.0.1")
+            && !cfg.listen_addr.contains("[::1]")
+        {
+            warn!(
+                addr = %cfg.listen_addr,
+                "WARNING: Server is binding to a public interface without authentication. Ensure it is protected by a firewall."
+            );
         }
 
         if let Ok(raw) = std::env::var("WAZUH_STATUS_POLL_INTERVAL_SECS") {
