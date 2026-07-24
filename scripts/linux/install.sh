@@ -13,7 +13,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
     exit 1
 fi
 
-APP_VERSION=${APP_VERSION:-"0.5.1-rc.1"}
+APP_VERSION=${APP_VERSION:-"0.5.1"}
 
 # Common configuration
 WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}

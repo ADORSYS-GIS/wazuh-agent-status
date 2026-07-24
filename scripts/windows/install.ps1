@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 
 # Configuration
 
-$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.1-rc.1" }
+$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.1" }
 $WAZUH_MANAGER = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $SERVER_NAME = if ($env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
 $CLIENT_NAME = if ($env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
