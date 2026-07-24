@@ -37,10 +37,14 @@ jobs:
         shell: bash
         run: |
           RAW_VERSION=${GITHUB_REF#refs/tags/v}
-          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
-          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
-          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
-          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+          if [[ "$RAW_VERSION" =~ - ]]; then
+            echo "Prerelease detected ($RAW_VERSION). Skipping version update for MSI compatibility."
+          else
+            sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
+            sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
+            jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
+            jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -168,10 +172,14 @@ jobs:
         shell: bash
         run: |
           RAW_VERSION=${GITHUB_REF#refs/tags/v}
-          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
-          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
-          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
-          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+          if [[ "$RAW_VERSION" =~ - ]]; then
+            echo "Prerelease detected ($RAW_VERSION). Skipping version update for MSI compatibility."
+          else
+            sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
+            sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
+            jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
+            jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -268,10 +276,14 @@ jobs:
         shell: bash
         run: |
           RAW_VERSION=${GITHUB_REF#refs/tags/v}
-          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
-          sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
-          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
-          jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+          if [[ "$RAW_VERSION" =~ - ]]; then
+            echo "Prerelease detected ($RAW_VERSION). Skipping version update for MSI compatibility."
+          else
+            sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
+            sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
+            jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
+            jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -378,10 +390,14 @@ jobs:
         run: |
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             RAW_VERSION=${GITHUB_REF#refs/tags/v}
-            sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
-            sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
-            jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
-            jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+            if [[ "$RAW_VERSION" =~ - ]]; then
+              echo "Prerelease detected ($RAW_VERSION). Skipping version update for MSI compatibility."
+            else
+              sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
+              sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml > temp_client.toml && mv temp_client.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml
+              jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/package.json > temp_pkg.json && mv temp_pkg.json ${{ env.CLIENT_DIR }}/package.json
+              jq --arg v "$RAW_VERSION" '.version = $v' ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json > temp_tauri.json && mv temp_tauri.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+            fi
           fi
 
       - name: Commit and push changes
