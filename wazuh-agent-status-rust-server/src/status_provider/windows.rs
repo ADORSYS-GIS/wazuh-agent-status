@@ -27,7 +27,14 @@ impl WindowsStatusProvider {
 
     fn run_powershell(&self, command: &str) -> Result<String> {
         let output = Command::new("powershell.exe")
-            .args(["-NoProfile", "-NonInteractive", "-Command", command])
+            .args([
+                "-ExecutionPolicy",
+                "Bypass",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                command,
+            ])
             .output()?;
 
         if !output.status.success() {
@@ -48,7 +55,7 @@ impl StatusProvider for WindowsStatusProvider {
     fn get_agent_status(&self) -> Result<AgentStatus> {
         let output = self
             .run_powershell("(Get-Service -Name WazuhSvc -ErrorAction SilentlyContinue).Status")?;
-        Ok(if output.eq_ignore_ascii_case("running") {
+        Ok(if output.to_lowercase().contains("running") {
             AgentStatus::Active
         } else {
             AgentStatus::Inactive
@@ -125,7 +132,10 @@ impl StatusProvider for WindowsStatusProvider {
             debug!(process = %name, "Matched Wazuh process");
             total_cpu += process.cpu_usage();
             total_rss += process.memory();
-            if name.as_ref() == "wazuh-agentd.exe" || name.as_ref() == "ossec-agentd.exe" {
+            if matches!(
+                name.as_ref(),
+                "wazuh-agent.exe" | "wazuh-agentd.exe" | "ossec-agent.exe" | "ossec-agentd.exe"
+            ) {
                 agentd_found = true;
             }
             found = true;

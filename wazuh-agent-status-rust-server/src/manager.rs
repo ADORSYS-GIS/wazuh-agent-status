@@ -17,6 +17,25 @@ use tokio::io::{AsyncBufReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::mpsc;
 
+async fn append_update_log(path: &std::path::Path, line: &str) {
+    if path.as_os_str().is_empty() {
+        return;
+    }
+
+    if let Some(parent) = path.parent() {
+        let _ = tokio::fs::create_dir_all(parent).await;
+    }
+
+    if let Ok(mut file) = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .await
+    {
+        let _ = file.write_all(format!("{}\n", line).as_bytes()).await;
+    }
+}
+
 // ── Version cache ─────────────────────────────────────────────────────────────
 
 struct VersionCache {
@@ -382,35 +401,54 @@ impl AgentManager {
             } else {
                 info!(script = %paths.update_script.display(), "Executing standard update script");
                 prerelease_tag = None;
-                script_path = paths.update_script.clone();
+                if cfg!(target_os = "windows") {
+                    let tmp_script = std::env::temp_dir().join("adorsys-update.ps1");
+
+                    let _ = tx
+                        .send(
+                            "UPDATE_PROGRESS: [STATUS] Downloading fresh Windows update wrapper..."
+                                .to_string(),
+                        )
+                        .await;
+
+                    if let Err(e) = tokio::fs::write(
+                        &tmp_script,
+                        include_str!("../../scripts/windows/adorsys-update.ps1"),
+                    )
+                    .await
+                    {
+                        let _ = tx
+                            .send(format!(
+                                "UPDATE_PROGRESS: [FAILURE] Failed to save update wrapper: {e}"
+                            ))
+                            .await;
+                        return;
+                    }
+                    script_path = tmp_script;
+                } else {
+                    script_path = paths.update_script.clone();
+                }
             }
 
             // Build the command — platform-specific execution
             let mut cmd = if cfg!(target_os = "windows") {
                 let script_str = script_path.to_str().unwrap_or_default();
-                if script_str.ends_with(".ps1") {
-                    info!("Running PowerShell script directly");
-                    let mut c = Command::new("powershell.exe");
-                    c.args([
-                        "-NoProfile",
-                        "-ExecutionPolicy",
-                        "Bypass",
-                        "-File",
-                        script_str,
-                    ]);
-                    // Always pass -Update so the setup script runs in upgrade mode
-                    c.arg("-Update");
-                    // Set the tag so the setup script downloads components from the correct release
-                    if let Some(ref tag) = prerelease_tag {
-                        c.env("WAZUH_AGENT_REPO_REF", tag);
-                    }
-                    c
-                } else {
-                    info!("Running batch script via cmd.exe");
-                    let mut c = Command::new("cmd.exe");
-                    c.args(["/c", script_str]);
-                    c
+                info!("Running PowerShell script directly");
+                let mut c = Command::new("powershell.exe");
+                c.args([
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    script_str,
+                ]);
+                // Always pass -Update so the setup script runs in upgrade mode
+                c.arg("-Update");
+                // Set the tag so the setup script downloads components from the correct release
+                if let Some(ref tag) = prerelease_tag {
+                    c.env("WAZUH_AGENT_REPO_REF", tag);
                 }
+                c
             } else {
                 let is_root = std::process::Command::new("id")
                     .arg("-u")
@@ -448,21 +486,31 @@ impl AgentManager {
                     let stderr = child.stderr.take().unwrap();
                     let tx_clone = tx.clone();
 
+                    let windows_response_log = if cfg!(target_os = "windows") {
+                        paths.active_response_log.clone()
+                    } else {
+                        std::path::PathBuf::new()
+                    };
+
                     // Pipe stdout
+                    let windows_response_log_stdout = windows_response_log.clone();
                     tokio::spawn(async move {
                         let mut reader = BufReader::new(stdout).lines();
                         while let Ok(Some(line)) = reader.next_line().await {
                             info!(line = %line, "Update stdout");
+                            append_update_log(&windows_response_log_stdout, &line).await;
                             let _ = tx_clone.send(format!("UPDATE_PROGRESS: {}", line)).await;
                         }
                     });
 
                     // Pipe stderr
                     let tx_clone = tx.clone();
+                    let windows_response_log_stderr = windows_response_log.clone();
                     tokio::spawn(async move {
                         let mut reader = BufReader::new(stderr).lines();
                         while let Ok(Some(line)) = reader.next_line().await {
                             warn!(line = %line, "Update stderr");
+                            append_update_log(&windows_response_log_stderr, &line).await;
                             let _ = tx_clone
                                 .send(format!("UPDATE_PROGRESS: [ERROR] {}", line))
                                 .await;
@@ -470,12 +518,10 @@ impl AgentManager {
                     });
 
                     // Tail the active-responses.log since adorsys-update.sh writes there instead of stdout
-                    let active_response_log = if cfg!(target_os = "macos") {
-                        std::path::PathBuf::from("/Library/Ossec/logs/active-responses.log")
-                    } else if cfg!(target_os = "linux") {
-                        std::path::PathBuf::from("/var/ossec/logs/active-responses.log")
-                    } else {
+                    let active_response_log = if cfg!(target_os = "windows") {
                         std::path::PathBuf::new() // Windows doesn't need this, outputs to stdout
+                    } else {
+                        paths.active_response_log.clone()
                     };
 
                     let (kill_tx, mut kill_rx) = tokio::sync::oneshot::channel::<()>();
@@ -524,6 +570,11 @@ impl AgentManager {
                         Ok(status) if status.success() => {
                             let _ = kill_tx.send(());
                             info!(exit_code = ?status.code(), "Update script completed successfully");
+                            append_update_log(
+                                &windows_response_log,
+                                "[SUCCESS] Update completed successfully",
+                            )
+                            .await;
                             tokio::time::sleep(Duration::from_millis(500)).await;
                             let _ = tx
                                 .send(
@@ -535,11 +586,24 @@ impl AgentManager {
                         Ok(status) => {
                             let _ = kill_tx.send(());
                             warn!(exit_code = ?status.code(), "Update script failed");
+                            append_update_log(
+                                &windows_response_log,
+                                &format!(
+                                    "[FAILURE] Update script exited with code: {:?}",
+                                    status.code()
+                                ),
+                            )
+                            .await;
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Update script exited with code: {:?}", status.code())).await;
                         }
                         Err(e) => {
                             let _ = kill_tx.send(());
                             warn!(error = %e, "Failed to wait for update script");
+                            append_update_log(
+                                &windows_response_log,
+                                &format!("[FAILURE] Failed to wait for update script: {e}"),
+                            )
+                            .await;
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to wait for update script: {e}")).await;
                         }
                     }

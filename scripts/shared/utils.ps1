@@ -7,6 +7,7 @@ function Log {
         [Parameter(Mandatory)]
         [string]$Level,
         [Parameter(Mandatory)]
+        [AllowEmptyString()]
         [string]$Message,
         [string]$Color = "White"
     )

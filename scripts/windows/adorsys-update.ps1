@@ -1,14 +1,14 @@
 #requires -version 5.1
 
-# Set strict mode for error handling
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-
 # ---- Parameters ----
 param(
     [switch]$Prerelease,
     [switch]$Update
 )
+
+# Set strict mode for error handling
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
 # ---- Elevate ----
 $IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -60,10 +60,16 @@ Register-EngineEvent -SourceIdentifier ([System.Guid]::NewGuid().ToString()) -Ac
     Remove-Item -Path $TMP_DIR -Recurse -Force -ErrorAction SilentlyContinue
 } | Out-Null
 
-Set-StrictMode -Version Latest
-
 # ---- Configuration Variables ----
-$WAZUH_MANAGER           = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
+$CURRENT_MANAGER = $null
+$OssecConfPath = "C:\Program Files (x86)\ossec-agent\ossec.conf"
+if (Test-Path $OssecConfPath) {
+    $addressLine = Select-String -Path $OssecConfPath -Pattern "<address>(.*?)</address>" | Select-Object -First 1
+    if ($addressLine -match "<address>(.*?)</address>") {
+        $CURRENT_MANAGER = $matches[1]
+    }
+}
+$WAZUH_MANAGER           = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } elseif ($CURRENT_MANAGER) { $CURRENT_MANAGER } else { "wazuh.example.com" }
 $OSSEC_PATH              = "C:\Program Files (x86)\ossec-agent\"
 $VERSION_URL             = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$AGENT_REPO_REF/versions.json"
 $STABLE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/$AGENT_REPO_REF/scripts/windows/setup-agent.ps1"
@@ -182,10 +188,10 @@ function Run-Update {
 
         # Flush logs before checking exit code
         if (Test-Path $stdoutLog) {
-            Get-Content $stdoutLog | ForEach-Object { InfoMessage $_ }
+            Get-Content $stdoutLog | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { InfoMessage $_ }
         }
         if (Test-Path $stderrLog) {
-            Get-Content $stderrLog | ForEach-Object { ErrorMessage $_ }
+            Get-Content $stderrLog | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { ErrorMessage $_ }
         }
 
         if ($process.ExitCode -ne 0) {

@@ -78,7 +78,6 @@ function Remove-StartupShortcut {
 
 
     # Check if the process is running
-    # Check if the process is running
     $process = Get-Process -Name "wazuh-agent-status*" -ErrorAction SilentlyContinue
 
     if ($process) {
@@ -94,14 +93,56 @@ function Remove-StartupShortcut {
     # Define full path of the shortcut
 
     InfoMessage "Removing Shortcut '$ShortcutName' from Startup..."
-    $ShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
+    $ShortcutPathProgramData = [System.IO.Path]::Combine($env:ProgramData, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
+    $ShortcutPathAppData = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
 
-    # Check if the shortcut exists and remove it
-    if (Test-Path $ShortcutPath) {
-        Remove-Item -Path $ShortcutPath -Force
-        InfoMessage "Shortcut '$ShortcutName' removed from Startup."
-    } else {
+    $found = $false
+    if (Test-Path $ShortcutPathProgramData) {
+        Remove-Item -Path $ShortcutPathProgramData -Force
+        InfoMessage "Shortcut '$ShortcutName' removed from All Users Startup."
+        $found = $true
+    }
+    if (Test-Path $ShortcutPathAppData) {
+        Remove-Item -Path $ShortcutPathAppData -Force
+        InfoMessage "Shortcut '$ShortcutName' removed from Current User Startup (legacy)."
+        $found = $true
+    }
+    if (-not $found) {
         WarnMessage "Shortcut '$ShortcutName' not found in Startup."
+    }
+}
+
+function Remove-StartMenuShortcut {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$ShortcutName
+    )
+    $StartMenuPath = [System.IO.Path]::Combine($env:ProgramData, "Microsoft\Windows\Start Menu\Programs", "$ShortcutName.lnk")
+    if (Test-Path $StartMenuPath) {
+        Remove-Item -Path $StartMenuPath -Force
+        InfoMessage "Shortcut '$ShortcutName' removed from Start Menu."
+    } else {
+        WarnMessage "Shortcut '$ShortcutName' not found in Start Menu."
+    }
+}
+
+function Unregister-Uninstaller {
+    $RegistryPaths = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\WazuhAgentStatus",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\WazuhAgentStatus"
+    )
+    
+    $found = $false
+    foreach ($RegistryPath in $RegistryPaths) {
+        if (Test-Path $RegistryPath) {
+            Remove-Item -Path $RegistryPath -Recurse -Force
+            InfoMessage "Application unregistered from Windows Installed Apps ($RegistryPath)."
+            $found = $true
+        }
+    }
+    
+    if (-not $found) {
+        WarnMessage "Application registration not found in Registry."
     }
 }
 
@@ -185,7 +226,10 @@ function Remove-Binaries {
 # Function to uninstall application and clean up
 function Uninstall-WazuhAgentStatus {
     try {
-
+        Remove-StartupShortcut -ShortcutName $CLIENT_NAME
+        Remove-StartMenuShortcut -ShortcutName "Wazuh Agent Status"
+        Unregister-Uninstaller
+        
         Remove-WazuhAgentService -ServiceName $SERVER_NAME
 
         Remove-Binaries

@@ -81,7 +81,7 @@ function Validate-Installation {
     }
 
     # Validate startup shortcut for client
-    $startupShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$CLIENT_NAME.lnk")
+    $startupShortcutPath = [System.IO.Path]::Combine($env:ProgramData, "Microsoft\Windows\Start Menu\Programs\Startup", "$CLIENT_NAME.lnk")
     if (Test-Path -LiteralPath $startupShortcutPath) {
         SuccessMessage "Startup shortcut exists: $startupShortcutPath."
     } else {
@@ -139,14 +139,56 @@ function Create-StartupShortcut {
         [string]$ShortcutName,
         [string]$ExecutablePath
     )
-    $ShortcutPath = [System.IO.Path]::Combine($env:APPDATA, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
+    if (-not (Test-Path -LiteralPath $ExecutablePath)) {
+        ErrorExit "Executable path does not exist: $ExecutablePath. Cannot create startup shortcut."
+    }
+    $ShortcutPath = [System.IO.Path]::Combine($env:ProgramData, "Microsoft\Windows\Start Menu\Programs\Startup", "$ShortcutName.lnk")
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
     $Shortcut.TargetPath = $ExecutablePath
+    $Shortcut.WorkingDirectory = [System.IO.Path]::GetDirectoryName($ExecutablePath)
     $Shortcut.Save()
     InfoMessage "Startup shortcut created: $ShortcutPath."
 }
 
+function Register-Uninstaller {
+    param(
+        [string]$DisplayName,
+        [string]$DisplayVersion,
+        [string]$Publisher,
+        [string]$DisplayIcon,
+        [string]$UninstallString
+    )
+    $RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\WazuhAgentStatus"
+    if (-not (Test-Path $RegistryPath)) {
+        New-Item -Path $RegistryPath -Force | Out-Null
+    }
+    Set-ItemProperty -Path $RegistryPath -Name "DisplayName" -Value $DisplayName
+    Set-ItemProperty -Path $RegistryPath -Name "DisplayVersion" -Value $DisplayVersion
+    Set-ItemProperty -Path $RegistryPath -Name "Publisher" -Value $Publisher
+    Set-ItemProperty -Path $RegistryPath -Name "DisplayIcon" -Value $DisplayIcon
+    Set-ItemProperty -Path $RegistryPath -Name "UninstallString" -Value $UninstallString
+    Set-ItemProperty -Path $RegistryPath -Name "NoModify" -Value 1 -Type DWord
+    Set-ItemProperty -Path $RegistryPath -Name "NoRepair" -Value 1 -Type DWord
+    InfoMessage "Registered application in Windows Installed Apps."
+}
+
+function Create-StartMenuShortcut {
+    param(
+        [string]$ShortcutName,
+        [string]$ExecutablePath
+    )
+    if (-not (Test-Path -LiteralPath $ExecutablePath)) {
+        ErrorExit "Executable path does not exist: $ExecutablePath. Cannot create Start Menu shortcut."
+    }
+    $StartMenuPath = [System.IO.Path]::Combine($env:ProgramData, "Microsoft\Windows\Start Menu\Programs", "$ShortcutName.lnk")
+    $WshShell = New-Object -ComObject WScript.Shell
+    $Shortcut = $WshShell.CreateShortcut($StartMenuPath)
+    $Shortcut.TargetPath = $ExecutablePath
+    $Shortcut.WorkingDirectory = [System.IO.Path]::GetDirectoryName($ExecutablePath)
+    $Shortcut.Save()
+    InfoMessage "Start Menu shortcut created: $StartMenuPath."
+}
 
 PrintStep 1 "Checking migration status and stopping existing processes..."
 
@@ -198,9 +240,12 @@ Download-And-VerifyFile -Url $ClientURL -Destination "$BIN_DIR\$CLIENT_NAME.exe"
 PrintStep 3 "Configuring server service..."
 Create-Service -ServiceName $SERVER_NAME -ExecutablePath $SERVER_EXE -DisplayName "Wazuh Agent Status Server" -Description "Wazuh Agent Status monitoring server."
 
-# Add client to Windows startup
-PrintStep 4 "Configuring client startup..."
+# Add client to Windows startup, Start Menu, and Installed Apps
+PrintStep 4 "Configuring client startup and registration..."
 Create-StartupShortcut -ShortcutName $CLIENT_NAME -ExecutablePath $CLIENT_EXE
+Create-StartMenuShortcut -ShortcutName "Wazuh Agent Status" -ExecutablePath $CLIENT_EXE
+$UninstallCmd = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -Command `"Invoke-RestMethod -Uri '$REPO_URL/scripts/windows/uninstall.ps1' | Invoke-Expression`""
+Register-Uninstaller -DisplayName "Wazuh Agent Status" -DisplayVersion $APP_VERSION -Publisher "ADORSYS" -DisplayIcon $CLIENT_EXE -UninstallString $UninstallCmd
 
 # Download adorsys-update script
 PrintStep 5 "Downloading adorsys-update scripts..."
