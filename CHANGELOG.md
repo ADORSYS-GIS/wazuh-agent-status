@@ -4,38 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[1a2b18a](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a2b18a0c2a6c025eb5cb2d8ef7f5b390170e601)...[df0a55e](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/df0a55ebee890c395e32fad7952c8200cc287be5)
+[f02e784](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d)...[81ec635](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/81ec635114bc334b45890af0c4f33952ddb990d6)
 
-### Documentation
+## 0.5.1 - 2026-07-24
 
-- Update CHANGELOG.md and checksums [skip ci] ([`6a9a5bb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6a9a5bbd1ac7f817cad5bb579ee85bde761374f8))
-- Update CHANGELOG.md and checksums [skip ci] ([`94055eb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/94055ebc21d018e1980da78eb9602d860a097b01))
-
-### Features
-
-- Implement responsive sidebar with static button styling ([`3fe2826`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3fe2826d44bc33e6a895541008890231b0f5affa))
+[b589032](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b5890325eb723b7025b5025b08f9cfb089dfbb3a)...[f02e784](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d)
 
 ### Miscellaneous Tasks
 
-- Adjust layout constraints for improved responsiveness ([`6c52319`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6c523192f9fb1b64a52167b8c37bfd9eb25303bd))
-- Automate version bumping during releases ([`3830226`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3830226da8a31f9b3cbe90e5f30372f60f286471))
+- Restrict release workflow trigger to specific project paths ([`6046d55`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6046d550d5e12a73c90bfb9f45d03c2e702eadb8))
+- Reverted app version to 0.5.1 ([`f02e784`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d))
 
-### Styling
+## 0.5.1-rc.1 - 2026-07-24
 
-- Update dismiss button background and remove shimmer animation ([`ca6d565`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ca6d5651d7af4bea151ce6861509a11ca31ce2b1))
-
-## 0.5.1-cr.2 - 2026-07-09
-
-[ab945ce](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ab945ced1173972c8c68886a6a4b8449a4bcec9c)...[1a2b18a](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a2b18a0c2a6c025eb5cb2d8ef7f5b390170e601)
-
-### Bug Fixes
-
-- Simplify Windows build configuration by removing explicit target and adjusting paths ([`54205c3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/54205c38aa5211aa4f16c793b2326a228ca0becf))
-- Update macOS build configuration to use correct self-hosted runner labels ([`1a2b18a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a2b18a0c2a6c025eb5cb2d8ef7f5b390170e601))
-
-## 0.5.1-cr.1 - 2026-07-09
-
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[ab945ce](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ab945ced1173972c8c68886a6a4b8449a4bcec9c)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[b589032](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b5890325eb723b7025b5025b08f9cfb089dfbb3a)
 
 ### Bug Fixes
 
@@ -56,6 +38,9 @@ All notable changes to this project will be documented in this file.
 - Enforce failure in release workflow when WAZUH_GATEWAY_URL secret is missing ([`6d7b679`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6d7b67965175a64fa04869c8cceea5bb5556f1d2))
 - Specify bash shell for Gateway URL configuration step in release workflow ([`1c3ae93`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1c3ae93e0d396f8ccc090d371606219e1dac4e33))
 - Update macOS build configuration to use specific self-hosted runners ([`ab945ce`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ab945ced1173972c8c68886a6a4b8449a4bcec9c))
+- Simplify Windows build configuration by removing explicit target and adjusting paths ([`54205c3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/54205c38aa5211aa4f16c793b2326a228ca0becf))
+- Update macOS build configuration to use correct self-hosted runner labels ([`1a2b18a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a2b18a0c2a6c025eb5cb2d8ef7f5b390170e601))
+- Skip version updates in release workflow for pre-release tags to maintain MSI compatibility ([`b589032`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b5890325eb723b7025b5025b08f9cfb089dfbb3a))
 
 ### Documentation
 
@@ -92,6 +77,9 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`c9a978e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c9a978e8f148e97979274fc76cfc58e55d1a02da))
 - Update CHANGELOG.md and checksums [skip ci] ([`a0098c7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a0098c7f622d21cf22e4b44ae577c4fe758ea989))
 - Update CHANGELOG.md and checksums [skip ci] ([`92b1f29`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/92b1f298a29fd2454d16ae7e68c15bacbf15f536))
+- Update CHANGELOG.md and checksums [skip ci] ([`6a9a5bb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6a9a5bbd1ac7f817cad5bb579ee85bde761374f8))
+- Update CHANGELOG.md and checksums [skip ci] ([`94055eb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/94055ebc21d018e1980da78eb9602d860a097b01))
+- Update CHANGELOG.md and checksums [skip ci] ([`6c628a8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6c628a80a57232e1e8af62b12d5b78d63c53b8c7))
 
 ### Features
 
@@ -107,6 +95,7 @@ All notable changes to this project will be documented in this file.
 - Integrate AI-driven compliance remediation with secure and configuration support ([`176f199`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/176f199a0c159a46e8ec85c470fd56b02b863bd4)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Add HMAC auth for SCA compliance requests ([`9a775b6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9a775b695e08ebc087f318ecb125c5a91f0df920)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Add matrix-based cross-compilation support for Linux, MacOS, and Windows in release workflow ([`895472c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/895472c0e73f229cfb4405afc12730d67f081fa0))
+- Implement responsive sidebar with static button styling ([`3fe2826`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3fe2826d44bc33e6a895541008890231b0f5affa))
 
 ### Miscellaneous Tasks
 
@@ -126,6 +115,9 @@ All notable changes to this project will be documented in this file.
 - Bump application version to 0.5.1 across all install and update scripts ([`7e4fe60`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7e4fe601f4b6a48829b6c5ac2968f3a70be0ff02))
 - Trigger workflow ([`2c3368e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2c3368e495346ac8a6fda562ecef7db02957356f))
 - Trigger workflow ([`6d00b7c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6d00b7cc95d4c0f31757f9467832cc019ea530b6))
+- Adjust layout constraints for improved responsiveness ([`6c52319`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6c523192f9fb1b64a52167b8c37bfd9eb25303bd))
+- Automate version bumping during releases ([`3830226`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3830226da8a31f9b3cbe90e5f30372f60f286471))
+- Bump application version to 0.5.1-rc.1 ([`73835ab`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/73835abb0e3269fd6b10a30636952e638ba94dd3))
 
 ### Performance
 
@@ -156,6 +148,10 @@ All notable changes to this project will be documented in this file.
 - Modernize CSS text wrapping and modularize ComplianceView parser ([`d17da10`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d17da10116b05bd5fe49fa9a3068333d83749818)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Remove unused files and consolidate code for Wazuh agent status ([`8ccd604`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8ccd604f19336ec584db79d550bdcda48b73e8a0)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Update client components, improve agent metrics, and add compliance utilities ([`f7f6c7a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f7f6c7a1ec6671c3300c0682775c84621e5bfd20)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+
+### Styling
+
+- Update dismiss button background and remove shimmer animation ([`ca6d565`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ca6d5651d7af4bea151ce6861509a11ca31ce2b1))
 
 ### Testing
 
