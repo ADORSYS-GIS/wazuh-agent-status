@@ -1,8 +1,14 @@
+---
+layout: default
+title: "ADR-003: Use mTLS for Local Communication"
+parent: Architecture & ADRs
+---
+
 # ADR-003: Use mTLS for Local Communication
 
 ## Status
 
-Rejected ❌
+Rejected 
 
 ## Context
 
@@ -26,9 +32,9 @@ The current approach of binding to localhost and relying on OS access controls i
 
 ## Consequences
 
-- ✅ Simpler implementation — no certificate generation or management needed
-- ✅ Easier debugging and development — plaintext communication on localhost
-- ✅ No certificate rotation or expiry concerns
-- ✅ No additional dependency (rustls, openssl) for the communication layer
-- ⚠️ Any local process on the same machine can connect to the server (limited by OS-level controls)
-- ⚠️ No encryption of data in transit between client and server (acceptable for localhost)
+-  Simpler implementation — no certificate generation or management needed
+-  Easier debugging and development — plaintext communication on localhost
+-  No certificate rotation or expiry concerns
+-  No additional dependency (rustls, openssl) for the communication layer
+-  Any local process on the same machine can connect to the server (limited by OS-level controls)
+-  No encryption of data in transit between client and server (acceptable for localhost)

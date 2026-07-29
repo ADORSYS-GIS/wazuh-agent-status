@@ -1,3 +1,9 @@
+---
+layout: default
+title: "ADR-002: Use gRPC for Communication"
+parent: Architecture & ADRs
+---
+
 # ADR-002: Use gRPC for Communication
 
 ## Status
@@ -26,5 +32,5 @@ The current Rust server uses a custom TCP protocol over localhost with JSON payl
 - ⏳ TCP protocol remains in use for now
 - ⏳ No schema enforcement at the wire level
 - ⏳ Client and server must agree on message formats manually
-- ✅ Future migration to gRPC is simplified by the existing trait-based abstraction layers
-- ✅ gRPC would bring protobuf schemas, bidirectional streaming, and built-in TLS support
+-  Future migration to gRPC is simplified by the existing trait-based abstraction layers
+-  gRPC would bring protobuf schemas, bidirectional streaming, and built-in TLS support

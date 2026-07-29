@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Real-Time Log Streaming"
+parent: Features
+---
+
 # Real-Time Log Streaming
 
 ## Overview
@@ -29,7 +35,7 @@ If the log stream is moving too quickly or you want to pause to read a specific 
 ![Real-Time Log Stream](../assets/log-stream.png)
 
 ### 5. Troubleshooting with Logs
-If your tray icon is showing a disconnected state (🔴 Red Dot), the log stream is the best place to find out why.
+If your tray icon is showing a disconnected state ( Red Dot), the log stream is the best place to find out why.
 Look for messages such as:
 - `ERROR: Could not connect to manager`
 - `INFO: Validating server certificate`

@@ -1,3 +1,9 @@
+---
+layout: default
+title: "AI-Powered Remediation"
+parent: Features
+---
+
 # AI-Powered Remediation
 
 ## Overview

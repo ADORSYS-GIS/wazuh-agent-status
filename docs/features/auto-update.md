@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Update Management"
+parent: Features
+---
+
 # Update Management
 
 ## Overview

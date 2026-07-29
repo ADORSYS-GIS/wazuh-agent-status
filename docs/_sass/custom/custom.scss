@@ -1,0 +1,94 @@
+$link-color: #00aaff;
+$link-color-hover: darken(#00aaff, 15%);
+$btn-primary-color: #00aaff;
+$sidebar-color: #f8fafc;
+
+/* Custom Landing Page Styles */
+.docs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.docs-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  background-color: #ffffff;
+  border: 1px solid #e1e4e8;
+  border-radius: 8px;
+  text-decoration: none !important;
+  color: inherit !important;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.docs-card:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+
+.docs-card-icon {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.docs-card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #24292f;
+}
+
+.docs-card-desc {
+  font-size: 0.875rem;
+  color: #57606a;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.btn-hero {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  border-radius: 6px;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+}
+
+.btn-hero-primary {
+  background-color: #00aaff;
+  color: white !important;
+  border: 1px solid #00aaff;
+}
+
+.btn-hero-primary:hover {
+  background-color: #0088cc;
+  border-color: #0088cc;
+}
+
+.btn-hero-outline {
+  background-color: transparent;
+  color: #24292f !important;
+  border: 1px solid #e1e4e8;
+}
+
+.btn-hero-outline:hover {
+  border-color: #00aaff;
+  color: #00aaff !important;
+}
+
+.section-desc {
+  color: #57606a;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}

@@ -1,8 +1,14 @@
+---
+layout: default
+title: "ADR-001: Use Rust for Client and Server"
+parent: Architecture & ADRs
+---
+
 # ADR-001: Use Rust for Client and Server
 
 ## Status
 
-Accepted ✅
+Accepted 
 
 ## Context
 
@@ -20,11 +26,11 @@ Use Rust for both the tray client and the background status server.
 
 ## Consequences
 
-- ✅ Better performance — significantly lower memory usage and faster execution
-- ✅ No CGO dependency — pure Rust compilation simplifies cross-compilation and deployment
-- ✅ Stronger security guarantees via Rust's memory safety
-- ✅ Cross-platform support (Linux, macOS, Windows) via a single codebase
-- ⚠️ More complex development initially, but improved maintainability over time
+-  Better performance — significantly lower memory usage and faster execution
+-  No CGO dependency — pure Rust compilation simplifies cross-compilation and deployment
+-  Stronger security guarantees via Rust's memory safety
+-  Cross-platform support (Linux, macOS, Windows) via a single codebase
+-  More complex development initially, but improved maintainability over time
 
 ## Implementation Notes
 

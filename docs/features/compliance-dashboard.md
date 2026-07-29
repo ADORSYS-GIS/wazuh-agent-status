@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Compliance Dashboard"
+parent: Features
+---
+
 # Compliance Dashboard
 
 ## Overview
@@ -26,7 +32,7 @@ At the top of the dashboard, you will see a summary of your system's overall com
 ### 3. Understanding the Checks
 When you scroll through the list, you will see a variety of individual compliance rules. Here is what they mean:
 - **Passed Checks (🟢 Green):** Your system is configured securely according to that specific policy.
-- **Failed Checks (🔴 Red):** This highlights a misconfiguration or vulnerability that needs to be fixed.
+- **Failed Checks ( Red):** This highlights a misconfiguration or vulnerability that needs to be fixed.
 
 **Common Check Types:**
 - **Firewall Checks:** Verifies that your system's firewall (e.g., Windows Defender Firewall, `ufw`, or `firewalld`) is active and properly configured to block unauthorized inbound connections.

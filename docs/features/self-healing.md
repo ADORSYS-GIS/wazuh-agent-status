@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Self-Healing Capabilities"
+parent: Features
+---
+
 # Self-Healing Capabilities
 
 ## Overview
@@ -13,7 +19,7 @@ Self-healing is enabled by default. To disable it:
 - Set the `WAZUH_STATUS_SELF_HEALING` environment variable to `false` (or `0`) before starting the server.
 
 ### 2. Monitoring Self-Healing Actions
-If the Wazuh agent goes offline unexpectedly, you might temporarily see a 🔴 Red Dot on your tray icon.
+If the Wazuh agent goes offline unexpectedly, you might temporarily see a  Red Dot on your tray icon.
 - The server will immediately attempt to restart the agent.
 - If successful, the tray icon will return to a 🟢 Green Dot within a few minutes.
 

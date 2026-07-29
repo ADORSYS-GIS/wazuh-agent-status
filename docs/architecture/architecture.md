@@ -1,4 +1,10 @@
-# 🏗️ Architecture Document — Wazuh Agent Status
+---
+layout: default
+title: " Architecture Document — Wazuh Agent Status"
+parent: Architecture & ADRs
+---
+
+#  Architecture Document — Wazuh Agent Status
 
 ## 1. Introduction
 
@@ -67,7 +73,7 @@ The current Rust implementation uses a **Push/Subscribe** model over TCP (port 5
 ## 7. Target Architecture (Hardened)
 
 Our long-term goal is a Zero-Trust, event-driven architecture with gRPC and mTLS. For a complete technical breakdown of this vision, see:
-👉 **[Rust Migration Proposal](../rust-migration-technical-proposal.md)**
+ **[Rust Migration Proposal](../rust-migration-technical-proposal.md)**
 
 ---
 
@@ -77,9 +83,9 @@ Our long-term goal is a Zero-Trust, event-driven architecture with gRPC and mTLS
 | ------------- | ------------------------------------ |
 | Client        | Rust / Tauri (WebView frontend)      |
 | Server        | Rust (Tokio TCP server)              |
-| Communication | TCP (JSON payloads) → gRPC (planned) |
-| Security      | Localhost binding → mTLS (planned)   |
-| Serialization | JSON (serde) → Protobuf (planned)    |
+| Communication | TCP (JSON payloads)  gRPC (planned) |
+| Security      | Localhost binding  mTLS (planned)   |
+| Serialization | JSON (serde)  Protobuf (planned)    |
 
 ---
 
