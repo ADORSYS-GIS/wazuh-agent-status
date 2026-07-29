@@ -7,7 +7,7 @@ The Compliance Dashboard provides a visual breakdown of the Security Configurati
 Wazuh agents run periodic Security Configuration Assessments (SCAs). These checks are not generated randomly; they are driven by **Policy Files** distributed by your Wazuh Manager. 
 - These policies are usually based on industry standards, such as the **CIS (Center for Internet Security) Benchmarks**.
 - The Wazuh agent scans your system's registry keys, configuration files, and running processes against these strict rules.
-- The Rust server then reads these scan results directly from the Wazuh agent's local SQLite databases and presents them to you in the dashboard.
+- The desktop application fetches the latest SCA results over a secured API connection to the Wazuh Manager, where the compliance data is aggregated and stored.
 
 ## Step-by-Step Guide
 
