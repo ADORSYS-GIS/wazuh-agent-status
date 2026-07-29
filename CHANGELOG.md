@@ -4,7 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[f02e784](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d)...[81ec635](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/81ec635114bc334b45890af0c4f33952ddb990d6)
+[f02e784](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d)...[5feb39e](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5feb39e7838de44a3f8447879d608b47e773d992)
+
+### Bug Fixes
+
+- Add type attributes to buttons for accessibility and improve CI permissions ([`5feb39e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5feb39e7838de44a3f8447879d608b47e773d992)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`68f31ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68f31ac494d19f6faef30f7da2c5be46ac1daa4e))
 
 ## 0.5.1 - 2026-07-24
 
