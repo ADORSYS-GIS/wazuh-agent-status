@@ -12,7 +12,7 @@
 - **Compliance Dashboard:** View Security Configuration Assessment (SCA) results with detailed pass/fail information.
 - **AI-Powered Remediation:** Automatically generate fix commands for failed compliance checks, with secure command execution and validation.
 - **Real-time Log Streaming:** View Wazuh agent logs directly from the tray application.
-- **Auto-Update Management:** Configure automatic updates or manually trigger stable/prerelease updates.
+- **Update Management:** Receive notifications for new versions and easily install stable or prerelease updates.
 - **Cross-Platform Compatibility:** Native support for Linux, macOS, and Windows.
 
 ## Architecture
@@ -131,8 +131,17 @@ Alternatively, run the generated executable located in the `src-tauri/target/rel
 
 ## Documentation
 
+### Feature Guides
+- **[Real-Time Monitoring & System Tray](docs/features/real-time-monitoring.md)**: How to monitor agent status using the tray icon and menu.
+- **[Compliance Dashboard](docs/features/compliance-dashboard.md)**: How to review Security Configuration Assessment (SCA) results.
+- **[AI-Powered Remediation](docs/features/ai-remediation.md)**: How to generate and execute fixes for failed compliance checks.
+- **[Real-Time Log Streaming](docs/features/log-streaming.md)**: How to view Wazuh agent logs directly in the dashboard.
+- **[Update Management](docs/features/auto-update.md)**: How to check for updates and configure release channels.
+- **[Self-Healing Capabilities](docs/features/self-healing.md)**: How the server automatically restarts crashed agents.
+
+### Technical & Architecture
 - **[Architecture Overview](docs/architecture/architecture.md)**: High-level view of the system design.
-- **[AI Compliance Fixes](docs/ai-compliance-fixes.md)**: Technical detail on AI fix generation and command execution.
+- **[AI Compliance Fixes (Technical)](docs/ai-compliance-fixes.md)**: Technical detail on AI fix generation and command execution.
 - **[Rust Migration Proposal](docs/rust-migration-technical-proposal.md)**: Details of the completed Rust migration.
 - **[Decision Log (ADRs)](docs/architecture/adr/)**: Architectural decision records.
 - **[Roadmap](docs/roadmap.md)**: Future development plans.
