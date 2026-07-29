@@ -117,10 +117,10 @@ const WINDOWS_ADMIN_VERBS = [
 ];
 
 const ADMIN_VERB_PATTERN = WINDOWS_ADMIN_VERBS.map((v) =>
-  v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  v.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
 ).join("|");
 const ADMIN_VERB_RE = new RegExp(
-  `(?:^|[\\s|;&'\"/])(${ADMIN_VERB_PATTERN})(?=[\\s|;&'\"/]|$)`
+  `(?:^|[\\s|;&'"/])(${ADMIN_VERB_PATTERN})(?=[\\s|;&'"/]|$)`
 );
 
 export const commandNeedsSudo = (cmd: string) => {

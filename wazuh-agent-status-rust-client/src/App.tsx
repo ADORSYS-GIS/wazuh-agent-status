@@ -191,6 +191,7 @@ function App() {
           
           <div className="tooltip-container">
             <button
+              type="button"
               className={`nav-item ${activeView === "status" ? "active" : ""}`}
               onClick={() => setActiveView("status")}
               aria-label="Overview"
@@ -203,6 +204,7 @@ function App() {
 
           <div className="tooltip-container">
             <button
+              type="button"
               className={`nav-item ${activeView === "compliance" ? "active" : ""}`}
               onClick={() => setActiveView("compliance")}
               aria-label="Compliance"

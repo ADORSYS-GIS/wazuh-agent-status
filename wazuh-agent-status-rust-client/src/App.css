@@ -111,7 +111,6 @@ body {
   justify-content: center;
   color: var(--text-dim);
   cursor: pointer;
-  transition: all 0.2s ease;
   background: transparent;
   border: none;
   outline: none;
@@ -2006,8 +2005,6 @@ body {
 }
 .settings-ai-btn-primary:hover:not(:disabled) {
   filter: brightness(1.15);
-}
-.settings-ai-btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px var(--primary-alpha-40);
 }

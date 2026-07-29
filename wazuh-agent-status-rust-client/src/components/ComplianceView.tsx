@@ -35,7 +35,7 @@ function ComplianceError({ error, onRetry }: Readonly<ComplianceErrorProps>) {
         <div className="compliance-error-icon">!</div>
         <div className="compliance-error-title">Failed to load compliance data</div>
         <div className="compliance-error-text">{error}</div>
-        <button className="compliance-retry-btn" onClick={onRetry}>
+        <button type="button" className="compliance-retry-btn" onClick={onRetry}>
           Retry
         </button>
       </div>
@@ -45,7 +45,7 @@ function ComplianceError({ error, onRetry }: Readonly<ComplianceErrorProps>) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
+export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentStatus }>) {
   const [report, setReport] = useState<ComplianceReport | null>(null);
   const [agentInfo, setAgentInfo] = useState<{ id: string; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -311,7 +311,7 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
       <div className="header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2 className="title">System Compliance</h2>
         <div style={{ display: "flex", gap: "6px" }}>
-          <button className="compliance-refresh-btn" onClick={() => { closeFixResult(); fetchReport(); }} title="Refresh now">
+          <button type="button" className="compliance-refresh-btn" onClick={() => { closeFixResult(); fetchReport(); }} title="Refresh now">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
@@ -448,6 +448,7 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
         <div className="compliance-filter-row">
           {(["all", "passed", "failed"] as const).map((val) => (
             <button
+              type="button"
               key={val}
               className={`compliance-filter-chip ${localFilter === val ? "active" : ""}`}
               onClick={() => setLocalFilter(val)}
@@ -462,6 +463,7 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
       {aiStatus?.configured && failedCount > 0 && (
         <div style={{ marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
           <button
+            type="button"
             className="update-button"
             style={{ fontSize: "0.75rem", padding: "6px 14px", display: "flex", alignItems: "center", gap: "6px" }}
             onClick={handleAIFixAll}
@@ -499,7 +501,7 @@ export function ComplianceView({ agentStatus }: { agentStatus: AgentStatus }) {
 
             return (
               <div key={cat.name} className={`compliance-category ${isExpanded ? "expanded" : ""}`}>
-                <button className="compliance-category-trigger" onClick={() =>
+                <button type="button" className="compliance-category-trigger" onClick={() =>
                   setExpandedCategory(isExpanded ? null : cat.name)
                 }>
                   <div className="compliance-category-summary">
@@ -620,6 +622,7 @@ function ComplianceCheckRow({
         {/* AI Fix button for failed checks */}
         {isFailed && aiConfigured && (
           <button
+            type="button"
             className="ai-fix-btn"
             onClick={onFix}
             disabled={fixing}
