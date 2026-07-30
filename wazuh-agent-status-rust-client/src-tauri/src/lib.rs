@@ -1,0 +1,96 @@
+mod agent;
+mod ai;
+mod commands;
+mod config;
+mod tray;
+
+use agent::AgentManager;
+use anyhow::Context;
+use config::AppConfig;
+use tauri::Manager;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let result = tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .level_for("tao", log::LevelFilter::Off)
+                .build(),
+        )
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
+        .setup(|app| {
+            // Setup positioner only on non-linux
+            #[cfg(not(target_os = "linux"))]
+            {
+                app.handle().plugin(tauri_plugin_positioner::init())?;
+            }
+
+            // Hide dock icon on macOS
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
+            // Initialize Managers
+            let config = AppConfig::load(app.handle())
+                .map_err(|e| anyhow::anyhow!(e))
+                .context("Failed to load application configuration. Ensure app_config.json is valid and accessible.")?;
+
+            let agent_manager = AgentManager::new(config.server_addr.clone());
+
+            // Manage state
+            app.manage(config);
+            app.manage(agent_manager);
+
+            tray::setup_tray(app.handle())
+                .context("Failed to initialize system tray")?;
+
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+
+                // Sync tray menu text
+                let app_handle = window.app_handle();
+                if let Some(tray_state) = app_handle.try_state::<tray::TrayMenuState<tauri::Wry>>() {
+                    let _ = tray_state.show_item.set_text("Show Dashboard");
+                }
+
+                api.prevent_close();
+            }
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::get_agent_status,
+            commands::get_config,
+            commands::get_system_metrics,
+            commands::check_for_updates,
+            commands::start_update,
+            commands::start_log_stream,
+            commands::fetch_compliance,
+            commands::ai_commands::save_ai_config,
+            commands::ai_commands::get_ai_status,
+            commands::ai_commands::get_ai_config,
+            commands::ai_commands::test_ai_connection,
+            commands::ai_commands::clear_ai_config,
+            commands::ai_commands::list_ai_models,
+            commands::ai_commands::ai_fix_check,
+            commands::ai_commands::ai_fix_batch,
+            commands::ai_commands::ai_chat,
+            commands::ai_commands::execute_fix_command,
+            commands::ai_commands::execute_fix_command_sudo,
+            commands::ai_commands::trigger_sca_rescan,
+        ])
+        .run(tauri::generate_context!());
+
+    if let Err(e) = result {
+        eprintln!("Fatal error while running tauri application: {:?}", e);
+        std::process::exit(1);
+    }
+}

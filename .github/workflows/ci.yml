@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  pull_request:
+    paths:
+      - "wazuh-agent-status-rust-server/**"
+      - "wazuh-agent-status-rust-client/src-tauri/**"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  ci:
+    name: ${{ matrix.project.name }} Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - name: Server
+            path: wazuh-agent-status-rust-server
+            test: true
+            system-deps: false
+          - name: Client
+            path: wazuh-agent-status-rust-client/src-tauri
+            test: false
+            system-deps: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+
+      - name: Install CI tools
+        uses: taiki-e/install-action@d9be7d8cda89035c9c843f78bd44d4f72d8403d4
+        with:
+          tool: cargo-machete, cargo-nextest
+
+      - name: Install Linux system dependencies (Client)
+        if: matrix.project.system-deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsoup-3.0-dev \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev
+
+      - name: Check formatting
+        working-directory: ${{ matrix.project.path }}
+        run: cargo fmt --all --check
+
+      - name: Clippy lints
+        working-directory: ${{ matrix.project.path }}
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests (Server only)
+        if: matrix.project.test
+        working-directory: ${{ matrix.project.path }}
+        run: cargo nextest run --all-targets --all-features
+
+      - name: Check unused dependencies
+        working-directory: ${{ matrix.project.path }}
+        run: cargo machete --with-metadata
