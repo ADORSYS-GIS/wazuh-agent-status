@@ -571,6 +571,34 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
 
 // ─── Check Row ────────────────────────────────────────────────────────────────
 
+function getCheckIconClass(isPassed: boolean, isFailed: boolean): string {
+  if (isPassed) return "pass";
+  if (isFailed) return "fail";
+  return "dim";
+}
+
+function renderCheckIcon(isPassed: boolean, isFailed: boolean) {
+  if (isPassed) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    );
+  }
+  if (isFailed) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+    </svg>
+  );
+}
+
 function ComplianceCheckRow({
   check,
   aiConfigured,
@@ -587,20 +615,8 @@ function ComplianceCheckRow({
 
   return (
     <div className={`compliance-check ${isFailed ? "is-failed" : ""}`}>
-      <div className={`compliance-check-icon ${isPassed ? "pass" : isFailed ? "fail" : "dim"}`}>
-        {isPassed ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        ) : isFailed ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-          </svg>
-        )}
+      <div className={`compliance-check-icon ${getCheckIconClass(isPassed, isFailed)}`}>
+        {renderCheckIcon(isPassed, isFailed)}
       </div>
 
       <div className="compliance-check-body">
