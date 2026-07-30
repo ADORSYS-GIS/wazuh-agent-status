@@ -98,6 +98,10 @@
   letter-spacing: -0.01em;
 }
 
+.site-title:hover {
+  background-image: none !important;
+}
+
 /* ==========================================================================
    Header – Aux Nav (GitHub + Theme Toggle side by side)
    ========================================================================== */
@@ -145,6 +149,7 @@
   color: #000000 !important;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   transform: translateY(-1px);
+  background-image: none !important;
 }
 
 /* ==========================================================================
@@ -177,6 +182,7 @@
   border-color: #d1d5db;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   transform: translateY(-1px);
+  background-image: none !important;
 }
 
 .theme-icon-dark  { display: none; }
@@ -349,11 +355,12 @@ html[data-color-scheme="dark"] .aux-nav-list-item a {
 }
 
 html[data-color-scheme="dark"] .aux-nav-list-item a:hover {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+  background-color: rgba(96, 165, 250, 0.12) !important;
+  border-color: rgba(96, 165, 250, 0.4) !important;
+  color: #60a5fa !important;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2) !important;
   transform: translateY(-1px);
+  background-image: none !important;
 }
 
 /* Theme toggle – dark */
@@ -365,10 +372,12 @@ html[data-color-scheme="dark"] .theme-toggle-btn {
 }
 
 html[data-color-scheme="dark"] .theme-toggle-btn:hover {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+  background-color: rgba(96, 165, 250, 0.12) !important;
+  border-color: rgba(96, 165, 250, 0.4) !important;
+  color: #60a5fa !important;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2) !important;
   transform: translateY(-1px);
+  background-image: none !important;
 }
 
 html[data-color-scheme="dark"] .theme-icon-light { display: none; }
@@ -454,4 +463,91 @@ html[data-color-scheme="dark"] .search-input {
 
 html[data-color-scheme="dark"] .search-input::placeholder {
   color: #6b7280 !important;
+}
+
+/* Inline code blocks - remove boxes entirely, rely on color */
+.main-content p code, .main-content li code {
+  background: transparent !important;
+  border: none !important;
+  color: #c026d3 !important; /* magenta for light mode */
+  font-weight: 600;
+  padding: 0;
+}
+
+html[data-color-scheme="dark"] .main-content p code, 
+html[data-color-scheme="dark"] .main-content li code {
+  color: #e879f9 !important; /* light magenta for dark mode */
+}
+
+/* Large code blocks (pre/rouge) in dark mode */
+html[data-color-scheme="dark"] div.highlighter-rouge,
+html[data-color-scheme="dark"] div.highlighter-rouge div.highlight,
+html[data-color-scheme="dark"] div.highlighter-rouge pre.highlight,
+html[data-color-scheme="dark"] div.highlighter-rouge pre.highlight code {
+  background-color: #1a1f2e !important; /* dark slate background */
+  color: #e2e8f0 !important;            /* light text */
+  border-color: #2d3748 !important;     /* subtle border */
+}
+
+/* Hide Just the Docs footer attributions */
+.site-footer,
+footer {
+  display: none !important;
+}
+
+/* Copy button styling */
+div.highlighter-rouge {
+  position: relative;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #4b5563;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+div.highlighter-rouge:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.copy-btn.copied {
+  background-color: #10b981;
+  color: #ffffff;
+  border-color: #10b981;
+}
+
+html[data-color-scheme="dark"] .copy-btn {
+  background-color: #1f2937;
+  color: #d1d5db;
+  border-color: #374151;
+}
+
+html[data-color-scheme="dark"] .copy-btn:hover {
+  background-color: #374151;
+  color: #ffffff;
+}
+
+html[data-color-scheme="dark"] .copy-btn.copied {
+  background-color: #059669;
+  color: #ffffff;
+  border-color: #059669;
 }
