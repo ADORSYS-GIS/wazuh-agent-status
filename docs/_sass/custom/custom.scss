@@ -25,6 +25,7 @@
 
 .side-bar .nav-list-item {
   margin-bottom: 0.25rem !important;
+  font-size: 0.95rem !important;
 }
 
 .side-bar .nav-list-link:hover,
@@ -57,10 +58,6 @@ li.nav-list-item:has(> a[href$="installation.html"])::before {
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
   margin-left: 1rem;
-}
-
-.side-bar .nav-list-item {
-  font-size: 0.95rem !important;
 }
 
 .site-title {
@@ -131,14 +128,14 @@ li.nav-list-item:has(> a[href$="installation.html"])::before {
 }
 
 .btn-hero-primary {
-  background-color: #00aaff;
+  background-color: #0077cc;
   color: white !important;
-  border: 1px solid #00aaff;
+  border: 1px solid #0077cc;
 }
 
 .btn-hero-primary:hover {
-  background-color: #0088cc;
-  border-color: #0088cc;
+  background-color: #0055aa;
+  border-color: #0055aa;
 }
 
 .btn-hero-outline {
