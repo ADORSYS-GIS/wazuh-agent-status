@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[f02e784](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d)...[09ba958](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/09ba9587dd2149588f4b21910b605b1ec19ab41d)
+[f02e784](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d)...[ce53b62](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce53b629caaa9cbdd36cbb53a77dc70f6c8483a8)
 
 ### Bug Fixes
 
@@ -16,10 +16,15 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`68f31ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68f31ac494d19f6faef30f7da2c5be46ac1daa4e))
 - Update CHANGELOG.md and checksums [skip ci] ([`4cfc7d6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4cfc7d6c6e2fd3405cf8c180afca2cf8e8591202))
 - Update CHANGELOG.md and checksums [skip ci] ([`d3a3b66`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d3a3b667ab851aab5a01357dac2d934e1b363553))
+- Update CHANGELOG.md and checksums [skip ci] ([`8c64768`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8c64768ffe8dcbb583f1a824cd77fc9aad203eaa))
 
 ### Features
 
 - Enforce HTTPS for repository URLs in scripts and components and resolve SonaQube warnings ([`47328cd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47328cd9d298f5d8f4522e74a547b22a2cfdc8f1)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+
+### Refactor
+
+- Simplify check icon rendering in ComplianceView component ([`ce53b62`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce53b629caaa9cbdd36cbb53a77dc70f6c8483a8)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ## 0.5.1 - 2026-07-24
 
