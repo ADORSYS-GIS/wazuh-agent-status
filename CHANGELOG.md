@@ -4,16 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[f02e784](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d)...[47328cd](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47328cd9d298f5d8f4522e74a547b22a2cfdc8f1)
+[f02e784](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d)...[09ba958](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/09ba9587dd2149588f4b21910b605b1ec19ab41d)
 
 ### Bug Fixes
 
 - Add type attributes to buttons for accessibility and improve CI permissions ([`5feb39e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5feb39e7838de44a3f8447879d608b47e773d992)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Replace npm install with npm ci for consistent dependency installation in Tauri client builds ([`35ea81c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/35ea81c334c6640328f0a102197317d1b8c07107)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ### Documentation
 
 - Update CHANGELOG.md and checksums [skip ci] ([`68f31ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68f31ac494d19f6faef30f7da2c5be46ac1daa4e))
 - Update CHANGELOG.md and checksums [skip ci] ([`4cfc7d6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4cfc7d6c6e2fd3405cf8c180afca2cf8e8591202))
+- Update CHANGELOG.md and checksums [skip ci] ([`d3a3b66`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d3a3b667ab851aab5a01357dac2d934e1b363553))
 
 ### Features
 
