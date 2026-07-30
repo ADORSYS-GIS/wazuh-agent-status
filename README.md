@@ -150,21 +150,21 @@ Alternatively, run the generated executable located in the `src-tauri/target/rel
 
 ```text
 wazuh-agent-status/
-├── wazuh-agent-status-rust-server/      # Rust TCP server (background service)
-├── wazuh-agent-status-rust-client/      # Tauri desktop client (tray app)
-├── scripts/                             # Install/uninstall/update scripts
+├── wazuh-agent-status-rust-server/
+├── wazuh-agent-status-rust-client/
+├── scripts/
 │   ├── linux/
 │   ├── macos/
 │   ├── windows/
 │   └── shared/
-├── docs/                                # Documentation
+├── docs/
 │   └── architecture/
-│       ├── adr/                         # Architectural Decision Records
+│       ├── adr/
 │       ├── architecture.md
 │       ├── current-system-analysis.md
 │       └── phase-1-rust-client-plan.md
-├── .github/workflows/                   # CI/CD pipelines
-├── CHANGELOG.md                         # Auto-generated changelog
-├── cliff.toml                           # Changelog generator config
-└── checksums.sha256                     # Release checksums
+├── .github/workflows/
+├── CHANGELOG.md
+├── cliff.toml
+└── checksums.sha256
 ```

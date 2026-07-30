@@ -1,7 +1,72 @@
-$link-color: #00aaff;
-$link-color-hover: darken(#00aaff, 15%);
-$btn-primary-color: #00aaff;
-$sidebar-color: #f8fafc;
+/* Sidebar Text Color & OpenFlows Style Overrides */
+@media (min-width: 50rem) {
+  .side-bar {
+    width: 15rem !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+    border-right: 1px solid #e1e4e8;
+  }
+  .main {
+    margin-left: 15rem !important;
+  }
+  .main-content {
+    padding-left: 4rem !important;
+    max-width: 1000px !important;
+  }
+}
+.side-bar .nav-list-link {
+  color: #24292f !important;
+  font-size: 0.95rem !important;
+  padding-top: 0.35rem !important;
+  padding-bottom: 0.35rem !important;
+  line-height: 1.3 !important;
+  font-weight: 500;
+}
+
+.side-bar .nav-list-item {
+  margin-bottom: 0.25rem !important;
+}
+
+.side-bar .nav-list-link:hover,
+.side-bar .nav-list-link.active {
+  color: #00aaff !important;
+  font-weight: 600;
+}
+
+/* OpenFlows Category Headers (The gap and uppercase text) */
+li.nav-list-item:has(> a[href$="features/"])::before,
+li.nav-list-item:has(> a[href$="features/index.html"])::before {
+  content: "FEATURES";
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #8c959f;
+  letter-spacing: 0.05em;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  margin-left: 1rem;
+}
+
+li.nav-list-item:has(> a[href$="installation.html"])::before {
+  content: "RESOURCES";
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #8c959f;
+  letter-spacing: 0.05em;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  margin-left: 1rem;
+}
+
+.side-bar .nav-list-item {
+  font-size: 0.95rem !important;
+}
+
+.site-title {
+  color: #24292f !important;
+  font-weight: 600 !important;
+}
 
 /* Custom Landing Page Styles */
 .docs-grid {

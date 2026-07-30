@@ -1,12 +1,6 @@
----
-layout: default
-title: " Historical System Analysis — Go Implementation (Archived)"
-parent: Architecture & ADRs
----
+# 🔍 Historical System Analysis — Go Implementation (Archived)
 
-#  Historical System Analysis — Go Implementation (Archived)
-
-> ** This document is for historical reference only.**
+> **⚠️ This document is for historical reference only.**
 > The Go implementation has been fully removed from the repository as of v0.5.x.
 > The system now uses Rust for both the server and client components.
 
@@ -83,7 +77,7 @@ sequenceDiagram
 
 ---
 
-##  Baseline Performance Metrics (Go 1.8.x)
+## 📈 Baseline Performance Metrics (Go 1.8.x)
 
 The following metrics were recorded on a standard Linux workstation:
 

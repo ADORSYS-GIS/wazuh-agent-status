@@ -1,14 +1,8 @@
----
-layout: default
-title: "ADR-004: Rust Migration Complete — Go Implementation Removed"
-parent: Architecture & ADRs
----
-
 # ADR-004: Rust Migration Complete — Go Implementation Removed
 
 ## Status
 
-Accepted 
+Accepted ✅
 
 ## Context
 
@@ -41,14 +35,14 @@ The Go implementation is preserved for reference in the `legacy/go-implementatio
 
 | Feature                                 | Go  | Rust     |
 | --------------------------------------- | --- | -------- |
-| Agent status monitoring                 |   |        |
-| Real-time status updates (subscribe)    |   |        |
-| Version checking & update notifications |   |        |
-| Auto-update (stable + prerelease)       |   |        |
-| Log streaming                           |   |  (new) |
-| SCA Compliance dashboard                |   |  (new) |
-| AI-powered remediation                  |   |  (new) |
-| Cross-platform (Linux, macOS, Windows)  |   |        |
+| Agent status monitoring                 | ✅  | ✅       |
+| Real-time status updates (subscribe)    | ✅  | ✅       |
+| Version checking & update notifications | ✅  | ✅       |
+| Auto-update (stable + prerelease)       | ✅  | ✅       |
+| Log streaming                           | ❌  | ✅ (new) |
+| SCA Compliance dashboard                | ❌  | ✅ (new) |
+| AI-powered remediation                  | ❌  | ✅ (new) |
+| Cross-platform (Linux, macOS, Windows)  | ✅  | ✅       |
 
 ### Performance Improvements
 
@@ -61,9 +55,9 @@ The Go implementation is preserved for reference in the `legacy/go-implementatio
 
 ## Consequences
 
--  Clean repository — only Rust code and associated scripts/docs remain
--  Simplified build process — Rust toolchain only (no Go SDK requirement)
--  Improved cross-platform consistency via single codebase
--  Better long-term maintainability with Rust's type system and memory safety
--  Team needs Rust proficiency (mitigated by training and documentation)
--  Go implementation available only in legacy branch for historical reference
+- ✅ Clean repository — only Rust code and associated scripts/docs remain
+- ✅ Simplified build process — Rust toolchain only (no Go SDK requirement)
+- ✅ Improved cross-platform consistency via single codebase
+- ✅ Better long-term maintainability with Rust's type system and memory safety
+- ⚠️ Team needs Rust proficiency (mitigated by training and documentation)
+- ⚠️ Go implementation available only in legacy branch for historical reference

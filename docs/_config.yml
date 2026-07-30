@@ -14,3 +14,8 @@ twitter:
 
 plugins:
   - jekyll-remote-theme
+
+exclude:
+  - architecture
+  - roadmap.md
+  - rust-migration-technical-proposal.md
