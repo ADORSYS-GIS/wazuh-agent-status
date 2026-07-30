@@ -261,6 +261,7 @@ function AiSetupForm({
 
         <div className="settings-ai-actions">
           <button
+            type="button"
             className="settings-ai-btn settings-ai-btn-outline"
             disabled={testing || saving}
             onClick={onTest}

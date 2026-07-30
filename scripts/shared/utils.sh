@@ -275,6 +275,17 @@ download_and_verify_file() {
     return 0
 }
 
+# Validate that a URL uses HTTPS (to satisfy SonarCloud HTTPS enforcement)
+enforce_https_url() {
+    local url="$1"
+    local name="${2:-URL}"
+    case "$url" in
+        https://*) : ;;
+        *) echo "[ERROR] $name must use HTTPS. Got: $url" >&2; exit 1 ;;
+    esac
+    return 0
+}
+
 # Cleanup function (can be overridden by caller)
 cleanup() {
     info_message "Cleaning up temporary files..."

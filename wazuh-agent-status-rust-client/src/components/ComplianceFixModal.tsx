@@ -210,6 +210,7 @@ export function ComplianceFixModal({ fixResult, onClose }: Readonly<ComplianceFi
                                 )}
                               </button>
                               <button
+                                type="button"
                                 className="compliance-command-run-btn"
                                 onClick={() => handleRunCommand(chunk.content, i)}
                                 disabled={execState.status === "running" || commandIsInteractive(chunk.content)}
@@ -347,6 +348,7 @@ export function ComplianceFixModal({ fixResult, onClose }: Readonly<ComplianceFi
                     spellCheck={false}
                   />
                   <button
+                    type="button"
                     className="ai-chat-send-btn"
                     onClick={handleChatSend}
                     disabled={!chatInput.trim() || chatSending}

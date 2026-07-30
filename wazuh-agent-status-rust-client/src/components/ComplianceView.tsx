@@ -318,6 +318,7 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
             </svg>
           </button>
           <button
+            type="button"
             className="compliance-refresh-btn"
             onClick={handleSCARescan}
             disabled={scaRescanState.status === "running"}
@@ -489,7 +490,7 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
       )}
 
       <div className="compliance-categories">
-        {filteredReport && filteredReport.categories.length === 0 ? (
+        {filteredReport?.categories.length === 0 ? (
           <div className="compliance-empty-state">
             No {localFilter === "all" ? "" : localFilter} checks in any category.
           </div>

@@ -82,14 +82,12 @@ export function UpdatesView({ updateInfo, agentStatus, onRefreshUpdates }: Reado
       </p>
 
       {updateInfo ? (
-        <>
           <UpdateCard 
             component={updateInfo.tray} 
             description="Unified Status Agent orchestrator. Handles global system updates."
             onUpdate={() => handleUpdate(updateInfo.tray.state === "prereleaseavailable")}
             isBusy={isUpdating}
           />
-        </>
       ) : (
         <div className="card">
           <div className="card-info">

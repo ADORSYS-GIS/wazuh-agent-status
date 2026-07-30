@@ -217,6 +217,7 @@ function App() {
 
           <div className="tooltip-container">
             <button
+              type="button"
               className={`nav-item ${activeView === "logs" ? "active" : ""}`}
               onClick={() => setActiveView("logs")}
               aria-label="Logs"
@@ -229,6 +230,7 @@ function App() {
 
           <div className="tooltip-container">
             <button
+              type="button"
               className={`nav-item ${activeView === "updates" ? "active" : ""}`}
               onClick={() => setActiveView("updates")}
               aria-label="Health & Updates"
@@ -242,6 +244,7 @@ function App() {
 
           <div className="tooltip-container">
             <button
+              type="button"
               className={`nav-item ${activeView === "settings" ? "active" : ""}`}
               onClick={() => setActiveView("settings")}
               aria-label="Settings"
