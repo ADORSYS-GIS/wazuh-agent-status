@@ -1,156 +1,457 @@
-/* Sidebar Text Color & OpenFlows Style Overrides */
+/* ==========================================================================
+   Layout – Sidebar + Centered Content (OpenFlow-style)
+   ========================================================================== */
+
+/* Force the sidebar to a clean fixed width */
 @media (min-width: 50rem) {
   .side-bar {
     width: 15rem !important;
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
-    border-right: 1px solid #e1e4e8;
+    min-width: 15rem !important;
+    border-right: 1px solid var(--border-color, #e5e7eb);
+    background-color: var(--sidebar-bg, #ffffff) !important;
   }
+
+  /* Main area fills the space to the right of the fixed sidebar */
   .main {
     margin-left: 15rem !important;
+    max-width: none !important;
+    width: calc(100% - 15rem) !important;
   }
+
+  /* Centering: symmetric padding keeps content centered in the column */
+  .main-content-wrap {
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+    box-sizing: border-box !important;
+  }
+
   .main-content {
-    padding-left: 4rem !important;
-    max-width: 1000px !important;
+    max-width: 800px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  /*
+   * Header override — theme sets justify-content: space-between.
+   * We switch to flex-end to push items to the right.
+   */
+  .main-header {
+    justify-content: flex-end !important;
+    gap: 0.6rem !important;
+    padding-right: 1.5rem !important;
+    background-color: #f8f9fa !important;
+  }
+
+  .search {
+    flex: 0 0 220px !important;
+    width: 220px !important;
+  }
+
+  /* Prevent search dropdown from bleeding off the right side of the screen */
+  .search-results {
+    right: 0 !important;
+    left: auto !important;
+  }
+
+  /* Prevent the search bar itself from expanding width when typing */
+  .search-active .search-input-wrap {
+    width: 100% !important;
   }
 }
+
+/* ==========================================================================
+   Sidebar Typography
+   ========================================================================== */
+
+.side-bar {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
 .side-bar .nav-list-link {
-  color: #24292f !important;
-  font-size: 0.95rem !important;
-  padding-top: 0.35rem !important;
-  padding-bottom: 0.35rem !important;
-  line-height: 1.3 !important;
+  color: #374151 !important;
+  font-size: 0.875rem !important;
   font-weight: 500;
+  padding-top: 0.3rem !important;
+  padding-bottom: 0.3rem !important;
+  line-height: 1.4 !important;
+  border-radius: 6px;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .side-bar .nav-list-item {
-  margin-bottom: 0.25rem !important;
-  font-size: 0.95rem !important;
+  margin-bottom: 0.15rem !important;
 }
 
 .side-bar .nav-list-link:hover,
 .side-bar .nav-list-link.active {
-  color: #00aaff !important;
+  color: #2563eb !important;
   font-weight: 600;
-}
-
-/* OpenFlows Category Headers (The gap and uppercase text) */
-li.nav-list-item:has(> a[href$="features/"])::before,
-li.nav-list-item:has(> a[href$="features/index.html"])::before {
-  content: "FEATURES";
-  display: block;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #8c959f;
-  letter-spacing: 0.05em;
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
-  margin-left: 1rem;
-}
-
-li.nav-list-item:has(> a[href$="installation.html"])::before {
-  content: "RESOURCES";
-  display: block;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #8c959f;
-  letter-spacing: 0.05em;
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
-  margin-left: 1rem;
+  background-color: #eff6ff;
+  background-image: none !important;
 }
 
 .site-title {
-  color: #24292f !important;
-  font-weight: 600 !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  letter-spacing: -0.01em;
 }
 
-/* Custom Landing Page Styles */
+/* ==========================================================================
+   Header – Aux Nav (GitHub + Theme Toggle side by side)
+   ========================================================================== */
+
+.aux-nav {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+/* Force horizontal alignment of list items */
+.aux-nav-list {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.6rem !important;
+}
+
+.aux-nav-list-item {
+  display: flex !important;
+  align-items: center !important;
+  height: auto !important;
+}
+
+/* GitHub button */
+.aux-nav-list-item a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 1rem;
+  font-weight: 600;
+  font-size: 0.825rem;
+  color: #111827 !important;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;       /* pill shape */
+  text-decoration: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  letter-spacing: 0.01em;
+}
+
+.aux-nav-list-item a:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+  color: #000000 !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Theme Toggle – sits inside .aux-nav via header_custom.html
+   ========================================================================== */
+
+.theme-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.theme-toggle-btn {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;        /* pill shape to match GitHub button */
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  color: #111827;
+}
+
+.theme-toggle-btn:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.theme-icon-dark  { display: none; }
+.theme-icon-light { display: inline; }
+
+/* ==========================================================================
+   Landing Page – Hero Buttons
+   ========================================================================== */
+
+.hero-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-hero {
+  display: inline-block;
+  padding: 0.6rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.925rem;
+  border-radius: 20px;          /* pill */
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  letter-spacing: 0.01em;
+}
+
+.btn-hero-primary {
+  background-color: #2563eb;
+  color: #ffffff !important;
+  border: 1px solid #2563eb;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.35);
+}
+
+.btn-hero-primary:hover {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-hero-outline {
+  background-color: transparent;
+  color: #374151 !important;
+  border: 1px solid #d1d5db;
+}
+
+.btn-hero-outline:hover {
+  border-color: #2563eb;
+  color: #2563eb !important;
+  background-color: #eff6ff;
+}
+
+/* ==========================================================================
+   Landing Page – Feature & Resource Cards
+   ========================================================================== */
+
+.section-desc {
+  color: #6b7280;
+  font-size: 0.9375rem;
+  margin-top: 0.25rem;
+  margin-bottom: 1.25rem;
+  line-height: 1.6;
+}
+
 .docs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1.5rem;
-  margin-bottom: 3rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 2.5rem;
 }
 
 .docs-card {
   display: flex;
   flex-direction: column;
-  padding: 1.5rem;
+  padding: 1.25rem 1.4rem;
   background-color: #ffffff;
-  border: 1px solid #e1e4e8;
-  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   text-decoration: none !important;
   color: inherit !important;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .docs-card:hover {
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
+  border-color: #bfdbfe;
 }
 
 .docs-card-icon {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
 }
 
 .docs-card-title {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #24292f;
+  margin-bottom: 0.35rem;
+  color: #111827;
 }
 
 .docs-card-desc {
-  font-size: 0.875rem;
-  color: #57606a;
-  line-height: 1.5;
+  font-size: 0.85rem;
+  color: #6b7280;
+  line-height: 1.55;
   margin: 0;
 }
 
-.hero-buttons {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1.5rem;
-  margin-bottom: 3rem;
+/* ==========================================================================
+   Dark Mode – Clean, High-Contrast Palette
+   ========================================================================== */
+
+html[data-color-scheme="dark"] {
+  --border-color: #2d3748;
+  --sidebar-bg: #1a1f2e;
 }
 
-.btn-hero {
-  display: inline-block;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  border-radius: 6px;
-  text-decoration: none !important;
-  transition: all 0.2s ease;
+html[data-color-scheme="dark"],
+html[data-color-scheme="dark"] body {
+  background-color: #0f1117 !important;
+  color: #e2e8f0 !important;
 }
 
-.btn-hero-primary {
-  background-color: #0077cc;
-  color: white !important;
-  border: 1px solid #0077cc;
+/* Sidebar */
+html[data-color-scheme="dark"] .side-bar {
+  background-color: #1a1f2e !important;
+  border-right-color: #2d3748 !important;
 }
 
-.btn-hero-primary:hover {
-  background-color: #0055aa;
-  border-color: #0055aa;
+html[data-color-scheme="dark"] .site-title {
+  color: #f1f5f9 !important;
 }
 
-.btn-hero-outline {
-  background-color: transparent;
-  color: #24292f !important;
-  border: 1px solid #e1e4e8;
+html[data-color-scheme="dark"] .side-bar .nav-list-link {
+  color: #94a3b8 !important;
 }
 
-.btn-hero-outline:hover {
-  border-color: #00aaff;
-  color: #00aaff !important;
+html[data-color-scheme="dark"] .side-bar .nav-list-link:hover,
+html[data-color-scheme="dark"] .side-bar .nav-list-link.active {
+  color: #60a5fa !important;
+  background-color: rgba(96, 165, 250, 0.08) !important;
+  background-image: none !important;
 }
 
-.section-desc {
-  color: #57606a;
-  font-size: 1rem;
-  margin-bottom: 1.5rem;
+/* Header */
+html[data-color-scheme="dark"] .main-header {
+  background-color: #0f1117 !important;
+  border-bottom-color: #2d3748 !important;
+}
+
+html[data-color-scheme="dark"] .main {
+  background-color: #0f1117 !important;
+}
+
+html[data-color-scheme="dark"] .main-content-wrap {
+  background-color: #0f1117 !important;
+}
+
+/* GitHub button – dark */
+/* GitHub button – dark */
+html[data-color-scheme="dark"] .aux-nav-list-item a {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f1f5f9 !important;
+  box-shadow: none !important;
+}
+
+html[data-color-scheme="dark"] .aux-nav-list-item a:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+  transform: translateY(-1px);
+}
+
+/* Theme toggle – dark */
+html[data-color-scheme="dark"] .theme-toggle-btn {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f1f5f9 !important;
+  box-shadow: none !important;
+}
+
+html[data-color-scheme="dark"] .theme-toggle-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+  transform: translateY(-1px);
+}
+
+html[data-color-scheme="dark"] .theme-icon-light { display: none; }
+html[data-color-scheme="dark"] .theme-icon-dark  { display: inline; }
+
+/* Cards */
+html[data-color-scheme="dark"] .docs-card {
+  background-color: #1a1f2e !important;
+  border-color: #2d3748 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-color-scheme="dark"] .docs-card:hover {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.12) !important;
+}
+
+html[data-color-scheme="dark"] .docs-card-title {
+  color: #f1f5f9 !important;
+}
+
+html[data-color-scheme="dark"] .docs-card-desc {
+  color: #94a3b8 !important;
+}
+
+/* Section descriptions */
+html[data-color-scheme="dark"] .section-desc {
+  color: #94a3b8 !important;
+}
+
+/* Hero primary button stays vibrant */
+html[data-color-scheme="dark"] .btn-hero-primary {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+html[data-color-scheme="dark"] .btn-hero-primary:hover {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+/* Outline button – dark */
+html[data-color-scheme="dark"] .btn-hero-outline {
+  color: #94a3b8 !important;
+  border-color: #374151 !important;
+}
+
+html[data-color-scheme="dark"] .btn-hero-outline:hover {
+  color: #60a5fa !important;
+  border-color: #60a5fa !important;
+  background-color: rgba(96, 165, 250, 0.08) !important;
+}
+
+/* General body text, headings in dark mode */
+html[data-color-scheme="dark"] h1,
+html[data-color-scheme="dark"] h2,
+html[data-color-scheme="dark"] h3,
+html[data-color-scheme="dark"] h4 {
+  color: #f1f5f9 !important;
+}
+
+html[data-color-scheme="dark"] p,
+html[data-color-scheme="dark"] li {
+  color: #cbd5e1 !important;
+}
+
+/* Links in content */
+html[data-color-scheme="dark"] .main-content a:not(.docs-card):not(.btn-hero) {
+  color: #60a5fa !important;
+}
+
+html[data-color-scheme="dark"] .main-content a:not(.docs-card):not(.btn-hero):hover {
+  color: #93c5fd !important;
+}
+
+/* Search bar */
+html[data-color-scheme="dark"] .search-input {
+  background-color: #1e2533 !important;
+  border-color: #374151 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-color-scheme="dark"] .search-input::placeholder {
+  color: #6b7280 !important;
 }

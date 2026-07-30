@@ -1,9 +1,10 @@
 // Custom Sass variable overrides for Just the Docs
 
-// Reduce the sidebar width to match the OpenFlows design (default is 16.5rem)
-$nav-width: 14rem;
+// Sidebar width matching OpenFlow-style layout
+$nav-width: 15rem;
 
 // Theme Colors
-$link-color: #00aaff;
-$sidebar-color: #f8fafc;
-$body-background-color: #ffffff;
+$link-color: #2563eb;
+$sidebar-color: #ffffff;
+$body-background-color: #f8f9fa;
+$body-text-color: #1a1a2e;
