@@ -2,6 +2,7 @@
 layout: default
 title: "AI-Powered Remediation"
 parent: Features
+nav_order: 6
 ---
 
 # AI-Powered Remediation

@@ -2,6 +2,7 @@
 layout: default
 title: "Real-Time Monitoring & System Tray"
 parent: Features
+nav_order: 1
 ---
 
 # Real-Time Monitoring & System Tray

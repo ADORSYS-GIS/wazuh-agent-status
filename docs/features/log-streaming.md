@@ -2,6 +2,7 @@
 layout: default
 title: "Real-Time Log Streaming"
 parent: Features
+nav_order: 3
 ---
 
 # Real-Time Log Streaming

@@ -2,6 +2,7 @@
 layout: default
 title: "Compliance Dashboard"
 parent: Features
+nav_order: 2
 ---
 
 # Compliance Dashboard

@@ -2,6 +2,7 @@
 layout: default
 title: "Self-Healing Capabilities"
 parent: Features
+nav_order: 5
 ---
 
 # Self-Healing Capabilities
