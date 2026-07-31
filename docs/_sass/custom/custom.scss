@@ -469,14 +469,15 @@ html[data-color-scheme="dark"] .search-input::placeholder {
 .main-content p code, .main-content li code {
   background: transparent !important;
   border: none !important;
-  color: #c026d3 !important; /* magenta for light mode */
+  color: #111827 !important; /* solid black for light mode */
   font-weight: 600;
   padding: 0;
+  font-size: 1em !important;
 }
 
 html[data-color-scheme="dark"] .main-content p code, 
 html[data-color-scheme="dark"] .main-content li code {
-  color: #e879f9 !important; /* light magenta for dark mode */
+  color: #f1f5f9 !important; /* crisp light gray for dark mode */
 }
 
 /* Large code blocks (pre/rouge) in dark mode */

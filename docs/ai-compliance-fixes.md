@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "AI Compliance Fixes & Remediation"
+title: "AI Remediation Engine"
 ---
 
 # AI Compliance Fixes & Remediation

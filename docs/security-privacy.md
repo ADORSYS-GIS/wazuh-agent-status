@@ -17,8 +17,8 @@ The `wazuh-agent-status-rust-server` runs as a privileged background service on 
 
 To ensure this local communication cannot be spoofed or intercepted, the client application connects to the background service over a secured local TCP connection. We rely on **HMAC authentication** to verify that only authorized local clients can retrieve compliance data or issue commands to the agent.
 
-> [!IMPORTANT]
-> Your raw compliance results and local log streams never leave your machine. They are routed directly from the Wazuh agent to the Tauri desktop client.
+> **Important**
+> > Your raw compliance results and local log streams never leave your machine. They are routed directly from the Wazuh agent to the Tauri desktop client.
 
 ## 2. AI Remediation Privacy
 

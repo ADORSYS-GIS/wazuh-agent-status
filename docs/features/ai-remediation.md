@@ -12,8 +12,8 @@ AI-Powered Remediation automatically generates the exact terminal commands requi
 ## How It Works
 When you view a failed compliance check, the application sends the check's context (such as the policy description and the expected configuration) to an integrated AI model. The model returns a specific, safe command (e.g., a Bash or PowerShell script) to remediate the vulnerability.
 
-> [!WARNING]
-> Always review AI-generated commands before executing them to ensure they align with your system's specific requirements.
+> **Note**
+> > Always review AI-generated commands before executing them to ensure they align with your system's specific requirements.
 
 ## AI Configuration
 
