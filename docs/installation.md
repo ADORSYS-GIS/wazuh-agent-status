@@ -6,11 +6,11 @@ nav_order: 2
 
 # Installation & Setup
 
-This guide provides step-by-step instructions on how to install **Wazuh Agent Status** across different platforms and configure core settings like self-healing.
+This guide provides step-by-step instructions on how to install the complete **Wazuh Agent Status** stack across different platforms. The automated installation scripts will deploy the Wazuh Agent, the privileged Rust backend service, and the desktop client in one go.
 
 ## Prerequisites
 
-Before installing the Wazuh Agent Status application, ensure that you have the **Wazuh Agent** installed and running on your local machine.
+Because the automated installation scripts handle the deployment of the entire stack, there are no prior software dependencies required. The scripts will automatically download and install the **Wazuh Agent** for you if it is not already present on your machine.
 
 ## Platform Installation
 
