@@ -8,21 +8,21 @@ nav_order: 4
 
 Wazuh Agent Status is built with security and data privacy as core principles. Because this application interacts directly with your machine's local Wazuh agent, it requires privileged access, which we treat with the utmost care.
 
-## 1. Local Data Access
+## 1. Gateway Data Access
 
-All real-time monitoring and compliance data displayed in the application is fetched **locally**. 
+All real-time monitoring and compliance data displayed in the application is fetched securely from the centralized Wazuh **Gateway**.
 
 ### How it works
-The `wazuh-agent-status-rust-server` runs as a privileged background service on your machine. It communicates directly with the local Wazuh agent via internal APIs. 
+The `wazuh-agent-status-rust-server` runs as a background service on your machine. It communicates with the remote Wazuh Gateway API to fetch information regarding your local agent's status.
 
-To ensure this local communication cannot be spoofed or intercepted, the client application connects to the background service over a secured local TCP connection. We rely on **HMAC authentication** to verify that only authorized local clients can retrieve compliance data or issue commands to the agent.
+To ensure this network communication cannot be spoofed or intercepted, the application connects to the Gateway over a secured connection. We rely on **HMAC authentication** to verify that the client is authorized to retrieve compliance data or issue commands for the agent.
 
 > **Important**
-> > Your raw compliance results and local log streams never leave your machine. They are routed directly from the Wazuh agent to the Tauri desktop client.
+> > Your raw compliance results and log streams are routed directly from the Wazuh Gateway to the Tauri desktop client, ensuring you see the exact same unified data as the central administration dashboard.
 
 ## 2. AI Remediation Privacy
 
-The only time Wazuh Agent Status communicates with an external service (aside from checking GitHub for application updates) is when you use the **AI-Powered Remediation** feature to generate a fix for a failed compliance check.
+In addition to syncing data with the Wazuh Gateway and checking GitHub for updates, the application communicates with an external AI service when you use the **AI-Powered Remediation** feature to generate a fix for a failed compliance check.
 
 When you click "Generate Fix", we are extremely careful about the data transmitted to the AI provider.
 

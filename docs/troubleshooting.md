@@ -16,9 +16,12 @@ If the tray icon is red and the dashboard shows "Agent Disconnected", this means
 1. **Verify Wazuh is Installed:** Make sure the actual Wazuh Agent is installed on your machine.
 2. **Check the Service:** Ensure the Wazuh service is running.
    - **Windows:** Open `services.msc` and look for `Wazuh`.
-   - **Linux:** Run `sudo systemctl status wazuh-agent`.
+   - **Linux:** Run `sudo /var/ossec/bin/wazuh-control status`.
    - **macOS:** Run `sudo /Library/Ossec/bin/wazuh-control status`.
-3. **Restart the Server:** If the Wazuh agent is running, try restarting the `wazuh-agent-status` server service.
+3. **Restart the Agent:** If the Wazuh agent is stopped or unresponsive, restart it:
+   - **Windows:** Run `Restart-Service -Name WazuhSvc` as Administrator.
+   - **Linux:** Run `sudo /var/ossec/bin/wazuh-control restart`.
+   - **macOS:** Run `sudo /Library/Ossec/bin/wazuh-control restart`.
 
 ## 2. AI Fixes: Rate Limit Exceeded
 
@@ -28,7 +31,11 @@ When attempting to generate a fix in the Compliance Dashboard, you may receive a
 This occurs when you have requested too many automated fixes within a short time frame, hitting the quota for the default API key configured in the desktop client.
 
 **Steps to Fix:**
-Currently, AI fixes are rate-limited per installation. If you require more fixes, you must wait for the cooldown period (usually 1 hour) before generating new fixes. In a future update, you will be able to supply your own API key in the configuration file.
+If you require more frequent fixes and are hitting the limit of the default shared key, you can bypass this quota by supplying your own custom API key. 
+1. Open the main dashboard from the system tray.
+2. Navigate to the **Settings** or **AI Configuration** tab.
+3. Enter your personal API Key and configure your preferred AI provider.
+4. Click **Save**. The rate limit will now be tied to your personal API account.
 
 ## 3. Where are the log files?
 
@@ -39,7 +46,7 @@ If you need to debug the application or submit an issue on GitHub, you will like
 - **macOS:** `~/Library/Logs/wazuh-agent-status/wazuh-agent-status.log`
 
 > **Tip**
-> > You can also view real-time logs directly in the desktop app by clicking the **Log Stream** button in the tray menu.
+> > You can also view real-time logs directly in the desktop app. For more details on how to monitor and filter your agent's activity, check out the [Real-Time Log Streaming Guide](features/log-streaming.md).
 
 ---
 

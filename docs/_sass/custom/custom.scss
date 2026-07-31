@@ -326,7 +326,7 @@ html[data-color-scheme="dark"] .side-bar .nav-list-link {
 
 html[data-color-scheme="dark"] .side-bar .nav-list-link:hover,
 html[data-color-scheme="dark"] .side-bar .nav-list-link.active {
-  color: #60a5fa !important;
+  color: #93c5fd !important;
   background-color: rgba(96, 165, 250, 0.08) !important;
   background-image: none !important;
 }
@@ -350,14 +350,14 @@ html[data-color-scheme="dark"] .main-content-wrap {
 html[data-color-scheme="dark"] .aux-nav-list-item a {
   background-color: rgba(255, 255, 255, 0.04) !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
-  color: #f1f5f9 !important;
+  color: #ffffff !important;
   box-shadow: none !important;
 }
 
 html[data-color-scheme="dark"] .aux-nav-list-item a:hover {
   background-color: rgba(96, 165, 250, 0.12) !important;
   border-color: rgba(96, 165, 250, 0.4) !important;
-  color: #60a5fa !important;
+  color: #93c5fd !important;
   box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2) !important;
   transform: translateY(-1px);
   background-image: none !important;
@@ -367,14 +367,14 @@ html[data-color-scheme="dark"] .aux-nav-list-item a:hover {
 html[data-color-scheme="dark"] .theme-toggle-btn {
   background-color: rgba(255, 255, 255, 0.04) !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
-  color: #f1f5f9 !important;
+  color: #ffffff !important;
   box-shadow: none !important;
 }
 
 html[data-color-scheme="dark"] .theme-toggle-btn:hover {
   background-color: rgba(96, 165, 250, 0.12) !important;
   border-color: rgba(96, 165, 250, 0.4) !important;
-  color: #60a5fa !important;
+  color: #93c5fd !important;
   box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2) !important;
   transform: translateY(-1px);
   background-image: none !important;
@@ -410,14 +410,14 @@ html[data-color-scheme="dark"] .section-desc {
 
 /* Hero primary button stays vibrant */
 html[data-color-scheme="dark"] .btn-hero-primary {
-  background-color: #3b82f6 !important;
-  border-color: #3b82f6 !important;
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
   color: #ffffff !important;
 }
 
 html[data-color-scheme="dark"] .btn-hero-primary:hover {
-  background-color: #2563eb !important;
-  border-color: #2563eb !important;
+  background-color: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
 }
 
 /* Outline button – dark */
@@ -427,8 +427,8 @@ html[data-color-scheme="dark"] .btn-hero-outline {
 }
 
 html[data-color-scheme="dark"] .btn-hero-outline:hover {
-  color: #60a5fa !important;
-  border-color: #60a5fa !important;
+  color: #93c5fd !important;
+  border-color: #93c5fd !important;
   background-color: rgba(96, 165, 250, 0.08) !important;
 }
 
@@ -532,7 +532,7 @@ div.highlighter-rouge:hover .copy-btn {
 
 .copy-btn.copied {
   background-color: #10b981;
-  color: #ffffff;
+  color: #064e3b;
   border-color: #10b981;
 }
 
@@ -548,7 +548,7 @@ html[data-color-scheme="dark"] .copy-btn:hover {
 }
 
 html[data-color-scheme="dark"] .copy-btn.copied {
-  background-color: #059669;
+  background-color: #064e3b;
   color: #ffffff;
-  border-color: #059669;
+  border-color: #064e3b;
 }
