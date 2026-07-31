@@ -327,7 +327,7 @@ html[data-color-scheme="dark"] .side-bar .nav-list-link {
 html[data-color-scheme="dark"] .side-bar .nav-list-link:hover,
 html[data-color-scheme="dark"] .side-bar .nav-list-link.active {
   color: #93c5fd !important;
-  background-color: rgba(96, 165, 250, 0.08) !important;
+  background-color: #151d2a !important; /* solid equivalent of rgba(96, 165, 250, 0.08) over #0f1117 */
   background-image: none !important;
 }
 
@@ -348,15 +348,15 @@ html[data-color-scheme="dark"] .main-content-wrap {
 /* GitHub button – dark */
 /* GitHub button – dark */
 html[data-color-scheme="dark"] .aux-nav-list-item a {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: #181a20 !important; /* solid equivalent of rgba(255, 255, 255, 0.04) */
+  border-color: #272a31 !important; /* solid equivalent of rgba(255, 255, 255, 0.1) */
   color: #ffffff !important;
   box-shadow: none !important;
 }
 
 html[data-color-scheme="dark"] .aux-nav-list-item a:hover {
-  background-color: rgba(96, 165, 250, 0.12) !important;
-  border-color: rgba(96, 165, 250, 0.4) !important;
+  background-color: #192336 !important; /* solid equivalent of rgba(96, 165, 250, 0.12) */
+  border-color: #2f4c72 !important; /* solid equivalent of rgba(96, 165, 250, 0.4) */
   color: #93c5fd !important;
   box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2) !important;
   transform: translateY(-1px);
@@ -365,15 +365,15 @@ html[data-color-scheme="dark"] .aux-nav-list-item a:hover {
 
 /* Theme toggle – dark */
 html[data-color-scheme="dark"] .theme-toggle-btn {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: #181a20 !important;
+  border-color: #272a31 !important;
   color: #ffffff !important;
   box-shadow: none !important;
 }
 
 html[data-color-scheme="dark"] .theme-toggle-btn:hover {
-  background-color: rgba(96, 165, 250, 0.12) !important;
-  border-color: rgba(96, 165, 250, 0.4) !important;
+  background-color: #192336 !important;
+  border-color: #2f4c72 !important;
   color: #93c5fd !important;
   box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2) !important;
   transform: translateY(-1px);
@@ -429,7 +429,7 @@ html[data-color-scheme="dark"] .btn-hero-outline {
 html[data-color-scheme="dark"] .btn-hero-outline:hover {
   color: #93c5fd !important;
   border-color: #93c5fd !important;
-  background-color: rgba(96, 165, 250, 0.08) !important;
+  background-color: #151d2a !important; /* solid equivalent of rgba(96, 165, 250, 0.08) */
 }
 
 /* General body text, headings in dark mode */
