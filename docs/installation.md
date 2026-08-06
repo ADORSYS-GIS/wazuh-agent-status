@@ -24,8 +24,10 @@ Open your terminal and run the following command:
 curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-main/scripts/linux/install.sh | sudo bash
 ```
 
-> **Note**
-> > This script installs the `.deb` package and sets up the background service using `systemd`.
+> **ℹ️ Note**
+>
+> This script installs the `.deb` package and sets up the background service using `systemd`.
+{: .note }
 
 ### macOS
 
@@ -35,8 +37,10 @@ Open your terminal and run the following command:
 curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-main/scripts/macos/install.sh | sudo bash
 ```
 
-> **Note**
-> > The macOS script downloads the `.dmg`, installs the application to `/Applications`, and configures `launchd` for the background service.
+> **ℹ️ Note**
+>
+> The macOS script downloads the `.dmg`, installs the application to `/Applications`, and configures `launchd` for the background service.
+{: .note }
 
 ### Windows
 
@@ -46,8 +50,10 @@ Open **PowerShell as Administrator** and run the following command:
 Invoke-RestMethod -Uri "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-main/scripts/windows/install.ps1" | Invoke-Expression
 ```
 
-> **Important**
-> > You must run this command in an **elevated** PowerShell session (Run as Administrator) to allow the installer to register the Windows Service.
+> **⚠️ Important**
+>
+> You must run this command in an **elevated** PowerShell session (Run as Administrator) to allow the installer to register the Windows Service.
+{: .important }
 
 ---
 
@@ -74,5 +80,7 @@ To enable self-healing, you need to set the `WAZUH_STATUS_SELF_HEALING` environm
 3. Set the Variable name to `WAZUH_STATUS_SELF_HEALING` and value to `true`.
 4. Restart the `wazuh-agent-status` service via the Windows Services snap-in (`services.msc`).
 
-> **Tip**
-> > You can verify self-healing is active by manually stopping the Wazuh agent service and watching the tray icon quickly turn back to green.
+> **💡 Tip**
+>
+> You can verify self-healing is active by manually stopping the Wazuh agent service and watching the tray icon quickly turn back to green.
+{: .note }

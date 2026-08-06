@@ -17,8 +17,10 @@ The `wazuh-agent-status-rust-server` runs as a background service on your machin
 
 To ensure this network communication cannot be spoofed or intercepted, the application connects to the Gateway over a secured connection. We rely on **HMAC authentication** to verify that the client is authorized to retrieve compliance data or issue commands for the agent.
 
-> **Important**
-> > Your raw compliance results and log streams are routed directly from the Wazuh Gateway to the Tauri desktop client, ensuring you see the exact same unified data as the central administration dashboard.
+> **⚠️ Important**
+>
+> Your raw compliance results and log streams are routed directly from the Wazuh Gateway to the Tauri desktop client, ensuring you see the exact same unified data as the central administration dashboard.
+{: .important }
 
 ## 2. AI Remediation Privacy
 

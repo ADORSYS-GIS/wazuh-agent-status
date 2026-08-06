@@ -18,8 +18,8 @@ The background Rust server polls the agent's internal state file (`wazuh-agentd.
 ### 1. Understanding the Tray Icon
 Look for the Wazuh Agent Status icon in your system tray (bottom-right on Windows/Linux, top-right on macOS). The color of the dot on the icon indicates the agent's status:
 - **🟢 Green Dot:** The agent is active and successfully connected to the Wazuh Manager.
-- ** Red Dot:** The agent is inactive, stopped, or disconnected from the Wazuh Manager.
-- ** Gray Dot:** The agent is in an unknown or transitional state.
+- **🔴 Red Dot:** The agent is inactive, stopped, or disconnected from the Wazuh Manager.
+- **🔘 Gray Dot:** The agent is in an unknown or transitional state.
 
 ![System Tray Icon Examples](../assets/tray-icons.png)
 

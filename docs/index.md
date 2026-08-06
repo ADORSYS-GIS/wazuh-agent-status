@@ -17,14 +17,14 @@ Wazuh Agent Status is a self-hosted desktop application built with Rust and Taur
 <p class="section-desc">Explore the detailed guides on everything from real-time log streaming to automated AI-powered remediation.</p>
 
 <div class="docs-grid">
-  <a href="features/ai-remediation.html" class="docs-card">
-    <div class="docs-card-title">AI-Powered Remediation</div>
-    <p class="docs-card-desc">Automatically fix compliance failures using AI-generated shell commands.</p>
-  </a>
-
   <a href="features/compliance-dashboard.html" class="docs-card">
     <div class="docs-card-title">Compliance Dashboard</div>
     <p class="docs-card-desc">Review your system's security posture and specific SCA check results.</p>
+  </a>
+
+  <a href="features/ai-remediation.html" class="docs-card">
+    <div class="docs-card-title">AI-Powered Remediation</div>
+    <p class="docs-card-desc">Automatically fix compliance failures using AI-generated shell commands.</p>
   </a>
 
   <a href="features/log-streaming.html" class="docs-card">

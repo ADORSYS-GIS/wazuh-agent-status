@@ -466,17 +466,26 @@ html[data-color-scheme="dark"] .search-input::placeholder {
 }
 
 /* Inline code blocks - remove boxes entirely, rely on color */
-.main-content p code, .main-content li code {
+.main-content p code, 
+.main-content li code,
+.main-content h1 code,
+.main-content h2 code,
+.main-content h3 code,
+.main-content h4 code {
   background: transparent !important;
   border: none !important;
   color: #111827 !important; /* solid black for light mode */
   font-weight: 600;
   padding: 0;
-  font-size: 1em !important;
+  font-size: inherit !important;
 }
 
 html[data-color-scheme="dark"] .main-content p code, 
-html[data-color-scheme="dark"] .main-content li code {
+html[data-color-scheme="dark"] .main-content li code,
+html[data-color-scheme="dark"] .main-content h1 code,
+html[data-color-scheme="dark"] .main-content h2 code,
+html[data-color-scheme="dark"] .main-content h3 code,
+html[data-color-scheme="dark"] .main-content h4 code {
   color: #f1f5f9 !important; /* crisp light gray for dark mode */
 }
 
@@ -488,6 +497,11 @@ html[data-color-scheme="dark"] div.highlighter-rouge pre.highlight code {
   background-color: #1a1f2e !important; /* dark slate background */
   color: #e2e8f0 !important;            /* light text */
   border-color: #2d3748 !important;     /* subtle border */
+}
+
+/* Fix invisible Rouge tokens in dark mode (like .nn in INI files) */
+html[data-color-scheme="dark"] div.highlighter-rouge .nn {
+  color: #cbd5e1 !important; /* light gray to ensure visibility */
 }
 
 /* Hide Just the Docs footer attributions */
