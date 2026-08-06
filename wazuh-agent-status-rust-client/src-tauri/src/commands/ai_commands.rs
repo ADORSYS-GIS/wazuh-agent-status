@@ -354,10 +354,10 @@ fn normalize_separators(s: &str) -> String {
         } else if !in_single && !in_double {
             if c == ';' {
                 out.push_str(" ; ");
-            } else if c == '&' && i + 1 < chars.len() && chars[i+1] == '&' {
+            } else if c == '&' && i + 1 < chars.len() && chars[i + 1] == '&' {
                 out.push_str(" && ");
                 i += 1;
-            } else if c == '|' && i + 1 < chars.len() && chars[i+1] == '|' {
+            } else if c == '|' && i + 1 < chars.len() && chars[i + 1] == '|' {
                 out.push_str(" || ");
                 i += 1;
             } else if c == '|' {
