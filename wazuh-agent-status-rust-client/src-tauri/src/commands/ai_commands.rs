@@ -145,6 +145,7 @@ const ALLOWED_COMMANDS: &[&str] = &[
     "sleep",
     "true",
     "false",
+    "command",
     // Service management
     "systemctl",
     "service",
@@ -243,6 +244,7 @@ const ALLOWED_COMMANDS: &[&str] = &[
     "aureport",
     "ausearch",
     "auditctl",
+    "visudo",
     // Wazuh
     "wazuh-agent",
     "wazuh-control",
@@ -336,10 +338,39 @@ const ALLOWED_COMMANDS: &[&str] = &[
 ];
 
 fn normalize_separators(s: &str) -> String {
-    s.replace(";", " ; ")
-        .replace("&&", " && ")
-        .replace("||", " || ")
-        .replace("|", " | ")
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut out = String::new();
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '\'' && !in_double {
+            in_single = !in_single;
+            out.push(c);
+        } else if c == '"' && !in_single {
+            in_double = !in_double;
+            out.push(c);
+        } else if !in_single && !in_double {
+            if c == ';' {
+                out.push_str(" ; ");
+            } else if c == '&' && i + 1 < chars.len() && chars[i+1] == '&' {
+                out.push_str(" && ");
+                i += 1;
+            } else if c == '|' && i + 1 < chars.len() && chars[i+1] == '|' {
+                out.push_str(" || ");
+                i += 1;
+            } else if c == '|' {
+                out.push_str(" | ");
+            } else {
+                out.push(c);
+            }
+        } else {
+            out.push(c);
+        }
+        i += 1;
+    }
+    out
 }
 
 fn extract_base_commands(command: &str) -> Vec<String> {
@@ -350,7 +381,7 @@ fn extract_base_commands(command: &str) -> Vec<String> {
 
     for token in &tokens {
         if expect_command {
-            if *token == "sudo" {
+            if *token == "sudo" || *token == "!" {
                 continue;
             }
             if matches!(

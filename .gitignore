@@ -28,3 +28,5 @@ go.work.sum
 target/
 node_modules/
 gen/
+docs/_site/
+tmp/
