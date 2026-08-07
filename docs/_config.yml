@@ -12,17 +12,6 @@ search_enabled: true
 twitter:
   username: wazuh
 
-callouts:
-  note:
-    title: ℹ️ Note
-    color: blue
-  important:
-    title: ⚠️ Important
-    color: red
-  tip:
-    title: 💡 Tip
-    color: green
-
 plugins:
   - jekyll-remote-theme
 

@@ -45,8 +45,9 @@ If you need to debug the application or submit an issue on GitHub, you will like
 - **Linux:** `~/.config/wazuh-agent-status/logs/wazuh-agent-status.log`
 - **macOS:** `~/Library/Logs/wazuh-agent-status/wazuh-agent-status.log`
 
-> **Tip**
-> > You can also view real-time logs directly in the desktop app. For more details on how to monitor and filter your agent's activity, check out the [Real-Time Log Streaming Guide](features/log-streaming.md).
+> **💡 Tip**
+>
+> You can also view real-time logs directly in the desktop app. For more details on how to monitor and filter your agent's activity, check out the [Real-Time Log Streaming Guide](features/log-streaming.md).
 
 ---
 

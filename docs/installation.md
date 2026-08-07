@@ -27,7 +27,6 @@ curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-m
 > **ℹ️ Note**
 >
 > This script installs the `.deb` package and sets up the background service using `systemd`.
-{: .note }
 
 ### macOS
 
@@ -40,7 +39,6 @@ curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-m
 > **ℹ️ Note**
 >
 > The macOS script downloads the `.dmg`, installs the application to `/Applications`, and configures `launchd` for the background service.
-{: .note }
 
 ### Windows
 
@@ -53,7 +51,6 @@ Invoke-RestMethod -Uri "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agen
 > **⚠️ Important**
 >
 > You must run this command in an **elevated** PowerShell session (Run as Administrator) to allow the installer to register the Windows Service.
-{: .important }
 
 ---
 
@@ -83,4 +80,3 @@ To enable self-healing, you need to set the `WAZUH_STATUS_SELF_HEALING` environm
 > **💡 Tip**
 >
 > You can verify self-healing is active by manually stopping the Wazuh agent service and watching the tray icon quickly turn back to green.
-{: .note }

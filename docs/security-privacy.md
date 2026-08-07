@@ -20,7 +20,6 @@ To ensure this network communication cannot be spoofed or intercepted, the appli
 > **⚠️ Important**
 >
 > Your raw compliance results and log streams are routed directly from the Wazuh Gateway to the Tauri desktop client, ensuring you see the exact same unified data as the central administration dashboard.
-{: .important }
 
 ## 2. AI Remediation Privacy
 

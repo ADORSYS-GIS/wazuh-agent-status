@@ -16,7 +16,6 @@ When you view a failed compliance check, the application sends the check's conte
 > **ℹ️ Note**
 >
 > Always review AI-generated commands before executing them to ensure they align with your system's specific requirements.
-{: .note }
 
 ## AI Configuration
 
