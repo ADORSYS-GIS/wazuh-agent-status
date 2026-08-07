@@ -1,0 +1,568 @@
+/* ==========================================================================
+   Layout – Sidebar + Centered Content (OpenFlow-style)
+   ========================================================================== */
+
+/* Force the sidebar to a clean fixed width */
+@media (min-width: 50rem) {
+  .side-bar {
+    width: 15rem !important;
+    min-width: 15rem !important;
+    border-right: 1px solid var(--border-color, #e5e7eb);
+    background-color: var(--sidebar-bg, #ffffff) !important;
+  }
+
+  /* Main area fills the space to the right of the fixed sidebar */
+  .main {
+    margin-left: 15rem !important;
+    max-width: none !important;
+    width: calc(100% - 15rem) !important;
+  }
+
+  /* Centering: symmetric padding keeps content centered in the column */
+  .main-content-wrap {
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .main-content {
+    max-width: 800px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  /*
+   * Header override — theme sets justify-content: space-between.
+   * We switch to flex-end to push items to the right.
+   */
+  .main-header {
+    justify-content: flex-end !important;
+    gap: 0.6rem !important;
+    padding-right: 1.5rem !important;
+    background-color: #f8f9fa !important;
+  }
+
+  .search {
+    flex: 0 0 220px !important;
+    width: 220px !important;
+  }
+
+  /* Prevent search dropdown from bleeding off the right side of the screen */
+  .search-results {
+    right: 0 !important;
+    left: auto !important;
+  }
+
+  /* Prevent the search bar itself from expanding width when typing */
+  .search-active .search-input-wrap {
+    width: 100% !important;
+  }
+}
+
+/* ==========================================================================
+   Sidebar Typography
+   ========================================================================== */
+
+.side-bar {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+.side-bar .nav-list-link {
+  color: #374151 !important;
+  font-size: 0.875rem !important;
+  font-weight: 500;
+  padding-top: 0.3rem !important;
+  padding-bottom: 0.3rem !important;
+  line-height: 1.4 !important;
+  border-radius: 6px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.side-bar .nav-list-item {
+  margin-bottom: 0.15rem !important;
+}
+
+.side-bar .nav-list-link:hover,
+.side-bar .nav-list-link.active {
+  color: #2563eb !important;
+  font-weight: 600;
+  background-color: #eff6ff;
+  background-image: none !important;
+}
+
+.site-title {
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  letter-spacing: -0.01em;
+}
+
+.site-title:hover {
+  background-image: none !important;
+}
+
+/* ==========================================================================
+   Header – Aux Nav (GitHub + Theme Toggle side by side)
+   ========================================================================== */
+
+.aux-nav {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+/* Force horizontal alignment of list items */
+.aux-nav-list {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.6rem !important;
+}
+
+.aux-nav-list-item {
+  display: flex !important;
+  align-items: center !important;
+  height: auto !important;
+}
+
+/* GitHub button */
+.aux-nav-list-item a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 1rem;
+  font-weight: 600;
+  font-size: 0.825rem;
+  color: #111827 !important;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;       /* pill shape */
+  text-decoration: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  letter-spacing: 0.01em;
+}
+
+.aux-nav-list-item a:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+  color: #000000 !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+  background-image: none !important;
+}
+
+/* ==========================================================================
+   Theme Toggle – sits inside .aux-nav via header_custom.html
+   ========================================================================== */
+
+.theme-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.theme-toggle-btn {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;        /* pill shape to match GitHub button */
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  color: #111827;
+}
+
+.theme-toggle-btn:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+  background-image: none !important;
+}
+
+.theme-icon-dark  { display: none; }
+.theme-icon-light { display: inline; }
+
+/* ==========================================================================
+   Landing Page – Hero Buttons
+   ========================================================================== */
+
+.hero-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-hero {
+  display: inline-block;
+  padding: 0.6rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.925rem;
+  border-radius: 20px;          /* pill */
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  letter-spacing: 0.01em;
+}
+
+.btn-hero-primary {
+  background-color: #2563eb;
+  color: #ffffff !important;
+  border: 1px solid #2563eb;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.35);
+}
+
+.btn-hero-primary:hover {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-hero-outline {
+  background-color: transparent;
+  color: #374151 !important;
+  border: 1px solid #d1d5db;
+}
+
+.btn-hero-outline:hover {
+  border-color: #2563eb;
+  color: #2563eb !important;
+  background-color: #eff6ff;
+}
+
+/* ==========================================================================
+   Landing Page – Feature & Resource Cards
+   ========================================================================== */
+
+.section-desc {
+  color: #6b7280;
+  font-size: 0.9375rem;
+  margin-top: 0.25rem;
+  margin-bottom: 1.25rem;
+  line-height: 1.6;
+}
+
+.docs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.docs-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 1.4rem;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  text-decoration: none !important;
+  color: inherit !important;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.docs-card:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  border-color: #bfdbfe;
+}
+
+.docs-card-icon {
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.docs-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: #111827;
+}
+
+.docs-card-desc {
+  font-size: 0.85rem;
+  color: #6b7280;
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ==========================================================================
+   Dark Mode – Clean, High-Contrast Palette
+   ========================================================================== */
+
+html[data-color-scheme="dark"] {
+  --border-color: #2d3748;
+  --sidebar-bg: #1a1f2e;
+}
+
+html[data-color-scheme="dark"],
+html[data-color-scheme="dark"] body {
+  background-color: #0f1117 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Sidebar */
+html[data-color-scheme="dark"] .side-bar {
+  background-color: #1a1f2e !important;
+  border-right-color: #2d3748 !important;
+}
+
+html[data-color-scheme="dark"] .site-title {
+  color: #f1f5f9 !important;
+}
+
+html[data-color-scheme="dark"] .side-bar .nav-list-link {
+  color: #94a3b8 !important;
+}
+
+html[data-color-scheme="dark"] .side-bar .nav-list-link:hover,
+html[data-color-scheme="dark"] .side-bar .nav-list-link.active {
+  color: #93c5fd !important;
+  background-color: #151d2a !important; /* solid equivalent of rgba(96, 165, 250, 0.08) over #0f1117 */
+  background-image: none !important;
+}
+
+/* Header */
+html[data-color-scheme="dark"] .main-header {
+  background-color: #0f1117 !important;
+  border-bottom-color: #2d3748 !important;
+}
+
+html[data-color-scheme="dark"] .main {
+  background-color: #0f1117 !important;
+}
+
+html[data-color-scheme="dark"] .main-content-wrap {
+  background-color: #0f1117 !important;
+}
+
+/* GitHub button – dark */
+/* GitHub button – dark */
+html[data-color-scheme="dark"] .aux-nav-list-item a {
+  background-color: #181a20 !important; /* solid equivalent of rgba(255, 255, 255, 0.04) */
+  border-color: #272a31 !important; /* solid equivalent of rgba(255, 255, 255, 0.1) */
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+html[data-color-scheme="dark"] .aux-nav-list-item a:hover {
+  background-color: #192336 !important; /* solid equivalent of rgba(96, 165, 250, 0.12) */
+  border-color: #2f4c72 !important; /* solid equivalent of rgba(96, 165, 250, 0.4) */
+  color: #93c5fd !important;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2) !important;
+  transform: translateY(-1px);
+  background-image: none !important;
+}
+
+/* Theme toggle – dark */
+html[data-color-scheme="dark"] .theme-toggle-btn {
+  background-color: #181a20 !important;
+  border-color: #272a31 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+html[data-color-scheme="dark"] .theme-toggle-btn:hover {
+  background-color: #192336 !important;
+  border-color: #2f4c72 !important;
+  color: #93c5fd !important;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2) !important;
+  transform: translateY(-1px);
+  background-image: none !important;
+}
+
+html[data-color-scheme="dark"] .theme-icon-light { display: none; }
+html[data-color-scheme="dark"] .theme-icon-dark  { display: inline; }
+
+/* Cards */
+html[data-color-scheme="dark"] .docs-card {
+  background-color: #1a1f2e !important;
+  border-color: #2d3748 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-color-scheme="dark"] .docs-card:hover {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.12) !important;
+}
+
+html[data-color-scheme="dark"] .docs-card-title {
+  color: #f1f5f9 !important;
+}
+
+html[data-color-scheme="dark"] .docs-card-desc {
+  color: #94a3b8 !important;
+}
+
+/* Section descriptions */
+html[data-color-scheme="dark"] .section-desc {
+  color: #94a3b8 !important;
+}
+
+/* Hero primary button stays vibrant */
+html[data-color-scheme="dark"] .btn-hero-primary {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+html[data-color-scheme="dark"] .btn-hero-primary:hover {
+  background-color: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+}
+
+/* Outline button – dark */
+html[data-color-scheme="dark"] .btn-hero-outline {
+  color: #94a3b8 !important;
+  border-color: #374151 !important;
+}
+
+html[data-color-scheme="dark"] .btn-hero-outline:hover {
+  color: #93c5fd !important;
+  border-color: #93c5fd !important;
+  background-color: #151d2a !important; /* solid equivalent of rgba(96, 165, 250, 0.08) */
+}
+
+/* General body text, headings in dark mode */
+html[data-color-scheme="dark"] h1,
+html[data-color-scheme="dark"] h2,
+html[data-color-scheme="dark"] h3,
+html[data-color-scheme="dark"] h4 {
+  color: #f1f5f9 !important;
+}
+
+html[data-color-scheme="dark"] p,
+html[data-color-scheme="dark"] li {
+  color: #cbd5e1 !important;
+}
+
+/* Links in content */
+html[data-color-scheme="dark"] .main-content a:not(.docs-card):not(.btn-hero) {
+  color: #60a5fa !important;
+}
+
+html[data-color-scheme="dark"] .main-content a:not(.docs-card):not(.btn-hero):hover {
+  color: #93c5fd !important;
+}
+
+/* Search bar */
+html[data-color-scheme="dark"] .search-input {
+  background-color: #1e2533 !important;
+  border-color: #374151 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-color-scheme="dark"] .search-input::placeholder {
+  color: #6b7280 !important;
+}
+
+/* Inline code blocks - remove boxes entirely, rely on color */
+.main-content p code, 
+.main-content li code,
+.main-content h1 code,
+.main-content h2 code,
+.main-content h3 code,
+.main-content h4 code {
+  background: transparent !important;
+  border: none !important;
+  color: #111827 !important; /* solid black for light mode */
+  font-weight: 600;
+  padding: 0;
+  font-size: inherit !important;
+}
+
+html[data-color-scheme="dark"] .main-content p code, 
+html[data-color-scheme="dark"] .main-content li code,
+html[data-color-scheme="dark"] .main-content h1 code,
+html[data-color-scheme="dark"] .main-content h2 code,
+html[data-color-scheme="dark"] .main-content h3 code,
+html[data-color-scheme="dark"] .main-content h4 code {
+  color: #f1f5f9 !important; /* crisp light gray for dark mode */
+}
+
+/* Large code blocks (pre/rouge) in dark mode */
+html[data-color-scheme="dark"] div.highlighter-rouge,
+html[data-color-scheme="dark"] div.highlighter-rouge div.highlight,
+html[data-color-scheme="dark"] div.highlighter-rouge pre.highlight,
+html[data-color-scheme="dark"] div.highlighter-rouge pre.highlight code {
+  background-color: #1a1f2e !important; /* dark slate background */
+  color: #e2e8f0 !important;            /* light text */
+  border-color: #2d3748 !important;     /* subtle border */
+}
+
+/* Fix invisible Rouge tokens in dark mode (like .nn in INI files) */
+html[data-color-scheme="dark"] div.highlighter-rouge .nn {
+  color: #cbd5e1 !important; /* light gray to ensure visibility */
+}
+
+/* Hide Just the Docs footer attributions */
+.site-footer,
+footer {
+  display: none !important;
+}
+
+/* Copy button styling */
+div.highlighter-rouge {
+  position: relative;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #4b5563;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+div.highlighter-rouge:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.copy-btn.copied {
+  background-color: #10b981;
+  color: #000000;
+  border-color: #10b981;
+}
+
+html[data-color-scheme="dark"] .copy-btn {
+  background-color: #1f2937;
+  color: #d1d5db;
+  border-color: #374151;
+}
+
+html[data-color-scheme="dark"] .copy-btn:hover {
+  background-color: #374151;
+  color: #ffffff;
+}
+
+html[data-color-scheme="dark"] .copy-btn.copied {
+  background-color: #064e3b;
+  color: #ffffff;
+  border-color: #064e3b;
+}
