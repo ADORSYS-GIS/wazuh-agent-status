@@ -28,3 +28,9 @@ go.work.sum
 target/
 node_modules/
 gen/
+
+# Jekyll (Documentation Site)
+docs/_site/
+docs/.jekyll-cache/
+docs/.jekyll-metadata
+docs/.sass-cache/

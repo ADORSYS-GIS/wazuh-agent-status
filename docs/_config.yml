@@ -1,0 +1,24 @@
+title: Wazuh Agent Status
+description: Documentation for the Wazuh Agent Status desktop application
+url: "https://adorsys-gis.github.io"
+baseurl: "/wazuh-agent-status"
+remote_theme: just-the-docs/just-the-docs
+logo: "/assets/logo.png"
+
+color_scheme: "light"
+search_enabled: true
+
+# SEO Settings
+twitter:
+  username: wazuh
+
+plugins:
+  - jekyll-remote-theme
+
+aux_links:
+  "GitHub": "https://github.com/ADORSYS-GIS/wazuh-agent-status"
+
+exclude:
+  - architecture
+  - roadmap.md
+  - rust-migration-technical-proposal.md

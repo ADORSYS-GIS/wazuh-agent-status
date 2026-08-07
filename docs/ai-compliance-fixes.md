@@ -1,3 +1,8 @@
+---
+layout: default
+title: "AI Remediation Engine"
+---
+
 # AI Compliance Fixes & Remediation
 
 The Wazuh Agent Status application integrates AI-powered remediation advice to help users resolve failed **Security Configuration Assessment (SCA)** compliance checks.
