@@ -254,6 +254,9 @@ const ALLOWED_COMMANDS: &[&str] = &[
     "shutdown",
     "poweroff",
     "halt",
+    // macOS
+    "xprotect",
+    "pwpolicy",
     // PowerShell / Windows cmdlets
     "powershell",
     "powershell.exe",
