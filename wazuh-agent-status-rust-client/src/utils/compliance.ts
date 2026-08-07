@@ -113,7 +113,7 @@ const WINDOWS_ADMIN_VERBS = [
   "Set-NetConnectionProfile",
   "repadmin", "gpupdate", "gpresult", "secedit",
   "Reg", "reg", "sc.exe", "sc",
-  "icacls", "takeown",
+  "icacls", "takeown", "net",
 ];
 
 const ADMIN_VERB_PATTERN = WINDOWS_ADMIN_VERBS.map((v) =>

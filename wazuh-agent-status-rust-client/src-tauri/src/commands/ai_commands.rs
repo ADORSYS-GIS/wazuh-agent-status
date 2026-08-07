@@ -94,7 +94,7 @@ pub async fn trigger_sca_rescan() -> Result<String, String> {
     log::info!("Triggering SCA rescan via wazuh-agent restart");
 
     let cmd = if cfg!(target_os = "windows") {
-        "powershell -NoProfile -Command \"Restart-Service -Name WazuhSvc -Force\" && echo Wazuh agent restarted successfully. SCA rescan started."
+        "Restart-Service -Name WazuhSvc -Force; Write-Output 'Wazuh agent restarted successfully. SCA rescan started.'"
     } else if cfg!(target_os = "macos") {
         "/Library/Ossec/bin/wazuh-control restart && echo 'Wazuh agent restarted successfully. SCA rescan started.'"
     } else {
@@ -146,6 +146,7 @@ const ALLOWED_COMMANDS: &[&str] = &[
     "true",
     "false",
     "command",
+    "#",
     // Service management
     "systemctl",
     "service",
@@ -322,11 +323,15 @@ const ALLOWED_COMMANDS: &[&str] = &[
     "secedit",
     "Where-Object",
     "Select-Object",
+    "Select-String",
     "ForEach-Object",
     "Write-Host",
     "Write-Output",
     "Write-Error",
     "New-Object",
+    "exit",
+    "$minAge",
+    "$duration",
     // Windows system tools via cmd
     "Reg",
     "reg",
@@ -355,7 +360,7 @@ fn normalize_separators(s: &str) -> String {
             in_double = !in_double;
             out.push(c);
         } else if !in_single && !in_double {
-            if c == ';' {
+            if c == ';' || c == '\n' {
                 out.push_str(" ; ");
             } else if c == '&' && i + 1 < chars.len() && chars[i + 1] == '&' {
                 out.push_str(" && ");
@@ -432,10 +437,6 @@ fn validate_command(command: &str) -> Result<(), String> {
     let trimmed = command.trim();
     if trimmed.is_empty() {
         return Err("Cannot execute an empty command".to_string());
-    }
-
-    if trimmed.contains('\n') {
-        return Err("Multi-line commands are not allowed".to_string());
     }
 
     if trimmed.contains("$(") {
