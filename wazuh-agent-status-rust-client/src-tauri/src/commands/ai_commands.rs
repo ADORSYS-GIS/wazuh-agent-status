@@ -454,7 +454,10 @@ fn validate_command(command: &str) -> Result<(), String> {
 
     for cmd in &base_commands {
         if !ALLOWED_COMMANDS.contains(&cmd.as_str()) {
-            return Err(format!("Security Policy: '{}' is not in the allowed command list. If strictly necessary, please carefully review the command and follow the instructions to run it manually in your terminal.", cmd));
+            return Err(format!(
+                "Security Policy: '{}' is not in the allowed command list. If strictly necessary, please carefully review the command and follow the instructions to run it manually in your terminal.",
+                cmd
+            ));
         }
     }
 
