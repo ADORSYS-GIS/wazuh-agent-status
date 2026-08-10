@@ -1,0 +1,75 @@
+<div class="theme-toggle-wrap">
+  <button id="theme-toggle-btn" class="theme-toggle-btn" aria-label="Toggle Theme" title="Toggle Light / Dark Mode">
+    <span class="theme-icon-light">☀️</span>
+    <span class="theme-icon-dark">🌙</span>
+  </button>
+</div>
+
+<script>
+  (function () {
+    var toggleBtn = document.getElementById('theme-toggle-btn');
+    var saved = localStorage.getItem('theme');
+    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var currentTheme = saved || (prefersDark ? 'dark' : 'light');
+
+    function applyTheme(theme) {
+      document.documentElement.dataset.colorScheme = theme;
+      document.body.classList.toggle('dark-mode', theme === 'dark');
+      localStorage.setItem('theme', theme);
+    }
+
+    applyTheme(currentTheme);
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function () {
+        var next = document.documentElement.dataset.colorScheme === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+      });
+    }
+
+    /* Helper for copy button states */
+    function showCopiedState(button, checkIcon, copyIcon) {
+      button.innerHTML = checkIcon;
+      button.classList.add('copied');
+      setTimeout(function() {
+        button.innerHTML = copyIcon;
+        button.classList.remove('copied');
+      }, 2000);
+    }
+
+    /* Move the toggle to be exactly after the GitHub button */
+    window.addEventListener('DOMContentLoaded', function() {
+      var auxList = document.querySelector('.aux-nav-list');
+      var toggleWrap = document.querySelector('.theme-toggle-wrap');
+      if (auxList && toggleWrap) {
+        var li = document.createElement('li');
+        li.className = 'aux-nav-list-item';
+        li.appendChild(toggleWrap);
+        auxList.appendChild(li);
+      }
+
+      /* Add Copy buttons to all large code blocks */
+      var copyIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+      var checkIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+      var codeBlocks = document.querySelectorAll('div.highlighter-rouge');
+      codeBlocks.forEach(function(block) {
+        var button = document.createElement('button');
+        button.className = 'copy-btn';
+        button.innerHTML = copyIcon;
+        button.title = 'Copy to clipboard';
+        
+        button.addEventListener('click', function() {
+          var code = block.querySelector('code');
+          if (code) {
+            navigator.clipboard.writeText(code.innerText).then(function() {
+              showCopiedState(button, checkIcon, copyIcon);
+            });
+          }
+        });
+        
+        block.appendChild(button);
+      });
+    });
+  })();
+</script>

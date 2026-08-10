@@ -133,7 +133,7 @@ export function ComplianceFixModal({ fixResult, onClose }: Readonly<ComplianceFi
             </svg>
             {fixResult.success ? "AI Fix Suggestions" : "Fix Generation Failed"}
           </div>
-          <button onClick={onClose} className="compliance-refresh-btn">
+          <button type="button" onClick={onClose} className="compliance-refresh-btn">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -193,6 +193,7 @@ export function ComplianceFixModal({ fixResult, onClose }: Readonly<ComplianceFi
                             <span className="compliance-command-title">Suggested Shell Command</span>
                             <div className="compliance-command-actions">
                               <button
+                                type="button"
                                 className={`ai-copy-btn ${copiedIndex === i ? "copied" : ""}`}
                                 onClick={() => handleCopy(chunk.content, i)}
                                 title="Copy Command"
@@ -209,6 +210,7 @@ export function ComplianceFixModal({ fixResult, onClose }: Readonly<ComplianceFi
                                 )}
                               </button>
                               <button
+                                type="button"
                                 className="compliance-command-run-btn"
                                 onClick={() => handleRunCommand(chunk.content, i)}
                                 disabled={execState.status === "running" || commandIsInteractive(chunk.content)}
@@ -277,6 +279,7 @@ export function ComplianceFixModal({ fixResult, onClose }: Readonly<ComplianceFi
                     ℹ This action will prompt you for administrator privileges.
                   </span>
                   <button
+                    type="button"
                     className="compliance-command-run-btn"
                     onClick={handleSCARescan}
                     disabled={scaRescanState.status === "running"}
@@ -345,6 +348,7 @@ export function ComplianceFixModal({ fixResult, onClose }: Readonly<ComplianceFi
                     spellCheck={false}
                   />
                   <button
+                    type="button"
                     className="ai-chat-send-btn"
                     onClick={handleChatSend}
                     disabled={!chatInput.trim() || chatSending}
@@ -372,7 +376,7 @@ export function ComplianceFixModal({ fixResult, onClose }: Readonly<ComplianceFi
           </div>
         )}
 
-        <button className="update-modal-dismiss" onClick={onClose}>
+        <button type="button" className="update-modal-dismiss" onClick={onClose}>
           Close
         </button>
       </div>

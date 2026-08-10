@@ -14,6 +14,9 @@ readonly WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-
 readonly WAZUH_AGENT_REPO_REF="${WAZUH_AGENT_REPO_REF:-main}"
 readonly AWK_PRINT_FIRST_COL='{print $1}'
 
+# Bootstrap: validate URL before downloading utils.sh
+case "$WAZUH_AGENT_STATUS_REPO_URL" in https://*) ;; *) echo "[ERROR] WAZUH_AGENT_STATUS_REPO_URL must use HTTPS" >&2; exit 1 ;; esac
+
 # Source shared utilities
 TMP_DIR=$(mktemp -d)
 export CHECKSUMS_FILE="$TMP_DIR/checksums.sha256"
@@ -50,6 +53,7 @@ if [[ -z "$EXPECTED_HASH" ]] || [[ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]]; then
 fi
 
 . "$TMP_DIR/utils.sh"
+enforce_https_url "$WAZUH_AGENT_STATUS_REPO_URL" "WAZUH_AGENT_STATUS_REPO_URL"
 ensure_os "Linux"
 
 trap cleanup EXIT

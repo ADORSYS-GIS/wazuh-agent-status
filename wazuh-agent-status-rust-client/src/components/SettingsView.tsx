@@ -44,14 +44,14 @@ function AiConnectedCard({
         </div>
       </div>
       <div className="settings-ai-connected-actions">
-        <button className="settings-ai-btn settings-ai-btn-secondary" onClick={onChange}>
+        <button type="button" className="settings-ai-btn settings-ai-btn-secondary" onClick={onChange}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
           </svg>
           Change
         </button>
-        <button className="settings-ai-btn settings-ai-btn-danger" onClick={onDisconnect}>
+        <button type="button" className="settings-ai-btn settings-ai-btn-danger" onClick={onDisconnect}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
@@ -212,6 +212,7 @@ function AiSetupForm({
                 <span className="settings-ai-skip-hint">{models.length} available</span>
               )}
               <button
+                type="button"
                 className="settings-ai-fetch-btn"
                 disabled={loadingModels || !baseUrl.trim()}
                 onClick={() => onFetchModels(stripSlash(baseUrl), apiKey)}
@@ -260,6 +261,7 @@ function AiSetupForm({
 
         <div className="settings-ai-actions">
           <button
+            type="button"
             className="settings-ai-btn settings-ai-btn-outline"
             disabled={testing || saving}
             onClick={onTest}
@@ -267,6 +269,7 @@ function AiSetupForm({
             {testing ? <><span className="settings-ai-spinner" /> Testing...</> : "Test Connection"}
           </button>
           <button
+            type="button"
             className="settings-ai-btn settings-ai-btn-primary"
             disabled={testing || saving}
             onClick={onSave}
@@ -274,7 +277,7 @@ function AiSetupForm({
             {saving ? <><span className="settings-ai-spinner" /> Saving...</> : "Save Configuration"}
           </button>
           {aiStatus && (
-            <button className="settings-ai-btn settings-ai-btn-ghost" onClick={onShowForm}>
+            <button type="button" className="settings-ai-btn settings-ai-btn-ghost" onClick={onShowForm}>
               Cancel
             </button>
           )}

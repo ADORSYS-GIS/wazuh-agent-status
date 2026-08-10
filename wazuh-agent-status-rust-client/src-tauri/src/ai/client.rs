@@ -4,6 +4,7 @@ use std::time::Duration;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiProviderConfig {
     pub base_url: String,
+    #[serde(skip_serializing)]
     pub api_key: String,
     pub model: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

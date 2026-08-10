@@ -170,6 +170,7 @@ export function UpdateModal({ status, logs, targetVersion, onDismiss }: Readonly
           {logs.length > 0 && (
             <div className="update-terminal-wrapper">
               <button
+                type="button"
                 className="update-terminal-toggle"
                 onClick={() => setShowTerminal(!showTerminal)}
               >
@@ -211,7 +212,7 @@ export function UpdateModal({ status, logs, targetVersion, onDismiss }: Readonly
 
         {/* Fixed dismiss button */}
         {status !== "running" && (
-          <button className="update-modal-dismiss" onClick={onDismiss}>
+          <button type="button" className="update-modal-dismiss" onClick={onDismiss}>
             {currentStep === "done" ? "Done" : "Close"}
           </button>
         )}

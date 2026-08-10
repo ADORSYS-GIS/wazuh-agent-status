@@ -111,7 +111,6 @@ body {
   justify-content: center;
   color: var(--text-dim);
   cursor: pointer;
-  transition: all 0.2s ease;
   background: transparent;
   border: none;
   outline: none;
@@ -1628,7 +1627,7 @@ body {
   height: 40px;
   border-radius: 10px;
   background: rgba(168, 85, 247, 0.1);
-  color: #a78bfa;
+  color: #c4b5fd;
   border: 1px solid rgba(168, 85, 247, 0.2);
   display: flex;
   align-items: center;
@@ -2006,8 +2005,6 @@ body {
 }
 .settings-ai-btn-primary:hover:not(:disabled) {
   filter: brightness(1.15);
-}
-.settings-ai-btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px var(--primary-alpha-40);
 }
@@ -2061,7 +2058,7 @@ body {
   padding: 4px 10px;
   background: rgba(168, 85, 247, 0.1);
   border: 1px solid rgba(168, 85, 247, 0.2);
-  color: #a78bfa;
+  color: #c4b5fd;
   border-radius: 6px;
   font-size: 0.65rem;
   font-weight: 600;
@@ -3005,13 +3002,13 @@ body {
   border: 1px solid rgba(244, 63, 94, 0.2);
   border-radius: 8px;
   padding: 12px;
-  color: #f87171;
+  color: #fca5a5;
 }
 .error-boundary-stack {
   background: #111827;
   border-radius: 8px;
   padding: 12px;
-  color: #94a3b8;
+  color: #cbd5e1;
   font-size: 11px;
   line-height: 1.6;
   overflow: auto;
@@ -3045,11 +3042,11 @@ body {
 }
 .self-healing-badge.active {
   background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
+  color: #86efac;
   border: 1px solid rgba(34, 197, 94, 0.2);
 }
 .self-healing-badge.disabled {
   background: rgba(234, 88, 12, 0.2);
-  color: #fbbf24;
+  color: #fde68a;
   border: 1px solid rgba(234, 88, 12, 0.3);
 }

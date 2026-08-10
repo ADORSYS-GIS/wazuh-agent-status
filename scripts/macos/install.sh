@@ -15,6 +15,9 @@ CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
 WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
+# Bootstrap: validate URL before downloading utils.sh
+case "$WAZUH_AGENT_STATUS_REPO_URL" in https://*) ;; *) echo "[ERROR] WAZUH_AGENT_STATUS_REPO_URL must use HTTPS" >&2; exit 1 ;; esac
+
 # Source shared utilities
 TMP_DIR=$(mktemp -d)
 export CHECKSUMS_FILE="$TMP_DIR/checksums.sha256"
@@ -51,6 +54,7 @@ if [[ -z "$EXPECTED_HASH" ]] || [[ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]]; then
 fi
 
 . "$TMP_DIR/utils.sh"
+enforce_https_url "$WAZUH_AGENT_STATUS_REPO_URL" "WAZUH_AGENT_STATUS_REPO_URL"
 ensure_os "Darwin"
 
 trap cleanup EXIT
@@ -154,7 +158,7 @@ create_launchd_plist_file() {
 
     create_file "$filepath" "
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"https://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">
 <dict>
     <key>Label</key>
