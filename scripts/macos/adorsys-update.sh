@@ -160,24 +160,22 @@ run_upgrade() {
 
     maybe_sudo chmod +x "$TMP_DIR/setup-agent.sh"
 
-    if ! sudo env WAZUH_MANAGER="$WAZUH_MANAGER" bash "$TMP_DIR/setup-agent.sh" >> "$LOG_FILE"; then
+    if ! sudo env WAZUH_MANAGER="$WAZUH_MANAGER" ADORSYS_UPDATE_IN_PROGRESS=1 bash "$TMP_DIR/setup-agent.sh" >> "$LOG_FILE"; then
         error_message "Failed to setup wazuh agent"
         send_notification "Update failed: For more details go to file $LOG_FILE"
         exit 1
     fi
 
-    # Update successful, silently restart services
-    info_message "Restarting services for the new version..."
-    
-    # Restart the server daemon (runs as root/system)
-    sudo launchctl kickstart -k system/com.adorsys.wazuh-agent-status >/dev/null 2>&1 || true
-    
-    # Restart the client UI (runs in user GUI session)
-    local real_user=$(get_real_user)
-    local uid=$(id -u "$real_user")
-    sudo -u "$real_user" launchctl kickstart -k "gui/$uid/com.adorsys.wazuh-agent-status-client" >/dev/null 2>&1 || true
-
     log "INFO" "Wazuh agent update completed successfully."
+
+    # Notify user that the update is complete and they need to restart
+    osascript << 'EOF_NOTIFY'
+        display dialog "✅ Wazuh update completed successfully!
+
+Please restart your Mac to apply the new version." buttons {"OK"} default button "OK" with title "Wazuh Update Complete" with icon note
+EOF_NOTIFY
+
+    info_message "Update complete notification shown to user."
     return 0
 }
 

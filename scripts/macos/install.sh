@@ -184,11 +184,12 @@ create_launchd_plist_file() {
     if [[ "$name" == "$SERVER_NAME" ]]; then
         local target="system/$label"
         if maybe_sudo launchctl print "$target" >/dev/null 2>&1; then
-            if pgrep -f "adorsys-update.sh" >/dev/null 2>&1 || pgrep -f "setup-agent.sh" >/dev/null 2>&1; then
-                info_message "Service $label is already loaded. Update script detected. Deferring restart..."
+            if [[ "${ADORSYS_UPDATE_IN_PROGRESS:-}" == "1" ]]; then
+                info_message "Service $label is already loaded. Running as part of an update — skipping restart."
             else
-                info_message "Service $label is already loaded, kickstarting..."
-                maybe_sudo launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting server failed: $label"
+                info_message "Service $label is already loaded, kickstarting in background..."
+                { maybe_sudo launchctl kickstart -k "$target" >/dev/null 2>&1 || warn_message "Kickstarting server failed: $label"; } &
+                disown
             fi
         else
             info_message "Loading new daemon plist file..."
@@ -201,11 +202,12 @@ create_launchd_plist_file() {
         local target="gui/$uid/$label"
 
         if sudo -u "$real_user" launchctl print "$target" >/dev/null 2>&1; then
-            if pgrep -f "adorsys-update.sh" >/dev/null 2>&1 || pgrep -f "setup-agent.sh" >/dev/null 2>&1; then
-                info_message "Service $label is already loaded. Update script detected. Deferring restart..."
+            if [[ "${ADORSYS_UPDATE_IN_PROGRESS:-}" == "1" ]]; then
+                info_message "Service $label is already loaded. Running as part of an update — skipping restart."
             else
-                info_message "Service $label is already loaded, kickstarting..."
-                sudo -u "$real_user" launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting client failed: $label"
+                info_message "Service $label is already loaded, kickstarting in background..."
+                { sudo -u "$real_user" launchctl kickstart -k "$target" >/dev/null 2>&1 || warn_message "Kickstarting client failed: $label"; } &
+                disown
             fi
         else
             info_message "Loading $name into user GUI session ($real_user)..."
