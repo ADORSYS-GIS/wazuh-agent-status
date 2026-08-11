@@ -4,40 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[f02e784](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d)...[ce53b62](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce53b629caaa9cbdd36cbb53a77dc70f6c8483a8)
-
-### Bug Fixes
-
-- Add type attributes to buttons for accessibility and improve CI permissions ([`5feb39e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5feb39e7838de44a3f8447879d608b47e773d992)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
-- Replace npm install with npm ci for consistent dependency installation in Tauri client builds ([`35ea81c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/35ea81c334c6640328f0a102197317d1b8c07107)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
-
-### Documentation
-
-- Update CHANGELOG.md and checksums [skip ci] ([`68f31ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68f31ac494d19f6faef30f7da2c5be46ac1daa4e))
-- Update CHANGELOG.md and checksums [skip ci] ([`4cfc7d6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4cfc7d6c6e2fd3405cf8c180afca2cf8e8591202))
-- Update CHANGELOG.md and checksums [skip ci] ([`d3a3b66`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d3a3b667ab851aab5a01357dac2d934e1b363553))
-- Update CHANGELOG.md and checksums [skip ci] ([`8c64768`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8c64768ffe8dcbb583f1a824cd77fc9aad203eaa))
-
-### Features
-
-- Enforce HTTPS for repository URLs in scripts and components and resolve SonaQube warnings ([`47328cd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47328cd9d298f5d8f4522e74a547b22a2cfdc8f1)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
-
-### Refactor
-
-- Simplify check icon rendering in ComplianceView component ([`ce53b62`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce53b629caaa9cbdd36cbb53a77dc70f6c8483a8)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
-
-## 0.5.1 - 2026-07-24
-
-[b589032](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b5890325eb723b7025b5025b08f9cfb089dfbb3a)...[f02e784](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d)
-
-### Miscellaneous Tasks
-
-- Restrict release workflow trigger to specific project paths ([`6046d55`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6046d550d5e12a73c90bfb9f45d03c2e702eadb8))
-- Reverted app version to 0.5.1 ([`f02e784`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d))
-
-## 0.5.1-rc.1 - 2026-07-24
-
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[b589032](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b5890325eb723b7025b5025b08f9cfb089dfbb3a)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[779c333](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/779c33310ba7e32525d970792d6462ab594c675a)
 
 ### Bug Fixes
 
@@ -61,6 +28,8 @@ All notable changes to this project will be documented in this file.
 - Simplify Windows build configuration by removing explicit target and adjusting paths ([`54205c3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/54205c38aa5211aa4f16c793b2326a228ca0becf))
 - Update macOS build configuration to use correct self-hosted runner labels ([`1a2b18a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1a2b18a0c2a6c025eb5cb2d8ef7f5b390170e601))
 - Skip version updates in release workflow for pre-release tags to maintain MSI compatibility ([`b589032`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b5890325eb723b7025b5025b08f9cfb089dfbb3a))
+- Add type attributes to buttons for accessibility and improve CI permissions ([`5feb39e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5feb39e7838de44a3f8447879d608b47e773d992)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Replace npm install with npm ci for consistent dependency installation in Tauri client builds ([`35ea81c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/35ea81c334c6640328f0a102197317d1b8c07107)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ### Documentation
 
@@ -100,6 +69,12 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`6a9a5bb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6a9a5bbd1ac7f817cad5bb579ee85bde761374f8))
 - Update CHANGELOG.md and checksums [skip ci] ([`94055eb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/94055ebc21d018e1980da78eb9602d860a097b01))
 - Update CHANGELOG.md and checksums [skip ci] ([`6c628a8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6c628a80a57232e1e8af62b12d5b78d63c53b8c7))
+- Update CHANGELOG.md and checksums [skip ci] ([`68f31ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/68f31ac494d19f6faef30f7da2c5be46ac1daa4e))
+- Update CHANGELOG.md and checksums [skip ci] ([`4cfc7d6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4cfc7d6c6e2fd3405cf8c180afca2cf8e8591202))
+- Update CHANGELOG.md and checksums [skip ci] ([`d3a3b66`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d3a3b667ab851aab5a01357dac2d934e1b363553))
+- Update CHANGELOG.md and checksums [skip ci] ([`8c64768`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8c64768ffe8dcbb583f1a824cd77fc9aad203eaa))
+- Update CHANGELOG.md and checksums [skip ci] ([`7579869`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/75798691c911c4f632b4bcb4718b8c34a42c858a))
+- Refactor README and add comprehensive feature documentation (#170) ([`cc6900f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cc6900f06a113146a1bdd04d05f36f626ee35bd2))
 
 ### Features
 
@@ -116,6 +91,8 @@ All notable changes to this project will be documented in this file.
 - Add HMAC auth for SCA compliance requests ([`9a775b6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9a775b695e08ebc087f318ecb125c5a91f0df920)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Add matrix-based cross-compilation support for Linux, MacOS, and Windows in release workflow ([`895472c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/895472c0e73f229cfb4405afc12730d67f081fa0))
 - Implement responsive sidebar with static button styling ([`3fe2826`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3fe2826d44bc33e6a895541008890231b0f5affa))
+- Enforce HTTPS for repository URLs in scripts and components and resolve SonaQube warnings ([`47328cd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47328cd9d298f5d8f4522e74a547b22a2cfdc8f1)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Resolve macOS update UI freeze & update AI command allowlist (#175) ([`779c333`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/779c33310ba7e32525d970792d6462ab594c675a))
 
 ### Miscellaneous Tasks
 
@@ -138,6 +115,8 @@ All notable changes to this project will be documented in this file.
 - Adjust layout constraints for improved responsiveness ([`6c52319`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6c523192f9fb1b64a52167b8c37bfd9eb25303bd))
 - Automate version bumping during releases ([`3830226`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3830226da8a31f9b3cbe90e5f30372f60f286471))
 - Bump application version to 0.5.1-rc.1 ([`73835ab`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/73835abb0e3269fd6b10a30636952e638ba94dd3))
+- Restrict release workflow trigger to specific project paths ([`6046d55`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6046d550d5e12a73c90bfb9f45d03c2e702eadb8))
+- Reverted app version to 0.5.1 ([`f02e784`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d))
 
 ### Performance
 
@@ -168,6 +147,7 @@ All notable changes to this project will be documented in this file.
 - Modernize CSS text wrapping and modularize ComplianceView parser ([`d17da10`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d17da10116b05bd5fe49fa9a3068333d83749818)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Remove unused files and consolidate code for Wazuh agent status ([`8ccd604`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8ccd604f19336ec584db79d550bdcda48b73e8a0)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Update client components, improve agent metrics, and add compliance utilities ([`f7f6c7a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f7f6c7a1ec6671c3300c0682775c84621e5bfd20)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Simplify check icon rendering in ComplianceView component ([`ce53b62`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce53b629caaa9cbdd36cbb53a77dc70f6c8483a8)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ### Styling
 
