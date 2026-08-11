@@ -4,7 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[779c333](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/779c33310ba7e32525d970792d6462ab594c675a)
+[cc44a72](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cc44a722eba5f447df546f4249fd4afdf21e09d8)...[b70b01b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b70b01b45586bdce40c0b9fa739667ac22e7622a)
+
+### Bug Fixes
+
+- Remove incorrect commit hash from Tauri build directory path in release workflow ([`4af34ab`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4af34ab1febdc6234940c168cf1d85cf1a749675))
+
+### Features
+
+- Resolve macOS update UI freeze & update AI command allowlist (#… (#179) ([`ce2576b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce2576b5630b6386bce9f34b131017806d5345d2)), Co-authored-by:GitHub Action <action@github.com>
+
+### Miscellaneous Tasks
+
+- Restrict release workflow triggers to specific paths and fix directory navigation error during build ([`f5d4fd8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f5d4fd836e1d1eff668c7a9655d90fc3f011992a))
+
+## 0.5.1-rc.1 - 2026-08-11
+
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[cc44a72](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cc44a722eba5f447df546f4249fd4afdf21e09d8)
 
 ### Bug Fixes
 
@@ -117,6 +133,9 @@ All notable changes to this project will be documented in this file.
 - Bump application version to 0.5.1-rc.1 ([`73835ab`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/73835abb0e3269fd6b10a30636952e638ba94dd3))
 - Restrict release workflow trigger to specific project paths ([`6046d55`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6046d550d5e12a73c90bfb9f45d03c2e702eadb8))
 - Reverted app version to 0.5.1 ([`f02e784`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d))
+- Remove path filters from release workflow trigger ([`d410a89`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d410a89acdd75d9d8e429f461a3439661c4f7955))
+- Add trailing newline ([`e76ccdf`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e76ccdf39f10f3c7561c584e3a61933567908369))
+- Update checksums.sha256 for release scripts ([`cc44a72`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cc44a722eba5f447df546f4249fd4afdf21e09d8))
 
 ### Performance
 
