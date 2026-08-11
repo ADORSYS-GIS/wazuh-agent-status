@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - 'v*'
+    paths:
+      - 'wazuh-agent-status-rust-client/**'
+      - 'wazuh-agent-status-rust-server/**'
+      - '.github/workflows/release.yaml'
 
 env:
   SERVER_DIR: wazuh-agent-status-rust-server
@@ -327,7 +331,8 @@ jobs:
       - name: Build Tauri Client (Tray App)
         shell: bash
         run: |
-          cd ${{ env.CLIENT_DIR }}
+          cd ${{ env.CLIENT_DIR }}a89cea979ba0b4870140435331a5d26ccfa6af8aba4edfa7f63394f89bd8ad67  scripts/macos/adorsys-update.sh
+
           npm ci
           npm run tauri build
           cp src-tauri/target/release/wazuh-agent-status.exe ../dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
