@@ -184,8 +184,12 @@ create_launchd_plist_file() {
     if [[ "$name" == "$SERVER_NAME" ]]; then
         local target="system/$label"
         if maybe_sudo launchctl print "$target" >/dev/null 2>&1; then
-            info_message "Service $label is already loaded, kickstarting..."
-            maybe_sudo launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting server failed: $label"
+            if pgrep -f "adorsys-update.sh" >/dev/null 2>&1 || pgrep -f "setup-agent.sh" >/dev/null 2>&1; then
+                info_message "Service $label is already loaded. Update script detected. Deferring restart..."
+            else
+                info_message "Service $label is already loaded, kickstarting..."
+                maybe_sudo launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting server failed: $label"
+            fi
         else
             info_message "Loading new daemon plist file..."
             maybe_sudo launchctl bootstrap system "$filepath" 2>/dev/null || warn_message "Loading server plist file failed: $filepath"
@@ -197,8 +201,12 @@ create_launchd_plist_file() {
         local target="gui/$uid/$label"
 
         if sudo -u "$real_user" launchctl print "$target" >/dev/null 2>&1; then
-            info_message "Service $label is already loaded, kickstarting..."
-            sudo -u "$real_user" launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting client failed: $label"
+            if pgrep -f "adorsys-update.sh" >/dev/null 2>&1 || pgrep -f "setup-agent.sh" >/dev/null 2>&1; then
+                info_message "Service $label is already loaded. Update script detected. Deferring restart..."
+            else
+                info_message "Service $label is already loaded, kickstarting..."
+                sudo -u "$real_user" launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting client failed: $label"
+            fi
         else
             info_message "Loading $name into user GUI session ($real_user)..."
             # Use 'asuser' to ensure it's loaded in the correct GUI context
