@@ -331,7 +331,7 @@ jobs:
       - name: Build Tauri Client (Tray App)
         shell: bash
         run: |
-          cd ${{ env.CLIENT_DIR }}a89cea979ba0b4870140435331a5d26ccfa6af8aba4edfa7f63394f89bd8ad67  scripts/macos/adorsys-update.sh
+          cd ${{ env.CLIENT_DIR }}
 
           npm ci
           npm run tauri build
