@@ -12,7 +12,7 @@ APP_VERSION=${APP_VERSION:-"0.5.1"}
 # Common configuration
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"release-branch"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Bootstrap: validate URL before downloading utils.sh
@@ -167,6 +167,29 @@ get_console_user() {
     return 0
 }
 
+# Resolve the numeric UID of the active macOS GUI console session.
+# Prefers the kCGSSessionUserIDKey from scutil, which is authoritative for the
+# active GUI session even when running as a root daemon. Rejects UID 0 (root)
+# and empty results so we never attempt to bootstrap into gui/0.
+get_console_uid() {
+    local uid=""
+
+    # Primary: kCGSSessionUserIDKey from the System Configuration dynamic store
+    if command -v scutil >/dev/null 2>&1; then
+        uid=$(scutil <<< "show State:/Users/ConsoleUser" 2>/dev/null \
+            | awk '/kCGSSessionUserIDKey/ { print $3; exit }')
+    fi
+
+    # Reject empty or root UID
+    if [[ -z "$uid" ]] || [[ "$uid" == "0" ]]; then
+        warn_message "get_console_uid: no valid GUI session UID detected."
+        return 1
+    fi
+
+    echo "$uid"
+    return 0
+}
+
 # macOS Launchd Plist File
 create_launchd_plist_file() {
     local name="$1"
@@ -180,13 +203,9 @@ create_launchd_plist_file() {
         local console_user
         console_user=$(get_console_user || echo "")
         if [[ -n "$console_user" ]]; then
-            local user_home
-            user_home=$(eval echo "~$console_user" 2>/dev/null || echo "")
-            if [[ -n "$user_home" ]]; then
-                env_dict_extra="
+            env_dict_extra="
         <key>HOME</key>
-        <string>$user_home</string>"
-            fi
+        <string>/Users/$console_user</string>"
         fi
     fi
 
@@ -233,33 +252,39 @@ create_launchd_plist_file() {
         local console_user
         if ! console_user=$(get_console_user); then
             info_message "No active GUI session detected — skipping LaunchAgent bootstrap for $name."
-            info_message "macOS Launchd plist file created and managed: $filepath"
+            info_message "The plist is installed at $filepath and the client will load automatically on next login."
             return 0
         fi
 
         local uid
-        uid=$(id -u "$console_user" 2>/dev/null || echo "")
-        if [[ -z "$uid" ]]; then
-            warn_message "Could not resolve UID for console user '$console_user' — skipping LaunchAgent bootstrap."
-            info_message "macOS Launchd plist file created and managed: $filepath"
+        if ! uid=$(get_console_uid); then
+            warn_message "Could not determine a valid UID for console user '$console_user' — skipping LaunchAgent bootstrap."
+            info_message "The plist is installed at $filepath and the client will load automatically on next login."
+            return 0
+        fi
+
+        # Never bootstrap for UID 0 / root
+        if [[ "$uid" == "0" ]]; then
+            warn_message "Console user resolved to UID 0 (root) — refusing to bootstrap into gui/0."
+            info_message "The plist is installed at $filepath and the client will load automatically on next login."
             return 0
         fi
 
         local target="gui/$uid/$label"
 
-        if sudo -u "$console_user" launchctl print "$target" >/dev/null 2>&1; then
+        if launchctl asuser "$uid" launchctl print "$target" >/dev/null 2>&1; then
             if [[ "${ADORSYS_UPDATE_IN_PROGRESS:-}" == "1" ]]; then
                 info_message "Service $label is already loaded. Running as part of an update — skipping restart."
             else
                 info_message "Service $label is already loaded, kickstarting in background..."
-                { sudo -u "$console_user" launchctl kickstart -k "$target" >/dev/null 2>&1 || warn_message "Kickstarting client failed: $label"; } &
+                { launchctl asuser "$uid" launchctl kickstart -k "$target" >/dev/null 2>&1 || warn_message "Kickstarting client failed: $label"; } &
                 disown
             fi
         else
             info_message "Loading $name into GUI session of console user '$console_user' (UID $uid)..."
-            # launchctl asuser runs the bootstrap command in the context of that user's GUI session
-            sudo launchctl asuser "$uid" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || \
-            sudo -u "$console_user" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || \
+            # Modern form first, then fall back to asuser for the same GUI session
+            launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || \
+            launchctl asuser "$uid" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || \
             warn_message "Loading $name failed. You may need to log out and log back in to see the tray app."
         fi
     fi
