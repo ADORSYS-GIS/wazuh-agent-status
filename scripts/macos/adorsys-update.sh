@@ -11,7 +11,7 @@ fi
 
 readonly WAZUH_AGENT_STATUS_REPO_REF="user-main"
 readonly WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
-readonly WAZUH_AGENT_REPO_REF="${WAZUH_AGENT_REPO_REF:-main}"
+readonly WAZUH_AGENT_REPO_REF="${WAZUH_AGENT_REPO_REF:-patch-0.5.1}"
 
 # Bootstrap: validate URL before downloading utils.sh
 case "$WAZUH_AGENT_STATUS_REPO_URL" in https://*) ;; *) echo "[ERROR] WAZUH_AGENT_STATUS_REPO_URL must use HTTPS" >&2; exit 1 ;; esac
