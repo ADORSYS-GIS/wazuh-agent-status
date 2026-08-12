@@ -36,6 +36,13 @@ async fn append_update_log(path: &std::path::Path, line: &str) {
     }
 }
 
+// ── Update execution ─────────────────────────────────────────────────────────
+
+/// Hard cap on how long an update script may run before it is considered stuck
+/// and terminated. The scripts also self-guard with internal timeouts; this is
+/// the last line of defence so a hung script can never wedge the UI forever.
+const UPDATE_TIMEOUT: Duration = Duration::from_secs(600);
+
 // ── Version cache ─────────────────────────────────────────────────────────────
 
 struct VersionCache {
@@ -566,8 +573,8 @@ impl AgentManager {
                         });
                     }
 
-                    match child.wait().await {
-                        Ok(status) if status.success() => {
+                    match tokio::time::timeout(UPDATE_TIMEOUT, child.wait()).await {
+                        Ok(Ok(status)) if status.success() => {
                             let _ = kill_tx.send(());
                             info!(exit_code = ?status.code(), "Update script completed successfully");
                             append_update_log(
@@ -583,7 +590,7 @@ impl AgentManager {
                                 )
                                 .await;
                         }
-                        Ok(status) => {
+                        Ok(Ok(status)) => {
                             let _ = kill_tx.send(());
                             warn!(exit_code = ?status.code(), "Update script failed");
                             append_update_log(
@@ -596,7 +603,7 @@ impl AgentManager {
                             .await;
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Update script exited with code: {:?}", status.code())).await;
                         }
-                        Err(e) => {
+                        Ok(Err(e)) => {
                             let _ = kill_tx.send(());
                             warn!(error = %e, "Failed to wait for update script");
                             append_update_log(
@@ -605,6 +612,30 @@ impl AgentManager {
                             )
                             .await;
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to wait for update script: {e}")).await;
+                        }
+                        Err(_) => {
+                            let _ = kill_tx.send(());
+                            let _ = child.kill().await;
+                            // Reap the terminated child so it does not linger as a zombie.
+                            let _ = child.wait().await;
+                            warn!(
+                                seconds = UPDATE_TIMEOUT.as_secs(),
+                                "Update script timed out; terminated"
+                            );
+                            append_update_log(
+                                &windows_response_log,
+                                &format!(
+                                    "[FAILURE] Update script timed out after {}s and was terminated",
+                                    UPDATE_TIMEOUT.as_secs()
+                                ),
+                            )
+                            .await;
+                            let _ = tx
+                                .send(format!(
+                                    "UPDATE_PROGRESS: [FAILURE] Update script timed out after {}s and was terminated",
+                                    UPDATE_TIMEOUT.as_secs()
+                                ))
+                                .await;
                         }
                     }
                 }
