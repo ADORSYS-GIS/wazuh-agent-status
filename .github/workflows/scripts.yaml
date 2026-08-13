@@ -1,10 +1,6 @@
 name: Lint and test scripts
 
 on:
-  # temporal: for checksum update and changelog generation
-  push:
-    branches:
-      - fix/update-failure
   pull_request:
     branches:
       - main
