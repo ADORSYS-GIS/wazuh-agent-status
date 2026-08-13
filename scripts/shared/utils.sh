@@ -49,46 +49,6 @@ success_message() {
     return 0
 }
 
-# ── Deep debug logging ────────────────────────────────────────────────────────
-#
-# Debug mode is enabled when WAZUH_AGENT_STATUS_DEBUG is a truthy value OR when
-# a marker file exists. The marker file is essential for the UI-triggered update
-# path: that chain runs the script through several 'sudo env VAR=... bash ...'
-# boundaries (adorsys-update.sh -> setup-agent.sh -> install.sh) that drop
-# unlisted environment variables. A file survives those boundaries, so:
-#
-#   Terminal test:  export WAZUH_AGENT_STATUS_DEBUG=1
-#   UI/daemon test: sudo touch /tmp/wazuh-agent-status-debug
-#
-# The marker lives in /tmp so it is automatically cleared on reboot and can
-# never accidentally stay enabled.
-is_debug() {
-    case "${WAZUH_AGENT_STATUS_DEBUG:-}" in
-        1|true|TRUE|yes|YES|on|ON|debug|DEBUG) return 0 ;;
-    esac
-    if [[ -f "${WAZUH_AGENT_STATUS_DEBUG_FILE:-/tmp/wazuh-agent-status-debug}" ]]; then
-        return 0
-    fi
-    return 1
-}
-
-debug_message() {
-    if is_debug; then
-        log "${BOLD}[DEBUG]${NORMAL}" "$*"
-    fi
-    return 0
-}
-
-# Variant for functions whose stdout is consumed by the caller (e.g.
-# get_real_user, maybe_sudo): the debug line goes to stderr instead so it can
-# never corrupt a captured value.
-debug_message_err() {
-    if is_debug; then
-        log "${BOLD}[DEBUG]${NORMAL}" "$*" >&2
-    fi
-    return 0
-}
-
 print_step_header() {
     local step_number="$1"
     local step_name="$2"
@@ -144,7 +104,6 @@ detect_architecture() {
 # running via sudo, which silently hid real failures).
 maybe_sudo() {
     if [[ "$(id -u)" -ne 0 ]]; then
-        debug_message_err "maybe_sudo: running as $(id -un) (uid $(id -u)); wrapping via sudo: $*"
         if command_exists sudo; then
             sudo "$@"
             return $?
@@ -152,7 +111,6 @@ maybe_sudo() {
             error_exit "This script requires root privileges. Please run with sudo or as root."
         fi
     else
-        debug_message_err "maybe_sudo: running as root; executing directly: $*"
         "$@"
         return $?
     fi
@@ -384,11 +342,9 @@ maybe_sudo_fn() {
 }
 
 # Detect the real user who invoked the script (even via sudo).
-# NOTE: this function's stdout is its return value, so all debug output goes
-# to stderr via debug_message_err and can never leak into the result.
+# NOTE: this function's stdout is its return value, so nothing else may write
+# to stdout inside it.
 get_real_user() {
-    debug_message_err "get_real_user: SUDO_USER='${SUDO_USER:-}' LOGNAME='${LOGNAME:-}' USER='${USER:-}' os='$(uname -s)'"
-
     # If SUDO_USER is set to a real (non-root) user, trust it. When the update
     # chain runs 'sudo env VAR=... bash ...' as root (server -> adorsys-update.sh
     # -> setup-agent.sh -> install.sh), sudo reports SUDO_USER=root, which tells
@@ -396,19 +352,16 @@ get_real_user() {
     # macOS launchctl 'gui' load at the wrong session, so fall through to the
     # console-user detection below in that case.
     if [[ -n "${SUDO_USER:-}" ]] && [[ "$SUDO_USER" != "root" ]]; then
-        debug_message_err "get_real_user: using SUDO_USER='$SUDO_USER'"
         echo "$SUDO_USER"
         return
     fi
 
     # Check LOGNAME or USER if they are not root
     if [[ -n "${LOGNAME:-}" ]] && [[ "$LOGNAME" != "root" ]]; then
-        debug_message_err "get_real_user: using LOGNAME='$LOGNAME'"
         echo "$LOGNAME"
         return
     fi
     if [[ -n "${USER:-}" ]] && [[ "$USER" != "root" ]]; then
-        debug_message_err "get_real_user: using USER='$USER'"
         echo "$USER"
         return
     fi
@@ -422,21 +375,17 @@ get_real_user() {
             local user
             user=$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')
             if [[ -n "$user" ]] && [[ "$user" != "root" ]]; then
-                debug_message_err "get_real_user: Linux process tree found non-root ancestor '$user' (ppid $pid)"
                 echo "$user"
                 return
             fi
         done
-        debug_message_err "get_real_user: Linux process tree yielded no non-root ancestor"
     fi
 
     # Fallback for macOS using stat on the tty
     if [[ "$(uname -s)" == "Darwin" ]]; then
         local tty_user
         tty_user=$(stat -f "%Su" /dev/console 2>/dev/null)
-        debug_message_err "get_real_user: console user from stat /dev/console='${tty_user:-<none or unreadable>}'"
         if [[ -n "$tty_user" ]] && [[ "$tty_user" != "root" ]]; then
-            debug_message_err "get_real_user: using console user '$tty_user'"
             echo "$tty_user"
             return
         fi
@@ -446,7 +395,6 @@ get_real_user() {
     local fallback
     fallback=$(id -un 2>/dev/null || true)
     [[ -n "$fallback" ]] || fallback="root"
-    debug_message_err "get_real_user: fallback to current user '$fallback'"
     echo "$fallback"
     return 0
 }
@@ -489,41 +437,6 @@ run_with_timeout() {
     return "$exit_code"
 }
 
-# Run a command via run_with_timeout, replaying its captured output at debug
-# level when debug mode is on. In normal mode the output is discarded (same as
-# the historical '2>/dev/null' behaviour) so production transcripts stay clean;
-# with WAZUH_AGENT_STATUS_DEBUG set, every launchctl call shows the exact
-# command, its captured stdout/stderr, and its exit code / timeout verdict.
-# Returns the command's exit code, or 124 if it was killed by the timeout.
-# Usage: trace_run <seconds> <description> <command...>
-trace_run() {
-    local timeout_secs="${1:?Usage: trace_run <seconds> <description> <command...>}"
-    local description="${2:?Usage: trace_run <seconds> <description> <command...>}"
-    shift 2
-    local rc=0
-    local tmp_out=""
-
-    if is_debug; then
-        debug_message "trace_run [${description}]: executing (timeout ${timeout_secs}s): $*"
-        tmp_out=$(mktemp "${TMPDIR:-/tmp}/wazuh-trace.XXXXXX") || tmp_out="/tmp/wazuh-trace.$$"
-        run_with_timeout "$timeout_secs" "$@" >"$tmp_out" 2>&1 || rc=$?
-        if [[ -s "$tmp_out" ]]; then
-            while IFS= read -r line; do
-                debug_message "[${description}] ${line}"
-            done < "$tmp_out" || true
-        fi
-        rm -f "$tmp_out"
-        if [[ "$rc" -eq 124 ]]; then
-            debug_message "[${description}] TIMED OUT after ${timeout_secs}s and was terminated (rc=124)"
-        else
-            debug_message "[${description}] finished with rc=${rc}"
-        fi
-    else
-        run_with_timeout "$timeout_secs" "$@" >/dev/null 2>&1 || rc=$?
-    fi
-    return "$rc"
-}
-
 # Idempotently load (or kickstart) a launchd service into the system or the
 # logged-in user's GUI domain. Centralises all launchctl interaction so every
 # caller gets the same timeout protection and clear error reporting. It never
@@ -542,21 +455,14 @@ manage_launch_service() {
     local loaded=false
     local rc=0
 
-    debug_message "manage_launch_service: domain='$domain' label='$label' plist='$plist' timeout=${timeout_secs}s"
-    debug_message "manage_launch_service: process context: euid=$(id -u) user=$(id -un 2>/dev/null || true) HOME='${HOME:-<unset>}' SUDO_USER='${SUDO_USER:-<unset>}'"
-
     if [[ "$domain" == "gui" ]]; then
         real_user=$(get_real_user)
-        debug_message "manage_launch_service: resolved GUI user via get_real_user -> '${real_user}'"
         if [[ -z "$real_user" ]] || [[ "$real_user" == "root" ]] || [[ "$real_user" == "loginwindow" ]]; then
-            debug_message "manage_launch_service: rejecting GUI user '${real_user:-<none>}' (no active GUI session)"
             warn_message "Cannot load $label: no active GUI user found (console user: '${real_user:-none}'). The tray app will load after login."
             return 1
         fi
         uid=$(id -u "$real_user" 2>/dev/null || true)
-        debug_message "manage_launch_service: id -u '$real_user' -> '${uid:-<unresolved>}'"
         if [[ -z "$uid" ]]; then
-            debug_message "manage_launch_service: could not resolve UID for '$real_user'"
             warn_message "Cannot load $label: could not resolve UID for user '$real_user'."
             return 1
         fi
@@ -564,27 +470,21 @@ manage_launch_service() {
     else
         target="system/$label"
     fi
-    debug_message "manage_launch_service: resolved launchd target: '$target'"
 
     # Already loaded? Two probes for the gui domain to avoid false 'not loaded'
     # verdicts when running from a daemon context.
-    if trace_run "$timeout_secs" "print-probe-as-root $target" maybe_sudo launchctl print "$target"; then
+    if run_with_timeout "$timeout_secs" maybe_sudo launchctl print "$target" >/dev/null 2>&1; then
         loaded=true
-        debug_message "manage_launch_service: probe as root reports '$target' IS loaded"
-    elif [[ "$domain" == "gui" ]] && trace_run "$timeout_secs" "print-probe-as-user $target" sudo -u "$real_user" launchctl print "$target"; then
+    elif [[ "$domain" == "gui" ]] && run_with_timeout "$timeout_secs" sudo -u "$real_user" launchctl print "$target" >/dev/null 2>&1; then
         loaded=true
-        debug_message "manage_launch_service: probe as user '$real_user' reports '$target' IS loaded"
-    else
-        debug_message "manage_launch_service: probes report '$target' NOT loaded"
     fi
 
     if [[ "$loaded" == "true" ]]; then
         info_message "Service $label is already loaded ($target), kickstarting..."
-        if ! trace_run "$timeout_secs" "kickstart $target" maybe_sudo launchctl kickstart -k "$target"; then
+        if ! run_with_timeout "$timeout_secs" maybe_sudo launchctl kickstart -k "$target" >/dev/null 2>&1; then
             warn_message "Kickstarting $label failed. Run 'launchctl print $target' for details."
             return 1
         fi
-        debug_message "manage_launch_service: kickstart '$target' succeeded"
         return 0
     fi
 
@@ -592,18 +492,15 @@ manage_launch_service() {
     # Note: '|| rc=$?' (not a bare 'rc=$?') so a failure can never trip 'set -e'
     # and abort the whole script — failures must degrade to a warning instead.
     if [[ "$domain" == "gui" ]]; then
-        debug_message "manage_launch_service: bootstrap attempt 1/2: launchctl asuser '$uid' launchctl bootstrap 'gui/$uid' '$plist'"
-        trace_run "$timeout_secs" "bootstrap-asuser $target" maybe_sudo launchctl asuser "$uid" launchctl bootstrap "gui/$uid" "$plist" \
-            || trace_run "$timeout_secs" "bootstrap-as-user $target" sudo -u "$real_user" launchctl bootstrap "gui/$uid" "$plist" \
+        run_with_timeout "$timeout_secs" maybe_sudo launchctl asuser "$uid" launchctl bootstrap "gui/$uid" "$plist" >/dev/null 2>&1 \
+            || run_with_timeout "$timeout_secs" sudo -u "$real_user" launchctl bootstrap "gui/$uid" "$plist" >/dev/null 2>&1 \
             || rc=$?
     else
-        debug_message "manage_launch_service: bootstrapping '$plist' into the system domain"
-        trace_run "$timeout_secs" "bootstrap-system $target" maybe_sudo launchctl bootstrap "system" "$plist" \
+        run_with_timeout "$timeout_secs" maybe_sudo launchctl bootstrap "system" "$plist" >/dev/null 2>&1 \
             || rc=$?
     fi
 
     if [[ "$rc" -eq 0 ]]; then
-        debug_message "manage_launch_service: loaded '$target' successfully"
         return 0
     fi
 
@@ -614,16 +511,14 @@ manage_launch_service() {
     # Boot the service out (best-effort) and retry the bootstrap once so the
     # client is restarted from the freshly written plist with the new binary.
     if [[ "$rc" -ne 124 ]] && [[ "$domain" == "gui" ]]; then
-        debug_message "manage_launch_service: bootstrap failed (rc=$rc); booting out '$target' and retrying once"
-        trace_run "$timeout_secs" "bootout-retry $target" maybe_sudo launchctl bootout "gui/$uid/$label" || true
+        run_with_timeout "$timeout_secs" maybe_sudo launchctl bootout "gui/$uid/$label" >/dev/null 2>&1 || true
         local retry_rc=0
-        trace_run "$timeout_secs" "bootstrap-retry $target" maybe_sudo launchctl bootstrap "gui/$uid" "$plist" || retry_rc=$?
+        run_with_timeout "$timeout_secs" maybe_sudo launchctl bootstrap "gui/$uid" "$plist" >/dev/null 2>&1 || retry_rc=$?
         if [[ "$retry_rc" -eq 0 ]]; then
             info_message "Service $label loaded successfully after reloading (target: $target)."
             return 0
         fi
         rc="$retry_rc"
-        debug_message "manage_launch_service: bootstrap retry after bootout also failed (rc=$retry_rc)"
     fi
 
     if [[ "$rc" -eq 124 ]]; then

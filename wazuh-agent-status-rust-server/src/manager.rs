@@ -463,33 +463,12 @@ impl AgentManager {
                     .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
                     .unwrap_or(false);
 
-                // Script-side deep debug logging is enabled by the same toggle
-                // the scripts honour: the WAZUH_AGENT_STATUS_DEBUG env var
-                // (truthy values only, mirroring the shell is_debug()) or the
-                // /tmp marker file (the marker is what survives the nested
-                // 'sudo env VAR=...' boundaries further down the update chain).
-                let env_debug = match std::env::var("WAZUH_AGENT_STATUS_DEBUG") {
-                    Ok(v) => matches!(
-                        v.to_ascii_lowercase().as_str(),
-                        "1" | "true" | "yes" | "on" | "debug"
-                    ),
-                    Err(_) => false,
-                };
-                let script_debug_enabled = env_debug
-                    || std::path::Path::new("/tmp/wazuh-agent-status-debug").exists();
-                if script_debug_enabled {
-                    debug!("WAZUH_AGENT_STATUS_DEBUG active; forwarding to update script");
-                }
-
                 if is_root {
                     info!("Running as root — executing update script directly");
                     let mut c = Command::new(script_path.as_os_str());
                     // Direct execution: set env var directly on child process
                     if let Some(ref tag) = prerelease_tag {
                         c.env("WAZUH_AGENT_REPO_REF", tag);
-                    }
-                    if script_debug_enabled {
-                        c.env("WAZUH_AGENT_STATUS_DEBUG", "1");
                     }
                     c
                 } else {
@@ -499,9 +478,6 @@ impl AgentManager {
                     // Use sudo's native VAR=value command syntax which is universally supported.
                     if let Some(ref tag) = prerelease_tag {
                         c.arg(format!("WAZUH_AGENT_REPO_REF={}", tag));
-                    }
-                    if script_debug_enabled {
-                        c.arg("WAZUH_AGENT_STATUS_DEBUG=1");
                     }
                     c.arg(script_path.as_os_str());
                     c

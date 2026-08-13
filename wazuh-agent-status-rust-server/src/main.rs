@@ -75,25 +75,8 @@ async fn run_server(mut shutdown_rx: tokio::sync::oneshot::Receiver<()>) -> anyh
     let file_appender = RollingFileAppender::new(Rotation::DAILY, log_dir, log_name);
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
-    // Default to debug when WAZUH_AGENT_STATUS_DEBUG is truthy so the server-side
-    // update trace is visible without also having to configure RUST_LOG.
-    // Mirrors the shell is_debug() semantics (falsy values like "0" stay info).
-    let default_filter = match std::env::var("WAZUH_AGENT_STATUS_DEBUG") {
-        Ok(v)
-            if matches!(
-                v.to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes" | "on" | "debug"
-            ) =>
-        {
-            "debug"
-        }
-        _ => "info",
-    };
-
     tracing_subscriber::registry()
-        .with(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_filter)),
-        )
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .with(fmt::layer().with_writer(std::io::stderr))
         .with(fmt::layer().with_writer(non_blocking).with_ansi(false))
         .init();

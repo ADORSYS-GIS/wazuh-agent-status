@@ -12,7 +12,7 @@ APP_VERSION=${APP_VERSION:-"0.5.1"}
 # Common configuration
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"fix/update-failure"}  # TEMP: local testing branch — revert to "user-main" before release
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Bootstrap: validate URL before downloading utils.sh
@@ -56,18 +56,6 @@ fi
 . "$TMP_DIR/utils.sh"
 enforce_https_url "$WAZUH_AGENT_STATUS_REPO_URL" "WAZUH_AGENT_STATUS_REPO_URL"
 ensure_os "Darwin"
-
-# Deep debug logging for troubleshooting launchd/launchctl interactions.
-#   Terminal test:  export WAZUH_AGENT_STATUS_DEBUG=1
-#   UI/daemon test: sudo touch /tmp/wazuh-agent-status-debug   (survives the
-#                   'sudo env VAR=...' boundaries in the update chain)
-if is_debug; then
-    if [[ -n "${WAZUH_AGENT_STATUS_DEBUG:-}" ]]; then
-        info_message "[DEBUG] Deep debug logging ENABLED via WAZUH_AGENT_STATUS_DEBUG env var"
-    else
-        info_message "[DEBUG] Deep debug logging ENABLED via marker file ${WAZUH_AGENT_STATUS_DEBUG_FILE:-/tmp/wazuh-agent-status-debug}"
-    fi
-fi
 
 trap cleanup EXIT
 export CHECKSUMS_FILE="$CHECKSUMS_FILE"
@@ -137,9 +125,9 @@ cleanup_legacy_system() {
 
     # 1. macOS: Unload legacy launchd plists
     info_message "Unloading legacy macOS launchd services..."
-    trace_run 15 "legacy-unload $SERVER_LAUNCH_AGENT_FILE" maybe_sudo launchctl unload "$SERVER_LAUNCH_AGENT_FILE" \
+    run_with_timeout 15 maybe_sudo launchctl unload "$SERVER_LAUNCH_AGENT_FILE" >/dev/null 2>&1 \
         || warn_message "Failed to unload legacy launchd service: $SERVER_LAUNCH_AGENT_FILE"
-    trace_run 15 "legacy-unload $CLIENT_LAUNCH_AGENT_FILE" maybe_sudo launchctl unload "$CLIENT_LAUNCH_AGENT_FILE" \
+    run_with_timeout 15 maybe_sudo launchctl unload "$CLIENT_LAUNCH_AGENT_FILE" >/dev/null 2>&1 \
         || warn_message "Failed to unload legacy launchd service: $CLIENT_LAUNCH_AGENT_FILE"
     remove_file "$SERVER_LAUNCH_AGENT_FILE"
     remove_file "$CLIENT_LAUNCH_AGENT_FILE"
@@ -165,7 +153,6 @@ create_launchd_plist_file() {
     if [[ "$name" != "$SERVER_NAME" ]]; then
         local real_user=$(get_real_user)
         local user_home=$(eval echo "~$real_user")
-        debug_message "client plist: injecting HOME for real_user='$real_user' -> '$user_home'"
         env_dict_extra="
         <key>HOME</key>
         <string>$user_home</string>"
