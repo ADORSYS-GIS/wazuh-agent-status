@@ -389,8 +389,13 @@ maybe_sudo_fn() {
 get_real_user() {
     debug_message_err "get_real_user: SUDO_USER='${SUDO_USER:-}' LOGNAME='${LOGNAME:-}' USER='${USER:-}' os='$(uname -s)'"
 
-    # If SUDO_USER is set, trust it
-    if [[ -n "${SUDO_USER:-}" ]]; then
+    # If SUDO_USER is set to a real (non-root) user, trust it. When the update
+    # chain runs 'sudo env VAR=... bash ...' as root (server -> adorsys-update.sh
+    # -> setup-agent.sh -> install.sh), sudo reports SUDO_USER=root, which tells
+    # us nothing about the actual GUI session user. Trusting it would point the
+    # macOS launchctl 'gui' load at the wrong session, so fall through to the
+    # console-user detection below in that case.
+    if [[ -n "${SUDO_USER:-}" ]] && [[ "$SUDO_USER" != "root" ]]; then
         debug_message_err "get_real_user: using SUDO_USER='$SUDO_USER'"
         echo "$SUDO_USER"
         return
@@ -601,6 +606,26 @@ manage_launch_service() {
         debug_message "manage_launch_service: loaded '$target' successfully"
         return 0
     fi
+
+    # The most common reason a GUI bootstrap fails during an update is that the
+    # service is ALREADY loaded (the tray app is running) but the probes above
+    # missed it — for example when running as root from the system/daemon
+    # context. 'launchctl bootstrap' then fails with "service already loaded".
+    # Boot the service out (best-effort) and retry the bootstrap once so the
+    # client is restarted from the freshly written plist with the new binary.
+    if [[ "$rc" -ne 124 ]] && [[ "$domain" == "gui" ]]; then
+        debug_message "manage_launch_service: bootstrap failed (rc=$rc); booting out '$target' and retrying once"
+        trace_run "$timeout_secs" "bootout-retry $target" maybe_sudo launchctl bootout "gui/$uid/$label" || true
+        local retry_rc=0
+        trace_run "$timeout_secs" "bootstrap-retry $target" maybe_sudo launchctl bootstrap "gui/$uid" "$plist" || retry_rc=$?
+        if [[ "$retry_rc" -eq 0 ]]; then
+            info_message "Service $label loaded successfully after reloading (target: $target)."
+            return 0
+        fi
+        rc="$retry_rc"
+        debug_message "manage_launch_service: bootstrap retry after bootout also failed (rc=$retry_rc)"
+    fi
+
     if [[ "$rc" -eq 124 ]]; then
         warn_message "Loading $label timed out after ${timeout_secs}s. Target: $target. You may need to log out and log back in to see the tray app."
     else
