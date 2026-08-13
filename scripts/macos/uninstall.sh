@@ -90,7 +90,7 @@ remove_launchd_service() {
     local filepath="$2"
     if [[ -f "$filepath" ]]; then
         info_message "Unloading and removing Launchd plist for $name..."
-        run_with_timeout 15 maybe_sudo launchctl unload "$filepath" \
+        trace_run 15 "unload $name ($filepath)" maybe_sudo launchctl unload "$filepath" \
             || warn_message "Failed to unload launchd service $name: $filepath"
         remove_file "$filepath"
     else

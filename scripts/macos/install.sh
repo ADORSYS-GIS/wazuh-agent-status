@@ -57,6 +57,18 @@ fi
 enforce_https_url "$WAZUH_AGENT_STATUS_REPO_URL" "WAZUH_AGENT_STATUS_REPO_URL"
 ensure_os "Darwin"
 
+# Deep debug logging for troubleshooting launchd/launchctl interactions.
+#   Terminal test:  export WAZUH_AGENT_STATUS_DEBUG=1
+#   UI/daemon test: sudo touch /tmp/wazuh-agent-status-debug   (survives the
+#                   'sudo env VAR=...' boundaries in the update chain)
+if is_debug; then
+    if [[ -n "${WAZUH_AGENT_STATUS_DEBUG:-}" ]]; then
+        info_message "[DEBUG] Deep debug logging ENABLED via WAZUH_AGENT_STATUS_DEBUG env var"
+    else
+        info_message "[DEBUG] Deep debug logging ENABLED via marker file ${WAZUH_AGENT_STATUS_DEBUG_FILE:-/tmp/wazuh-agent-status-debug}"
+    fi
+fi
+
 trap cleanup EXIT
 export CHECKSUMS_FILE="$CHECKSUMS_FILE"
 
@@ -125,9 +137,9 @@ cleanup_legacy_system() {
 
     # 1. macOS: Unload legacy launchd plists
     info_message "Unloading legacy macOS launchd services..."
-    run_with_timeout 15 maybe_sudo launchctl unload "$SERVER_LAUNCH_AGENT_FILE" \
+    trace_run 15 "legacy-unload $SERVER_LAUNCH_AGENT_FILE" maybe_sudo launchctl unload "$SERVER_LAUNCH_AGENT_FILE" \
         || warn_message "Failed to unload legacy launchd service: $SERVER_LAUNCH_AGENT_FILE"
-    run_with_timeout 15 maybe_sudo launchctl unload "$CLIENT_LAUNCH_AGENT_FILE" \
+    trace_run 15 "legacy-unload $CLIENT_LAUNCH_AGENT_FILE" maybe_sudo launchctl unload "$CLIENT_LAUNCH_AGENT_FILE" \
         || warn_message "Failed to unload legacy launchd service: $CLIENT_LAUNCH_AGENT_FILE"
     remove_file "$SERVER_LAUNCH_AGENT_FILE"
     remove_file "$CLIENT_LAUNCH_AGENT_FILE"
@@ -153,6 +165,7 @@ create_launchd_plist_file() {
     if [[ "$name" != "$SERVER_NAME" ]]; then
         local real_user=$(get_real_user)
         local user_home=$(eval echo "~$real_user")
+        debug_message "client plist: injecting HOME for real_user='$real_user' -> '$user_home'"
         env_dict_extra="
         <key>HOME</key>
         <string>$user_home</string>"

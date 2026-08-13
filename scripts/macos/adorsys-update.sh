@@ -55,6 +55,13 @@ fi
 enforce_https_url "$WAZUH_AGENT_STATUS_REPO_URL" "WAZUH_AGENT_STATUS_REPO_URL"
 ensure_os "Darwin"
 
+# Deep debug logging (same toggle as install.sh):
+#   Terminal test:  export WAZUH_AGENT_STATUS_DEBUG=1
+#   UI/daemon test: sudo touch /tmp/wazuh-agent-status-debug
+if is_debug; then
+    info_message "[DEBUG] Deep debug logging enabled for the update chain"
+fi
+
 trap cleanup EXIT
 
 # Environment Variables with Defaults
@@ -160,7 +167,7 @@ run_upgrade() {
 
     maybe_sudo chmod +x "$TMP_DIR/setup-agent.sh"
 
-    if ! sudo env WAZUH_MANAGER="$WAZUH_MANAGER" bash "$TMP_DIR/setup-agent.sh" >> "$LOG_FILE"; then
+    if ! sudo env WAZUH_MANAGER="$WAZUH_MANAGER" WAZUH_AGENT_STATUS_DEBUG="${WAZUH_AGENT_STATUS_DEBUG:-}" bash "$TMP_DIR/setup-agent.sh" >> "$LOG_FILE"; then
         error_message "Failed to setup wazuh agent"
         send_notification "Update failed: For more details go to file $LOG_FILE"
         exit 1
