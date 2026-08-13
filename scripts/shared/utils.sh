@@ -99,11 +99,14 @@ detect_architecture() {
     return 0
 }
 
-# Check if sudo is available or if the script is run as root
+# Check if sudo is available or if the script is run as root.
+# Propagates the wrapped command's exit code (previously swallowed as 0 when
+# running via sudo, which silently hid real failures).
 maybe_sudo() {
     if [[ "$(id -u)" -ne 0 ]]; then
         if command_exists sudo; then
             sudo "$@"
+            return $?
         else
             error_exit "This script requires root privileges. Please run with sudo or as root."
         fi
@@ -111,7 +114,6 @@ maybe_sudo() {
         "$@"
         return $?
     fi
-    return 0
 }
 
 remove_file() {
@@ -339,10 +341,17 @@ maybe_sudo_fn() {
     return 0
 }
 
-# Detect the real user who invoked the script (even via sudo)
+# Detect the real user who invoked the script (even via sudo).
+# NOTE: this function's stdout is its return value, so nothing else may write
+# to stdout inside it.
 get_real_user() {
-    # If SUDO_USER is set, trust it
-    if [[ -n "${SUDO_USER:-}" ]]; then
+    # If SUDO_USER is set to a real (non-root) user, trust it. When the update
+    # chain runs 'sudo env VAR=... bash ...' as root (server -> adorsys-update.sh
+    # -> setup-agent.sh -> install.sh), sudo reports SUDO_USER=root, which tells
+    # us nothing about the actual GUI session user. Trusting it would point the
+    # macOS launchctl 'gui' load at the wrong session, so fall through to the
+    # console-user detection below in that case.
+    if [[ -n "${SUDO_USER:-}" ]] && [[ "$SUDO_USER" != "root" ]]; then
         echo "$SUDO_USER"
         return
     fi
@@ -383,8 +392,122 @@ get_real_user() {
     fi
 
     # Last resort: current user (might be root)
-    id -un
+    local fallback
+    fallback=$(id -un 2>/dev/null || true)
+    [[ -n "$fallback" ]] || fallback="root"
+    echo "$fallback"
     return 0
+}
+
+# ── Timeout & launchd management ─────────────────────────────────────────────
+
+# Run a command with a hard timeout (pure bash; macOS ships no GNU 'timeout').
+# Returns the command's exit code, or 124 if the timeout was hit.
+# Usage: run_with_timeout <seconds> <command...>
+run_with_timeout() {
+    local timeout_secs="${1:?Usage: run_with_timeout <seconds> <command...>}"
+    shift
+    local pid
+    local watcher
+    local exit_code=0
+
+    # Run the command in its own process group so the timeout watcher can kill
+    # the whole tree (wrapper + sudo + launchctl), not just the wrapper.
+    set -m
+    "$@" &
+    pid=$!
+    set +m
+
+    (
+        sleep "$timeout_secs"
+        kill -TERM -- "-$pid" 2>/dev/null || true
+        sleep 1
+        kill -KILL -- "-$pid" 2>/dev/null || true
+    ) &
+    watcher=$!
+
+    wait "$pid" 2>/dev/null || exit_code=$?
+    kill "$watcher" 2>/dev/null || true
+    wait "$watcher" 2>/dev/null || true
+
+    # 143 (SIGTERM) / 137 (SIGKILL) mean our watcher terminated it → timeout.
+    if [[ "$exit_code" -eq 143 ]] || [[ "$exit_code" -eq 137 ]]; then
+        return 124
+    fi
+    return "$exit_code"
+}
+
+# Idempotently load a launchd service into the system or the logged-in user's
+# GUI domain. Centralises all launchctl interaction so every caller gets the
+# same timeout protection and clear error reporting. It never blocks
+# indefinitely: every launchctl call is wrapped in run_with_timeout and all
+# failures surface as explicit warnings instead of being silenced.
+# Usage: manage_launch_service <system|gui> <label> <plist>
+# Returns 0 on success, 1 on failure (after printing a warning).
+manage_launch_service() {
+    local domain="${1:?Usage: manage_launch_service <system|gui> <label> <plist>}"
+    local label="${2:?Usage: manage_launch_service <system|gui> <label> <plist>}"
+    local plist="${3:?Usage: manage_launch_service <system|gui> <label> <plist>}"
+    local timeout_secs=15
+    local target=""
+    local real_user=""
+    local uid=""
+    local loaded=false
+    local rc=0
+
+    if [[ "$domain" == "gui" ]]; then
+        real_user=$(get_real_user)
+        if [[ -z "$real_user" ]] || [[ "$real_user" == "root" ]] || [[ "$real_user" == "loginwindow" ]]; then
+            warn_message "Cannot load $label: no active GUI user found (console user: '${real_user:-none}'). The tray app will load after login."
+            return 1
+        fi
+        uid=$(id -u "$real_user" 2>/dev/null || true)
+        if [[ -z "$uid" ]]; then
+            warn_message "Cannot load $label: could not resolve UID for user '$real_user'."
+            return 1
+        fi
+        target="gui/$uid/$label"
+    else
+        target="system/$label"
+    fi
+
+    # Already loaded? Two probes for the gui domain to avoid false 'not loaded'
+    # verdicts when running from a daemon context.
+    if run_with_timeout "$timeout_secs" maybe_sudo launchctl print "$target" >/dev/null 2>&1; then
+        loaded=true
+    elif [[ "$domain" == "gui" ]] && run_with_timeout "$timeout_secs" sudo -u "$real_user" launchctl print "$target" >/dev/null 2>&1; then
+        loaded=true
+    fi
+
+    if [[ "$loaded" == "true" ]]; then
+        # Leave a running service alone during install/update — adorsys-update.sh
+        # restarts both services at the end of the update.
+        info_message "Service $label is already loaded ($target); leaving it running. adorsys-update.sh restarts services after an update."
+        return 0
+    fi
+
+    info_message "Loading $label into ${domain} session..."
+    # Note: '|| rc=$?' (not a bare 'rc=$?') so a failure can never trip 'set -e'
+    # and abort the whole script — failures must degrade to a warning instead.
+    if [[ "$domain" == "gui" ]]; then
+        run_with_timeout "$timeout_secs" maybe_sudo launchctl asuser "$uid" launchctl bootstrap "gui/$uid" "$plist" >/dev/null 2>&1 \
+            || run_with_timeout "$timeout_secs" sudo -u "$real_user" launchctl bootstrap "gui/$uid" "$plist" >/dev/null 2>&1 \
+            || rc=$?
+    else
+        run_with_timeout "$timeout_secs" maybe_sudo launchctl bootstrap "system" "$plist" >/dev/null 2>&1 \
+            || rc=$?
+    fi
+
+    if [[ "$rc" -eq 0 ]]; then
+        return 0
+    fi
+
+    if [[ "$rc" -eq 124 ]]; then
+        warn_message "Loading $label timed out after ${timeout_secs}s. Target: $target. You may need to log out and log back in to see the tray app."
+    else
+        warn_message "Loading $label failed (exit $rc). Target: $target. You may need to log out and log back in to see the tray app."
+    fi
+    return 1
 }
 
 # Grant passwordless sudo for wazuh-control and update scripts to the wazuh user

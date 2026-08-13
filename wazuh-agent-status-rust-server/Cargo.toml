@@ -22,5 +22,8 @@ openssl = { version = "0.10", features = ["vendored"] }
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-service = "0.7"
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 tempfile = "3.27.0"
