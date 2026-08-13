@@ -437,11 +437,11 @@ run_with_timeout() {
     return "$exit_code"
 }
 
-# Idempotently load (or kickstart) a launchd service into the system or the
-# logged-in user's GUI domain. Centralises all launchctl interaction so every
-# caller gets the same timeout protection and clear error reporting. It never
-# blocks indefinitely: every launchctl call is wrapped in run_with_timeout and
-# all failures surface as explicit warnings instead of being silenced.
+# Idempotently load a launchd service into the system or the logged-in user's
+# GUI domain. Centralises all launchctl interaction so every caller gets the
+# same timeout protection and clear error reporting. It never blocks
+# indefinitely: every launchctl call is wrapped in run_with_timeout and all
+# failures surface as explicit warnings instead of being silenced.
 # Usage: manage_launch_service <system|gui> <label> <plist>
 # Returns 0 on success, 1 on failure (after printing a warning).
 manage_launch_service() {
@@ -480,11 +480,9 @@ manage_launch_service() {
     fi
 
     if [[ "$loaded" == "true" ]]; then
-        info_message "Service $label is already loaded ($target), kickstarting..."
-        if ! run_with_timeout "$timeout_secs" maybe_sudo launchctl kickstart -k "$target" >/dev/null 2>&1; then
-            warn_message "Kickstarting $label failed. Run 'launchctl print $target' for details."
-            return 1
-        fi
+        # Leave a running service alone during install/update — adorsys-update.sh
+        # restarts both services at the end of the update.
+        info_message "Service $label is already loaded ($target); leaving it running. adorsys-update.sh restarts services after an update."
         return 0
     fi
 
@@ -502,23 +500,6 @@ manage_launch_service() {
 
     if [[ "$rc" -eq 0 ]]; then
         return 0
-    fi
-
-    # The most common reason a GUI bootstrap fails during an update is that the
-    # service is ALREADY loaded (the tray app is running) but the probes above
-    # missed it — for example when running as root from the system/daemon
-    # context. 'launchctl bootstrap' then fails with "service already loaded".
-    # Boot the service out (best-effort) and retry the bootstrap once so the
-    # client is restarted from the freshly written plist with the new binary.
-    if [[ "$rc" -ne 124 ]] && [[ "$domain" == "gui" ]]; then
-        run_with_timeout "$timeout_secs" maybe_sudo launchctl bootout "gui/$uid/$label" >/dev/null 2>&1 || true
-        local retry_rc=0
-        run_with_timeout "$timeout_secs" maybe_sudo launchctl bootstrap "gui/$uid" "$plist" >/dev/null 2>&1 || retry_rc=$?
-        if [[ "$retry_rc" -eq 0 ]]; then
-            info_message "Service $label loaded successfully after reloading (target: $target)."
-            return 0
-        fi
-        rc="$retry_rc"
     fi
 
     if [[ "$rc" -eq 124 ]]; then

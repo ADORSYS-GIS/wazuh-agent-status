@@ -483,6 +483,12 @@ impl AgentManager {
                     c
                 }
             };
+
+            // Run the update in its own process group so a timeout can kill
+            // the whole tree, not just the direct child.
+            #[cfg(unix)]
+            cmd.process_group(0);
+
             cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
             debug!(script = %script_path.display(), "Update command prepared");
@@ -621,6 +627,12 @@ impl AgentManager {
                                 seconds = UPDATE_TIMEOUT.as_secs(),
                                 "Update script exceeded hard timeout; killing and reaping"
                             );
+                            // Kill the whole process group (negative pid), so
+                            // subprocesses spawned by the update die too.
+                            #[cfg(unix)]
+                            if let Some(pid) = child.id() {
+                                let _ = unsafe { libc::kill(-(pid as i32), libc::SIGKILL) };
+                            }
                             let _ = child.kill().await;
                             // Reap the terminated child so it does not linger as a zombie.
                             let _ = child.wait().await;
