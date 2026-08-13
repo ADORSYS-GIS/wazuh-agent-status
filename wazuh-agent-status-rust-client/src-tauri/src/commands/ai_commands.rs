@@ -94,7 +94,7 @@ pub async fn trigger_sca_rescan() -> Result<String, String> {
     log::info!("Triggering SCA rescan via wazuh-agent restart");
 
     let cmd = if cfg!(target_os = "windows") {
-        "powershell -NoProfile -Command \"Restart-Service -Name WazuhSvc -Force\" && echo Wazuh agent restarted successfully. SCA rescan started."
+        "Restart-Service -Name WazuhSvc -Force; Write-Output 'Wazuh agent restarted successfully. SCA rescan started.'"
     } else if cfg!(target_os = "macos") {
         "/Library/Ossec/bin/wazuh-control restart && echo 'Wazuh agent restarted successfully. SCA rescan started.'"
     } else {
@@ -145,6 +145,8 @@ const ALLOWED_COMMANDS: &[&str] = &[
     "sleep",
     "true",
     "false",
+    "command",
+    "#",
     // Service management
     "systemctl",
     "service",
@@ -243,6 +245,7 @@ const ALLOWED_COMMANDS: &[&str] = &[
     "aureport",
     "ausearch",
     "auditctl",
+    "visudo",
     // Wazuh
     "wazuh-agent",
     "wazuh-control",
@@ -252,6 +255,9 @@ const ALLOWED_COMMANDS: &[&str] = &[
     "shutdown",
     "poweroff",
     "halt",
+    // macOS
+    "xprotect",
+    "pwpolicy",
     // PowerShell / Windows cmdlets
     "powershell",
     "powershell.exe",
@@ -317,11 +323,15 @@ const ALLOWED_COMMANDS: &[&str] = &[
     "secedit",
     "Where-Object",
     "Select-Object",
+    "Select-String",
     "ForEach-Object",
     "Write-Host",
     "Write-Output",
     "Write-Error",
     "New-Object",
+    "exit",
+    "$minAge",
+    "$duration",
     // Windows system tools via cmd
     "Reg",
     "reg",
@@ -336,10 +346,39 @@ const ALLOWED_COMMANDS: &[&str] = &[
 ];
 
 fn normalize_separators(s: &str) -> String {
-    s.replace(";", " ; ")
-        .replace("&&", " && ")
-        .replace("||", " || ")
-        .replace("|", " | ")
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut out = String::new();
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '\'' && !in_double {
+            in_single = !in_single;
+            out.push(c);
+        } else if c == '"' && !in_single {
+            in_double = !in_double;
+            out.push(c);
+        } else if !in_single && !in_double {
+            if c == ';' || c == '\n' {
+                out.push_str(" ; ");
+            } else if c == '&' && i + 1 < chars.len() && chars[i + 1] == '&' {
+                out.push_str(" && ");
+                i += 1;
+            } else if c == '|' && i + 1 < chars.len() && chars[i + 1] == '|' {
+                out.push_str(" || ");
+                i += 1;
+            } else if c == '|' {
+                out.push_str(" | ");
+            } else {
+                out.push(c);
+            }
+        } else {
+            out.push(c);
+        }
+        i += 1;
+    }
+    out
 }
 
 fn extract_base_commands(command: &str) -> Vec<String> {
@@ -350,7 +389,7 @@ fn extract_base_commands(command: &str) -> Vec<String> {
 
     for token in &tokens {
         if expect_command {
-            if *token == "sudo" {
+            if *token == "sudo" || *token == "!" {
                 continue;
             }
             if matches!(
@@ -400,10 +439,6 @@ fn validate_command(command: &str) -> Result<(), String> {
         return Err("Cannot execute an empty command".to_string());
     }
 
-    if trimmed.contains('\n') {
-        return Err("Multi-line commands are not allowed".to_string());
-    }
-
     if trimmed.contains("$(") {
         return Err("Command contains shell substitution which is not allowed".to_string());
     }
@@ -419,7 +454,10 @@ fn validate_command(command: &str) -> Result<(), String> {
 
     for cmd in &base_commands {
         if !ALLOWED_COMMANDS.contains(&cmd.as_str()) {
-            return Err(format!("'{}' is not in the allowed command list", cmd));
+            return Err(format!(
+                "Security Policy: '{}' is not in the allowed command list. If strictly necessary, please carefully review the command and follow the instructions to run it manually in your terminal.",
+                cmd
+            ));
         }
     }
 
