@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[e927335](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e927335b8e0d407b262e0e03dfba1eefd37740ea)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[a7a333f](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a7a333f74dba06232d96d37593411df7b5f6c018)
 
 ### Bug Fixes
 
@@ -98,6 +98,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`7579869`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/75798691c911c4f632b4bcb4718b8c34a42c858a))
 - Refactor README and add comprehensive feature documentation (#170) ([`cc6900f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cc6900f06a113146a1bdd04d05f36f626ee35bd2))
 - Update CHANGELOG.md and checksums [skip ci] ([`c03691d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c03691d31670daf55e9f826067730a28e6efd973))
+- Update CHANGELOG.md and checksums [skip ci] ([`a426333`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a4263339546831996632f734ce7d299ad2f95fd9))
 
 ### Features
 
@@ -116,6 +117,7 @@ All notable changes to this project will be documented in this file.
 - Implement responsive sidebar with static button styling ([`3fe2826`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3fe2826d44bc33e6a895541008890231b0f5affa))
 - Enforce HTTPS for repository URLs in scripts and components and resolve SonaQube warnings ([`47328cd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47328cd9d298f5d8f4522e74a547b22a2cfdc8f1)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Resolve macOS update UI freeze & update AI command allowlist (#175) ([`779c333`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/779c33310ba7e32525d970792d6462ab594c675a))
+- Enhance update notification mechanism for macOS and Windows scripts ([`a7a333f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a7a333f74dba06232d96d37593411df7b5f6c018)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ### Miscellaneous Tasks
 
