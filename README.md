@@ -33,7 +33,7 @@ The easiest way to install **Wazuh Agent Status** is via our automated installat
 Open your terminal and run:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-main/scripts/linux/install.sh | sudo bash
+curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/linux/install.sh | sudo bash
 ```
 
 ### macOS
@@ -41,7 +41,7 @@ curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-m
 Open your terminal and run:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-main/scripts/macos/install.sh | sudo bash
+curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/macos/install.sh | sudo bash
 ```
 
 ### Windows
@@ -49,7 +49,7 @@ curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-m
 Open **PowerShell as Administrator** and run:
 
 ```powershell
-Invoke-RestMethod -Uri "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-main/scripts/windows/install.ps1" | Invoke-Expression
+Invoke-RestMethod -Uri "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/windows/install.ps1" | Invoke-Expression
 ```
 
 *(Note: The Windows installation automatically configures the server as a Windows Service and sets the client to start automatically on login.)*
