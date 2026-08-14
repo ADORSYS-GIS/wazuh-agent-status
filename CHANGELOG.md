@@ -117,6 +117,7 @@ All notable changes to this project will be documented in this file.
 - Implement responsive sidebar with static button styling ([`3fe2826`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3fe2826d44bc33e6a895541008890231b0f5affa))
 - Enforce HTTPS for repository URLs in scripts and components and resolve SonaQube warnings ([`47328cd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47328cd9d298f5d8f4522e74a547b22a2cfdc8f1)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Resolve macOS update UI freeze & update AI command allowlist (#175) ([`779c333`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/779c33310ba7e32525d970792d6462ab594c675a))
+- Enhance update notification mechanism for macOS and Windows scripts ([`a7a333f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a7a333f74dba06232d96d37593411df7b5f6c018)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ### Miscellaneous Tasks
 

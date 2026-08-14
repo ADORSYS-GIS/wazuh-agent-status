@@ -126,6 +126,20 @@ function Remove-TempFile {
     }
 }
 
+function Show-UpdatePopup {
+    param([string]$Message)
+    try {
+        # The update chain runs elevated (often in session 0 as a service child),
+        # so an in-process MessageBox would be invisible to the logged-in user.
+        # msg.exe broadcasts the popup to the interactive session instead.
+        # Fire-and-forget so the update stream is not blocked waiting for a click.
+        Start-Process -FilePath "msg.exe" -ArgumentList @("*", $Message) -WindowStyle Hidden -ErrorAction Stop
+        InfoMessage "Popup shown: $Message"
+    } catch {
+        WarnMessage "Could not show popup: $($_.Exception.Message)"
+    }
+}
+
 function Get-PrereleaseVersion {
     try {
         InfoMessage "Fetching prerelease version from: $VERSION_URL"
@@ -209,6 +223,7 @@ function Run-Update {
     }
 
     SuccessMessage "Update completed successfully! Please save your work and reboot to finish the update."
+    Show-UpdatePopup "Update completed successfully! Please save your work and reboot to finish the update."
 }
 
 # ---- Main Execution ----
