@@ -332,6 +332,7 @@ jobs:
         shell: bash
         run: |
           cd ${{ env.CLIENT_DIR }}
+
           npm ci
           npm run tauri build
           cp src-tauri/target/release/wazuh-agent-status.exe ../dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe

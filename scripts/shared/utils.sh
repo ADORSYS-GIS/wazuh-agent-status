@@ -597,3 +597,4 @@ setup_permissions_and_ownership() {
     setup_sudoers "${wazuh_user}" "${wazuh_control_path}"
     return 0
 }
+
