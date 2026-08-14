@@ -9,7 +9,7 @@ else
     set -eu
 fi
 
-readonly WAZUH_AGENT_STATUS_REPO_REF="user-main"
+readonly WAZUH_AGENT_STATUS_REPO_REF="main"
 readonly WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 readonly WAZUH_AGENT_REPO_REF="${WAZUH_AGENT_REPO_REF:-main}"
 readonly AWK_PRINT_FIRST_COL='{print $1}'

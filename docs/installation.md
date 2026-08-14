@@ -21,7 +21,7 @@ The easiest way to install the application is via our automated installation scr
 Open your terminal and run the following command:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-main/scripts/linux/install.sh | sudo bash
+curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/linux/install.sh | sudo bash
 ```
 
 > **ℹ️ Note**
@@ -33,7 +33,7 @@ curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-m
 Open your terminal and run the following command:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-main/scripts/macos/install.sh | sudo bash
+curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/macos/install.sh | sudo bash
 ```
 
 > **ℹ️ Note**
@@ -45,7 +45,7 @@ curl -sL https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-m
 Open **PowerShell as Administrator** and run the following command:
 
 ```powershell
-Invoke-RestMethod -Uri "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/user-main/scripts/windows/install.ps1" | Invoke-Expression
+Invoke-RestMethod -Uri "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/windows/install.ps1" | Invoke-Expression
 ```
 
 > **⚠️ Important**
