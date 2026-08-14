@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[98410ef](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/98410ef3139ee51c54eb98d0c77341ae5bb80351)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[7b3a224](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7b3a22409ed8bc4f400a6609a890596b917e058d)
 
 ### Bug Fixes
 
@@ -99,7 +99,6 @@ All notable changes to this project will be documented in this file.
 - Refactor README and add comprehensive feature documentation (#170) ([`cc6900f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cc6900f06a113146a1bdd04d05f36f626ee35bd2))
 - Update CHANGELOG.md and checksums [skip ci] ([`c03691d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c03691d31670daf55e9f826067730a28e6efd973))
 - Update CHANGELOG.md and checksums [skip ci] ([`a426333`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a4263339546831996632f734ce7d299ad2f95fd9))
-- Update CHANGELOG.md and checksums [skip ci] ([`707bab9`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/707bab9de1102e5a25ffa0e60d246172d7834e64))
 - Update CHANGELOG.md and checksums [skip ci] ([`3ae4a32`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3ae4a32174e6c3154875bafecfb9e113b5dabcff))
 
 ### Features
@@ -120,6 +119,7 @@ All notable changes to this project will be documented in this file.
 - Enforce HTTPS for repository URLs in scripts and components and resolve SonaQube warnings ([`47328cd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47328cd9d298f5d8f4522e74a547b22a2cfdc8f1)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Resolve macOS update UI freeze & update AI command allowlist (#175) ([`779c333`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/779c33310ba7e32525d970792d6462ab594c675a))
 - Enhance update notification mechanism for macOS and Windows scripts ([`a7a333f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a7a333f74dba06232d96d37593411df7b5f6c018)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Resolve macOS update UI freeze & update AI command allowlist (#… (#179) ([`ce2576b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce2576b5630b6386bce9f34b131017806d5345d2)), Co-authored-by:GitHub Action <action@github.com>
 
 ### Miscellaneous Tasks
 
@@ -144,7 +144,7 @@ All notable changes to this project will be documented in this file.
 - Bump application version to 0.5.1-rc.1 ([`73835ab`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/73835abb0e3269fd6b10a30636952e638ba94dd3))
 - Restrict release workflow trigger to specific project paths ([`6046d55`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6046d550d5e12a73c90bfb9f45d03c2e702eadb8))
 - Reverted app version to 0.5.1 ([`f02e784`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d))
-- Bump APP_VERSION to 0.5.2 across scripts ([`509b774`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/509b77436ec1c96599f9af3df7906ae774398e00))
+- Bump APP_VERSION to 0.5.2 across scripts (#183) ([`8b16812`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8b16812c74ac6661c2ce8753d1f15d5890a54c63)), Co-authored-by:GitHub Action <action@github.com>
 
 ### Performance
 
