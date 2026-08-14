@@ -108,7 +108,20 @@ send_notification() {
     local message="$1"
     local title="Wazuh Update"
 
-    osascript -e "display dialog \"$message\" buttons {\"Dismiss\"} default button \"Dismiss\" with title \"$title\" $ICON_ARG"
+    # The update chain runs as root, so run osascript as the logged-in GUI user
+    # for the dialog to actually show on screen (mirrors the Linux notify-send
+    # pattern). Falls back to plain osascript when running as the user directly.
+    local real_user
+    real_user=$(get_real_user)
+
+    if [[ "$(id -u)" -eq 0 ]] && [[ -n "$real_user" ]] && [[ "$real_user" != "root" ]]; then
+        sudo -u "$real_user" osascript -e "display dialog \"$message\" buttons {\"Dismiss\"} default button \"Dismiss\" with title \"$title\" $ICON_ARG" >/dev/null 2>&1 \
+            || warn_message "Could not display notification dialog to $real_user."
+    else
+        osascript -e "display dialog \"$message\" buttons {\"Dismiss\"} default button \"Dismiss\" with title \"$title\" $ICON_ARG" >/dev/null 2>&1 \
+            || warn_message "Could not display notification dialog."
+    fi
+
     info_message "Notification sent: $message"
     return 0
 }
@@ -167,7 +180,7 @@ run_upgrade() {
     fi
 
     # Update successful. No service restart is done here — the new binaries are
-    # already in place and take effect on the next reboot, matching the
+    # already in place and take effect on the next reboot.
     send_notification "Update completed successfully! Please save your work and reboot your device to complete the update."
 
     log "INFO" "Wazuh agent update completed successfully."
