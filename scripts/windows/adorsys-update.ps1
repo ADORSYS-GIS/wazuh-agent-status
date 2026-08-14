@@ -39,8 +39,8 @@ if (-not $IsAdmin) {
 
 # Configuration
 
-$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.1" }
-$REPO_REF = if ($env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "user-main" }
+$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.2" }
+$REPO_REF = if ($env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "main" }
 $REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$REPO_REF"
 $AGENT_REPO_REF = if ($env:WAZUH_AGENT_REPO_REF) { $env:WAZUH_AGENT_REPO_REF } else { "main" }
 $TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
@@ -123,6 +123,20 @@ function Remove-TempFile {
     param([string]$Path)
     if (Test-Path $Path) {
         Remove-Item $Path -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Show-UpdatePopup {
+    param([string]$Message)
+    try {
+        # The update chain runs elevated (often in session 0 as a service child),
+        # so an in-process MessageBox would be invisible to the logged-in user.
+        # msg.exe broadcasts the popup to the interactive session instead.
+        # Fire-and-forget so the update stream is not blocked waiting for a click.
+        Start-Process -FilePath "msg.exe" -ArgumentList @("*", $Message) -WindowStyle Hidden -ErrorAction Stop
+        InfoMessage "Popup shown: $Message"
+    } catch {
+        WarnMessage "Could not show popup: $($_.Exception.Message)"
     }
 }
 
@@ -209,6 +223,7 @@ function Run-Update {
     }
 
     SuccessMessage "Update completed successfully! Please save your work and reboot to finish the update."
+    Show-UpdatePopup "Update completed successfully! Please save your work and reboot to finish the update."
 }
 
 # ---- Main Execution ----

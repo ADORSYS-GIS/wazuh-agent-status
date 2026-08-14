@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - user-main # temporal: for checksum update and changelog generation
     paths:
       - 'scripts/**'
   workflow_dispatch:

@@ -9,7 +9,7 @@ else
     set -eu
 fi
 
-readonly WAZUH_AGENT_STATUS_REPO_REF="user-main"
+readonly WAZUH_AGENT_STATUS_REPO_REF="main"
 readonly WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 readonly WAZUH_AGENT_REPO_REF="${WAZUH_AGENT_REPO_REF:-main}"
 
@@ -108,7 +108,20 @@ send_notification() {
     local message="$1"
     local title="Wazuh Update"
 
-    osascript -e "display dialog \"$message\" buttons {\"Dismiss\"} default button \"Dismiss\" with title \"$title\" $ICON_ARG"
+    # The update chain runs as root, so run osascript as the logged-in GUI user
+    # for the dialog to actually show on screen (mirrors the Linux notify-send
+    # pattern). Falls back to plain osascript when running as the user directly.
+    local real_user
+    real_user=$(get_real_user)
+
+    if [[ "$(id -u)" -eq 0 ]] && [[ -n "$real_user" ]] && [[ "$real_user" != "root" ]]; then
+        sudo -u "$real_user" osascript -e "display dialog \"$message\" buttons {\"Dismiss\"} default button \"Dismiss\" with title \"$title\" $ICON_ARG" >/dev/null 2>&1 \
+            || warn_message "Could not display notification dialog to $real_user."
+    else
+        osascript -e "display dialog \"$message\" buttons {\"Dismiss\"} default button \"Dismiss\" with title \"$title\" $ICON_ARG" >/dev/null 2>&1 \
+            || warn_message "Could not display notification dialog."
+    fi
+
     info_message "Notification sent: $message"
     return 0
 }
@@ -166,16 +179,9 @@ run_upgrade() {
         exit 1
     fi
 
-    # Update successful, silently restart services
-    info_message "Restarting services for the new version..."
-    
-    # Restart the server daemon (runs as root/system)
-    sudo launchctl kickstart -k system/com.adorsys.wazuh-agent-status >/dev/null 2>&1 || true
-    
-    # Restart the client UI (runs in user GUI session)
-    local real_user=$(get_real_user)
-    local uid=$(id -u "$real_user")
-    sudo -u "$real_user" launchctl kickstart -k "gui/$uid/com.adorsys.wazuh-agent-status-client" >/dev/null 2>&1 || true
+    # Update successful. No service restart is done here — the new binaries are
+    # already in place and take effect on the next reboot.
+    send_notification "Update completed successfully! Please save your work and reboot your device to complete the update."
 
     log "INFO" "Wazuh agent update completed successfully."
     return 0

@@ -8,7 +8,7 @@ else
 fi
 
 # Common configuration
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Bootstrap: validate URL before downloading utils.sh
@@ -90,7 +90,8 @@ remove_launchd_service() {
     local filepath="$2"
     if [[ -f "$filepath" ]]; then
         info_message "Unloading and removing Launchd plist for $name..."
-        maybe_sudo launchctl unload "$filepath" 2>/dev/null || true
+        run_with_timeout 15 maybe_sudo launchctl unload "$filepath" >/dev/null 2>&1 \
+            || warn_message "Failed to unload launchd service $name: $filepath"
         remove_file "$filepath"
     else
         warn_message "Launchd service for $name not found. Skipping."

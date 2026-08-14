@@ -7,12 +7,12 @@ else
     set -eu
 fi
 
-APP_VERSION=${APP_VERSION:-"0.5.1"}
+APP_VERSION=${APP_VERSION:-"0.5.2"}
 
 # Common configuration
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
 CLIENT_NAME=${CLIENT_NAME:-"wazuh-agent-status-client"}
-WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"user-main"}
+WAZUH_AGENT_STATUS_REPO_REF=${WAZUH_AGENT_STATUS_REPO_REF:-"main"}
 WAZUH_AGENT_STATUS_REPO_URL="https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$WAZUH_AGENT_STATUS_REPO_REF"
 
 # Bootstrap: validate URL before downloading utils.sh
@@ -125,8 +125,10 @@ cleanup_legacy_system() {
 
     # 1. macOS: Unload legacy launchd plists
     info_message "Unloading legacy macOS launchd services..."
-    maybe_sudo launchctl unload "$SERVER_LAUNCH_AGENT_FILE" 2>/dev/null || true
-    maybe_sudo launchctl unload "$CLIENT_LAUNCH_AGENT_FILE" 2>/dev/null || true
+    run_with_timeout 15 maybe_sudo launchctl unload "$SERVER_LAUNCH_AGENT_FILE" >/dev/null 2>&1 \
+        || warn_message "Failed to unload legacy launchd service: $SERVER_LAUNCH_AGENT_FILE"
+    run_with_timeout 15 maybe_sudo launchctl unload "$CLIENT_LAUNCH_AGENT_FILE" >/dev/null 2>&1 \
+        || warn_message "Failed to unload legacy launchd service: $CLIENT_LAUNCH_AGENT_FILE"
     remove_file "$SERVER_LAUNCH_AGENT_FILE"
     remove_file "$CLIENT_LAUNCH_AGENT_FILE"
 
@@ -181,39 +183,13 @@ create_launchd_plist_file() {
 "
 
     local label="com.adorsys.$name"
+    # Loading the service is non-fatal: a failure is already reported by the
+    # helper as a warning, and the service will load at next login/reboot.
+    # The '|| true' also keeps 'set -e' from aborting the install on failure.
     if [[ "$name" == "$SERVER_NAME" ]]; then
-        local target="system/$label"
-        if maybe_sudo launchctl print "$target" >/dev/null 2>&1; then
-            if pgrep -f "adorsys-update.sh" >/dev/null 2>&1 || pgrep -f "setup-agent.sh" >/dev/null 2>&1; then
-                info_message "Service $label is already loaded. Update script detected. Deferring restart..."
-            else
-                info_message "Service $label is already loaded, kickstarting..."
-                maybe_sudo launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting server failed: $label"
-            fi
-        else
-            info_message "Loading new daemon plist file..."
-            maybe_sudo launchctl bootstrap system "$filepath" 2>/dev/null || warn_message "Loading server plist file failed: $filepath"
-        fi
+        manage_launch_service "system" "$label" "$filepath" || true
     else
-        local real_user=$(get_real_user)
-        local uid
-        uid=$(id -u "$real_user")
-        local target="gui/$uid/$label"
-
-        if sudo -u "$real_user" launchctl print "$target" >/dev/null 2>&1; then
-            if pgrep -f "adorsys-update.sh" >/dev/null 2>&1 || pgrep -f "setup-agent.sh" >/dev/null 2>&1; then
-                info_message "Service $label is already loaded. Update script detected. Deferring restart..."
-            else
-                info_message "Service $label is already loaded, kickstarting..."
-                sudo -u "$real_user" launchctl kickstart -k "$target" 2>/dev/null || warn_message "Kickstarting client failed: $label"
-            fi
-        else
-            info_message "Loading $name into user GUI session ($real_user)..."
-            # Use 'asuser' to ensure it's loaded in the correct GUI context
-            sudo launchctl asuser "$uid" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || \
-            sudo -u "$real_user" launchctl bootstrap "gui/$uid" "$filepath" 2>/dev/null || \
-            warn_message "Loading $name failed. You may need to log out and log back in to see the tray app."
-        fi
+        manage_launch_service "gui" "$label" "$filepath" || true
     fi
 
     info_message "macOS Launchd plist file created and managed: $filepath"

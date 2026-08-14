@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::{RwLock, broadcast};
 use tokio::time;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::config::{AgentPaths, Config};
 use crate::models::{AgentState, ComponentUpdate, LogLine, UpdateStatus, VersionInfo};
@@ -35,6 +35,13 @@ async fn append_update_log(path: &std::path::Path, line: &str) {
         let _ = file.write_all(format!("{}\n", line).as_bytes()).await;
     }
 }
+
+// ── Update execution ─────────────────────────────────────────────────────────
+
+/// Hard cap on how long an update script may run before it is considered stuck
+/// and terminated. The scripts also self-guard with internal timeouts; this is
+/// the last line of defence so a hung script can never wedge the UI forever.
+const UPDATE_TIMEOUT: Duration = Duration::from_secs(600);
 
 // ── Version cache ─────────────────────────────────────────────────────────────
 
@@ -476,11 +483,19 @@ impl AgentManager {
                     c
                 }
             };
+
+            // Run the update in its own process group so a timeout can kill
+            // the whole tree, not just the direct child.
+            #[cfg(unix)]
+            cmd.process_group(0);
+
             cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
+            debug!(script = %script_path.display(), "Update command prepared");
             info!("Spawning update command");
             match cmd.spawn() {
                 Ok(mut child) => {
+                    debug!(pid = child.id(), "Update script spawned");
                     info!("Update command spawned successfully");
                     let stdout = child.stdout.take().unwrap();
                     let stderr = child.stderr.take().unwrap();
@@ -566,8 +581,8 @@ impl AgentManager {
                         });
                     }
 
-                    match child.wait().await {
-                        Ok(status) if status.success() => {
+                    match tokio::time::timeout(UPDATE_TIMEOUT, child.wait()).await {
+                        Ok(Ok(status)) if status.success() => {
                             let _ = kill_tx.send(());
                             info!(exit_code = ?status.code(), "Update script completed successfully");
                             append_update_log(
@@ -583,7 +598,7 @@ impl AgentManager {
                                 )
                                 .await;
                         }
-                        Ok(status) => {
+                        Ok(Ok(status)) => {
                             let _ = kill_tx.send(());
                             warn!(exit_code = ?status.code(), "Update script failed");
                             append_update_log(
@@ -596,7 +611,7 @@ impl AgentManager {
                             .await;
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Update script exited with code: {:?}", status.code())).await;
                         }
-                        Err(e) => {
+                        Ok(Err(e)) => {
                             let _ = kill_tx.send(());
                             warn!(error = %e, "Failed to wait for update script");
                             append_update_log(
@@ -605,6 +620,40 @@ impl AgentManager {
                             )
                             .await;
                             let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to wait for update script: {e}")).await;
+                        }
+                        Err(_) => {
+                            let _ = kill_tx.send(());
+                            debug!(
+                                seconds = UPDATE_TIMEOUT.as_secs(),
+                                "Update script exceeded hard timeout; killing and reaping"
+                            );
+                            // Kill the whole process group (negative pid), so
+                            // subprocesses spawned by the update die too.
+                            #[cfg(unix)]
+                            if let Some(pid) = child.id() {
+                                let _ = unsafe { libc::kill(-(pid as i32), libc::SIGKILL) };
+                            }
+                            let _ = child.kill().await;
+                            // Reap the terminated child so it does not linger as a zombie.
+                            let _ = child.wait().await;
+                            warn!(
+                                seconds = UPDATE_TIMEOUT.as_secs(),
+                                "Update script timed out; terminated"
+                            );
+                            append_update_log(
+                                &windows_response_log,
+                                &format!(
+                                    "[FAILURE] Update script timed out after {}s and was terminated",
+                                    UPDATE_TIMEOUT.as_secs()
+                                ),
+                            )
+                            .await;
+                            let _ = tx
+                                .send(format!(
+                                    "UPDATE_PROGRESS: [FAILURE] Update script timed out after {}s and was terminated",
+                                    UPDATE_TIMEOUT.as_secs()
+                                ))
+                                .await;
                         }
                     }
                 }
