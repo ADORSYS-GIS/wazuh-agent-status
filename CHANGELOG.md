@@ -49,7 +49,6 @@ All notable changes to this project will be documented in this file.
 * chore: remove temporary push trigger for checksum update, Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 * docs: update CHANGELOG.md and checksums [skip ci]
-
 ---------, Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>, Co-authored-by:GitHub Action <action@github.com>
 - Update repository reference from 'user-main' to 'main' in installation scripts ([`e927335`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e927335b8e0d407b262e0e03dfba1eefd37740ea)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
@@ -70,8 +69,6 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`105b3bb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/105b3bbe70e1c1e7541fe855d9ea5f111a813107))
 - Update CHANGELOG.md and checksums [skip ci] ([`4fe2a33`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4fe2a33160b01dee2c7294b7294f4a1431c6b576))
 - Update CHANGELOG.md and checksums [skip ci] ([`b17b36a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b17b36aeefd96534714635277b779170d6142467))
-- Update CHANGELOG.md and checksums [skip ci] ([`6cc5591`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6cc55918b5b2417f2fffd55443ec158ac47dac05))
-- Update CHANGELOG.md and checksums [skip ci] ([`7485401`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/748540184b99516058095893f221f12d2b0cbf6d))
 - Update CHANGELOG.md and checksums [skip ci] ([`f783e1e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f783e1e748b524a5209dd25950caaa6f6c6c261d)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Update CHANGELOG.md and checksums [skip ci] ([`95b4fd5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/95b4fd5bc1ff9790e0b4668b9b95a5d289673723))
 - Update CHANGELOG.md and checksums [skip ci] ([`5a924d7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5a924d70486cd8f5c41696b817247acb91f56505))
@@ -145,6 +142,7 @@ All notable changes to this project will be documented in this file.
 - Restrict release workflow trigger to specific project paths ([`6046d55`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6046d550d5e12a73c90bfb9f45d03c2e702eadb8))
 - Reverted app version to 0.5.1 ([`f02e784`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d))
 - Bump APP_VERSION to 0.5.2 across scripts ([`509b774`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/509b77436ec1c96599f9af3df7906ae774398e00))
+
 
 ### Performance
 
