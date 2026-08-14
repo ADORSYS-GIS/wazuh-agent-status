@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[7b3a224](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7b3a22409ed8bc4f400a6609a890596b917e058d)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[091c18b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/091c18b97feecbe40be292ef36272e0083aa2d56)
 
 ### Bug Fixes
 
@@ -145,6 +145,49 @@ All notable changes to this project will be documented in this file.
 - Restrict release workflow trigger to specific project paths ([`6046d55`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6046d550d5e12a73c90bfb9f45d03c2e702eadb8))
 - Reverted app version to 0.5.1 ([`f02e784`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f02e784342949c9030ebd33903452ebc4ed1507d))
 - Bump APP_VERSION to 0.5.2 across scripts (#183) ([`8b16812`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8b16812c74ac6661c2ce8753d1f15d5890a54c63)), Co-authored-by:GitHub Action <action@github.com>
+- Sync user-main with main and resolve conflicts (#186) ([`6a7b731`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6a7b731fd9a2ebe3d912807547a696e5080addc0)), Co-authored-by:GitHub Action <action@github.com>
+
+* Release branch (#180)
+
+* feat: Resolve macOS update UI freeze & update AI command allowlist (#175)
+
+* fix: resolve macOS update UI freeze by backgrounding launchctl kickstart
+
+* Revert "fix: resolve macOS update UI freeze by backgrounding launchctl kickstart"
+
+This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
+
+* feat: implement silent restart at end of macOS auto-update flow
+
+* feat(security): update ai command allowlist for audit checks
+
+* style: fix spacing formatting for shell operator checks in ai_commands.rs
+
+* feat: add xprotect and pwpolicy to the restricted commands list for macOS
+
+* fix: improve security policy error message for unauthorized commands
+
+* refactor: allow multi-line commands, update Windows shell sanitization, and expand the restricted command whitelist
+
+* refactor: reformat error message string in ai_commands for better readability
+
+* ci: remove path filters from release workflow trigger
+
+* chore: add trailing newline
+
+* chore: update checksums.sha256 for release scripts
+
+* chore: restrict release workflow triggers to specific paths and fix directory navigation error during build
+
+* fix: remove incorrect commit hash from Tauri build directory path in release workflow
+
+* docs: update CHANGELOG.md and checksums [skip ci]
+
+---------, Co-authored-by:GitHub Action <action@github.com>
+
+* docs: update CHANGELOG.md and checksums [skip ci]
+
+---------, Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>, Co-authored-by:louise mbiti kongnyu <louisembiti@gmail.com>, Co-authored-by:GitHub Action <action@github.com>
 
 ### Performance
 
