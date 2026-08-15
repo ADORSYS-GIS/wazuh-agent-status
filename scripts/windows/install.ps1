@@ -8,6 +8,7 @@ $APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.2" }
 $WAZUH_MANAGER = if ($env:WAZUH_MANAGER) { $env:WAZUH_MANAGER } else { "wazuh.example.com" }
 $SERVER_NAME = if ($env:SERVER_NAME) { $env:SERVER_NAME } else { "wazuh-agent-status" }
 $CLIENT_NAME = if ($env:CLIENT_NAME) { $env:CLIENT_NAME } else { "wazuh-agent-status-client" }
+$UPDATE_MODE = $env:WAZUH_AGENT_STATUS_UPDATE -eq "1"
 $REPO_REF = if ($env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "main" }
 $REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$REPO_REF"
 $TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
@@ -115,6 +116,13 @@ function Create-Service {
     $ServiceExists = Get-CimInstance -ClassName Win32_Service -Filter "Name='$ServiceName'" -ErrorAction SilentlyContinue
 
     if ($ServiceExists) {
+        if ($UPDATE_MODE) {
+            # The update runs inside the $SERVER_NAME service, so stopping it
+            # would kill the update itself. Leave it running; the new binary is
+            # already on disk and loads after reboot.
+            InfoMessage "Service $ServiceName is running this update; leaving it as-is (new binary loads after reboot)."
+            return
+        }
         InfoMessage "Service $ServiceName already exists. Updating..."
         Stop-Service -Name $ServiceName -Force
         sc.exe delete $ServiceName
@@ -192,7 +200,9 @@ function Create-StartMenuShortcut {
 
 PrintStep 1 "Checking migration status and stopping existing processes..."
 
-if (Test-Path -LiteralPath $MIGRATION_MARKER) {
+if ($UPDATE_MODE) {
+    InfoMessage "Update in progress: leaving running service and client processes untouched (new binaries load after reboot)."
+} elseif (Test-Path -LiteralPath $MIGRATION_MARKER) {
     InfoMessage "System already migrated from Go. Skipping legacy cleanup."
 } else {
     InfoMessage "System not migrated from Go yet. Ensuring all running instances are stopped before downloading new binaries..."

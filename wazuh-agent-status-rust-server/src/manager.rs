@@ -485,6 +485,9 @@ impl AgentManager {
                 if prerelease_tag.is_none() {
                     c.arg("-Update");
                 }
+                // Mark the chain as an update so agent-status install.ps1 leaves
+                // the running server service (the one executing this update) alone.
+                c.env("WAZUH_AGENT_STATUS_UPDATE", "1");
                 // Set the tag so the setup script downloads components from the correct release
                 if let Some(ref tag) = prerelease_tag {
                     c.env("WAZUH_AGENT_REPO_REF", tag);
