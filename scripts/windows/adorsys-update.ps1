@@ -57,7 +57,7 @@ EnsureAdmin
 
 # Cleanup bootstrap files on exit
 Register-EngineEvent -SourceIdentifier ([System.Guid]::NewGuid().ToString()) -Action {
-    Remove-Item -Path $TMP_DIR -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $TMP -Recurse -Force -ErrorAction SilentlyContinue
 } | Out-Null
 
 # ---- Configuration Variables ----
@@ -150,11 +150,11 @@ function Get-PrereleaseVersion {
             InfoMessage "Successfully fetched prerelease version: $version"
             return $version
         } else {
-            WarningMessage "No prerelease version found in response."
+            WarnMessage "No prerelease version found in response."
             return $null
         }
     } catch {
-        WarningMessage "Failed to fetch prerelease version: $($_.Exception.Message)"
+        WarnMessage "Failed to fetch prerelease version: $($_.Exception.Message)"
         return $null
     }
 }
@@ -211,8 +211,12 @@ if ($Prerelease) {
     $PRERELEASE_VERSION = Get-PrereleaseVersion
     if ($PRERELEASE_VERSION) {
         InfoMessage "PRERELEASE UPGRADE MODE: Installing prerelease version $PRERELEASE_VERSION"
+        $PRERELEASE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v$PRERELEASE_VERSION/scripts/windows/setup-agent.ps1"
+        # Point setup-agent.ps1 at the same tag so it downloads its components
+        # and version.txt from the prerelease release.
+        $env:WAZUH_AGENT_REPO_REF = "refs/tags/v$PRERELEASE_VERSION"
     } else {
-        WarningMessage "Failed to fetch prerelease version. Exiting."
+        WarnMessage "Failed to fetch prerelease version. Exiting."
         exit 1
     }
 } else {
