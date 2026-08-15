@@ -36,7 +36,6 @@ async fn append_update_log(path: &std::path::Path, line: &str) {
     }
 }
 
-
 /// Read the configured Wazuh manager address from ossec.conf so update scripts
 /// reinstall the agent against the same manager instead of the wazuh.example.com
 /// default. Matches the simple `<address>` extraction the install scripts use.
