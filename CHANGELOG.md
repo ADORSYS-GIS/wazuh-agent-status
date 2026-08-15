@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[c4fc0f3](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c4fc0f3b1a576c93197326a95ee14214374d47ed)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[1179fa3](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1179fa3b454a4eadda6247277a7bb2988cae2393)
 
 ### Bug Fixes
 
@@ -54,6 +54,7 @@ All notable changes to this project will be documented in this file.
 - Update repository reference from 'user-main' to 'main' in installation scripts ([`e927335`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e927335b8e0d407b262e0e03dfba1eefd37740ea)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Unblock Windows dashboard update ([`ec7e6fa`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ec7e6fac441895497f79004c18040a7c6a0604b2)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Correct variable name for temporary directory and update warning messages ([`c4fc0f3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c4fc0f3b1a576c93197326a95ee14214374d47ed)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Remove unnecessary blank line in append_update_log function ([`0b85550`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0b85550606575276145abf06d01073e5c1eea7f3)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 
 ### Documentation
 
@@ -104,6 +105,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`3ae4a32`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3ae4a32174e6c3154875bafecfb9e113b5dabcff))
 - Update CHANGELOG.md and checksums [skip ci] ([`5c51524`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5152419928c636a5089538fb08b667a6e82e01))
 - Update CHANGELOG.md and checksums [skip ci] ([`99ef946`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/99ef94667c61143c22df0ca588f2543e703dac58))
+- Update CHANGELOG.md and checksums [skip ci] ([`c09f0c6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c09f0c6c551df214612d198acf412244195c309f))
 
 ### Features
 
