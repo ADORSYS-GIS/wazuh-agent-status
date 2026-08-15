@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[091c18b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/091c18b97feecbe40be292ef36272e0083aa2d56)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[a22a936](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a22a936aea455c1868852dab07273714b542c482)
 
 ### Bug Fixes
 
@@ -117,8 +117,6 @@ All notable changes to this project will be documented in this file.
 - Add matrix-based cross-compilation support for Linux, MacOS, and Windows in release workflow ([`895472c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/895472c0e73f229cfb4405afc12730d67f081fa0))
 - Implement responsive sidebar with static button styling ([`3fe2826`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3fe2826d44bc33e6a895541008890231b0f5affa))
 - Enforce HTTPS for repository URLs in scripts and components and resolve SonaQube warnings ([`47328cd`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/47328cd9d298f5d8f4522e74a547b22a2cfdc8f1)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
-- Resolve macOS update UI freeze & update AI command allowlist (#175) ([`779c333`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/779c33310ba7e32525d970792d6462ab594c675a))
-- Enhance update notification mechanism for macOS and Windows scripts ([`a7a333f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a7a333f74dba06232d96d37593411df7b5f6c018)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Resolve macOS update UI freeze & update AI command allowlist (#… (#179) ([`ce2576b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce2576b5630b6386bce9f34b131017806d5345d2)), Co-authored-by:GitHub Action <action@github.com>
 
 ### Miscellaneous Tasks
@@ -149,51 +147,6 @@ All notable changes to this project will be documented in this file.
 
 * Release branch (#180)
 
-* feat: Resolve macOS update UI freeze & update AI command allowlist (#175)
-
-* fix: resolve macOS update UI freeze by backgrounding launchctl kickstart
-
-* Revert "fix: resolve macOS update UI freeze by backgrounding launchctl kickstart"
-
-This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
-
-* feat: implement silent restart at end of macOS auto-update flow
-
-* feat(security): update ai command allowlist for audit checks
-
-* style: fix spacing formatting for shell operator checks in ai_commands.rs
-
-* feat: add xprotect and pwpolicy to the restricted commands list for macOS
-
-* fix: improve security policy error message for unauthorized commands
-
-* refactor: allow multi-line commands, update Windows shell sanitization, and expand the restricted command whitelist
-
-* refactor: reformat error message string in ai_commands for better readability
-
-* ci: remove path filters from release workflow trigger
-
-* chore: add trailing newline
-
-* chore: update checksums.sha256 for release scripts
-
-* chore: restrict release workflow triggers to specific paths and fix directory navigation error during build
-
-* fix: remove incorrect commit hash from Tauri build directory path in release workflow
-
-* docs: update CHANGELOG.md and checksums [skip ci]
-
----------, Co-authored-by:GitHub Action <action@github.com>
-
-* docs: update CHANGELOG.md and checksums [skip ci]
-
----------, Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>, Co-authored-by:louise mbiti kongnyu <louisembiti@gmail.com>, Co-authored-by:GitHub Action <action@github.com>
-
-### Performance
-
-- Perform cleanup by removing dead code ([`106c4bf`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/106c4bf6c2d5552db71bc0f788176898ab2d5b9f))
-- Perform cleanup by removing dead code ([`b547b08`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b547b082c6ec5e70a89415e16fd0caf51111403d))
-
 ### Refactor
 
 - Improve checksum validation logic in utils.ps1 and update GitHub Actions workflows ([`269a11f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/269a11f71ca0b0d2f38bc3398f6af30b77598313)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
@@ -219,6 +172,7 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 - Remove unused files and consolidate code for Wazuh agent status ([`8ccd604`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8ccd604f19336ec584db79d550bdcda48b73e8a0)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Update client components, improve agent metrics, and add compliance utilities ([`f7f6c7a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f7f6c7a1ec6671c3300c0682775c84621e5bfd20)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Simplify check icon rendering in ComplianceView component ([`ce53b62`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce53b629caaa9cbdd36cbb53a77dc70f6c8483a8)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Skip legacy process cleanup during installation if system is already migrated ([`a22a936`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a22a936aea455c1868852dab07273714b542c482))
 
 ### Styling
 
