@@ -36,7 +36,28 @@ async fn append_update_log(path: &std::path::Path, line: &str) {
     }
 }
 
-// ── Update execution ─────────────────────────────────────────────────────────
+/// Read the configured Wazuh manager address from ossec.conf so update scripts
+/// reinstall the agent against the same manager instead of the wazuh.example.com
+/// default. Matches the simple `<address>` extraction the install scripts use.
+fn read_configured_manager() -> Option<String> {
+    let path = if cfg!(target_os = "windows") {
+        r"C:\Program Files (x86)\ossec-agent\ossec.conf"
+    } else if cfg!(target_os = "macos") {
+        "/Library/Ossec/etc/ossec.conf"
+    } else {
+        "/var/ossec/etc/ossec.conf"
+    };
+
+    let content = std::fs::read_to_string(path).ok()?;
+    let start = content.find("<address>")? + "<address>".len();
+    let end = content[start..].find("</address>")?;
+    let manager = content[start..start + end].trim();
+    if manager.is_empty() {
+        None
+    } else {
+        Some(manager.to_string())
+    }
+}
 
 /// Hard cap on how long an update script may run before it is considered stuck
 /// and terminated. The scripts also self-guard with internal timeouts; this is
@@ -437,6 +458,16 @@ impl AgentManager {
                 }
             }
 
+            // The install scripts rewrite ossec.conf with WAZUH_MANAGER (default
+            // wazuh.example.com), so forward the configured manager on the
+            // prerelease path, where setup-agent runs without the wrapper that
+            // resolves it on the stable path.
+            let configured_manager = if prerelease_tag.is_some() {
+                read_configured_manager()
+            } else {
+                None
+            };
+
             // Build the command — platform-specific execution
             let mut cmd = if cfg!(target_os = "windows") {
                 let script_str = script_path.to_str().unwrap_or_default();
@@ -449,11 +480,17 @@ impl AgentManager {
                     "-File",
                     script_str,
                 ]);
-                // Always pass -Update so the setup script runs in upgrade mode
-                c.arg("-Update");
+                // -Update is only understood by the adorsys-update.ps1 wrapper;
+                // setup-agent.ps1 does not declare it and would reject it.
+                if prerelease_tag.is_none() {
+                    c.arg("-Update");
+                }
                 // Set the tag so the setup script downloads components from the correct release
                 if let Some(ref tag) = prerelease_tag {
                     c.env("WAZUH_AGENT_REPO_REF", tag);
+                }
+                if let Some(ref manager) = configured_manager {
+                    c.env("WAZUH_MANAGER", manager);
                 }
                 c
             } else {
@@ -470,6 +507,9 @@ impl AgentManager {
                     if let Some(ref tag) = prerelease_tag {
                         c.env("WAZUH_AGENT_REPO_REF", tag);
                     }
+                    if let Some(ref manager) = configured_manager {
+                        c.env("WAZUH_MANAGER", manager);
+                    }
                     c
                 } else {
                     info!("Running as non-root — using sudo for update script");
@@ -478,6 +518,9 @@ impl AgentManager {
                     // Use sudo's native VAR=value command syntax which is universally supported.
                     if let Some(ref tag) = prerelease_tag {
                         c.arg(format!("WAZUH_AGENT_REPO_REF={}", tag));
+                    }
+                    if let Some(ref manager) = configured_manager {
+                        c.arg(format!("WAZUH_MANAGER={}", manager));
                     }
                     c.arg(script_path.as_os_str());
                     c

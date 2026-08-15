@@ -57,7 +57,7 @@ EnsureAdmin
 
 # Cleanup bootstrap files on exit
 Register-EngineEvent -SourceIdentifier ([System.Guid]::NewGuid().ToString()) -Action {
-    Remove-Item -Path $TMP_DIR -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $TMP -Recurse -Force -ErrorAction SilentlyContinue
 } | Out-Null
 
 # ---- Configuration Variables ----
@@ -150,11 +150,11 @@ function Get-PrereleaseVersion {
             InfoMessage "Successfully fetched prerelease version: $version"
             return $version
         } else {
-            WarningMessage "No prerelease version found in response."
+            WarnMessage "No prerelease version found in response."
             return $null
         }
     } catch {
-        WarningMessage "Failed to fetch prerelease version: $($_.Exception.Message)"
+        WarnMessage "Failed to fetch prerelease version: $($_.Exception.Message)"
         return $null
     }
 }
@@ -173,8 +173,6 @@ function Run-Update {
     }
 
     $setupScriptPath = Join-Path $env:TEMP "setup-agent.ps1"
-    $stdoutLog       = Join-Path $env:TEMP "setup_output.log"
-    $stderrLog       = Join-Path $env:TEMP "setup_error.log"
 
     InfoMessage "Downloading setup script..."
     try {
@@ -184,41 +182,18 @@ function Run-Update {
         exit 1
     }
 
-    # Always pass -Upgrade to the downloaded setup script; add -Prerelease when in prerelease mode
-    $setupArgs = @("-ExecutionPolicy", "Bypass", "-File", "`"$setupScriptPath`"", "-Update")
-
-    $flagSummary = ($setupArgs | Where-Object { $_ -like '-*' } | Select-Object -Skip 2) -join " "
-    InfoMessage "Executing setup script with flags: $flagSummary"
-
+    InfoMessage "Executing setup script: $setupScriptPath"
+    $env:WAZUH_MANAGER = $WAZUH_MANAGER
     try {
-        $process = Start-Process `
-            -FilePath "powershell.exe" `
-            -ArgumentList $setupArgs `
-            -NoNewWindow `
-            -PassThru `
-            -RedirectStandardOutput $stdoutLog `
-            -RedirectStandardError  $stderrLog `
-            -Wait
-
-        # Flush logs before checking exit code
-        if (Test-Path $stdoutLog) {
-            Get-Content $stdoutLog | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { InfoMessage $_ }
-        }
-        if (Test-Path $stderrLog) {
-            Get-Content $stderrLog | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { ErrorMessage $_ }
-        }
-
-        if ($process.ExitCode -ne 0) {
-            ErrorMessage "Setup script failed (exit code: $($process.ExitCode))."
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setupScriptPath
+        if ($LASTEXITCODE -ne 0) {
+            ErrorMessage "Setup script failed (exit code: $LASTEXITCODE)."
             exit 1
         }
     } catch {
         ErrorMessage "Failed to execute setup script: $($_.Exception.Message)"
         exit 1
     } finally {
-        # Clean up temp files in ALL code paths (success, failure, exception)
-        Remove-TempFile $stdoutLog
-        Remove-TempFile $stderrLog
         Remove-TempFile $setupScriptPath
     }
 
@@ -236,8 +211,12 @@ if ($Prerelease) {
     $PRERELEASE_VERSION = Get-PrereleaseVersion
     if ($PRERELEASE_VERSION) {
         InfoMessage "PRERELEASE UPGRADE MODE: Installing prerelease version $PRERELEASE_VERSION"
+        $PRERELEASE_SETUP_SCRIPT_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v$PRERELEASE_VERSION/scripts/windows/setup-agent.ps1"
+        # Point setup-agent.ps1 at the same tag so it downloads its components
+        # and version.txt from the prerelease release.
+        $env:WAZUH_AGENT_REPO_REF = "refs/tags/v$PRERELEASE_VERSION"
     } else {
-        WarningMessage "Failed to fetch prerelease version. Exiting."
+        WarnMessage "Failed to fetch prerelease version. Exiting."
         exit 1
     }
 } else {
