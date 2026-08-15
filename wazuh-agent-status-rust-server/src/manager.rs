@@ -449,8 +449,11 @@ impl AgentManager {
                     "-File",
                     script_str,
                 ]);
-                // Always pass -Update so the setup script runs in upgrade mode
-                c.arg("-Update");
+                // -Update is only understood by the adorsys-update.ps1 wrapper;
+                // setup-agent.ps1 does not declare it and would reject it.
+                if prerelease_tag.is_none() {
+                    c.arg("-Update");
+                }
                 // Set the tag so the setup script downloads components from the correct release
                 if let Some(ref tag) = prerelease_tag {
                     c.env("WAZUH_AGENT_REPO_REF", tag);

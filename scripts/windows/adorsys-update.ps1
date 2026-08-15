@@ -173,8 +173,6 @@ function Run-Update {
     }
 
     $setupScriptPath = Join-Path $env:TEMP "setup-agent.ps1"
-    $stdoutLog       = Join-Path $env:TEMP "setup_output.log"
-    $stderrLog       = Join-Path $env:TEMP "setup_error.log"
 
     InfoMessage "Downloading setup script..."
     try {
@@ -184,41 +182,18 @@ function Run-Update {
         exit 1
     }
 
-    # Always pass -Upgrade to the downloaded setup script; add -Prerelease when in prerelease mode
-    $setupArgs = @("-ExecutionPolicy", "Bypass", "-File", "`"$setupScriptPath`"", "-Update")
-
-    $flagSummary = ($setupArgs | Where-Object { $_ -like '-*' } | Select-Object -Skip 2) -join " "
-    InfoMessage "Executing setup script with flags: $flagSummary"
-
+    InfoMessage "Executing setup script: $setupScriptPath"
+    $env:WAZUH_MANAGER = $WAZUH_MANAGER
     try {
-        $process = Start-Process `
-            -FilePath "powershell.exe" `
-            -ArgumentList $setupArgs `
-            -NoNewWindow `
-            -PassThru `
-            -RedirectStandardOutput $stdoutLog `
-            -RedirectStandardError  $stderrLog `
-            -Wait
-
-        # Flush logs before checking exit code
-        if (Test-Path $stdoutLog) {
-            Get-Content $stdoutLog | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { InfoMessage $_ }
-        }
-        if (Test-Path $stderrLog) {
-            Get-Content $stderrLog | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { ErrorMessage $_ }
-        }
-
-        if ($process.ExitCode -ne 0) {
-            ErrorMessage "Setup script failed (exit code: $($process.ExitCode))."
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setupScriptPath
+        if ($LASTEXITCODE -ne 0) {
+            ErrorMessage "Setup script failed (exit code: $LASTEXITCODE)."
             exit 1
         }
     } catch {
         ErrorMessage "Failed to execute setup script: $($_.Exception.Message)"
         exit 1
     } finally {
-        # Clean up temp files in ALL code paths (success, failure, exception)
-        Remove-TempFile $stdoutLog
-        Remove-TempFile $stderrLog
         Remove-TempFile $setupScriptPath
     }
 
