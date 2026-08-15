@@ -184,6 +184,9 @@ function Run-Update {
 
     InfoMessage "Executing setup script: $setupScriptPath"
     $env:WAZUH_MANAGER = $WAZUH_MANAGER
+    # Tell install.ps1 this is an update so it leaves the running server
+    # service (the one executing this chain) alone instead of stopping it.
+    $env:WAZUH_AGENT_STATUS_UPDATE = "1"
     try {
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setupScriptPath
         if ($LASTEXITCODE -ne 0) {
