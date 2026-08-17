@@ -8,7 +8,6 @@ import {
   onAction,
   registerActionTypes,
 } from "@tauri-apps/plugin-notification";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
 import type { AppConfig, View } from "./types/app";
@@ -196,15 +195,12 @@ function App() {
     notify();
   }, [updateInfo?.has_updates]);
 
-  // Handle clicking on the OS notification
+  // Handle clicking on the OS notification — delegate to Rust for reliable
+  // cross-platform focus (bypasses Linux focus-stealing prevention)
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-    onAction(async (_notification) => {
-      const win = getCurrentWindow();
-      await win.unminimize();
-      await win.show();
-      await win.setFocus();
-      setActiveView("updates");
+    onAction((_notification) => {
+      invoke("open_updates_view").catch(console.error);
     })
       .then((u) => {
         unlisten = u;
@@ -213,6 +209,16 @@ function App() {
 
     return () => {
       if (unlisten) unlisten();
+    };
+  }, []);
+
+  // Listen for the navigate-to-updates event emitted by Rust (tray menu + notification)
+  useEffect(() => {
+    const unlisten = listen("navigate-to-updates", () => {
+      setActiveView("updates");
+    });
+    return () => {
+      unlisten.then((f) => f());
     };
   }, []);
 

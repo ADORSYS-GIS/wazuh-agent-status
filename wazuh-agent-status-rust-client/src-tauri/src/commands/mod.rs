@@ -8,7 +8,7 @@ use sha2::Sha256;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
 
 #[tauri::command]
 pub fn get_agent_status(manager: State<'_, Arc<AgentManager>>) -> AgentState {
@@ -74,6 +74,20 @@ pub async fn start_log_stream(
 
     Ok(())
 }
+
+/// Opens the main window and navigates to the updates view.
+/// Called from the notification click action — Rust-side window management
+/// bypasses Linux focus-stealing prevention that blocks JS window APIs.
+#[tauri::command]
+pub fn open_updates_view(app: tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.emit("navigate-to-updates", ());
+    }
+}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceCheckResult {
