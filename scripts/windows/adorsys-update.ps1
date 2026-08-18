@@ -127,11 +127,11 @@ function Remove-TempFile {
 }
 
 function Get-ActiveConsoleUser {
-    # 1. Query process owner of explorer.exe (works reliably from Session 0 / background service)
+    # 1. Query process owner of explorer.exe via WMI (works reliably on PS 5.1/7 across all Windows editions)
     try {
-        $explorer = Get-CimInstance Win32_Process -Filter "Name = 'explorer.exe'" -ErrorAction SilentlyContinue | Select-Object -First 1
+        $explorer = Get-WmiObject Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($explorer) {
-            $owner = Invoke-CimMethod -InputObject $explorer -MethodName GetOwner -ErrorAction SilentlyContinue
+            $owner = $explorer.GetOwner()
             if ($owner -and $owner.User) {
                 if ($owner.Domain) { return "$($owner.Domain)\$($owner.User)" }
                 return $owner.User
@@ -139,7 +139,25 @@ function Get-ActiveConsoleUser {
         }
     } catch {}
 
-    # 2. Query quser for active session user
+    # 2. Query via CimInstance fallback
+    try {
+        $explorerCim = Get-CimInstance Win32_Process -Filter "Name = 'explorer.exe'" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($explorerCim) {
+            $ownerCim = Invoke-CimMethod -InputObject $explorerCim -MethodName GetOwner -ErrorAction SilentlyContinue
+            if ($ownerCim -and $ownerCim.User) {
+                if ($ownerCim.Domain) { return "$($ownerCim.Domain)\$($ownerCim.User)" }
+                return $ownerCim.User
+            }
+        }
+    } catch {}
+
+    # 3. Environment variables fallback (when running in interactive user context)
+    if ($env:USERNAME -and $env:USERNAME -notmatch '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') {
+        if ($env:USERDOMAIN) { return "$env:USERDOMAIN\$env:USERNAME" }
+        return $env:USERNAME
+    }
+
+    # 4. Query quser for active session user
     try {
         $quser = query user 2>$null
         if ($quser) {
@@ -153,7 +171,7 @@ function Get-ActiveConsoleUser {
         }
     } catch {}
 
-    # 3. Fallback to Win32_ComputerSystem
+    # 5. Fallback to Win32_ComputerSystem
     try {
         $sysUser = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue).UserName
         if (-not [string]::IsNullOrWhiteSpace($sysUser)) { return $sysUser }
