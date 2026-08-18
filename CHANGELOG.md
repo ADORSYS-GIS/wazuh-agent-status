@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[2c5d12d](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2c5d12d8f1e696102e8b8fc2813c48a50cab010f)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[ddcd881](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ddcd88181068bdb42ef1b4e503ae9bdf58c54fd8)
 
 ### Bug Fixes
 
@@ -110,6 +110,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`c09f0c6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c09f0c6c551df214612d198acf412244195c309f))
 - Update CHANGELOG.md and checksums [skip ci] ([`5637810`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/56378105e8b80c1eefb9d182b2be945108813eaf))
 - Update CHANGELOG.md and checksums [skip ci] ([`ac755a5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ac755a5289dda3dbaa02cb391579d8421a1eec4c))
+- Update CHANGELOG.md and checksums [skip ci] ([`c348772`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c34877253f032ba82958092ea9a71991fe187416))
 
 ### Features
 
@@ -131,6 +132,7 @@ All notable changes to this project will be documented in this file.
 - Enhance update notification mechanism for macOS and Windows scripts ([`a7a333f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a7a333f74dba06232d96d37593411df7b5f6c018)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Resolve macOS update UI freeze & update AI command allowlist (#… (#179) ([`ce2576b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce2576b5630b6386bce9f34b131017806d5345d2)), Co-authored-by:GitHub Action <action@github.com>
 - Auto-update on version change for stable and prerelease ([`e18ae5b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e18ae5b3923351d4b9566d3b59b6e195a3ab6b52))
+- Add interactive GUI prompts via Scheduled Tasks on Windows ([`ddcd881`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ddcd88181068bdb42ef1b4e503ae9bdf58c54fd8))
 
 ### Miscellaneous Tasks
 
