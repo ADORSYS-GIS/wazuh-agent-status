@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [package.metadata.cargo-machete]
-ignored = ["thiserror", "tracing", "openssl"]
+ignored = ["thiserror", "tracing"]
 
 [dependencies]
 tokio        = { version = "1",    features = ["full"] }
@@ -15,9 +15,8 @@ thiserror    = "2.0"
 tracing      = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender   = "0.2"
-reqwest      = { version = "0.12", features = ["json"] }
+reqwest      = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 sysinfo      = "0.33"
-openssl = { version = "0.10", features = ["vendored"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-service = "0.7"

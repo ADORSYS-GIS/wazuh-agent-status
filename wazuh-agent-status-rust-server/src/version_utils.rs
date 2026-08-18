@@ -42,7 +42,7 @@ pub fn is_version_higher(online: &str, local: &str) -> bool {
     matches!((online_is_pre, local_is_pre), (false, true))
 }
 
-/// Fetch and deserialise the remote [`VersionInfo`] manifest.
+/// Fetch and deserialise the remote [`VersionInfo`] manifest (used for pre-release checks).
 ///
 /// Returns `None` on any network or parse failure (errors are logged at warn
 /// level internally by the caller).
@@ -56,6 +56,29 @@ pub async fn fetch_version_info(url: &str) -> Option<VersionInfo> {
             }
         },
         Err(_) => None,
+    }
+}
+
+/// Fetch the stable `version.txt` — a plain-text file containing just a
+/// version string like `1.8.1`.
+///
+/// Trims whitespace/newlines and returns `None` on any network failure.
+pub async fn fetch_plain_version(url: &str) -> Option<String> {
+    match crate::http::fetch_bytes(url, Duration::from_secs(10)).await {
+        Ok(bytes) => {
+            let raw = String::from_utf8_lossy(&bytes);
+            let version = raw.trim().to_string();
+            if version.is_empty() {
+                tracing::warn!("Remote version.txt is empty at {url}");
+                None
+            } else {
+                Some(version)
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to fetch remote version.txt from {url}: {e}");
+            None
+        }
     }
 }
 
