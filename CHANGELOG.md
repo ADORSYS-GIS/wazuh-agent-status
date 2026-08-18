@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[3d12e15](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3d12e153c7891cc102eaadc1b7be846bfa4b6640)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[f2bedb9](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f2bedb9776e8071ddc1d20b02ecfa7c61d6b9ef3)
 
 ### Bug Fixes
 
@@ -72,6 +72,7 @@ All notable changes to this project will be documented in this file.
 - Use explorer.exe SID and C:\ProgramData for Session 0 Task Scheduler popup ([`7167bd3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7167bd37ec5ec823b54bfa4d542df42964d3b68c))
 - Return user account name instead of raw SID and fix catch block error variable reporting ([`c0ba634`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c0ba634cc1de788cf094672c2e3e76f66cd88d09))
 - Eliminate all remaining scripts/windows/adorsys-update.ps1 strict mode exception references across script ([`cf9b907`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cf9b907997b7c23b93f0fde14e3aae5d6a9be923))
+- Remove scripts/windows/adorsys-update.ps1 interpolation from scheduled task here-string causing strict mode crash ([`f2bedb9`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f2bedb9776e8071ddc1d20b02ecfa7c61d6b9ef3))
 
 ### Documentation
 
@@ -146,6 +147,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`03af951`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/03af95108222a84e0861646424079bd53fe4a4df))
 - Update CHANGELOG.md and checksums [skip ci] ([`f3c0bca`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f3c0bca1836a2e8869a356b87a7b7f968b9e7e5b))
 - Update CHANGELOG.md and checksums [skip ci] ([`14dd482`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/14dd4829c6cec9ac51101adfc7c1b9214f5f8c21))
+- Update CHANGELOG.md and checksums [skip ci] ([`4c97dd8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4c97dd82c2fd7b2befc7401fb556835c2190e632))
 
 ### Features
 
