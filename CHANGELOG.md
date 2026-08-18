@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[cccd6ac](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cccd6ac9579b7e966a8d7f7222336685fc1f93f2)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[98a9014](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/98a9014c4cca73186fc1bc2d8f97b148236d944d)
 
 ### Bug Fixes
 
@@ -128,6 +128,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`7d30990`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7d30990e44b3e0741dbdd7389051f35bc2c8eea7))
 - Update CHANGELOG.md and checksums [skip ci] ([`cf9398b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cf9398b2ffb1f54cecc2039d8a71369d7de5fba8))
 - Update CHANGELOG.md and checksums [skip ci] ([`b3194b3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b3194b349b216f479d7789dbbbd6029192c59ce2))
+- Update CHANGELOG.md and checksums [skip ci] ([`2893d2b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2893d2b6879c60b39038f58b39341445e83d462e))
 
 ### Features
 
@@ -151,6 +152,7 @@ All notable changes to this project will be documented in this file.
 - Auto-update on version change for stable and prerelease ([`e18ae5b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e18ae5b3923351d4b9566d3b59b6e195a3ab6b52))
 - Add interactive GUI prompts via Scheduled Tasks on Windows ([`ddcd881`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ddcd88181068bdb42ef1b4e503ae9bdf58c54fd8))
 - Add direct WinForms MessageBox for interactive sessions (SessionId > 0) with Scheduled Task fallback ([`cccd6ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cccd6ac9579b7e966a8d7f7222336685fc1f93f2))
+- Add custom WinForms dialog with explicit Upgrade Now and Remind Me Later buttons ([`98a9014`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/98a9014c4cca73186fc1bc2d8f97b148236d944d))
 
 ### Miscellaneous Tasks
 
