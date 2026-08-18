@@ -215,18 +215,21 @@ function Invoke-InteractivePopup {
                 $btnUpgrade.Text = "Upgrade Now"
                 $btnUpgrade.Location = New-Object System.Drawing.Point(85, 85)
                 $btnUpgrade.Size = New-Object System.Drawing.Size(120, 35)
-                $btnUpgrade.DialogResult = [System.Windows.Forms.DialogResult]::Yes
+                $btnUpgrade.Add_Click({
+                    $form.DialogResult = [System.Windows.Forms.DialogResult]::Yes
+                    $form.Close()
+                })
                 [void]$form.Controls.Add($btnUpgrade)
 
                 $btnLater = New-Object System.Windows.Forms.Button
                 $btnLater.Text = "Remind Me Later"
                 $btnLater.Location = New-Object System.Drawing.Point(215, 85)
                 $btnLater.Size = New-Object System.Drawing.Size(130, 35)
-                $btnLater.DialogResult = [System.Windows.Forms.DialogResult]::No
+                $btnLater.Add_Click({
+                    $form.DialogResult = [System.Windows.Forms.DialogResult]::No
+                    $form.Close()
+                })
                 [void]$form.Controls.Add($btnLater)
-
-                $form.AcceptButton = $btnUpgrade
-                $form.CancelButton = $btnLater
 
                 $res = $form.ShowDialog()
                 $form.Dispose()
@@ -288,18 +291,21 @@ try {
         `$btnUpgrade.Text = 'Upgrade Now'
         `$btnUpgrade.Location = New-Object System.Drawing.Point(85, 85)
         `$btnUpgrade.Size = New-Object System.Drawing.Size(120, 35)
-        `$btnUpgrade.DialogResult = [System.Windows.Forms.DialogResult]::Yes
+        `$btnUpgrade.Add_Click({
+            `$form.DialogResult = [System.Windows.Forms.DialogResult]::Yes
+            `$form.Close()
+        })
         [void]`$form.Controls.Add(`$btnUpgrade)
 
         `$btnLater = New-Object System.Windows.Forms.Button
         `$btnLater.Text = 'Remind Me Later'
         `$btnLater.Location = New-Object System.Drawing.Point(215, 85)
         `$btnLater.Size = New-Object System.Drawing.Size(130, 35)
-        `$btnLater.DialogResult = [System.Windows.Forms.DialogResult]::No
+        `$btnLater.Add_Click({
+            `$form.DialogResult = [System.Windows.Forms.DialogResult]::No
+            `$form.Close()
+        })
         [void]`$form.Controls.Add(`$btnLater)
-
-        `$form.AcceptButton = `$btnUpgrade
-        `$form.CancelButton = `$btnLater
 
         `$res = `$form.ShowDialog()
         `$form.Dispose()
