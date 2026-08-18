@@ -96,7 +96,8 @@ pub struct AgentManager {
     local_agent_name: String,
     local_agent_key: String,
     /// Guards against triggering a second auto-update while one is already running.
-    update_in_progress: Arc<AtomicBool>,
+    pub update_in_progress: Arc<AtomicBool>,
+    pub pending_update_since: RwLock<Option<tokio::time::Instant>>,
 }
 
 impl AgentManager {
@@ -140,6 +141,7 @@ impl AgentManager {
             local_agent_name: agent_name,
             local_agent_key: agent_key,
             update_in_progress: Arc::new(AtomicBool::new(false)),
+            pending_update_since: RwLock::new(None),
         }
     }
 
@@ -200,6 +202,9 @@ impl AgentManager {
     pub async fn start_polling(&self) {
         let mut ticker = time::interval(self.config.poll_interval);
         let mut last_healing_attempt: Option<Instant> = None;
+
+        // Separate ticker for the periodic auto-update check (default: every 30 min)
+        let mut update_ticker = time::interval(self.config.auto_update_check_interval);
 
         loop {
             tokio::select! {
@@ -285,6 +290,10 @@ impl AgentManager {
                         Err(e) => warn!("Failed to poll agent status: {e}"),
                     }
                 }
+                _ = update_ticker.tick() => {
+                    info!("Periodic auto-update check triggered");
+                    self.check_and_auto_update().await;
+                }
             }
         }
     }
@@ -321,6 +330,11 @@ impl AgentManager {
         let status = self.get_version_status().await;
 
         if !status.has_updates {
+            if cfg!(target_os = "windows") {
+                let mut pending = self.pending_update_since.write().await;
+                *pending = None;
+            }
+
             info!(
                 "Auto-update check: already up-to-date (local: {}, latest: {})",
                 status.tray.current_version, status.tray.latest_version
@@ -333,14 +347,42 @@ impl AgentManager {
             crate::models::UpdateState::PrereleaseAvailable
         );
 
-        info!(
-            local = %status.tray.current_version,
-            latest = %status.tray.latest_version,
-            is_prerelease,
-            "Auto-update: newer version detected, triggering update script"
-        );
+        if cfg!(target_os = "windows") {
+            let mut pending = self.pending_update_since.write().await;
+            let now = tokio::time::Instant::now();
 
-        let mut rx = self.initiate_update(is_prerelease).await;
+            if pending.is_none() {
+                *pending = Some(now);
+                info!(
+                    "Auto-update: newer version detected. Waiting 24 hours for GUI trigger before native fallback."
+                );
+                return;
+            }
+
+            if let Some(since) = *pending {
+                let elapsed = now.duration_since(since);
+                if elapsed < std::time::Duration::from_secs(86400) {
+                    let remaining = std::time::Duration::from_secs(86400) - elapsed;
+                    info!(
+                        "Auto-update: waiting for GUI trigger. Fallback in {} seconds.",
+                        remaining.as_secs()
+                    );
+                    return;
+                }
+
+                warn!("Auto-update: 24-hour GUI wait expired. Forcing native update fallback.");
+                *pending = None;
+            }
+        } else {
+            info!(
+                local = %status.tray.current_version,
+                latest = %status.tray.latest_version,
+                is_prerelease,
+                "Auto-update: newer version detected, triggering update script"
+            );
+        }
+
+        let mut rx = self.initiate_update(is_prerelease, false).await;
         // Drain the log channel so the update runs to completion
         while let Some(line) = rx.recv().await {
             info!(target: "auto_update", "{}", line);
@@ -350,7 +392,7 @@ impl AgentManager {
     // ── Update Execution ──────────────────────────────────────────────────────
 
     /// Initiate an update process and return a stream of log output.
-    pub async fn initiate_update(&self, is_prerelease: bool) -> mpsc::Receiver<String> {
+    pub async fn initiate_update(&self, is_prerelease: bool, is_manual: bool) -> mpsc::Receiver<String> {
         let (tx, rx) = mpsc::channel(100);
         let paths = Arc::clone(&self.paths);
 
@@ -547,12 +589,14 @@ impl AgentManager {
                 ]);
                 // -Update is only understood by the adorsys-update.ps1 wrapper;
                 // setup-agent.ps1 does not declare it and would reject it.
-                if prerelease_tag.is_none() {
+                if is_manual && prerelease_tag.is_none() {
                     c.arg("-Update");
                 }
                 // Mark the chain as an update so agent-status install.ps1 leaves
                 // the running server service (the one executing this update) alone.
-                c.env("WAZUH_AGENT_STATUS_UPDATE", "1");
+                if is_manual {
+                    c.env("WAZUH_AGENT_STATUS_UPDATE", "1");
+                }
                 // Set the tag so the setup script downloads components from the correct release
                 if let Some(ref tag) = prerelease_tag {
                     c.env("WAZUH_AGENT_REPO_REF", tag);

@@ -16,8 +16,8 @@ fn test_default_config() {
     );
     assert_eq!(
         cfg.auto_update_check_interval,
-        Duration::from_secs(1800),
-        "auto-update check interval should default to 30 minutes"
+        Duration::from_secs(14400),
+        "auto-update check interval should default to 4 hours"
     );
 }
 
@@ -58,7 +58,7 @@ fn test_config_env_behavior() {
     assert_eq!(cfg2.poll_interval, Duration::from_secs(5));
     assert_eq!(
         cfg2.auto_update_check_interval,
-        Duration::from_secs(1800),
+        Duration::from_secs(14400),
         "invalid auto-update interval should fall back to default"
     );
 

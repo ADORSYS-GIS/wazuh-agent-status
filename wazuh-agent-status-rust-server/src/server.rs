@@ -199,7 +199,7 @@ where
     W: AsyncWriteExt + Unpin,
 {
     info!(is_prerelease, "Starting update stream");
-    let mut rx = manager.initiate_update(is_prerelease).await;
+    let mut rx = manager.initiate_update(is_prerelease, true).await;
 
     loop {
         match rx.recv().await {

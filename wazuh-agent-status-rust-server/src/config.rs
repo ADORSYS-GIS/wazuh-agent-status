@@ -18,7 +18,7 @@ const DEFAULT_POLL_INTERVAL_SECS: u64 = 5;
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:50505";
 /// Cache remote version checks for 30 minutes to avoid hammering GitHub.
 const DEFAULT_VERSION_CACHE_TTL_SECS: u64 = 1_800;
-/// Check for updates every 30 minutes in the background.
+/// Check for updates every 4 hours in the background.
 const DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_SECS: u64 = 14_400;
 
 // ── Config ───────────────────────────────────────────────────────────────────
