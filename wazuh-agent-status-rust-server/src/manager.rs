@@ -97,7 +97,6 @@ pub struct AgentManager {
     local_agent_key: String,
     /// Guards against triggering a second auto-update while one is already running.
     pub update_in_progress: Arc<AtomicBool>,
-    pub pending_update_since: RwLock<Option<tokio::time::Instant>>,
 }
 
 impl AgentManager {
@@ -141,7 +140,6 @@ impl AgentManager {
             local_agent_name: agent_name,
             local_agent_key: agent_key,
             update_in_progress: Arc::new(AtomicBool::new(false)),
-            pending_update_since: RwLock::new(None),
         }
     }
 
@@ -330,11 +328,6 @@ impl AgentManager {
         let status = self.get_version_status().await;
 
         if !status.has_updates {
-            if cfg!(target_os = "windows") {
-                let mut pending = self.pending_update_since.write().await;
-                *pending = None;
-            }
-
             info!(
                 "Auto-update check: already up-to-date (local: {}, latest: {})",
                 status.tray.current_version, status.tray.latest_version
@@ -348,31 +341,10 @@ impl AgentManager {
         );
 
         if cfg!(target_os = "windows") {
-            let mut pending = self.pending_update_since.write().await;
-            let now = tokio::time::Instant::now();
-
-            if pending.is_none() {
-                *pending = Some(now);
-                info!(
-                    "Auto-update: newer version detected. Waiting 24 hours for GUI trigger before native fallback."
-                );
-                return;
-            }
-
-            if let Some(since) = *pending {
-                let elapsed = now.duration_since(since);
-                if elapsed < std::time::Duration::from_secs(86400) {
-                    let remaining = std::time::Duration::from_secs(86400) - elapsed;
-                    info!(
-                        "Auto-update: waiting for GUI trigger. Fallback in {} seconds.",
-                        remaining.as_secs()
-                    );
-                    return;
-                }
-
-                warn!("Auto-update: 24-hour GUI wait expired. Forcing native update fallback.");
-                *pending = None;
-            }
+            info!(
+                "Auto-update: newer version detected. Waiting indefinitely for GUI trigger."
+            );
+            return;
         } else {
             info!(
                 local = %status.tray.current_version,
