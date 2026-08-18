@@ -118,8 +118,9 @@ function Append-Log {
             if ($fileStream)   { $fileStream.Dispose() }
         }
     } catch {
-        # Fallback to standard host output if log file writing fails
-        Write-Host "Warning: Failed to write to log file $LogPath : $($_.Exception.Message)"
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        Write-Host "Warning: Failed to write to log file $LogPath : $errMsg"
     }
 
     Write-Host $line
@@ -397,7 +398,9 @@ function Get-PrereleaseVersion {
             return $null
         }
     } catch {
-        WarnMessage "Failed to fetch prerelease version: $($_.Exception.Message)"
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        WarnMessage "Failed to fetch prerelease version: $errMsg"
         return $null
     }
 }
@@ -421,7 +424,9 @@ function Run-Update {
     try {
         Invoke-WebRequest -Uri $resolvedScriptUrl -OutFile $setupScriptPath -ErrorAction Stop
     } catch {
-        ErrorMessage "Failed to download setup-agent.ps1: $($_.Exception.Message)"
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        ErrorMessage "Failed to download setup-agent.ps1: $errMsg"
         exit 1
     }
 
@@ -437,7 +442,9 @@ function Run-Update {
             exit 1
         }
     } catch {
-        ErrorMessage "Failed to execute setup script: $($_.Exception.Message)"
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        ErrorMessage "Failed to execute setup script: $errMsg"
         exit 1
     } finally {
         Remove-TempFile $setupScriptPath
