@@ -132,9 +132,17 @@ function Show-UpdatePopup {
         # The update chain runs elevated (often in session 0 as a service child),
         # so an in-process MessageBox would be invisible to the logged-in user.
         # msg.exe broadcasts the popup to the interactive session instead.
-        # Fire-and-forget so the update stream is not blocked waiting for a click.
-        Start-Process -FilePath "msg.exe" -ArgumentList @("*", $Message) -WindowStyle Hidden -ErrorAction Stop
-        InfoMessage "Popup shown: $Message"
+        if (Get-Command msg.exe -ErrorAction SilentlyContinue) {
+            # Fire-and-forget so the update stream is not blocked waiting for a click.
+            Start-Process -FilePath "msg.exe" -ArgumentList @("*", $Message) -WindowStyle Hidden -ErrorAction Stop
+            InfoMessage "Popup shown via msg.exe: $Message"
+        } else {
+            # Fallback for Windows Home edition (msg.exe is not included).
+            # This will only be visible if the script is running in an interactive session.
+            $wshell = New-Object -ComObject Wscript.Shell
+            $wshell.Popup($Message, 0, "Wazuh Update", 0x40) | Out-Null
+            InfoMessage "Popup shown via WScript.Shell: $Message"
+        }
     } catch {
         WarnMessage "Could not show popup: $($_.Exception.Message)"
     }
