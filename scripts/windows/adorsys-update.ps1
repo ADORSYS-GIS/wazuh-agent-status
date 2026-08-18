@@ -52,6 +52,13 @@ try {
     . $U
 } catch { Write-Error "Bootstrap failed"; exit 1 }
 
+# Override utils.ps1 logging functions to use Append-Log (Write-Host) and prevent pipeline array pollution
+function Log { param([string]$Level, [string]$Message, [string]$Color = "White") Append-Log "$Level $Message" }
+function InfoMessage { param([string]$Message) Append-Log $Message "INFO" }
+function WarnMessage { param([string]$Message) Append-Log $Message "WARN" }
+function ErrorMessage { param([string]$Message) Append-Log $Message "ERROR" }
+function SuccessMessage { param([string]$Message) Append-Log $Message "SUCCESS" }
+
 EnsureWindows
 EnsureAdmin
 
