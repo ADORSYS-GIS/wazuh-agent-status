@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[7167bd3](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7167bd37ec5ec823b54bfa4d542df42964d3b68c)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[c0ba634](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c0ba634cc1de788cf094672c2e3e76f66cd88d09)
 
 ### Bug Fixes
 
@@ -70,6 +70,7 @@ All notable changes to this project will be documented in this file.
 - Override utils.ps1 Log/InfoMessage to stop Write-Output return pipeline pollution ([`861c71d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/861c71dd0b598b54d3ed9a1cc4aeab3c9b91924a))
 - Fix Session 0 user resolution for Scheduled Task interactive popup ([`89a0fd2`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/89a0fd2e71d56ddaf715654d964bd3037346979f))
 - Use explorer.exe SID and C:\ProgramData for Session 0 Task Scheduler popup ([`7167bd3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7167bd37ec5ec823b54bfa4d542df42964d3b68c))
+- Return user account name instead of raw SID and fix catch block error variable reporting ([`c0ba634`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c0ba634cc1de788cf094672c2e3e76f66cd88d09))
 
 ### Documentation
 
@@ -141,6 +142,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`6a07413`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6a07413ba6d4bb758181bd6c6a72899eb9e837eb))
 - Update CHANGELOG.md and checksums [skip ci] ([`5200641`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/52006413ff07cbb6ff08429269e7004ea2956bfe))
 - Update CHANGELOG.md and checksums [skip ci] ([`4eab2be`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4eab2bef233b3e2819e59fc17327cbc5fe49c0a5))
+- Update CHANGELOG.md and checksums [skip ci] ([`03af951`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/03af95108222a84e0861646424079bd53fe4a4df))
 
 ### Features
 
