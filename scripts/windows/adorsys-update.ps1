@@ -190,12 +190,6 @@ function Invoke-InteractivePopup {
     )
     
     try {
-        $consoleUser = Get-ActiveConsoleUser
-        if ([string]::IsNullOrWhiteSpace($consoleUser)) {
-            InfoMessage "No interactive user session found. Defaulting to proceed."
-            return 0
-        }
-        
         $guid = [guid]::NewGuid().ToString('N')
         $taskName = "WazuhUpdatePopup_$guid"
         $resultFile = Join-Path $env:TEMP "wazuh_popup_res_$guid.txt"
@@ -217,7 +211,7 @@ try {
         $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
         
         $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-NoProfile -WindowStyle Hidden -EncodedCommand $encoded"
-        $principal = New-ScheduledTaskPrincipal -UserId $consoleUser -LogonType Interactive
+        $principal = New-ScheduledTaskPrincipal -LogonType Interactive
         
         Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Force | Out-Null
         Start-ScheduledTask -TaskName $taskName | Out-Null
@@ -236,17 +230,18 @@ try {
         }
         
         $userChoice = (Get-Content -Path $resultFile -Raw).Trim()
-        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false | Out-Null
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         Remove-TempFile $resultFile
         
         if ($userChoice -eq "Yes" -or $userChoice -eq "OK") {
             return 0
         } else {
+            InfoMessage "Popup result: $userChoice"
             return 1
         }
     } catch {
         WarnMessage "Interactive popup failed: $($_.Exception.Message)"
-        return 0
+        return 1
     }
 }
 
