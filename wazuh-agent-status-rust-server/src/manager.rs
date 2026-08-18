@@ -201,9 +201,6 @@ impl AgentManager {
         let mut ticker = time::interval(self.config.poll_interval);
         let mut last_healing_attempt: Option<Instant> = None;
 
-        // Separate ticker for the periodic auto-update check (default: every 30 min)
-        let mut update_ticker = time::interval(self.config.auto_update_check_interval);
-
         loop {
             tokio::select! {
                 _ = ticker.tick() => {
@@ -287,11 +284,6 @@ impl AgentManager {
                         }
                         Err(e) => warn!("Failed to poll agent status: {e}"),
                     }
-                }
-
-                _ = update_ticker.tick() => {
-                    info!("Periodic auto-update check triggered");
-                    self.check_and_auto_update().await;
                 }
             }
         }

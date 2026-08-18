@@ -8,7 +8,7 @@ use sha2::Sha256;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
 
 #[tauri::command]
 pub fn get_agent_status(manager: State<'_, Arc<AgentManager>>) -> AgentState {
@@ -18,6 +18,37 @@ pub fn get_agent_status(manager: State<'_, Arc<AgentManager>>) -> AgentState {
 #[tauri::command]
 pub fn get_config(config: State<'_, AppConfig>) -> AppConfig {
     config.inner().clone()
+}
+
+#[tauri::command]
+pub fn show_main_window(window: tauri::Window) {
+    let _ = window.unminimize();
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
+#[tauri::command]
+pub fn notify_update_available(
+    app: tauri::AppHandle,
+    current_version: String,
+    latest_version: String,
+) {
+    use tauri_plugin_notification::NotificationExt;
+
+    let _ = app
+        .notification()
+        .builder()
+        .title("Update available")
+        .body(format!(
+            "A newer version is available: v{latest_version} (installed: v{current_version})."
+        ))
+        .show();
+
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
 }
 
 #[tauri::command]

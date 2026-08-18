@@ -12,6 +12,7 @@ import { LogsView } from "./components/LogsView";
 import { UpdatesView } from "./components/UpdatesView";
 import { SettingsView } from "./components/SettingsView";
 import { ComplianceView } from "./components/ComplianceView";
+import { UpdateAvailableModal } from "./components/UpdateAvailableModal";
 
 import { computeBrandCSS, getBrandLogoUrl } from "./brand";
 
@@ -53,6 +54,7 @@ function AppLoading() {
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 const STATUS_POLL_MS = 2_000;
+const UPDATE_POLL_MS = 5 * 60 * 1000;
 const STORAGE_KEY_VIEW = "wazuh_active_view";
 
 function App() {
@@ -60,6 +62,7 @@ function App() {
   const [agentStatus, setAgentStatus] = useState<AgentStatus>(DEFAULT_STATUS);
   const [metrics, setMetrics] = useState<SystemMetrics>(DEFAULT_METRICS);
   const [updateInfo, setUpdateInfo] = useState<UpdateStatus | null>(null);
+  const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
   const [activeView, setActiveView] = useState<View>(() => {
     return (localStorage.getItem(STORAGE_KEY_VIEW) as View) || "status";
   });
@@ -70,6 +73,7 @@ function App() {
   const [logError, setLogError] = useState<string | null>(null);
   const unlistenRef = useRef<(() => void) | null>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
+  const lastNotifiedUpdateVersionRef = useRef<string | null>(null);
 
   const startLogStream = useCallback(async () => {
     if (isLogStreaming) return;
@@ -109,6 +113,43 @@ function App() {
     }
   }, [activeView]);
 
+  useEffect(() => {
+    if (!updateInfo?.has_updates) {
+      setShowUpdatePrompt(false);
+      return;
+    }
+
+    setShowUpdatePrompt(true);
+  }, [activeView, updateInfo]);
+
+  useEffect(() => {
+    if (!updateInfo?.has_updates) {
+      lastNotifiedUpdateVersionRef.current = null;
+      return;
+    }
+
+    if (lastNotifiedUpdateVersionRef.current === updateInfo.tray.latest_version) {
+      return;
+    }
+
+    lastNotifiedUpdateVersionRef.current = updateInfo.tray.latest_version;
+    setShowUpdatePrompt(true);
+
+    invoke("notify_update_available", {
+      currentVersion: updateInfo.tray.current_version,
+      latestVersion: updateInfo.tray.latest_version,
+    }).catch(console.error);
+  }, [activeView, updateInfo]);
+
+  const openUpdatesFromPrompt = useCallback(() => {
+    setShowUpdatePrompt(false);
+    setActiveView("updates");
+  }, [updateInfo]);
+
+  const remindLaterFromPrompt = useCallback(() => {
+    setShowUpdatePrompt(false);
+  }, [updateInfo]);
+
   // Keep a ref of the last known tray_version so we can detect changes
   const prevTrayVersionRef = useRef<string | null>(null);
 
@@ -127,9 +168,11 @@ function App() {
 
     refreshData();
     const statusTimer = setInterval(refreshData, STATUS_POLL_MS);
+    const updateTimer = setInterval(refreshUpdateInfo, UPDATE_POLL_MS);
 
     return () => {
       clearInterval(statusTimer);
+      clearInterval(updateTimer);
       if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
     };
   }, [refreshUpdateInfo]);
@@ -172,6 +215,15 @@ function App() {
 
   return (
     <div className="app-wrapper" style={cssVars as CSSProperties}>
+      {showUpdatePrompt && updateInfo && (
+        <UpdateAvailableModal
+          currentVersion={updateInfo.tray.current_version}
+          latestVersion={updateInfo.tray.latest_version}
+          onOpenUpdates={openUpdatesFromPrompt}
+          onRemindLater={remindLaterFromPrompt}
+        />
+      )}
+
       <nav className="sidebar">
         <div className="sidebar-logo">
           <img src={getBrandLogoUrl(config.brand)} alt={config.brand.company} />

@@ -460,14 +460,12 @@ InfoMessage "Wazuh Agent Upgrade Script"
 InfoMessage "Running as Administrator: $IsAdmin"
 InfoMessage "Log file: $LogPath"
 
-if ($Update) {
-    InfoMessage "Update invoked explicitly (e.g., from GUI). Bypassing consent prompt."
-} else {
-    if (-not (Get-UserConsent)) {
-        InfoMessage "Update postponed. Exiting."
-        exit 0
-    }
+if (-not $Update) {
+    InfoMessage "This script is now update-only and should be launched by the client/server update command. Exiting."
+    exit 0
 }
+
+InfoMessage "Update invoked explicitly (e.g., from GUI). Proceeding without consent prompt."
 
 if ($Prerelease) {
     $PRERELEASE_VERSION = Get-PrereleaseVersion

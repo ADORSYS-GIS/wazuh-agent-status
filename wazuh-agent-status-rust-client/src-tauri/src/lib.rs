@@ -19,6 +19,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -69,6 +70,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_agent_status,
             commands::get_config,
+            commands::show_main_window,
+            commands::notify_update_available,
             commands::get_system_metrics,
             commands::check_for_updates,
             commands::start_update,
