@@ -190,6 +190,11 @@ function Invoke-InteractivePopup {
     )
     
     try {
+        $consoleUser = Get-ActiveConsoleUser
+        if ([string]::IsNullOrWhiteSpace($consoleUser)) {
+            $consoleUser = if ($env:USERNAME) { if ($env:USERDOMAIN) { "$env:USERDOMAIN\$env:USERNAME" } else { $env:USERNAME } } else { "BUILTIN\Users" }
+        }
+        
         $guid = [guid]::NewGuid().ToString('N')
         $taskName = "WazuhUpdatePopup_$guid"
         $resultFile = Join-Path $env:TEMP "wazuh_popup_res_$guid.txt"
@@ -213,7 +218,7 @@ try {
         $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
         
         $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-NoProfile -EncodedCommand $encoded"
-        $principal = New-ScheduledTaskPrincipal -LogonType Interactive
+        $principal = New-ScheduledTaskPrincipal -UserId $consoleUser -LogonType Interactive
         
         Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Force | Out-Null
         Start-ScheduledTask -TaskName $taskName | Out-Null
