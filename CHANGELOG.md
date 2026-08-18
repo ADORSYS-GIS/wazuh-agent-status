@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[6d156d9](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6d156d9d187bed641d31ad95c8875f878dcc20a5)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[5d8c0e7](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5d8c0e724ab53047e569b5db53f9578a7f2bdfd6)
 
 ### Bug Fixes
 
@@ -151,6 +151,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`4c97dd8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4c97dd82c2fd7b2befc7401fb556835c2190e632))
 - Update CHANGELOG.md and checksums [skip ci] ([`a040347`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a040347f2dd85fe17ba8e28090d0a6d41fc855d4))
 - Update CHANGELOG.md and checksums [skip ci] ([`dbf52ee`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/dbf52ee283ea6cbad45ec63474ca9dbcb6dbbe53))
+- Update CHANGELOG.md and checksums [skip ci] ([`db5e9f8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/db5e9f860bb68a14ade2fa7b61a29c8b417737c5))
 
 ### Features
 
