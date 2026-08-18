@@ -329,7 +329,7 @@ try {
         Set-Content -Path '$resultFile' -Value 'No' -Force
     }
 } catch {
-    Set-Content -Path '$resultFile' -Value "Error: `$($_.Exception.Message)" -Force
+    Set-Content -Path '$resultFile' -Value "Error: exception occurred" -Force
 }
 "@
         $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
