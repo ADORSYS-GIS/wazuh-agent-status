@@ -7,9 +7,9 @@
     "managed_by": "adorsys",
     "logo_path": "adorsys-logo.png",
     "theme": {
-        "primary_color": "#00aaff",
-        "secondary_color": "#ffffff",
-        "dark_mode": true
+      "primary_color": "#00aaff",
+      "secondary_color": "#ffffff",
+      "dark_mode": true
     }
   },
   "features": {

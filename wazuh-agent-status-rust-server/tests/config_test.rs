@@ -4,7 +4,7 @@ use wazuh_agent_status_rust_server::config::Config;
 #[test]
 fn test_default_config() {
     let cfg = Config::default();
-    assert_eq!(cfg.listen_addr, "127.0.0.1:50506");
+    assert_eq!(cfg.listen_addr, "127.0.0.1:50505");
     assert_eq!(cfg.poll_interval, Duration::from_secs(5));
     assert!(
         cfg.version_url.contains("versions.json"),
@@ -70,4 +70,3 @@ fn test_config_env_behavior() {
         std::env::remove_var("WAZUH_STATUS_AUTO_UPDATE_CHECK_INTERVAL_SECS");
     }
 }
-

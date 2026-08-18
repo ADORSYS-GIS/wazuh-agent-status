@@ -82,7 +82,6 @@ pub async fn fetch_plain_version(url: &str) -> Option<String> {
     }
 }
 
-
 /// Returns `true` if any of the agent's groups matches a prerelease test group
 /// in the manifest (case-insensitive).
 pub fn should_show_prerelease(version_info: &VersionInfo, agent_groups: &[String]) -> bool {

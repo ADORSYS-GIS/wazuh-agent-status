@@ -83,7 +83,7 @@ By default, the client and server communicate over TCP port `50505`. If you need
    Edit the file `wazuh-agent-status-rust-client/src-tauri/app_config.json` and change `"server_addr"` to your desired port:
    ```json
    {
-     "server_addr": "127.0.0.1:50506"
+     "server_addr": "127.0.0.1:50505"
    }
    ```
 
@@ -104,9 +104,9 @@ cargo build --release
 - **Linux/macOS:** `sudo ./target/release/wazuh-agent-status-rust-server`
 - **Windows:** `.\target\release\wazuh-agent-status-rust-server.exe` (Run as Administrator)
 
-**Run (with custom port 50506):**
-- **Linux/macOS:** `sudo WAZUH_STATUS_ADDR="127.0.0.1:50506" ./target/release/wazuh-agent-status-rust-server`
-- **Windows (PowerShell):** `$env:WAZUH_STATUS_ADDR="127.0.0.1:50506"; .\target\release\wazuh-agent-status-rust-server.exe` (Run as Administrator)
+**Run (with custom port 50505):**
+- **Linux/macOS:** `sudo WAZUH_STATUS_ADDR="127.0.0.1:50505" ./target/release/wazuh-agent-status-rust-server`
+- **Windows (PowerShell):** `$env:WAZUH_STATUS_ADDR="127.0.0.1:50505"; .\target\release\wazuh-agent-status-rust-server.exe` (Run as Administrator)
 
 ### Step 5: Build and Run the Client (Tray App)
 

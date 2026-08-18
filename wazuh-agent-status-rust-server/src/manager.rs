@@ -355,9 +355,6 @@ impl AgentManager {
         }
     }
 
-
-
-
     // ── Update Execution ──────────────────────────────────────────────────────
 
     /// Initiate an update process and return a stream of log output.
@@ -958,9 +955,7 @@ impl AgentManager {
 
                 // Use the stable version from version.txt; fall back to versions.json's
                 // framework.version if the plain fetch failed.
-                let effective_stable = stable_version
-                    .as_deref()
-                    .unwrap_or(&info.framework.version);
+                let effective_stable = stable_version.as_deref().unwrap_or(&info.framework.version);
 
                 let check_update = |name: &str, local_version: &str| {
                     if local_version == "Unknown" || local_version == "Not Installed" {
@@ -976,10 +971,7 @@ impl AgentManager {
                     // Stable check: compare against version.txt
                     let is_outdated = !effective_stable.is_empty()
                         && effective_stable != "Unknown"
-                        && crate::version_utils::is_version_higher(
-                            effective_stable,
-                            local_version,
-                        );
+                        && crate::version_utils::is_version_higher(effective_stable, local_version);
 
                     // Pre-release check: compare against versions.json prerelease_version
                     let has_prerelease = !info.framework.prerelease_version.is_empty()
@@ -1084,5 +1076,3 @@ impl AgentManager {
         }
     }
 }
-
-
