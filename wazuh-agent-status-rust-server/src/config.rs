@@ -12,10 +12,14 @@ use tracing::warn;
 
 const DEFAULT_VERSION_URL: &str =
     "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/heads/main/versions.json";
+const DEFAULT_STABLE_VERSION_URL: &str =
+    "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/main/version.txt";
 const DEFAULT_POLL_INTERVAL_SECS: u64 = 5;
-const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:50505";
+const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:50506";
 /// Cache remote version checks for 30 minutes to avoid hammering GitHub.
 const DEFAULT_VERSION_CACHE_TTL_SECS: u64 = 1_800;
+/// Check for updates every 30 minutes in the background.
+const DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_SECS: u64 = 1_800;
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -25,7 +29,7 @@ const DEFAULT_VERSION_CACHE_TTL_SECS: u64 = 1_800;
 ///
 /// | Field               | Env var                                  | Default            |
 /// |---------------------|------------------------------------------|--------------------|
-/// | `listen_addr`       | `WAZUH_STATUS_ADDR`                      | `127.0.0.1:50505`  |
+/// | `listen_addr`       | `WAZUH_STATUS_ADDR`                      | `127.0.0.1:50506`  |
 /// | `log_file`          | `WAZUH_STATUS_LOG_FILE`                  | `/var/log/...`     |
 /// | `poll_interval`     | `WAZUH_STATUS_POLL_INTERVAL_SECS`        | `5`                |
 /// | `version_url`       | `WAZUH_STATUS_VERSION_URL`               | GitHub manifest    |
@@ -36,10 +40,14 @@ pub struct Config {
     pub listen_addr: String,
     /// How often the background task polls the local Wazuh agent state.
     pub poll_interval: Duration,
-    /// URL of the remote version manifest JSON.
+    /// URL of the remote pre-release version manifest JSON (versions.json).
     pub version_url: String,
+    /// URL of the plain-text stable version file (version.txt).
+    pub stable_version_url: String,
     /// How long a remote version check result is cached before re-fetching.
     pub version_cache_ttl: Duration,
+    /// How often the background loop checks for updates and auto-updates if needed.
+    pub auto_update_check_interval: Duration,
     /// Maximum concurrent client connections allowed.
     pub max_connections: usize,
     /// Whether to automatically restart the Wazuh agent if it is inactive.
@@ -52,7 +60,11 @@ impl Default for Config {
             listen_addr: DEFAULT_LISTEN_ADDR.to_string(),
             poll_interval: Duration::from_secs(DEFAULT_POLL_INTERVAL_SECS),
             version_url: DEFAULT_VERSION_URL.to_string(),
+            stable_version_url: DEFAULT_STABLE_VERSION_URL.to_string(),
             version_cache_ttl: Duration::from_secs(DEFAULT_VERSION_CACHE_TTL_SECS),
+            auto_update_check_interval: Duration::from_secs(
+                DEFAULT_AUTO_UPDATE_CHECK_INTERVAL_SECS,
+            ),
             max_connections: 3,
             self_healing: true,
         }
@@ -92,6 +104,21 @@ impl Config {
 
         if let Ok(url) = std::env::var("WAZUH_STATUS_VERSION_URL") {
             cfg.version_url = url;
+        }
+
+        if let Ok(url) = std::env::var("WAZUH_STATUS_STABLE_VERSION_URL") {
+            cfg.stable_version_url = url;
+        }
+
+        if let Ok(raw) = std::env::var("WAZUH_STATUS_AUTO_UPDATE_CHECK_INTERVAL_SECS") {
+            match raw.parse::<u64>() {
+                Ok(secs) => cfg.auto_update_check_interval = Duration::from_secs(secs),
+                Err(_) => warn!(
+                    env_var = "WAZUH_STATUS_AUTO_UPDATE_CHECK_INTERVAL_SECS",
+                    value = %raw,
+                    "Invalid value; using default"
+                ),
+            }
         }
 
         if let Ok(raw) = std::env::var("WAZUH_STATUS_VERSION_CACHE_TTL_SECS") {
