@@ -452,7 +452,7 @@ function Run-Update {
 
     SuccessMessage "Update completed successfully! Please save your work and reboot to finish the update."
     # Fire and forget success popup (timeout short so it doesn't block indefinitely)
-    Invoke-InteractivePopup -Message "Update completed successfully! Please save your work and reboot to finish the update." -Buttons "OK" -Icon "Information" -TimeoutSeconds 60 | Out-Null
+    Invoke-InteractivePopup -Message "Update completed successfully! Please save your work and reboot to finish the update." -Mode "Info" -TimeoutSeconds 60 | Out-Null
 }
 
 # ---- Main Execution ----
