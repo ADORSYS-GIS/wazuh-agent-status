@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[49de0e5](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/49de0e5050cbd8252716a93550f91bbd209689f4)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[cccd6ac](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cccd6ac9579b7e966a8d7f7222336685fc1f93f2)
 
 ### Bug Fixes
 
@@ -127,6 +127,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`07da7d4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/07da7d4805d311c0adc5f9325bccec6d4712cad9))
 - Update CHANGELOG.md and checksums [skip ci] ([`7d30990`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7d30990e44b3e0741dbdd7389051f35bc2c8eea7))
 - Update CHANGELOG.md and checksums [skip ci] ([`cf9398b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cf9398b2ffb1f54cecc2039d8a71369d7de5fba8))
+- Update CHANGELOG.md and checksums [skip ci] ([`b3194b3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b3194b349b216f479d7789dbbbd6029192c59ce2))
 
 ### Features
 
@@ -149,6 +150,7 @@ All notable changes to this project will be documented in this file.
 - Resolve macOS update UI freeze & update AI command allowlist (#… (#179) ([`ce2576b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce2576b5630b6386bce9f34b131017806d5345d2)), Co-authored-by:GitHub Action <action@github.com>
 - Auto-update on version change for stable and prerelease ([`e18ae5b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e18ae5b3923351d4b9566d3b59b6e195a3ab6b52))
 - Add interactive GUI prompts via Scheduled Tasks on Windows ([`ddcd881`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ddcd88181068bdb42ef1b4e503ae9bdf58c54fd8))
+- Add direct WinForms MessageBox for interactive sessions (SessionId > 0) with Scheduled Task fallback ([`cccd6ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cccd6ac9579b7e966a8d7f7222336685fc1f93f2))
 
 ### Miscellaneous Tasks
 
