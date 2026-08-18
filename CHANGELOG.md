@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[bc4d769](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/bc4d769ee9b5952c610a796b4ee09941bf2026ca)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[888ce62](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/888ce62e04457328d2b247a387d5c90a0d66cdcc)
 
 ### Bug Fixes
 
@@ -140,6 +140,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`6a07413`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6a07413ba6d4bb758181bd6c6a72899eb9e837eb))
 - Update CHANGELOG.md and checksums [skip ci] ([`5200641`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/52006413ff07cbb6ff08429269e7004ea2956bfe))
 - Update custom server port to 50506 in README instructions ([`bc4d769`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/bc4d769ee9b5952c610a796b4ee09941bf2026ca))
+- Update CHANGELOG.md and checksums [skip ci] ([`8f41889`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8f41889d7f065cc8e756821b741f36bbf79ee2ea))
 
 ### Features
 
@@ -234,6 +235,7 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 ---------, Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>, Co-authored-by:louise mbiti kongnyu <louisembiti@gmail.com>, Co-authored-by:GitHub Action <action@github.com>
 - Increase default auto-update check interval from 30 minutes to 4 hours ([`c52a893`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c52a8938f2f945e88f2e16ba5276ebccd51b942a))
 - Bump application version to 0.5.2-rc.1 across installation scripts ([`de5bd6b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/de5bd6b17bf3daa3eb4d82934afd7abe37e2ae7a))
+- Update default auto-update check interval to 4 hours ([`4f41cec`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4f41cec20a89c110ab775c196c47fb788f0527e4))
 
 ### Performance
 
