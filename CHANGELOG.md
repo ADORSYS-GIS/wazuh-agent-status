@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[16fa903](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/16fa90312c67ecf400c7504a571e58df9d5cfa9a)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[49de0e5](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/49de0e5050cbd8252716a93550f91bbd209689f4)
 
 ### Bug Fixes
 
@@ -64,6 +64,7 @@ All notable changes to this project will be documented in this file.
 - Remove premature task state check race condition in popup loop ([`f44b650`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f44b650e7326d46c6dc9a6372689d33487abcdc4))
 - Use LogonType Interactive without UserId to fix task principal creation error ([`c4115a2`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c4115a2225fb934b3917f6ec69c7402c68288fcf))
 - Remove -WindowStyle Hidden from ScheduledTaskAction so MessageBox renders visibly ([`16fa903`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/16fa90312c67ecf400c7504a571e58df9d5cfa9a))
+- Guarantee non-null UserId for New-ScheduledTaskPrincipal to prevent interactive prompt ([`49de0e5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/49de0e5050cbd8252716a93550f91bbd209689f4))
 
 ### Documentation
 
@@ -125,6 +126,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`6a3edfb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6a3edfbf520d4ed03eda2dfcd38eda13114a23c1))
 - Update CHANGELOG.md and checksums [skip ci] ([`07da7d4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/07da7d4805d311c0adc5f9325bccec6d4712cad9))
 - Update CHANGELOG.md and checksums [skip ci] ([`7d30990`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7d30990e44b3e0741dbdd7389051f35bc2c8eea7))
+- Update CHANGELOG.md and checksums [skip ci] ([`cf9398b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cf9398b2ffb1f54cecc2039d8a71369d7de5fba8))
 
 ### Features
 
