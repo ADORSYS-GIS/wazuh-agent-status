@@ -112,10 +112,10 @@ function Append-Log {
         }
     } catch {
         # Fallback to standard host output if log file writing fails
-        Write-Output "Warning: Failed to write to log file $LogPath : $($_.Exception.Message)"
+        Write-Host "Warning: Failed to write to log file $LogPath : $($_.Exception.Message)"
     }
 
-    Write-Output $line
+    Write-Host $line
 }
 
 # ---- Helper: clean up a temp file unconditionally ----
