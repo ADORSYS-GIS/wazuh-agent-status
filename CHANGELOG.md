@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[861c71d](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/861c71dd0b598b54d3ed9a1cc4aeab3c9b91924a)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[89a0fd2](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/89a0fd2e71d56ddaf715654d964bd3037346979f)
 
 ### Bug Fixes
 
@@ -68,6 +68,7 @@ All notable changes to this project will be documented in this file.
 - Suppress pipeline array pollution from Form.Controls.Add and Add-Type ([`1fb57f7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1fb57f70e535601510bfeda53b80e9cd6ce0960e))
 - Remove AcceptButton default to prevent auto-triggering Upgrade Now ([`df5b34e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/df5b34ebbe902db9b0c83f488d49b03ccbb5eabd))
 - Override utils.ps1 Log/InfoMessage to stop Write-Output return pipeline pollution ([`861c71d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/861c71dd0b598b54d3ed9a1cc4aeab3c9b91924a))
+- Fix Session 0 user resolution for Scheduled Task interactive popup ([`89a0fd2`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/89a0fd2e71d56ddaf715654d964bd3037346979f))
 
 ### Documentation
 
@@ -135,6 +136,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`eb6ff46`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/eb6ff46ee7211d4621a64fb43491d50391545a66))
 - Update CHANGELOG.md and checksums [skip ci] ([`b244f75`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b244f75e7108e3956ef4d4f3bf444fac1c6edb6e))
 - Update CHANGELOG.md and checksums [skip ci] ([`1e65089`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1e65089c295b36ead7c12269a1a1824778511a5d))
+- Update CHANGELOG.md and checksums [skip ci] ([`27bef53`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/27bef539cda9a7594947b0ba1b5e97773493e1ad))
 
 ### Features
 
