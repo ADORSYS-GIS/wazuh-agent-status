@@ -134,24 +134,24 @@ function Remove-TempFile {
 }
 
 function Get-ActiveConsoleUser {
-    # 1. Query process owner of explorer.exe via WMI (works reliably on PS 5.1/7 across all Windows editions)
+    # 1. Query process owner of explorer.exe via WMI (works from Session 0 as SYSTEM)
     try {
-        $explorer = Get-WmiObject Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($explorer) {
-            $owner = $explorer.GetOwner()
-            if ($owner -and $owner.User) {
+        $explorers = Get-WmiObject Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue
+        foreach ($exp in $explorers) {
+            $owner = $exp.GetOwner()
+            if ($owner -and $owner.User -and $owner.User -notmatch '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') {
                 if ($owner.Domain) { return "$($owner.Domain)\$($owner.User)" }
                 return $owner.User
             }
         }
     } catch {}
 
-    # 2. Query via CimInstance fallback
+    # 2. Query via Get-CimInstance fallback
     try {
-        $explorerCim = Get-CimInstance Win32_Process -Filter "Name = 'explorer.exe'" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($explorerCim) {
-            $ownerCim = Invoke-CimMethod -InputObject $explorerCim -MethodName GetOwner -ErrorAction SilentlyContinue
-            if ($ownerCim -and $ownerCim.User) {
+        $explorerCims = Get-CimInstance Win32_Process -Filter "Name = 'explorer.exe'" -ErrorAction SilentlyContinue
+        foreach ($expCim in $explorerCims) {
+            $ownerCim = Invoke-CimMethod -InputObject $expCim -MethodName GetOwner -ErrorAction SilentlyContinue
+            if ($ownerCim -and $ownerCim.User -and $ownerCim.User -notmatch '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') {
                 if ($ownerCim.Domain) { return "$($ownerCim.Domain)\$($ownerCim.User)" }
                 return $ownerCim.User
             }
@@ -172,16 +172,10 @@ function Get-ActiveConsoleUser {
                 if ($line -match "Active") {
                     $fields = $line.Trim() -split "\s+"
                     $u = $fields[0].Replace(">", "")
-                    if ($u) { return $u }
+                    if ($u -and $u -notmatch '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') { return $u }
                 }
             }
         }
-    } catch {}
-
-    # 5. Fallback to Win32_ComputerSystem
-    try {
-        $sysUser = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue).UserName
-        if (-not [string]::IsNullOrWhiteSpace($sysUser)) { return $sysUser }
     } catch {}
 
     return $null
@@ -261,7 +255,8 @@ function Invoke-InteractivePopup {
     try {
         $consoleUser = Get-ActiveConsoleUser
         if ([string]::IsNullOrWhiteSpace($consoleUser)) {
-            $consoleUser = if ($env:USERNAME) { if ($env:USERDOMAIN) { "$env:USERDOMAIN\$env:USERNAME" } else { $env:USERNAME } } else { "BUILTIN\Users" }
+            InfoMessage "No active desktop session found. Proceeding with background upgrade."
+            return 0
         }
         
         $guid = [guid]::NewGuid().ToString('N')
