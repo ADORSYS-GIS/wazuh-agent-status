@@ -224,16 +224,6 @@ try {
         
         $elapsed = 0
         while (-not (Test-Path $resultFile)) {
-            $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue).State
-            if ($state -and $state -ne 'Running' -and $state -ne 'Unknown') {
-                Start-Sleep -Milliseconds 500
-                if (-not (Test-Path $resultFile)) {
-                    WarnMessage "Popup task finished without writing result file."
-                    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-                    return 1
-                }
-            }
-
             if ($elapsed -ge $TimeoutSeconds) {
                 WarnMessage "Popup timed out after $TimeoutSeconds seconds."
                 Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null
