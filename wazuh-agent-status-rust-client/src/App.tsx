@@ -57,6 +57,9 @@ const STATUS_POLL_MS = 2_000;
 const UPDATE_POLL_MS = 5 * 60 * 1000;
 const STORAGE_KEY_VIEW = "wazuh_active_view";
 
+const IS_WINDOWS = typeof navigator !== "undefined"
+  && navigator.userAgent.toLowerCase().includes("windows");
+
 function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [agentStatus, setAgentStatus] = useState<AgentStatus>(DEFAULT_STATUS);
@@ -114,8 +117,15 @@ function App() {
   }, [activeView]);
 
   useEffect(() => {
+    if (!IS_WINDOWS) {
+      setShowUpdatePrompt(false);
+      lastNotifiedUpdateVersionRef.current = null;
+      return;
+    }
+
     if (!updateInfo?.has_updates) {
       setShowUpdatePrompt(false);
+      lastNotifiedUpdateVersionRef.current = null;
       return;
     }
 
@@ -123,6 +133,10 @@ function App() {
   }, [activeView, updateInfo]);
 
   useEffect(() => {
+    if (!IS_WINDOWS) {
+      return;
+    }
+
     if (!updateInfo?.has_updates) {
       lastNotifiedUpdateVersionRef.current = null;
       return;
@@ -289,7 +303,7 @@ function App() {
             >
               <IconShield />
               <span className="nav-label">Health & Updates</span>
-              {updateInfo?.has_updates && <span className="notification-dot" />}
+              {IS_WINDOWS && updateInfo?.has_updates && <span className="notification-dot" />}
             </button>
             <span className="tooltip">Health & Updates</span>
           </div>

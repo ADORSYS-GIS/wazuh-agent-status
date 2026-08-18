@@ -27,6 +27,7 @@ pub fn show_main_window(window: tauri::Window) {
     let _ = window.set_focus();
 }
 
+#[cfg(target_os = "windows")]
 #[tauri::command]
 pub fn notify_update_available(
     app: tauri::AppHandle,
@@ -49,6 +50,15 @@ pub fn notify_update_available(
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+#[cfg(not(target_os = "windows"))]
+#[tauri::command]
+pub fn notify_update_available(
+    _app: tauri::AppHandle,
+    _current_version: String,
+    _latest_version: String,
+) {
 }
 
 #[tauri::command]
