@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[a8458ac](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a8458acdfd384d5b0f19fb404acd1e83fb41f3db)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[2c5d12d](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2c5d12d8f1e696102e8b8fc2813c48a50cab010f)
 
 ### Bug Fixes
 
@@ -56,6 +56,7 @@ All notable changes to this project will be documented in this file.
 - Correct variable name for temporary directory and update warning messages ([`c4fc0f3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c4fc0f3b1a576c93197326a95ee14214374d47ed)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Remove unnecessary blank line in append_update_log function ([`0b85550`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0b85550606575276145abf06d01073e5c1eea7f3)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Ensure running services are not stopped during updates ([`a8458ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a8458acdfd384d5b0f19fb404acd1e83fb41f3db)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Add fallback for missing msg.exe on Windows Home ([`1b77a41`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1b77a41944b7fba048868c6c468a845777c36727))
 
 ### Documentation
 
@@ -108,6 +109,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`99ef946`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/99ef94667c61143c22df0ca588f2543e703dac58))
 - Update CHANGELOG.md and checksums [skip ci] ([`c09f0c6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c09f0c6c551df214612d198acf412244195c309f))
 - Update CHANGELOG.md and checksums [skip ci] ([`5637810`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/56378105e8b80c1eefb9d182b2be945108813eaf))
+- Update CHANGELOG.md and checksums [skip ci] ([`ac755a5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ac755a5289dda3dbaa02cb391579d8421a1eec4c))
 
 ### Features
 
@@ -128,6 +130,7 @@ All notable changes to this project will be documented in this file.
 - Resolve macOS update UI freeze & update AI command allowlist (#175) ([`779c333`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/779c33310ba7e32525d970792d6462ab594c675a))
 - Enhance update notification mechanism for macOS and Windows scripts ([`a7a333f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a7a333f74dba06232d96d37593411df7b5f6c018)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Resolve macOS update UI freeze & update AI command allowlist (#… (#179) ([`ce2576b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce2576b5630b6386bce9f34b131017806d5345d2)), Co-authored-by:GitHub Action <action@github.com>
+- Auto-update on version change for stable and prerelease ([`e18ae5b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e18ae5b3923351d4b9566d3b59b6e195a3ab6b52))
 
 ### Miscellaneous Tasks
 
@@ -232,6 +235,7 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 ### Styling
 
 - Update dismiss button background and remove shimmer animation ([`ca6d565`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ca6d5651d7af4bea151ce6861509a11ca31ce2b1))
+- Format Rust code via cargo fmt ([`2c5d12d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2c5d12d8f1e696102e8b8fc2813c48a50cab010f))
 
 ### Testing
 
