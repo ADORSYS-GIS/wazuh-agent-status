@@ -189,6 +189,26 @@ function Invoke-InteractivePopup {
         [int]$TimeoutSeconds = 600
     )
     
+    # 1. Try direct WinForms MessageBox if running in an interactive desktop session (SessionId > 0)
+    try {
+        $sessionId = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
+        if ($sessionId -gt 0) {
+            Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+            $btn = [System.Windows.Forms.MessageBoxButtons]::$Buttons
+            $ico = [System.Windows.Forms.MessageBoxIcon]::$Icon
+            $res = [System.Windows.Forms.MessageBox]::Show($Message, $Title, $btn, $ico)
+            if ($res -eq [System.Windows.Forms.DialogResult]::Yes -or $res -eq [System.Windows.Forms.DialogResult]::OK) {
+                return 0
+            } else {
+                InfoMessage "User clicked $res on popup."
+                return 1
+            }
+        }
+    } catch {
+        WarnMessage "Direct GUI popup failed, falling back to Scheduled Task: $($_.Exception.Message)"
+    }
+
+    # 2. Fallback to Scheduled Task for Session 0 (background service context)
     try {
         $consoleUser = Get-ActiveConsoleUser
         if ([string]::IsNullOrWhiteSpace($consoleUser)) {
