@@ -205,8 +205,14 @@ function Invoke-InteractivePopup {
         
         $script = @"
 Add-Type -AssemblyName System.Windows.Forms
-`$res = [System.Windows.Forms.MessageBox]::Show('$escapedMsg', '$escapedTitle', '$Buttons', '$Icon')
-Set-Content -Path '$resultFile' -Value `$res.ToString() -Force
+try {
+    `$btn = [System.Windows.Forms.MessageBoxButtons]::$Buttons
+    `$ico = [System.Windows.Forms.MessageBoxIcon]::$Icon
+    `$res = [System.Windows.Forms.MessageBox]::Show('$escapedMsg', '$escapedTitle', `$btn, `$ico)
+    Set-Content -Path '$resultFile' -Value `$res.ToString() -Force
+} catch {
+    Set-Content -Path '$resultFile' -Value "Error: `$($_.Exception.Message)" -Force
+}
 "@
         $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
         
@@ -218,10 +224,20 @@ Set-Content -Path '$resultFile' -Value `$res.ToString() -Force
         
         $elapsed = 0
         while (-not (Test-Path $resultFile)) {
+            $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue).State
+            if ($state -and $state -ne 'Running' -and $state -ne 'Unknown') {
+                Start-Sleep -Milliseconds 500
+                if (-not (Test-Path $resultFile)) {
+                    WarnMessage "Popup task finished without writing result file."
+                    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+                    return 1
+                }
+            }
+
             if ($elapsed -ge $TimeoutSeconds) {
                 WarnMessage "Popup timed out after $TimeoutSeconds seconds."
                 Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null
-                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false | Out-Null
+                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
                 Remove-TempFile $resultFile
                 return 1
             }
