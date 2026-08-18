@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[922f491](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/922f49139a3d4939f0ea3510464a9ac370e9481d)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[4d25cef](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4d25cef241a0613a2025cc51e9c926e05289e859)
 
 ### Bug Fixes
 
@@ -60,6 +60,7 @@ All notable changes to this project will be documented in this file.
 - Fix interactive consent popup user detection and result parsing ([`9c178c5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9c178c5e63a344a88b58c93d6fa1bd70d7a5aa09))
 - Add 5-stage user detection hierarchy so server execution always finds interactive user ([`a178ac3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a178ac3e4861f0d0ec14504e331619181a4faf00))
 - Replace Write-Output with Write-Host in Append-Log to prevent pipeline return array pollution ([`922f491`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/922f49139a3d4939f0ea3510464a9ac370e9481d))
+- Add explicit MessageBox Enum casting and task state check to prevent loop hanging ([`4d25cef`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4d25cef241a0613a2025cc51e9c926e05289e859))
 
 ### Documentation
 
@@ -117,6 +118,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`f0863ad`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f0863ad15683430ae1a6a63a29958bdd902e49d2))
 - Update CHANGELOG.md and checksums [skip ci] ([`fead763`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/fead763409cadf08af2df2642089731ec325b397))
 - Update CHANGELOG.md and checksums [skip ci] ([`d966c80`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d966c8062eb7635f0d58bdba539238db1d972626))
+- Update CHANGELOG.md and checksums [skip ci] ([`cac5c2d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cac5c2db445d85ec0378b479e74507d20e3a7d36))
 
 ### Features
 
