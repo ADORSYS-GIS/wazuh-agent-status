@@ -194,6 +194,8 @@ function Invoke-InteractivePopup {
         $taskName = "WazuhUpdatePopup_$guid"
         $resultFile = Join-Path $env:TEMP "wazuh_popup_res_$guid.txt"
 
+        Remove-TempFile $resultFile
+
         $escapedMsg = $Message.Replace("'", "''")
         $escapedTitle = $Title.Replace("'", "''")
         
@@ -210,7 +212,7 @@ try {
 "@
         $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
         
-        $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-NoProfile -WindowStyle Hidden -EncodedCommand $encoded"
+        $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-NoProfile -EncodedCommand $encoded"
         $principal = New-ScheduledTaskPrincipal -LogonType Interactive
         
         Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Force | Out-Null
