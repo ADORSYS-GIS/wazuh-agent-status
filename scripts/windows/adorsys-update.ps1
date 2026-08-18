@@ -134,10 +134,14 @@ function Remove-TempFile {
 }
 
 function Get-ActiveConsoleUser {
-    # 1. Query process owner of explorer.exe via WMI (works from Session 0 as SYSTEM)
+    # 1. Query process owner SID of explorer.exe via WMI (works from Session 0 as SYSTEM)
     try {
         $explorers = Get-WmiObject Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue
         foreach ($exp in $explorers) {
+            $sidInfo = $exp.GetOwnerSid()
+            if ($sidInfo -and $sidInfo.Sid) {
+                return $sidInfo.Sid
+            }
             $owner = $exp.GetOwner()
             if ($owner -and $owner.User -and $owner.User -notmatch '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') {
                 if ($owner.Domain) { return "$($owner.Domain)\$($owner.User)" }
@@ -261,7 +265,12 @@ function Invoke-InteractivePopup {
         
         $guid = [guid]::NewGuid().ToString('N')
         $taskName = "WazuhUpdatePopup_$guid"
-        $resultFile = Join-Path $env:TEMP "wazuh_popup_res_$guid.txt"
+        
+        $pubDir = Join-Path $env:ProgramData "WazuhAgentStatus"
+        if (-not (Test-Path $pubDir)) {
+            New-Item -ItemType Directory -Path $pubDir -Force | Out-Null
+        }
+        $resultFile = Join-Path $pubDir "wazuh_popup_res_$guid.txt"
 
         Remove-TempFile $resultFile
 
@@ -328,8 +337,9 @@ try {
         
         $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-NoProfile -EncodedCommand $encoded"
         $principal = New-ScheduledTaskPrincipal -UserId $consoleUser -LogonType Interactive
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -Priority 4
         
-        Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Force | Out-Null
+        Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Settings $settings -Force | Out-Null
         Start-ScheduledTask -TaskName $taskName | Out-Null
         
         $elapsed = 0
