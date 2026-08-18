@@ -192,8 +192,8 @@ function Invoke-InteractivePopup {
     try {
         $sessionId = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
         if ($sessionId -gt 0) {
-            Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
-            Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+            Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop | Out-Null
+            Add-Type -AssemblyName System.Drawing -ErrorAction Stop | Out-Null
 
             if ($Mode -eq "Consent") {
                 $form = New-Object System.Windows.Forms.Form
@@ -209,21 +209,21 @@ function Invoke-InteractivePopup {
                 $label.Text = $Message
                 $label.Location = New-Object System.Drawing.Point(20, 20)
                 $label.Size = New-Object System.Drawing.Size(370, 50)
-                $form.Controls.Add($label)
+                [void]$form.Controls.Add($label)
 
                 $btnUpgrade = New-Object System.Windows.Forms.Button
                 $btnUpgrade.Text = "Upgrade Now"
                 $btnUpgrade.Location = New-Object System.Drawing.Point(85, 85)
                 $btnUpgrade.Size = New-Object System.Drawing.Size(120, 35)
                 $btnUpgrade.DialogResult = [System.Windows.Forms.DialogResult]::Yes
-                $form.Controls.Add($btnUpgrade)
+                [void]$form.Controls.Add($btnUpgrade)
 
                 $btnLater = New-Object System.Windows.Forms.Button
                 $btnLater.Text = "Remind Me Later"
                 $btnLater.Location = New-Object System.Drawing.Point(215, 85)
                 $btnLater.Size = New-Object System.Drawing.Size(130, 35)
                 $btnLater.DialogResult = [System.Windows.Forms.DialogResult]::No
-                $form.Controls.Add($btnLater)
+                [void]$form.Controls.Add($btnLater)
 
                 $form.AcceptButton = $btnUpgrade
                 $form.CancelButton = $btnLater
@@ -264,8 +264,8 @@ function Invoke-InteractivePopup {
         $escapedTitle = $Title.Replace("'", "''")
         
         $script = @"
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Windows.Forms | Out-Null
+Add-Type -AssemblyName System.Drawing | Out-Null
 
 try {
     if ('$Mode' -eq 'Consent') {
@@ -282,21 +282,21 @@ try {
         `$label.Text = '$escapedMsg'
         `$label.Location = New-Object System.Drawing.Point(20, 20)
         `$label.Size = New-Object System.Drawing.Size(370, 50)
-        `$form.Controls.Add(`$label)
+        [void]`$form.Controls.Add(`$label)
 
         `$btnUpgrade = New-Object System.Windows.Forms.Button
         `$btnUpgrade.Text = 'Upgrade Now'
         `$btnUpgrade.Location = New-Object System.Drawing.Point(85, 85)
         `$btnUpgrade.Size = New-Object System.Drawing.Size(120, 35)
         `$btnUpgrade.DialogResult = [System.Windows.Forms.DialogResult]::Yes
-        `$form.Controls.Add(`$btnUpgrade)
+        [void]`$form.Controls.Add(`$btnUpgrade)
 
         `$btnLater = New-Object System.Windows.Forms.Button
         `$btnLater.Text = 'Remind Me Later'
         `$btnLater.Location = New-Object System.Drawing.Point(215, 85)
         `$btnLater.Size = New-Object System.Drawing.Size(130, 35)
         `$btnLater.DialogResult = [System.Windows.Forms.DialogResult]::No
-        `$form.Controls.Add(`$btnLater)
+        [void]`$form.Controls.Add(`$btnLater)
 
         `$form.AcceptButton = `$btnUpgrade
         `$form.CancelButton = `$btnLater
