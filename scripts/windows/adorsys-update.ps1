@@ -134,14 +134,10 @@ function Remove-TempFile {
 }
 
 function Get-ActiveConsoleUser {
-    # 1. Query process owner SID of explorer.exe via WMI (works from Session 0 as SYSTEM)
+    # 1. Query process owner of explorer.exe via WMI (works from Session 0 as SYSTEM)
     try {
         $explorers = Get-WmiObject Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue
         foreach ($exp in $explorers) {
-            $sidInfo = $exp.GetOwnerSid()
-            if ($sidInfo -and $sidInfo.Sid) {
-                return $sidInfo.Sid
-            }
             $owner = $exp.GetOwner()
             if ($owner -and $owner.User -and $owner.User -notmatch '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') {
                 if ($owner.Domain) { return "$($owner.Domain)\$($owner.User)" }
@@ -252,7 +248,9 @@ function Invoke-InteractivePopup {
             }
         }
     } catch {
-        WarnMessage "Direct GUI popup failed, falling back to Scheduled Task: $($_.Exception.Message)"
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        WarnMessage "Direct GUI popup failed, falling back to Scheduled Task: $errMsg"
     }
 
     # 2. Fallback to Scheduled Task for Session 0 (background service context)
@@ -366,7 +364,9 @@ try {
             return 1
         }
     } catch {
-        WarnMessage "Interactive popup failed: $($_.Exception.Message)"
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        WarnMessage "Interactive popup failed: $errMsg"
         return 1
     }
 }
