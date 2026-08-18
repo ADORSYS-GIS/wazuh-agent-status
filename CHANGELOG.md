@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[0f19651](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0f19651c9df9c484456035007ab119f0ea773236)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[97217a1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/97217a13dc73a1c0c953b53b5b51c746f465c826)
 
 ### Bug Fixes
 
@@ -153,6 +153,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`dbf52ee`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/dbf52ee283ea6cbad45ec63474ca9dbcb6dbbe53))
 - Update CHANGELOG.md and checksums [skip ci] ([`db5e9f8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/db5e9f860bb68a14ade2fa7b61a29c8b417737c5))
 - Update CHANGELOG.md and checksums [skip ci] ([`c8f618f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c8f618fdcff33423de17823ea4889527f514665e))
+- Update CHANGELOG.md and checksums [skip ci] ([`75a7501`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/75a7501224425eea6c5d5caffe32cc913268e221))
 
 ### Features
 
@@ -249,6 +250,7 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 
 ---------, Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>, Co-authored-by:louise mbiti kongnyu <louisembiti@gmail.com>, Co-authored-by:GitHub Action <action@github.com>
 - Increase default auto-update check interval from 30 minutes to 4 hours ([`c52a893`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c52a8938f2f945e88f2e16ba5276ebccd51b942a))
+- Revert port back to 50506 in README.md ([`97217a1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/97217a13dc73a1c0c953b53b5b51c746f465c826))
 
 ### Performance
 
