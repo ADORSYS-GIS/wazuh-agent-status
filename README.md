@@ -22,7 +22,7 @@ The system follows a **Client-Server** architecture:
 - **Server (`wazuh-agent-status-rust-server`)**: A privileged background service that monitors the Wazuh agent's status, polls for updates every 5 seconds, and streams results to connected clients.
 - **Client (`wazuh-agent-status-rust-client`)**: A Tauri-based desktop application with a system tray icon and a rich web UI for status monitoring, compliance checks, log viewing, and configuration.
 
-Communication between client and server happens over localhost TCP (port 50505).
+Communication between client and server happens over localhost TCP (port 50506).
 
 ## Installation
 
@@ -77,13 +77,13 @@ cd wazuh-agent-status
 
 ### Step 3: Configure the Port (Optional)
 
-By default, the client and server communicate over TCP port `50505`. If you need to change this port, you must configure both the client and server.
+By default, the client and server communicate over TCP port `50506`. If you need to change this port, you must configure both the client and server.
 
 1. **Update the Client Configuration:**
    Edit the file `wazuh-agent-status-rust-client/src-tauri/app_config.json` and change `"server_addr"` to your desired port:
    ```json
    {
-     "server_addr": "127.0.0.1:50505"
+     "server_addr": "127.0.0.1:50506"
    }
    ```
 
@@ -100,13 +100,13 @@ cd wazuh-agent-status-rust-server
 cargo build --release
 ```
 
-**Run (with default port 50505):**
+**Run (with default port 50506):**
 - **Linux/macOS:** `sudo ./target/release/wazuh-agent-status-rust-server`
 - **Windows:** `.\target\release\wazuh-agent-status-rust-server.exe` (Run as Administrator)
 
-**Run (with custom port 50505):**
-- **Linux/macOS:** `sudo WAZUH_STATUS_ADDR="127.0.0.1:50505" ./target/release/wazuh-agent-status-rust-server`
-- **Windows (PowerShell):** `$env:WAZUH_STATUS_ADDR="127.0.0.1:50505"; .\target\release\wazuh-agent-status-rust-server.exe` (Run as Administrator)
+**Run (with custom port 50506):**
+- **Linux/macOS:** `sudo WAZUH_STATUS_ADDR="127.0.0.1:50506" ./target/release/wazuh-agent-status-rust-server`
+- **Windows (PowerShell):** `$env:WAZUH_STATUS_ADDR="127.0.0.1:50506"; .\target\release\wazuh-agent-status-rust-server.exe` (Run as Administrator)
 
 ### Step 5: Build and Run the Client (Tray App)
 
