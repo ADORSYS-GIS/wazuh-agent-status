@@ -126,26 +126,75 @@ function Remove-TempFile {
     }
 }
 
-function Show-UpdatePopup {
-    param([string]$Message)
+function Invoke-InteractivePopup {
+    param(
+        [string]$Message,
+        [string]$Title = "Wazuh Update",
+        [string]$Buttons = "OK",
+        [string]$Icon = "Information",
+        [int]$TimeoutSeconds = 600
+    )
+    
     try {
-        # The update chain runs elevated (often in session 0 as a service child),
-        # so an in-process MessageBox would be invisible to the logged-in user.
-        # msg.exe broadcasts the popup to the interactive session instead.
-        if (Get-Command msg.exe -ErrorAction SilentlyContinue) {
-            # Fire-and-forget so the update stream is not blocked waiting for a click.
-            Start-Process -FilePath "msg.exe" -ArgumentList @("*", $Message) -WindowStyle Hidden -ErrorAction Stop
-            InfoMessage "Popup shown via msg.exe: $Message"
-        } else {
-            # Fallback for Windows Home edition (msg.exe is not included).
-            # This will only be visible if the script is running in an interactive session.
-            $wshell = New-Object -ComObject Wscript.Shell
-            $wshell.Popup($Message, 0, "Wazuh Update", 0x40) | Out-Null
-            InfoMessage "Popup shown via WScript.Shell: $Message"
+        $consoleUser = (Get-CimInstance -ClassName Win32_ComputerSystem).UserName
+        if ([string]::IsNullOrWhiteSpace($consoleUser)) {
+            InfoMessage "No interactive user session found. Defaulting to proceed."
+            return 0
         }
+        
+        $taskName = "WazuhUpdatePopup_$([guid]::NewGuid().ToString('N'))"
+        $escapedMsg = $Message.Replace("'", "''")
+        $escapedTitle = $Title.Replace("'", "''")
+        
+        $script = @"
+Add-Type -AssemblyName System.Windows.Forms
+`$res = [System.Windows.Forms.MessageBox]::Show('$escapedMsg', '$escapedTitle', '$Buttons', '$Icon')
+if (`$res -eq 'Yes') { exit 0 }
+elseif (`$res -eq 'No') { exit 1 }
+else { exit 0 }
+"@
+        $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
+        
+        $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-NoProfile -WindowStyle Hidden -EncodedCommand $encoded"
+        $principal = New-ScheduledTaskPrincipal -UserId $consoleUser -LogonType Interactive
+        
+        Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Force | Out-Null
+        Start-ScheduledTask -TaskName $taskName | Out-Null
+        
+        $elapsed = 0
+        while ((Get-ScheduledTask -TaskName $taskName).State -eq 'Running') {
+            if ($elapsed -ge $TimeoutSeconds) {
+                WarnMessage "Popup timed out after $TimeoutSeconds seconds."
+                Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null
+                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false | Out-Null
+                return 1
+            }
+            Start-Sleep -Seconds 1
+            $elapsed++
+        }
+        
+        $taskInfo = Get-ScheduledTaskInfo -TaskName $taskName
+        $result = $taskInfo.LastTaskResult
+        
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false | Out-Null
+        
+        return $result
     } catch {
-        WarnMessage "Could not show popup: $($_.Exception.Message)"
+        WarnMessage "Interactive popup failed: $($_.Exception.Message)"
+        return 0
     }
+}
+
+function Get-UserConsent {
+    InfoMessage "Prompting user for upgrade consent..."
+    $msg = "A new version of Wazuh is available. Would you like to upgrade?"
+    $res = Invoke-InteractivePopup -Message $msg -Buttons "YesNo" -Icon "Question" -TimeoutSeconds 3600
+    if ($res -ne 0) {
+        InfoMessage "User chose Remind Me Later or prompt timed out."
+        return $false
+    }
+    InfoMessage "User chose to Upgrade Now."
+    return $true
 }
 
 function Get-PrereleaseVersion {
@@ -209,7 +258,8 @@ function Run-Update {
     }
 
     SuccessMessage "Update completed successfully! Please save your work and reboot to finish the update."
-    Show-UpdatePopup "Update completed successfully! Please save your work and reboot to finish the update."
+    # Fire and forget success popup (timeout short so it doesn't block indefinitely)
+    Invoke-InteractivePopup -Message "Update completed successfully! Please save your work and reboot to finish the update." -Buttons "OK" -Icon "Information" -TimeoutSeconds 60 | Out-Null
 }
 
 # ---- Main Execution ----
@@ -217,7 +267,11 @@ InfoMessage "Wazuh Agent Upgrade Script"
 InfoMessage "Running as Administrator: $IsAdmin"
 InfoMessage "Log file: $LogPath"
 
-# Resolve prerelease version here — after all functions are defined
+if (-not (Get-UserConsent)) {
+    InfoMessage "Update postponed. Exiting."
+    exit 0
+}
+
 if ($Prerelease) {
     $PRERELEASE_VERSION = Get-PrereleaseVersion
     if ($PRERELEASE_VERSION) {
