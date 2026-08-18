@@ -126,6 +126,42 @@ function Remove-TempFile {
     }
 }
 
+function Get-ActiveConsoleUser {
+    # 1. Query process owner of explorer.exe (works reliably from Session 0 / background service)
+    try {
+        $explorer = Get-CimInstance Win32_Process -Filter "Name = 'explorer.exe'" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($explorer) {
+            $owner = Invoke-CimMethod -InputObject $explorer -MethodName GetOwner -ErrorAction SilentlyContinue
+            if ($owner -and $owner.User) {
+                if ($owner.Domain) { return "$($owner.Domain)\$($owner.User)" }
+                return $owner.User
+            }
+        }
+    } catch {}
+
+    # 2. Query quser for active session user
+    try {
+        $quser = query user 2>$null
+        if ($quser) {
+            foreach ($line in ($quser -split "\r?\n")[1..($quser.Count-1)]) {
+                if ($line -match "Active") {
+                    $fields = $line.Trim() -split "\s+"
+                    $u = $fields[0].Replace(">", "")
+                    if ($u) { return $u }
+                }
+            }
+        }
+    } catch {}
+
+    # 3. Fallback to Win32_ComputerSystem
+    try {
+        $sysUser = (Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue).UserName
+        if (-not [string]::IsNullOrWhiteSpace($sysUser)) { return $sysUser }
+    } catch {}
+
+    return $null
+}
+
 function Invoke-InteractivePopup {
     param(
         [string]$Message,
@@ -136,22 +172,23 @@ function Invoke-InteractivePopup {
     )
     
     try {
-        $consoleUser = (Get-CimInstance -ClassName Win32_ComputerSystem).UserName
+        $consoleUser = Get-ActiveConsoleUser
         if ([string]::IsNullOrWhiteSpace($consoleUser)) {
             InfoMessage "No interactive user session found. Defaulting to proceed."
             return 0
         }
         
-        $taskName = "WazuhUpdatePopup_$([guid]::NewGuid().ToString('N'))"
+        $guid = [guid]::NewGuid().ToString('N')
+        $taskName = "WazuhUpdatePopup_$guid"
+        $resultFile = Join-Path $env:TEMP "wazuh_popup_res_$guid.txt"
+
         $escapedMsg = $Message.Replace("'", "''")
         $escapedTitle = $Title.Replace("'", "''")
         
         $script = @"
 Add-Type -AssemblyName System.Windows.Forms
 `$res = [System.Windows.Forms.MessageBox]::Show('$escapedMsg', '$escapedTitle', '$Buttons', '$Icon')
-if (`$res -eq 'Yes') { exit 0 }
-elseif (`$res -eq 'No') { exit 1 }
-else { exit 0 }
+Set-Content -Path '$resultFile' -Value `$res.ToString() -Force
 "@
         $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
         
@@ -162,23 +199,27 @@ else { exit 0 }
         Start-ScheduledTask -TaskName $taskName | Out-Null
         
         $elapsed = 0
-        while ((Get-ScheduledTask -TaskName $taskName).State -eq 'Running') {
+        while (-not (Test-Path $resultFile)) {
             if ($elapsed -ge $TimeoutSeconds) {
                 WarnMessage "Popup timed out after $TimeoutSeconds seconds."
                 Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null
                 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false | Out-Null
+                Remove-TempFile $resultFile
                 return 1
             }
             Start-Sleep -Seconds 1
             $elapsed++
         }
         
-        $taskInfo = Get-ScheduledTaskInfo -TaskName $taskName
-        $result = $taskInfo.LastTaskResult
-        
+        $userChoice = (Get-Content -Path $resultFile -Raw).Trim()
         Unregister-ScheduledTask -TaskName $taskName -Confirm:$false | Out-Null
+        Remove-TempFile $resultFile
         
-        return $result
+        if ($userChoice -eq "Yes" -or $userChoice -eq "OK") {
+            return 0
+        } else {
+            return 1
+        }
     } catch {
         WarnMessage "Interactive popup failed: $($_.Exception.Message)"
         return 0
