@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[9c178c5](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9c178c5e63a344a88b58c93d6fa1bd70d7a5aa09)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[a178ac3](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a178ac3e4861f0d0ec14504e331619181a4faf00)
 
 ### Bug Fixes
 
@@ -58,6 +58,7 @@ All notable changes to this project will be documented in this file.
 - Ensure running services are not stopped during updates ([`a8458ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a8458acdfd384d5b0f19fb404acd1e83fb41f3db)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Add fallback for missing msg.exe on Windows Home ([`1b77a41`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1b77a41944b7fba048868c6c468a845777c36727))
 - Fix interactive consent popup user detection and result parsing ([`9c178c5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9c178c5e63a344a88b58c93d6fa1bd70d7a5aa09))
+- Add 5-stage user detection hierarchy so server execution always finds interactive user ([`a178ac3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a178ac3e4861f0d0ec14504e331619181a4faf00))
 
 ### Documentation
 
@@ -113,6 +114,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`ac755a5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ac755a5289dda3dbaa02cb391579d8421a1eec4c))
 - Update CHANGELOG.md and checksums [skip ci] ([`c348772`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c34877253f032ba82958092ea9a71991fe187416))
 - Update CHANGELOG.md and checksums [skip ci] ([`f0863ad`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f0863ad15683430ae1a6a63a29958bdd902e49d2))
+- Update CHANGELOG.md and checksums [skip ci] ([`fead763`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/fead763409cadf08af2df2642089731ec325b397))
 
 ### Features
 
