@@ -20,8 +20,6 @@ pub fn get_config(config: State<'_, AppConfig>) -> AppConfig {
     config.inner().clone()
 }
 
-
-
 #[cfg(target_os = "windows")]
 #[tauri::command]
 pub fn notify_update_available(
