@@ -341,9 +341,7 @@ impl AgentManager {
         );
 
         if cfg!(target_os = "windows") {
-            info!(
-                "Auto-update: newer version detected. Waiting indefinitely for GUI trigger."
-            );
+            info!("Auto-update: newer version detected. Waiting indefinitely for GUI trigger.");
             return;
         } else {
             info!(
@@ -364,7 +362,11 @@ impl AgentManager {
     // ── Update Execution ──────────────────────────────────────────────────────
 
     /// Initiate an update process and return a stream of log output.
-    pub async fn initiate_update(&self, is_prerelease: bool, is_manual: bool) -> mpsc::Receiver<String> {
+    pub async fn initiate_update(
+        &self,
+        is_prerelease: bool,
+        is_manual: bool,
+    ) -> mpsc::Receiver<String> {
         let (tx, rx) = mpsc::channel(100);
         let paths = Arc::clone(&self.paths);
 
