@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[f861ee4](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f861ee47f8ee78a93e45fb65d90632255c0791d3)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[b5f895c](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b5f895ce3d101f3425211ed08f7476fb68f3d18f)
 
 ### Bug Fixes
 
@@ -158,6 +158,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`b26f6ff`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b26f6ff47ed69d343668750e3a9443eb50bf4336))
 - Update CHANGELOG.md and checksums [skip ci] ([`7968ce1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7968ce1bc53d794fb7aae6b98061728413947042))
 - Update CHANGELOG.md and checksums [skip ci] ([`5e19389`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5e19389d66a69e7d4e66b25b1739f4c0417a4c31))
+- Update CHANGELOG.md and checksums [skip ci] ([`39b6d58`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/39b6d589ba3aad31e5603e20ba19928f7ca58d8c))
 
 ### Features
 
@@ -296,6 +297,7 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 
 - Update dismiss button background and remove shimmer animation ([`ca6d565`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ca6d5651d7af4bea151ce6861509a11ca31ce2b1))
 - Format Rust code via cargo fmt ([`2c5d12d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2c5d12d8f1e696102e8b8fc2813c48a50cab010f))
+- Fix formatting in commands/mod.rs ([`b5f895c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b5f895ce3d101f3425211ed08f7476fb68f3d18f))
 
 ### Testing
 
