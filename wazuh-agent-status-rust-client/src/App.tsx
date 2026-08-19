@@ -116,21 +116,6 @@ function App() {
     }
   }, [activeView]);
 
-  useEffect(() => {
-    if (!IS_WINDOWS) {
-      setShowUpdatePrompt(false);
-      lastNotifiedUpdateVersionRef.current = null;
-      return;
-    }
-
-    if (!updateInfo?.has_updates) {
-      setShowUpdatePrompt(false);
-      lastNotifiedUpdateVersionRef.current = null;
-      return;
-    }
-
-    setShowUpdatePrompt(true);
-  }, [activeView, updateInfo]);
 
   useEffect(() => {
     if (!IS_WINDOWS) {

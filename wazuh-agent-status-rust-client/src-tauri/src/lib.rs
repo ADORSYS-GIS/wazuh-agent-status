@@ -70,7 +70,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_agent_status,
             commands::get_config,
-            commands::show_main_window,
             commands::notify_update_available,
             commands::get_system_metrics,
             commands::check_for_updates,

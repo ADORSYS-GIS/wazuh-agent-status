@@ -186,61 +186,11 @@ function Get-ActiveConsoleUser {
 }
 
 function Invoke-DirectWinFormsPopup {
-    param([string]$Message, [string]$Title, [string]$Mode)
+    param([string]$Message, [string]$Title)
     
     Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop | Out-Null
-    Add-Type -AssemblyName System.Drawing -ErrorAction Stop | Out-Null
-
-    if ($Mode -eq "Consent") {
-        $form = New-Object System.Windows.Forms.Form
-        $form.Text = $Title
-        $form.Size = New-Object System.Drawing.Size(430, 180)
-        $form.StartPosition = "CenterScreen"
-        $form.FormBorderStyle = "FixedDialog"
-        $form.MaximizeBox = $false
-        $form.MinimizeBox = $false
-        $form.TopMost = $true
-
-        $label = New-Object System.Windows.Forms.Label
-        $label.Text = $Message
-        $label.Location = New-Object System.Drawing.Point(20, 20)
-        $label.Size = New-Object System.Drawing.Size(370, 50)
-        [void]$form.Controls.Add($label)
-
-        $btnUpgrade = New-Object System.Windows.Forms.Button
-        $btnUpgrade.Text = "Upgrade Now"
-        $btnUpgrade.Location = New-Object System.Drawing.Point(85, 85)
-        $btnUpgrade.Size = New-Object System.Drawing.Size(120, 35)
-        $btnUpgrade.Add_Click({
-            $form.DialogResult = [System.Windows.Forms.DialogResult]::Yes
-            $form.Close()
-        })
-        [void]$form.Controls.Add($btnUpgrade)
-
-        $btnLater = New-Object System.Windows.Forms.Button
-        $btnLater.Text = "Remind Me Later"
-        $btnLater.Location = New-Object System.Drawing.Point(215, 85)
-        $btnLater.Size = New-Object System.Drawing.Size(130, 35)
-        $btnLater.Add_Click({
-            $form.DialogResult = [System.Windows.Forms.DialogResult]::No
-            $form.Close()
-        })
-        [void]$form.Controls.Add($btnLater)
-
-        $res = $form.ShowDialog()
-        $form.Dispose()
-
-        if ($res -eq [System.Windows.Forms.DialogResult]::Yes) {
-            InfoMessage "User clicked Upgrade Now."
-            return 0
-        } else {
-            InfoMessage "User clicked Remind Me Later."
-            return 1
-        }
-    } else {
-        [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
-        return 0
-    }
+    [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+    return 0
 }
 
 function Wait-PopupResult {
@@ -272,7 +222,7 @@ function Wait-PopupResult {
 }
 
 function Invoke-ScheduledTaskPopup {
-    param([string]$Message, [string]$Title, [string]$Mode, [int]$TimeoutSeconds)
+    param([string]$Message, [string]$Title, [int]$TimeoutSeconds)
     try {
         $consoleUser = Get-ActiveConsoleUser
         if ([string]::IsNullOrWhiteSpace($consoleUser)) {
@@ -296,56 +246,10 @@ function Invoke-ScheduledTaskPopup {
         
         $script = @"
 Add-Type -AssemblyName System.Windows.Forms | Out-Null
-Add-Type -AssemblyName System.Drawing | Out-Null
 
 try {
-    if ('$Mode' -eq 'Consent') {
-        `$form = New-Object System.Windows.Forms.Form
-        `$form.Text = '$escapedTitle'
-        `$form.Size = New-Object System.Drawing.Size(430, 180)
-        `$form.StartPosition = 'CenterScreen'
-        `$form.FormBorderStyle = 'FixedDialog'
-        `$form.MaximizeBox = `$false
-        `$form.MinimizeBox = `$false
-        `$form.TopMost = `$true
-
-        `$label = New-Object System.Windows.Forms.Label
-        `$label.Text = '$escapedMsg'
-        `$label.Location = New-Object System.Drawing.Point(20, 20)
-        `$label.Size = New-Object System.Drawing.Size(370, 50)
-        [void]`$form.Controls.Add(`$label)
-
-        `$btnUpgrade = New-Object System.Windows.Forms.Button
-        `$btnUpgrade.Text = 'Upgrade Now'
-        `$btnUpgrade.Location = New-Object System.Drawing.Point(85, 85)
-        `$btnUpgrade.Size = New-Object System.Drawing.Size(120, 35)
-        `$btnUpgrade.Add_Click({
-            `$form.DialogResult = [System.Windows.Forms.DialogResult]::Yes
-            `$form.Close()
-        })
-        [void]`$form.Controls.Add(`$btnUpgrade)
-
-        `$btnLater = New-Object System.Windows.Forms.Button
-        `$btnLater.Text = 'Remind Me Later'
-        `$btnLater.Location = New-Object System.Drawing.Point(215, 85)
-        `$btnLater.Size = New-Object System.Drawing.Size(130, 35)
-        `$btnLater.Add_Click({
-            `$form.DialogResult = [System.Windows.Forms.DialogResult]::No
-            `$form.Close()
-        })
-        [void]`$form.Controls.Add(`$btnLater)
-
-        `$res = `$form.ShowDialog()
-        `$form.Dispose()
-    } else {
-        `$res = [System.Windows.Forms.MessageBox]::Show('$escapedMsg', '$escapedTitle', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    }
-
-    if (`$res -eq [System.Windows.Forms.DialogResult]::Yes -or `$res -eq [System.Windows.Forms.DialogResult]::OK) {
-        Set-Content -Path '$resultFile' -Value 'Yes' -Force
-    } else {
-        Set-Content -Path '$resultFile' -Value 'No' -Force
-    }
+    [System.Windows.Forms.MessageBox]::Show('$escapedMsg', '$escapedTitle', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+    Set-Content -Path '$resultFile' -Value 'Yes' -Force
 } catch {
     Set-Content -Path '$resultFile' -Value "Error: exception occurred" -Force
 }
@@ -372,7 +276,6 @@ function Invoke-InteractivePopup {
     param(
         [string]$Message,
         [string]$Title = "Wazuh Update",
-        [string]$Mode = "Consent", # "Consent" or "Info"
         [int]$TimeoutSeconds = 600
     )
     
@@ -380,7 +283,7 @@ function Invoke-InteractivePopup {
     try {
         $sessionId = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
         if ($sessionId -gt 0) {
-            return Invoke-DirectWinFormsPopup -Message $Message -Title $Title -Mode $Mode
+            return Invoke-DirectWinFormsPopup -Message $Message -Title $Title
         }
     } catch {
         $err = $_
@@ -388,19 +291,7 @@ function Invoke-InteractivePopup {
         WarnMessage "Direct GUI popup failed, falling back to Scheduled Task: $errMsg"
     }
 
-    return Invoke-ScheduledTaskPopup -Message $Message -Title $Title -Mode $Mode -TimeoutSeconds $TimeoutSeconds
-}
-
-function Get-UserConsent {
-    InfoMessage "Prompting user for upgrade consent..."
-    $msg = "A new version of Wazuh is available. Would you like to upgrade?"
-    $res = Invoke-InteractivePopup -Message $msg -Mode "Consent" -TimeoutSeconds 3600
-    if ($res -ne 0) {
-        InfoMessage "User chose Remind Me Later or prompt timed out."
-        return $false
-    }
-    InfoMessage "User chose to Upgrade Now."
-    return $true
+    return Invoke-ScheduledTaskPopup -Message $Message -Title $Title -TimeoutSeconds $TimeoutSeconds
 }
 
 function Get-PrereleaseVersion {
@@ -476,7 +367,7 @@ function Run-Update {
     Invoke-ExecuteSetupScript -ScriptPath $setupScriptPath
 
     SuccessMessage "Update completed successfully! Please save your work and reboot to finish the update."
-    Invoke-InteractivePopup -Message "Update completed successfully! Please save your work and reboot to finish the update." -Mode "Info" -TimeoutSeconds 60 | Out-Null
+    Invoke-InteractivePopup -Message "Update completed successfully! Please save your work and reboot to finish the update." -TimeoutSeconds 60 | Out-Null
 }
 
 # ---- Main Execution ----
@@ -485,8 +376,8 @@ InfoMessage "Running as Administrator: $IsAdmin"
 InfoMessage "Log file: $LogPath"
 
 if (-not $Update) {
-    InfoMessage "This script is now update-only and should be launched by the client/server update command. Exiting."
-    exit 0
+    ErrorMessage "This script is now update-only and must be launched with -Update. Exiting."
+    exit 1
 }
 
 InfoMessage "Update invoked explicitly (e.g., from GUI). Proceeding without consent prompt."

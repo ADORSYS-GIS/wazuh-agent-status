@@ -8,7 +8,7 @@ use sha2::Sha256;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{Emitter, Manager, State};
+use tauri::{Emitter, State};
 
 #[tauri::command]
 pub fn get_agent_status(manager: State<'_, Arc<AgentManager>>) -> AgentState {
@@ -20,12 +20,7 @@ pub fn get_config(config: State<'_, AppConfig>) -> AppConfig {
     config.inner().clone()
 }
 
-#[tauri::command]
-pub fn show_main_window(window: tauri::Window) {
-    let _ = window.unminimize();
-    let _ = window.show();
-    let _ = window.set_focus();
-}
+
 
 #[cfg(target_os = "windows")]
 #[tauri::command]
@@ -34,6 +29,7 @@ pub fn notify_update_available(
     current_version: String,
     latest_version: String,
 ) {
+    use tauri::Manager;
     use tauri_plugin_notification::NotificationExt;
 
     let _ = app
