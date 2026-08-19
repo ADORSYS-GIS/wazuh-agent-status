@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[b5f895c](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b5f895ce3d101f3425211ed08f7476fb68f3d18f)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[72218b6](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/72218b64dfc89910e9a01ec3aa0e175e0fc84577)
 
 ### Bug Fixes
 
@@ -75,6 +75,7 @@ All notable changes to this project will be documented in this file.
 - Remove scripts/windows/adorsys-update.ps1 interpolation from scheduled task here-string causing strict mode crash ([`f2bedb9`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f2bedb9776e8071ddc1d20b02ecfa7c61d6b9ef3))
 - Correct parameter bindings for success popup ([`b2f8154`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b2f815428cef2351b3631b41ba7a98e02bb328ae))
 - Address reviewer comments ([`f861ee4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f861ee47f8ee78a93e45fb65d90632255c0791d3))
+- Update default port to 50506 across codebase ([`72218b6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/72218b64dfc89910e9a01ec3aa0e175e0fc84577))
 
 ### Documentation
 
@@ -159,6 +160,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`7968ce1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7968ce1bc53d794fb7aae6b98061728413947042))
 - Update CHANGELOG.md and checksums [skip ci] ([`5e19389`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5e19389d66a69e7d4e66b25b1739f4c0417a4c31))
 - Update CHANGELOG.md and checksums [skip ci] ([`39b6d58`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/39b6d589ba3aad31e5603e20ba19928f7ca58d8c))
+- Update CHANGELOG.md and checksums [skip ci] ([`386b5da`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/386b5daa08c5ae7c7594ce7b80fb79c429903f58))
 
 ### Features
 
