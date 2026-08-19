@@ -820,6 +820,66 @@ body {
   border: 1px solid rgba(244, 63, 94, 0.3);
 }
 
+.update-status-badge.available {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.update-available-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.update-available-copy p {
+  margin: 0;
+}
+
+.update-available-copy strong {
+  color: var(--text);
+}
+
+.update-available-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.update-available-button {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.update-available-button.primary {
+  background: var(--primary);
+  color: var(--text-on-primary);
+  box-shadow: 0 4px 12px var(--primary-alpha-30);
+}
+
+.update-available-button.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px var(--primary-alpha-40);
+}
+
+.update-available-button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.update-available-button.secondary:hover {
+  background: var(--overlay-white-05);
+}
+
 .update-elapsed {
   font-size: 0.75rem;
   color: var(--text-dim);

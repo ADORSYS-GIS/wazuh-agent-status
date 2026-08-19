@@ -96,7 +96,7 @@ pub struct AgentManager {
     local_agent_name: String,
     local_agent_key: String,
     /// Guards against triggering a second auto-update while one is already running.
-    update_in_progress: Arc<AtomicBool>,
+    pub update_in_progress: Arc<AtomicBool>,
 }
 
 impl AgentManager {
@@ -288,7 +288,6 @@ impl AgentManager {
                         Err(e) => warn!("Failed to poll agent status: {e}"),
                     }
                 }
-
                 _ = update_ticker.tick() => {
                     info!("Periodic auto-update check triggered");
                     self.check_and_auto_update().await;
@@ -341,14 +340,19 @@ impl AgentManager {
             crate::models::UpdateState::PrereleaseAvailable
         );
 
-        info!(
-            local = %status.tray.current_version,
-            latest = %status.tray.latest_version,
-            is_prerelease,
-            "Auto-update: newer version detected, triggering update script"
-        );
+        if cfg!(target_os = "windows") {
+            info!("Auto-update: newer version detected. Waiting indefinitely for GUI trigger.");
+            return;
+        } else {
+            info!(
+                local = %status.tray.current_version,
+                latest = %status.tray.latest_version,
+                is_prerelease,
+                "Auto-update: newer version detected, triggering update script"
+            );
+        }
 
-        let mut rx = self.initiate_update(is_prerelease).await;
+        let mut rx = self.initiate_update(is_prerelease, false).await;
         // Drain the log channel so the update runs to completion
         while let Some(line) = rx.recv().await {
             info!(target: "auto_update", "{}", line);
@@ -358,7 +362,11 @@ impl AgentManager {
     // ── Update Execution ──────────────────────────────────────────────────────
 
     /// Initiate an update process and return a stream of log output.
-    pub async fn initiate_update(&self, is_prerelease: bool) -> mpsc::Receiver<String> {
+    pub async fn initiate_update(
+        &self,
+        is_prerelease: bool,
+        is_manual: bool,
+    ) -> mpsc::Receiver<String> {
         let (tx, rx) = mpsc::channel(100);
         let paths = Arc::clone(&self.paths);
 
@@ -555,12 +563,14 @@ impl AgentManager {
                 ]);
                 // -Update is only understood by the adorsys-update.ps1 wrapper;
                 // setup-agent.ps1 does not declare it and would reject it.
-                if prerelease_tag.is_none() {
+                if is_manual && prerelease_tag.is_none() {
                     c.arg("-Update");
                 }
                 // Mark the chain as an update so agent-status install.ps1 leaves
                 // the running server service (the one executing this update) alone.
-                c.env("WAZUH_AGENT_STATUS_UPDATE", "1");
+                if is_manual {
+                    c.env("WAZUH_AGENT_STATUS_UPDATE", "1");
+                }
                 // Set the tag so the setup script downloads components from the correct release
                 if let Some(ref tag) = prerelease_tag {
                     c.env("WAZUH_AGENT_REPO_REF", tag);

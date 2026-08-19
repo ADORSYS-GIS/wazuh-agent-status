@@ -18,7 +18,7 @@ Built a high-performance, cross-platform system tray application in Rust that re
 ## ✅ Step 2: Communication Layer
 
 - Implemented a TCP client using `tokio::net::TcpStream` in the Rust server.
-- The Tauri client communicates with the Rust server over TCP on port 50505.
+- The Tauri client communicates with the Rust server over TCP on port 50506.
 - Implemented commands: `status`, `get-version`, `subscribe-status`, `initiate-update-stream`, `subscribe-logs`.
 
 ## ✅ Step 3: UI Implementation

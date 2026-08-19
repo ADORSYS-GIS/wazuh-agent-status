@@ -60,7 +60,7 @@ The system follows a **Client-Server (Split-Agent)** architecture:
 
 ## 6. Current Architecture
 
-The current Rust implementation uses a **Push/Subscribe** model over TCP (port 50505). The server polls the OS every 5 seconds to detect changes and pushes those changes instantly to all connected clients, ensuring the UI is reactive.
+The current Rust implementation uses a **Push/Subscribe** model over TCP (port 50506). The server polls the OS every 5 seconds to detect changes and pushes those changes instantly to all connected clients, ensuring the UI is reactive.
 
 ---
 

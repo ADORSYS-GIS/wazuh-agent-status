@@ -20,6 +20,41 @@ pub fn get_config(config: State<'_, AppConfig>) -> AppConfig {
     config.inner().clone()
 }
 
+#[cfg(target_os = "windows")]
+#[tauri::command]
+pub fn notify_update_available(
+    app: tauri::AppHandle,
+    current_version: String,
+    latest_version: String,
+) {
+    use tauri::Manager;
+    use tauri_plugin_notification::NotificationExt;
+
+    let _ = app
+        .notification()
+        .builder()
+        .title("Update available")
+        .body(format!(
+            "A newer version is available: v{latest_version} (installed: v{current_version})."
+        ))
+        .show();
+
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+#[tauri::command]
+pub fn notify_update_available(
+    _app: tauri::AppHandle,
+    _current_version: String,
+    _latest_version: String,
+) {
+}
+
 #[tauri::command]
 pub async fn check_for_updates(
     manager: State<'_, Arc<AgentManager>>,

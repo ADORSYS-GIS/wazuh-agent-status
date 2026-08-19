@@ -52,6 +52,13 @@ try {
     . $U
 } catch { Write-Error "Bootstrap failed"; exit 1 }
 
+# Override utils.ps1 logging functions to use Append-Log (Write-Host) and prevent pipeline array pollution
+function Log { param([string]$Level, [string]$Message, [string]$Color = "White") Append-Log "$Level $Message" }
+function InfoMessage { param([string]$Message) Append-Log $Message "INFO" }
+function WarnMessage { param([string]$Message) Append-Log $Message "WARN" }
+function ErrorMessage { param([string]$Message) Append-Log $Message "ERROR" }
+function SuccessMessage { param([string]$Message) Append-Log $Message "SUCCESS" }
+
 EnsureWindows
 EnsureAdmin
 
@@ -111,8 +118,9 @@ function Append-Log {
             if ($fileStream)   { $fileStream.Dispose() }
         }
     } catch {
-        # Fallback to standard host output if log file writing fails
-        Write-Output "Warning: Failed to write to log file $LogPath : $($_.Exception.Message)"
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        Write-Output "Warning: Failed to write to log file $LogPath : $errMsg"
     }
 
     Write-Output $line
@@ -126,18 +134,164 @@ function Remove-TempFile {
     }
 }
 
-function Show-UpdatePopup {
-    param([string]$Message)
+function Get-UserFromExplorerProcess {
     try {
-        # The update chain runs elevated (often in session 0 as a service child),
-        # so an in-process MessageBox would be invisible to the logged-in user.
-        # msg.exe broadcasts the popup to the interactive session instead.
-        # Fire-and-forget so the update stream is not blocked waiting for a click.
-        Start-Process -FilePath "msg.exe" -ArgumentList @("*", $Message) -WindowStyle Hidden -ErrorAction Stop
-        InfoMessage "Popup shown: $Message"
-    } catch {
-        WarnMessage "Could not show popup: $($_.Exception.Message)"
+        $explorerCims = Get-CimInstance Win32_Process -Filter "Name = 'explorer.exe'" -ErrorAction SilentlyContinue
+        foreach ($expCim in $explorerCims) {
+            $ownerCim = Invoke-CimMethod -InputObject $expCim -MethodName GetOwner -ErrorAction SilentlyContinue
+            if ($ownerCim -and $ownerCim.User -and $ownerCim.User -notmatch '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') {
+                if ($ownerCim.Domain) { return "$($ownerCim.Domain)\$($ownerCim.User)" }
+                return $ownerCim.User
+            }
+        }
+    } catch { Write-Verbose "Get-UserFromExplorerProcess error: $($_.Exception.Message)" }
+    return $null
+}
+
+function Get-UserFromEnvironment {
+    if ($env:USERNAME -and $env:USERNAME -notmatch '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') {
+        if ($env:USERDOMAIN) { return "$env:USERDOMAIN\$env:USERNAME" }
+        return $env:USERNAME
     }
+    return $null
+}
+
+function Get-UserFromQuser {
+    try {
+        $quser = query user 2>$null
+        if ($quser) {
+            foreach ($line in ($quser -split "\r?\n")[1..($quser.Count-1)]) {
+                if ($line -match "Active") {
+                    $fields = $line.Trim() -split "\s+"
+                    $u = $fields[0].Replace(">", "")
+                    if ($u -and $u -notmatch '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') { return $u }
+                }
+            }
+        }
+    } catch { Write-Verbose "Get-UserFromQuser error: $($_.Exception.Message)" }
+    return $null
+}
+
+function Get-ActiveConsoleUser {
+    $user = Get-UserFromExplorerProcess
+    if ($user) { return $user }
+
+    $user = Get-UserFromEnvironment
+    if ($user) { return $user }
+
+    $user = Get-UserFromQuser
+    if ($user) { return $user }
+
+    return $null
+}
+
+function Invoke-DirectWinFormsPopup {
+    param([string]$Message, [string]$Title)
+    
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop | Out-Null
+    [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+    return 0
+}
+
+function Wait-PopupResult {
+    param([string]$ResultFile, [string]$TaskName, [int]$TimeoutSeconds)
+    
+    $elapsed = 0
+    while (-not (Test-Path $ResultFile)) {
+        if ($elapsed -ge $TimeoutSeconds) {
+            WarnMessage "Popup timed out after $TimeoutSeconds seconds."
+            Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null
+            Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            Remove-TempFile $ResultFile
+            return 1
+        }
+        Start-Sleep -Seconds 1
+        $elapsed++
+    }
+    
+    $userChoice = (Get-Content -Path $ResultFile -Raw).Trim()
+    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+    Remove-TempFile $ResultFile
+    
+    if ($userChoice -eq "Yes") {
+        return 0
+    } else {
+        InfoMessage "Popup result: $userChoice"
+        return 1
+    }
+}
+
+function Invoke-ScheduledTaskPopup {
+    param([string]$Message, [string]$Title, [int]$TimeoutSeconds)
+    try {
+        $consoleUser = Get-ActiveConsoleUser
+        if ([string]::IsNullOrWhiteSpace($consoleUser)) {
+            InfoMessage "No active desktop session found. Proceeding with background upgrade."
+            return 0
+        }
+        
+        $guid = [guid]::NewGuid().ToString('N')
+        $taskName = "WazuhUpdatePopup_$guid"
+        
+        $pubDir = Join-Path $env:ProgramData "WazuhAgentStatus"
+        if (-not (Test-Path $pubDir)) {
+            New-Item -ItemType Directory -Path $pubDir -Force | Out-Null
+        }
+        $resultFile = Join-Path $pubDir "wazuh_popup_res_$guid.txt"
+
+        Remove-TempFile $resultFile
+
+        $escapedMsg = $Message.Replace("'", "''")
+        $escapedTitle = $Title.Replace("'", "''")
+        
+        $script = @"
+Add-Type -AssemblyName System.Windows.Forms | Out-Null
+
+try {
+    [System.Windows.Forms.MessageBox]::Show('$escapedMsg', '$escapedTitle', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+    Set-Content -Path '$resultFile' -Value 'Yes' -Force
+} catch {
+    Set-Content -Path '$resultFile' -Value "Error: exception occurred" -Force
+}
+"@
+        $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
+        
+        $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-NoProfile -EncodedCommand $encoded"
+        $principal = New-ScheduledTaskPrincipal -UserId $consoleUser -LogonType Interactive
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -Priority 4
+        
+        Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Settings $settings -Force | Out-Null
+        Start-ScheduledTask -TaskName $taskName | Out-Null
+        
+        return Wait-PopupResult -ResultFile $resultFile -TaskName $taskName -TimeoutSeconds $TimeoutSeconds
+    } catch {
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        WarnMessage "Interactive popup failed: $errMsg"
+        return 1
+    }
+}
+
+function Invoke-InteractivePopup {
+    param(
+        [string]$Message,
+        [string]$Title = "Wazuh Update",
+        [int]$TimeoutSeconds = 600
+    )
+    
+    # 1. Try direct WinForms GUI if running in an interactive desktop session (SessionId > 0)
+    try {
+        $sessionId = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
+        if ($sessionId -gt 0) {
+            return Invoke-DirectWinFormsPopup -Message $Message -Title $Title
+        }
+    } catch {
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        WarnMessage "Direct GUI popup failed, falling back to Scheduled Task: $errMsg"
+    }
+
+    return Invoke-ScheduledTaskPopup -Message $Message -Title $Title -TimeoutSeconds $TimeoutSeconds
 }
 
 function Get-PrereleaseVersion {
@@ -154,8 +308,44 @@ function Get-PrereleaseVersion {
             return $null
         }
     } catch {
-        WarnMessage "Failed to fetch prerelease version: $($_.Exception.Message)"
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        WarnMessage "Failed to fetch prerelease version: $errMsg"
         return $null
+    }
+}
+
+function Invoke-DownloadSetupScript {
+    param([string]$ScriptUrl, [string]$Destination)
+    InfoMessage "Downloading setup script..."
+    try {
+        Invoke-WebRequest -Uri $ScriptUrl -OutFile $Destination -ErrorAction Stop
+    } catch {
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        ErrorMessage "Failed to download setup-agent.ps1: $errMsg"
+        exit 1
+    }
+}
+
+function Invoke-ExecuteSetupScript {
+    param([string]$ScriptPath)
+    InfoMessage "Executing setup script: $ScriptPath"
+    $env:WAZUH_MANAGER = $WAZUH_MANAGER
+    $env:WAZUH_AGENT_STATUS_UPDATE = "1"
+    try {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ScriptPath
+        if ($LASTEXITCODE -ne 0) {
+            ErrorMessage "Setup script failed (exit code: $LASTEXITCODE)."
+            exit 1
+        }
+    } catch {
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        ErrorMessage "Failed to execute setup script: $errMsg"
+        exit 1
+    } finally {
+        Remove-TempFile $ScriptPath
     }
 }
 
@@ -163,7 +353,6 @@ function Run-Update {
     InfoMessage "Starting Wazuh agent upgrade..."
     InfoMessage "Using temporary directory: $env:TEMP"
 
-    # Determine setup script URL without shadowing the module-level constant
     if ($Prerelease) {
         $resolvedScriptUrl = $PRERELEASE_SETUP_SCRIPT_URL
         InfoMessage "Using prerelease setup script: $resolvedScriptUrl"
@@ -174,34 +363,11 @@ function Run-Update {
 
     $setupScriptPath = Join-Path $env:TEMP "setup-agent.ps1"
 
-    InfoMessage "Downloading setup script..."
-    try {
-        Invoke-WebRequest -Uri $resolvedScriptUrl -OutFile $setupScriptPath -ErrorAction Stop
-    } catch {
-        ErrorMessage "Failed to download setup-agent.ps1: $($_.Exception.Message)"
-        exit 1
-    }
-
-    InfoMessage "Executing setup script: $setupScriptPath"
-    $env:WAZUH_MANAGER = $WAZUH_MANAGER
-    # Tell install.ps1 this is an update so it leaves the running server
-    # service (the one executing this chain) alone instead of stopping it.
-    $env:WAZUH_AGENT_STATUS_UPDATE = "1"
-    try {
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setupScriptPath
-        if ($LASTEXITCODE -ne 0) {
-            ErrorMessage "Setup script failed (exit code: $LASTEXITCODE)."
-            exit 1
-        }
-    } catch {
-        ErrorMessage "Failed to execute setup script: $($_.Exception.Message)"
-        exit 1
-    } finally {
-        Remove-TempFile $setupScriptPath
-    }
+    Invoke-DownloadSetupScript -ScriptUrl $resolvedScriptUrl -Destination $setupScriptPath
+    Invoke-ExecuteSetupScript -ScriptPath $setupScriptPath
 
     SuccessMessage "Update completed successfully! Please save your work and reboot to finish the update."
-    Show-UpdatePopup "Update completed successfully! Please save your work and reboot to finish the update."
+    Invoke-InteractivePopup -Message "Update completed successfully! Please save your work and reboot to finish the update." -TimeoutSeconds 60 | Out-Null
 }
 
 # ---- Main Execution ----
@@ -209,7 +375,13 @@ InfoMessage "Wazuh Agent Upgrade Script"
 InfoMessage "Running as Administrator: $IsAdmin"
 InfoMessage "Log file: $LogPath"
 
-# Resolve prerelease version here — after all functions are defined
+if (-not $Update) {
+    ErrorMessage "This script is now update-only and must be launched with -Update. Exiting."
+    exit 1
+}
+
+InfoMessage "Update invoked explicitly (e.g., from GUI). Proceeding without consent prompt."
+
 if ($Prerelease) {
     $PRERELEASE_VERSION = Get-PrereleaseVersion
     if ($PRERELEASE_VERSION) {
