@@ -243,28 +243,36 @@ function Invoke-DirectWinFormsPopup {
     }
 }
 
-function Invoke-InteractivePopup {
-    param(
-        [string]$Message,
-        [string]$Title = "Wazuh Update",
-        [string]$Mode = "Consent", # "Consent" or "Info"
-        [int]$TimeoutSeconds = 600
-    )
+function Wait-PopupResult {
+    param([string]$ResultFile, [string]$TaskName, [int]$TimeoutSeconds)
     
-    # 1. Try direct WinForms GUI if running in an interactive desktop session (SessionId > 0)
-    try {
-        $sessionId = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
-        if ($sessionId -gt 0) {
-            return Invoke-DirectWinFormsPopup -Message $Message -Title $Title -Mode $Mode
+    $elapsed = 0
+    while (-not (Test-Path $ResultFile)) {
+        if ($elapsed -ge $TimeoutSeconds) {
+            WarnMessage "Popup timed out after $TimeoutSeconds seconds."
+            Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null
+            Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            Remove-TempFile $ResultFile
+            return 1
         }
-    } catch {
-        $err = $_
-        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
-        WarnMessage "Direct GUI popup failed, falling back to Scheduled Task: $errMsg"
+        Start-Sleep -Seconds 1
+        $elapsed++
     }
+    
+    $userChoice = (Get-Content -Path $ResultFile -Raw).Trim()
+    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+    Remove-TempFile $ResultFile
+    
+    if ($userChoice -eq "Yes") {
+        return 0
+    } else {
+        InfoMessage "Popup result: $userChoice"
+        return 1
+    }
+}
 
-
-    # 2. Fallback to Scheduled Task for Session 0 (background service context)
+function Invoke-ScheduledTaskPopup {
+    param([string]$Message, [string]$Title, [string]$Mode, [int]$TimeoutSeconds)
     try {
         $consoleUser = Get-ActiveConsoleUser
         if ([string]::IsNullOrWhiteSpace($consoleUser)) {
@@ -351,35 +359,36 @@ try {
         Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Settings $settings -Force | Out-Null
         Start-ScheduledTask -TaskName $taskName | Out-Null
         
-        $elapsed = 0
-        while (-not (Test-Path $resultFile)) {
-            if ($elapsed -ge $TimeoutSeconds) {
-                WarnMessage "Popup timed out after $TimeoutSeconds seconds."
-                Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue | Out-Null
-                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-                Remove-TempFile $resultFile
-                return 1
-            }
-            Start-Sleep -Seconds 1
-            $elapsed++
-        }
-        
-        $userChoice = (Get-Content -Path $resultFile -Raw).Trim()
-        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-        Remove-TempFile $resultFile
-        
-        if ($userChoice -eq "Yes") {
-            return 0
-        } else {
-            InfoMessage "Popup result: $userChoice"
-            return 1
-        }
+        return Wait-PopupResult -ResultFile $resultFile -TaskName $taskName -TimeoutSeconds $TimeoutSeconds
     } catch {
         $err = $_
         $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
         WarnMessage "Interactive popup failed: $errMsg"
         return 1
     }
+}
+
+function Invoke-InteractivePopup {
+    param(
+        [string]$Message,
+        [string]$Title = "Wazuh Update",
+        [string]$Mode = "Consent", # "Consent" or "Info"
+        [int]$TimeoutSeconds = 600
+    )
+    
+    # 1. Try direct WinForms GUI if running in an interactive desktop session (SessionId > 0)
+    try {
+        $sessionId = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
+        if ($sessionId -gt 0) {
+            return Invoke-DirectWinFormsPopup -Message $Message -Title $Title -Mode $Mode
+        }
+    } catch {
+        $err = $_
+        $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
+        WarnMessage "Direct GUI popup failed, falling back to Scheduled Task: $errMsg"
+    }
+
+    return Invoke-ScheduledTaskPopup -Message $Message -Title $Title -Mode $Mode -TimeoutSeconds $TimeoutSeconds
 }
 
 function Get-UserConsent {
