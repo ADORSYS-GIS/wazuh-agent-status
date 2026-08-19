@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[97217a1](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/97217a13dc73a1c0c953b53b5b51c746f465c826)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[e871285](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e871285cb69a3714c4db54264a5b915445e7be1e)
 
 ### Bug Fixes
 
@@ -154,6 +154,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`db5e9f8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/db5e9f860bb68a14ade2fa7b61a29c8b417737c5))
 - Update CHANGELOG.md and checksums [skip ci] ([`c8f618f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c8f618fdcff33423de17823ea4889527f514665e))
 - Update CHANGELOG.md and checksums [skip ci] ([`75a7501`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/75a7501224425eea6c5d5caffe32cc913268e221))
+- Update CHANGELOG.md and checksums [skip ci] ([`b26f6ff`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b26f6ff47ed69d343668750e3a9443eb50bf4336))
 
 ### Features
 
@@ -284,6 +285,8 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 - Update client components, improve agent metrics, and add compliance utilities ([`f7f6c7a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f7f6c7a1ec6671c3300c0682775c84621e5bfd20)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Simplify check icon rendering in ComplianceView component ([`ce53b62`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce53b629caaa9cbdd36cbb53a77dc70f6c8483a8)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Skip legacy process cleanup during installation if system is already migrated ([`a22a936`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a22a936aea455c1868852dab07273714b542c482))
+- Fix SonarQube cognitive complexity and WMI issues in adorsys-update.ps1 ([`babb652`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/babb652b706ad7d523823b3b662b93a626c5b68a))
+- Reformat logging statement and function signature for better readability ([`e871285`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e871285cb69a3714c4db54264a5b915445e7be1e))
 
 ### Styling
 
