@@ -120,10 +120,10 @@ function Append-Log {
     } catch {
         $err = $_
         $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
-        Write-Host "Warning: Failed to write to log file $LogPath : $errMsg"
+        Write-Output "Warning: Failed to write to log file $LogPath : $errMsg"
     }
 
-    Write-Host $line
+    Write-Output $line
 }
 
 # ---- Helper: clean up a temp file unconditionally ----
@@ -134,20 +134,7 @@ function Remove-TempFile {
     }
 }
 
-function Get-ActiveConsoleUser {
-    # 1. Query process owner of explorer.exe via WMI (works from Session 0 as SYSTEM)
-    try {
-        $explorers = Get-WmiObject Win32_Process -Filter "Name='explorer.exe'" -ErrorAction SilentlyContinue
-        foreach ($exp in $explorers) {
-            $owner = $exp.GetOwner()
-            if ($owner -and $owner.User -and $owner.User -notmatch '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') {
-                if ($owner.Domain) { return "$($owner.Domain)\$($owner.User)" }
-                return $owner.User
-            }
-        }
-    } catch {}
-
-    # 2. Query via Get-CimInstance fallback
+function Get-UserFromExplorerProcess {
     try {
         $explorerCims = Get-CimInstance Win32_Process -Filter "Name = 'explorer.exe'" -ErrorAction SilentlyContinue
         foreach ($expCim in $explorerCims) {
@@ -157,15 +144,19 @@ function Get-ActiveConsoleUser {
                 return $ownerCim.User
             }
         }
-    } catch {}
+    } catch { Write-Verbose "Get-UserFromExplorerProcess error: $($_.Exception.Message)" }
+    return $null
+}
 
-    # 3. Environment variables fallback (when running in interactive user context)
+function Get-UserFromEnvironment {
     if ($env:USERNAME -and $env:USERNAME -notmatch '^(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$') {
         if ($env:USERDOMAIN) { return "$env:USERDOMAIN\$env:USERNAME" }
         return $env:USERNAME
     }
+    return $null
+}
 
-    # 4. Query quser for active session user
+function Get-UserFromQuser {
     try {
         $quser = query user 2>$null
         if ($quser) {
@@ -177,9 +168,79 @@ function Get-ActiveConsoleUser {
                 }
             }
         }
-    } catch {}
+    } catch { Write-Verbose "Get-UserFromQuser error: $($_.Exception.Message)" }
+    return $null
+}
+
+function Get-ActiveConsoleUser {
+    $user = Get-UserFromExplorerProcess
+    if ($user) { return $user }
+
+    $user = Get-UserFromEnvironment
+    if ($user) { return $user }
+
+    $user = Get-UserFromQuser
+    if ($user) { return $user }
 
     return $null
+}
+
+function Invoke-DirectWinFormsPopup {
+    param([string]$Message, [string]$Title, [string]$Mode)
+    
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop | Out-Null
+    Add-Type -AssemblyName System.Drawing -ErrorAction Stop | Out-Null
+
+    if ($Mode -eq "Consent") {
+        $form = New-Object System.Windows.Forms.Form
+        $form.Text = $Title
+        $form.Size = New-Object System.Drawing.Size(430, 180)
+        $form.StartPosition = "CenterScreen"
+        $form.FormBorderStyle = "FixedDialog"
+        $form.MaximizeBox = $false
+        $form.MinimizeBox = $false
+        $form.TopMost = $true
+
+        $label = New-Object System.Windows.Forms.Label
+        $label.Text = $Message
+        $label.Location = New-Object System.Drawing.Point(20, 20)
+        $label.Size = New-Object System.Drawing.Size(370, 50)
+        [void]$form.Controls.Add($label)
+
+        $btnUpgrade = New-Object System.Windows.Forms.Button
+        $btnUpgrade.Text = "Upgrade Now"
+        $btnUpgrade.Location = New-Object System.Drawing.Point(85, 85)
+        $btnUpgrade.Size = New-Object System.Drawing.Size(120, 35)
+        $btnUpgrade.Add_Click({
+            $form.DialogResult = [System.Windows.Forms.DialogResult]::Yes
+            $form.Close()
+        })
+        [void]$form.Controls.Add($btnUpgrade)
+
+        $btnLater = New-Object System.Windows.Forms.Button
+        $btnLater.Text = "Remind Me Later"
+        $btnLater.Location = New-Object System.Drawing.Point(215, 85)
+        $btnLater.Size = New-Object System.Drawing.Size(130, 35)
+        $btnLater.Add_Click({
+            $form.DialogResult = [System.Windows.Forms.DialogResult]::No
+            $form.Close()
+        })
+        [void]$form.Controls.Add($btnLater)
+
+        $res = $form.ShowDialog()
+        $form.Dispose()
+
+        if ($res -eq [System.Windows.Forms.DialogResult]::Yes) {
+            InfoMessage "User clicked Upgrade Now."
+            return 0
+        } else {
+            InfoMessage "User clicked Remind Me Later."
+            return 1
+        }
+    } else {
+        [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+        return 0
+    }
 }
 
 function Invoke-InteractivePopup {
@@ -194,65 +255,14 @@ function Invoke-InteractivePopup {
     try {
         $sessionId = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
         if ($sessionId -gt 0) {
-            Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop | Out-Null
-            Add-Type -AssemblyName System.Drawing -ErrorAction Stop | Out-Null
-
-            if ($Mode -eq "Consent") {
-                $form = New-Object System.Windows.Forms.Form
-                $form.Text = $Title
-                $form.Size = New-Object System.Drawing.Size(430, 180)
-                $form.StartPosition = "CenterScreen"
-                $form.FormBorderStyle = "FixedDialog"
-                $form.MaximizeBox = $false
-                $form.MinimizeBox = $false
-                $form.TopMost = $true
-
-                $label = New-Object System.Windows.Forms.Label
-                $label.Text = $Message
-                $label.Location = New-Object System.Drawing.Point(20, 20)
-                $label.Size = New-Object System.Drawing.Size(370, 50)
-                [void]$form.Controls.Add($label)
-
-                $btnUpgrade = New-Object System.Windows.Forms.Button
-                $btnUpgrade.Text = "Upgrade Now"
-                $btnUpgrade.Location = New-Object System.Drawing.Point(85, 85)
-                $btnUpgrade.Size = New-Object System.Drawing.Size(120, 35)
-                $btnUpgrade.Add_Click({
-                    $form.DialogResult = [System.Windows.Forms.DialogResult]::Yes
-                    $form.Close()
-                })
-                [void]$form.Controls.Add($btnUpgrade)
-
-                $btnLater = New-Object System.Windows.Forms.Button
-                $btnLater.Text = "Remind Me Later"
-                $btnLater.Location = New-Object System.Drawing.Point(215, 85)
-                $btnLater.Size = New-Object System.Drawing.Size(130, 35)
-                $btnLater.Add_Click({
-                    $form.DialogResult = [System.Windows.Forms.DialogResult]::No
-                    $form.Close()
-                })
-                [void]$form.Controls.Add($btnLater)
-
-                $res = $form.ShowDialog()
-                $form.Dispose()
-
-                if ($res -eq [System.Windows.Forms.DialogResult]::Yes) {
-                    InfoMessage "User clicked Upgrade Now."
-                    return 0
-                } else {
-                    InfoMessage "User clicked Remind Me Later."
-                    return 1
-                }
-            } else {
-                [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
-                return 0
-            }
+            return Invoke-DirectWinFormsPopup -Message $Message -Title $Title -Mode $Mode
         }
     } catch {
         $err = $_
         $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
         WarnMessage "Direct GUI popup failed, falling back to Scheduled Task: $errMsg"
     }
+
 
     # 2. Fallback to Scheduled Task for Session 0 (background service context)
     try {
@@ -405,38 +415,26 @@ function Get-PrereleaseVersion {
     }
 }
 
-function Run-Update {
-    InfoMessage "Starting Wazuh agent upgrade..."
-    InfoMessage "Using temporary directory: $env:TEMP"
-
-    # Determine setup script URL without shadowing the module-level constant
-    if ($Prerelease) {
-        $resolvedScriptUrl = $PRERELEASE_SETUP_SCRIPT_URL
-        InfoMessage "Using prerelease setup script: $resolvedScriptUrl"
-    } else {
-        $resolvedScriptUrl = $STABLE_SETUP_SCRIPT_URL
-        InfoMessage "Using stable setup script: $resolvedScriptUrl"
-    }
-
-    $setupScriptPath = Join-Path $env:TEMP "setup-agent.ps1"
-
+function Invoke-DownloadSetupScript {
+    param([string]$ScriptUrl, [string]$Destination)
     InfoMessage "Downloading setup script..."
     try {
-        Invoke-WebRequest -Uri $resolvedScriptUrl -OutFile $setupScriptPath -ErrorAction Stop
+        Invoke-WebRequest -Uri $ScriptUrl -OutFile $Destination -ErrorAction Stop
     } catch {
         $err = $_
         $errMsg = if ($err -and $err.Exception) { $err.Exception.Message } elseif ($Error[0] -and $Error[0].Exception) { $Error[0].Exception.Message } else { "Unknown error" }
         ErrorMessage "Failed to download setup-agent.ps1: $errMsg"
         exit 1
     }
+}
 
-    InfoMessage "Executing setup script: $setupScriptPath"
+function Invoke-ExecuteSetupScript {
+    param([string]$ScriptPath)
+    InfoMessage "Executing setup script: $ScriptPath"
     $env:WAZUH_MANAGER = $WAZUH_MANAGER
-    # Tell install.ps1 this is an update so it leaves the running server
-    # service (the one executing this chain) alone instead of stopping it.
     $env:WAZUH_AGENT_STATUS_UPDATE = "1"
     try {
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setupScriptPath
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ScriptPath
         if ($LASTEXITCODE -ne 0) {
             ErrorMessage "Setup script failed (exit code: $LASTEXITCODE)."
             exit 1
@@ -447,11 +445,28 @@ function Run-Update {
         ErrorMessage "Failed to execute setup script: $errMsg"
         exit 1
     } finally {
-        Remove-TempFile $setupScriptPath
+        Remove-TempFile $ScriptPath
+    }
+}
+
+function Run-Update {
+    InfoMessage "Starting Wazuh agent upgrade..."
+    InfoMessage "Using temporary directory: $env:TEMP"
+
+    if ($Prerelease) {
+        $resolvedScriptUrl = $PRERELEASE_SETUP_SCRIPT_URL
+        InfoMessage "Using prerelease setup script: $resolvedScriptUrl"
+    } else {
+        $resolvedScriptUrl = $STABLE_SETUP_SCRIPT_URL
+        InfoMessage "Using stable setup script: $resolvedScriptUrl"
     }
 
+    $setupScriptPath = Join-Path $env:TEMP "setup-agent.ps1"
+
+    Invoke-DownloadSetupScript -ScriptUrl $resolvedScriptUrl -Destination $setupScriptPath
+    Invoke-ExecuteSetupScript -ScriptPath $setupScriptPath
+
     SuccessMessage "Update completed successfully! Please save your work and reboot to finish the update."
-    # Fire and forget success popup (timeout short so it doesn't block indefinitely)
     Invoke-InteractivePopup -Message "Update completed successfully! Please save your work and reboot to finish the update." -Mode "Info" -TimeoutSeconds 60 | Out-Null
 }
 
