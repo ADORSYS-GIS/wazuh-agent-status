@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+  onAction,
+  registerActionTypes,
+} from "@tauri-apps/plugin-notification";
 import "./App.css";
 
 import type { AppConfig, View } from "./types/app";
@@ -109,6 +116,9 @@ function App() {
     }
   }, [activeView]);
 
+  // Tracks whether we already fired an update notification this session
+  const hasNotifiedUpdateRef = useRef<boolean>(false);
+
   // Keep a ref of the last known tray_version so we can detect changes
   const prevTrayVersionRef = useRef<string | null>(null);
 
@@ -142,6 +152,75 @@ function App() {
     }
     prevTrayVersionRef.current = agentStatus.tray_version;
   }, [agentStatus.tray_version, refreshUpdateInfo]);
+
+  // Fire a native OS notification once per session when an update is available
+  useEffect(() => {
+    if (!updateInfo?.has_updates) return;
+    if (hasNotifiedUpdateRef.current) return;
+
+    hasNotifiedUpdateRef.current = true;
+
+    const notify = async () => {
+      try {
+        let permissionGranted = await isPermissionGranted();
+        if (!permissionGranted) {
+          const permission = await requestPermission();
+          permissionGranted = permission === "granted";
+        }
+        if (permissionGranted) {
+          // Register the action button before sending the notification
+          await registerActionTypes([
+            {
+              id: "update_actions",
+              actions: [
+                {
+                  id: "open_update",
+                  title: "Check for Update",
+                },
+              ],
+            },
+          ]).catch(e => console.warn("Could not register action types:", e));
+
+          sendNotification({
+            title: "Wazuh Agent Status — Update Available",
+            body: "A new version is available. Open the dashboard to update.",
+            actionTypeId: "update_actions",
+          });
+        }
+      } catch (e) {
+        console.warn("Failed to send update notification:", e);
+      }
+    };
+
+    notify();
+  }, [updateInfo?.has_updates]);
+
+  // Handle clicking on the OS notification — delegate to Rust for reliable
+  // cross-platform focus (bypasses Linux focus-stealing prevention)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    onAction((_notification) => {
+      invoke("open_updates_view").catch(console.error);
+    })
+      .then((u) => {
+        unlisten = u;
+      })
+      .catch(console.error);
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
+  // Listen for the navigate-to-updates event emitted by Rust (tray menu + notification)
+  useEffect(() => {
+    const unlisten = listen("navigate-to-updates", () => {
+      setActiveView("updates");
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
