@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[e871285](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e871285cb69a3714c4db54264a5b915445e7be1e)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[197ac92](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/197ac92f52cc13b708a126252161cd337194c6c7)
 
 ### Bug Fixes
 
@@ -155,6 +155,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`c8f618f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c8f618fdcff33423de17823ea4889527f514665e))
 - Update CHANGELOG.md and checksums [skip ci] ([`75a7501`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/75a7501224425eea6c5d5caffe32cc913268e221))
 - Update CHANGELOG.md and checksums [skip ci] ([`b26f6ff`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b26f6ff47ed69d343668750e3a9443eb50bf4336))
+- Update CHANGELOG.md and checksums [skip ci] ([`7968ce1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7968ce1bc53d794fb7aae6b98061728413947042))
 
 ### Features
 
@@ -287,6 +288,7 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 - Skip legacy process cleanup during installation if system is already migrated ([`a22a936`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a22a936aea455c1868852dab07273714b542c482))
 - Fix SonarQube cognitive complexity and WMI issues in adorsys-update.ps1 ([`babb652`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/babb652b706ad7d523823b3b662b93a626c5b68a))
 - Reformat logging statement and function signature for better readability ([`e871285`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e871285cb69a3714c4db54264a5b915445e7be1e))
+- Fix remaining SonarQube cognitive complexity issue in Invoke-InteractivePopup ([`197ac92`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/197ac92f52cc13b708a126252161cd337194c6c7))
 
 ### Styling
 
