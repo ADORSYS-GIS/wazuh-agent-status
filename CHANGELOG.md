@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[197ac92](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/197ac92f52cc13b708a126252161cd337194c6c7)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[f861ee4](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f861ee47f8ee78a93e45fb65d90632255c0791d3)
 
 ### Bug Fixes
 
@@ -74,6 +74,7 @@ All notable changes to this project will be documented in this file.
 - Eliminate all remaining scripts/windows/adorsys-update.ps1 strict mode exception references across script ([`cf9b907`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cf9b907997b7c23b93f0fde14e3aae5d6a9be923))
 - Remove scripts/windows/adorsys-update.ps1 interpolation from scheduled task here-string causing strict mode crash ([`f2bedb9`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f2bedb9776e8071ddc1d20b02ecfa7c61d6b9ef3))
 - Correct parameter bindings for success popup ([`b2f8154`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b2f815428cef2351b3631b41ba7a98e02bb328ae))
+- Address reviewer comments ([`f861ee4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f861ee47f8ee78a93e45fb65d90632255c0791d3))
 
 ### Documentation
 
@@ -156,6 +157,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`75a7501`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/75a7501224425eea6c5d5caffe32cc913268e221))
 - Update CHANGELOG.md and checksums [skip ci] ([`b26f6ff`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b26f6ff47ed69d343668750e3a9443eb50bf4336))
 - Update CHANGELOG.md and checksums [skip ci] ([`7968ce1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7968ce1bc53d794fb7aae6b98061728413947042))
+- Update CHANGELOG.md and checksums [skip ci] ([`5e19389`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5e19389d66a69e7d4e66b25b1739f4c0417a4c31))
 
 ### Features
 
