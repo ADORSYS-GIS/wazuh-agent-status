@@ -12,7 +12,7 @@ This document analyzes the previous Go-based implementation to identify architec
 
 ## 2. Communication Model (Historical)
 
-- Protocol: TCP (localhost:50506)
+- Protocol: TCP (localhost:50505)
 - Format: Plaintext
 - Pattern: Subscribe/Push (Status updates)
 
