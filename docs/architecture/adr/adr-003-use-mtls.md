@@ -8,7 +8,7 @@ Rejected ❌
 
 The original proposal was to use mutual TLS (mTLS) to encrypt and authenticate communication between the client and server components.
 
-The current implementation communicates over localhost TCP (port 50506) with plaintext JSON payloads. Security relies on:
+The current implementation communicates over localhost TCP (port 50505) with plaintext JSON payloads. Security relies on:
 
 - Binding to localhost only (127.0.0.1) — no exposure to external networks
 - OS-level access controls on the local machine
