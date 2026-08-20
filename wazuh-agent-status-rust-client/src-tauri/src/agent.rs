@@ -81,10 +81,14 @@ impl AgentManager {
             loop {
                 match run_sync_loop(addr_for_loop.clone(), state_tx.clone()).await {
                     Ok(()) => {
+                        // Server closed the stream – reset to Unknown before retrying
+                        let _ = state_tx.send(AgentState::default());
                         log::warn!("Sync loop ended for {}; reconnecting in 2s", addr_for_loop);
                         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                     }
                     Err(e) => {
+                        // Connection failed – reset to Unknown before retrying
+                        let _ = state_tx.send(AgentState::default());
                         log::error!(
                             "Server sync loop error for {}: {}; retrying in 5s",
                             addr_for_loop,
