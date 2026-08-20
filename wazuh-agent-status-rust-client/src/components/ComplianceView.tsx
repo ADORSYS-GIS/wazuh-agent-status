@@ -54,7 +54,8 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
   const [animateScore, setAnimateScore] = useState(false);
 
   // Client-side filter state (no server re-fetch)
-  const [localFilter, setLocalFilter] = useState<string>("all");
+  type ComplianceFilter = "all" | "passed" | "failed" | "untested";
+  const [localFilter, setLocalFilter] = useState<ComplianceFilter>("all");
 
   // Last-updated timestamp
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -180,14 +181,19 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
     if (localFilter === "all") return report;
 
     const filteredCategories = report.categories
-      .map((cat) => ({
-        ...cat,
-        checks: cat.checks.filter((chk) => {
+      .map((cat) => {
+        const checks = cat.checks.filter((chk) => {
           if (localFilter === "passed") return chk.status === "Passed";
           if (localFilter === "failed") return chk.status === "Failed";
+          if (localFilter === "untested") return chk.status !== "Passed" && chk.status !== "Failed";
           return true;
-        }),
-      }))
+        });
+        // Recompute per-category counts so the header summary reflects the active filter
+        const passed_count = checks.filter((c) => c.status === "Passed").length;
+        const failed_count = checks.filter((c) => c.status === "Failed").length;
+        const untested_count = checks.length - passed_count - failed_count;
+        return { ...cat, checks, passed_count, failed_count, untested_count };
+      })
       .filter((cat) => cat.checks.length > 0);
 
     return {
@@ -400,7 +406,13 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
 
       {/* ── Summary Grid (vertical layout - no overflow) ────────────── */}
       <div className="compliance-summary-grid">
-        <div className="compliance-stat-card" style={{ animationDelay: "0.05s" }}>
+        <button
+          type="button"
+          className={`compliance-stat-card ${localFilter === "passed" ? "active" : ""}`}
+          style={{ animationDelay: "0.05s" }}
+          onClick={() => setLocalFilter("passed")}
+          title="Show passed checks"
+        >
           <div className="compliance-stat-icon pass-bg">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
@@ -408,8 +420,14 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
           </div>
           <div className="compliance-stat-number pass">{report.total_passed_count}</div>
           <div className="compliance-stat-label">Passed</div>
-        </div>
-        <div className="compliance-stat-card" style={{ animationDelay: "0.1s" }}>
+        </button>
+        <button
+          type="button"
+          className={`compliance-stat-card ${localFilter === "failed" ? "active" : ""}`}
+          style={{ animationDelay: "0.1s" }}
+          onClick={() => setLocalFilter("failed")}
+          title="Show failed checks"
+        >
           <div className="compliance-stat-icon fail-bg">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -417,9 +435,15 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
           </div>
           <div className="compliance-stat-number fail">{report.total_failed_count}</div>
           <div className="compliance-stat-label">Failed</div>
-        </div>
+        </button>
         {report.total_untested_count > 0 && (
-          <div className="compliance-stat-card" style={{ animationDelay: "0.15s" }}>
+          <button
+            type="button"
+            className={`compliance-stat-card ${localFilter === "untested" ? "active" : ""}`}
+            style={{ animationDelay: "0.15s" }}
+            onClick={() => setLocalFilter("untested")}
+            title="Show untested checks"
+          >
             <div className="compliance-stat-icon dim-bg">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -427,9 +451,15 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
             </div>
             <div className="compliance-stat-number untested">{report.total_untested_count}</div>
             <div className="compliance-stat-label">Untested</div>
-          </div>
+          </button>
         )}
-        <div className="compliance-stat-card" style={{ animationDelay: "0.2s" }}>
+        <button
+          type="button"
+          className={`compliance-stat-card ${localFilter === "all" ? "active" : ""}`}
+          style={{ animationDelay: "0.2s" }}
+          onClick={() => setLocalFilter("all")}
+          title="Show all checks"
+        >
           <div className="compliance-stat-icon total-bg">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -438,7 +468,7 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
           </div>
           <div className="compliance-stat-number total-count">{totalChecks}</div>
           <div className="compliance-stat-label">Total</div>
-        </div>
+        </button>
       </div>
 
       {/* ── Categories ────────────────────────────────────────────────── */}
@@ -447,7 +477,7 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
 
         {/* Client-side filter pills */}
         <div className="compliance-filter-row">
-          {(["all", "passed", "failed"] as const).map((val) => (
+          {(["all", "passed", "failed", "untested"] as const).map((val) => (
             <button
               type="button"
               key={val}
@@ -497,8 +527,10 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
         ) : (
           filteredReport?.categories.map((cat) => {
             const isExpanded = expandedCategory === cat.name;
-            const total = cat.passed_count + cat.failed_count + cat.untested_count;
-            const passPct = total > 0 ? Math.round((cat.passed_count / total) * 100) : 0;
+            // Percentage always reflects the full (unfiltered) category so it doesn't change with the filter
+            const original = report?.categories.find((c) => c.name === cat.name);
+            const total = original ? original.passed_count + original.failed_count + original.untested_count : 0;
+            const passPct = total > 0 ? Math.round(((original?.passed_count ?? 0) / total) * 100) : 0;
 
             return (
               <div key={cat.name} className={`compliance-category ${isExpanded ? "expanded" : ""}`}>
@@ -509,12 +541,25 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
                     <div className="compliance-category-info">
                       <div className="compliance-category-name">{cat.name}</div>
                       <div className="compliance-category-meta">
-                        <span className="pass">{cat.passed_count} passed</span>
-                        {cat.failed_count > 0 && (
-                          <><span className="sep">·</span><span className="fail">{cat.failed_count} failed</span></>
+                        {localFilter === "passed" && (
+                          <span className="pass">{cat.passed_count} passed</span>
                         )}
-                        {cat.untested_count > 0 && (
-                          <><span className="sep">·</span><span className="dim">{cat.untested_count} untested</span></>
+                        {localFilter === "failed" && (
+                          <span className="fail">{cat.failed_count} failed</span>
+                        )}
+                        {localFilter === "untested" && (
+                          <span className="dim">{cat.untested_count} untested</span>
+                        )}
+                        {localFilter === "all" && (
+                          <>
+                            <span className="pass">{cat.passed_count} passed</span>
+                            {cat.failed_count > 0 && (
+                              <><span className="sep">·</span><span className="fail">{cat.failed_count} failed</span></>
+                            )}
+                            {cat.untested_count > 0 && (
+                              <><span className="sep">·</span><span className="dim">{cat.untested_count} untested</span></>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
