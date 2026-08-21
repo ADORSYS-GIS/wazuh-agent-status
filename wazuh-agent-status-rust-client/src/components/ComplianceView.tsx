@@ -5,6 +5,8 @@ import type { AiFixResult, AiProviderStatus, FailedCheckInput } from "../types/a
 import { ComplianceFixModal } from "./ComplianceFixModal";
 import { scoreColor, scoreLabel, formatRelativeTime } from "../utils/compliance";
 
+type ComplianceFilter = "all" | "passed" | "failed" | "untested";
+
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
 function ComplianceSkeleton() {
@@ -54,7 +56,6 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
   const [animateScore, setAnimateScore] = useState(false);
 
   // Client-side filter state (no server re-fetch)
-  type ComplianceFilter = "all" | "passed" | "failed" | "untested";
   const [localFilter, setLocalFilter] = useState<ComplianceFilter>("all");
 
   // Last-updated timestamp
