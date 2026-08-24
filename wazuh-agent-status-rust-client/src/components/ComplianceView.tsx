@@ -45,6 +45,197 @@ function ComplianceError({ error, onRetry }: Readonly<ComplianceErrorProps>) {
   );
 }
 
+interface ComplianceCategoryListProps {
+  filteredReport: ComplianceReport | null;
+  report: ComplianceReport | null;
+  expandedCategory: string | null;
+  onToggle: (name: string | null) => void;
+  localFilter: ComplianceFilter;
+  aiConfigured: boolean;
+  onFix: (check: ComplianceCheckResult, category: string) => void;
+  fixingCheck: string | null;
+}
+
+/** Renders the collapsible category list, honoring the active client-side filter. */
+function ComplianceCategoryList({
+  filteredReport,
+  report,
+  expandedCategory,
+  onToggle,
+  localFilter,
+  aiConfigured,
+  onFix,
+  fixingCheck,
+}: Readonly<ComplianceCategoryListProps>) {
+  return (
+    <div className="compliance-categories">
+      {filteredReport?.categories.length === 0 ? (
+        <div className="compliance-empty-state">
+          No {localFilter === "all" ? "" : localFilter} checks in any category.
+        </div>
+      ) : (
+        filteredReport?.categories.map((cat) => {
+          const isExpanded = expandedCategory === cat.name;
+          // Percentage always reflects the full (unfiltered) category so it doesn't change with the filter
+          const original = report?.categories.find((c) => c.name === cat.name);
+          const total = original ? original.passed_count + original.failed_count + original.untested_count : 0;
+          const passPct = total > 0 ? Math.round(((original?.passed_count ?? 0) / total) * 100) : 0;
+
+          return (
+            <div key={cat.name} className={`compliance-category ${isExpanded ? "expanded" : ""}`}>
+              <button type="button" className="compliance-category-trigger" onClick={() =>
+                onToggle(isExpanded ? null : cat.name)
+              }>
+                <div className="compliance-category-summary">
+                  <div className="compliance-category-info">
+                    <div className="compliance-category-name">{cat.name}</div>
+                    <div className="compliance-category-meta">
+                      {localFilter === "passed" && (
+                        <span className="pass">{cat.passed_count} passed</span>
+                      )}
+                      {localFilter === "failed" && (
+                        <span className="fail">{cat.failed_count} failed</span>
+                      )}
+                      {localFilter === "untested" && (
+                        <span className="dim">{cat.untested_count} untested</span>
+                      )}
+                      {localFilter === "all" && (
+                        <>
+                          <span className="pass">{cat.passed_count} passed</span>
+                          {cat.failed_count > 0 && (
+                            <><span className="sep">·</span><span className="fail">{cat.failed_count} failed</span></>
+                          )}
+                          {cat.untested_count > 0 && (
+                            <><span className="sep">·</span><span className="dim">{cat.untested_count} untested</span></>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="compliance-category-progress">
+                    <div className="compliance-progress-bar">
+                      <div
+                        className="compliance-progress-fill"
+                        style={{ width: `${passPct}%` }}
+                      />
+                    </div>
+                    <span className="compliance-progress-label">{passPct}%</span>
+                  </div>
+                </div>
+                <svg
+                  width="16" height="16" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" strokeWidth="2"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  className={`compliance-chevron ${isExpanded ? "open" : ""}`}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {isExpanded && (
+                <div className="compliance-category-body">
+                  {cat.checks.map((check) => (
+                    <ComplianceCheckRow
+                      key={check.check_id}
+                      check={check}
+                      aiConfigured={aiConfigured}
+                      onFix={() => onFix(check, cat.name)}
+                      fixing={fixingCheck === check.title}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+interface ComplianceSummaryGridProps {
+  report: ComplianceReport;
+  localFilter: ComplianceFilter;
+  onFilterChange: (filter: ComplianceFilter) => void;
+  totalChecks: number;
+}
+
+/** Renders the pass/fail/untested/total stat cards, which also act as filters. */
+function ComplianceSummaryGrid({
+  report,
+  localFilter,
+  onFilterChange,
+  totalChecks,
+}: Readonly<ComplianceSummaryGridProps>) {
+  return (
+    <div className="compliance-summary-grid">
+      <button
+        type="button"
+        className={`compliance-stat-card ${localFilter === "passed" ? "active" : ""}`}
+        style={{ animationDelay: "0.05s" }}
+        onClick={() => onFilterChange("passed")}
+        title="Show passed checks"
+      >
+        <div className="compliance-stat-icon pass-bg">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <div className="compliance-stat-number pass">{report.total_passed_count}</div>
+        <div className="compliance-stat-label">Passed</div>
+      </button>
+      <button
+        type="button"
+        className={`compliance-stat-card ${localFilter === "failed" ? "active" : ""}`}
+        style={{ animationDelay: "0.1s" }}
+        onClick={() => onFilterChange("failed")}
+        title="Show failed checks"
+      >
+        <div className="compliance-stat-icon fail-bg">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </div>
+        <div className="compliance-stat-number fail">{report.total_failed_count}</div>
+        <div className="compliance-stat-label">Failed</div>
+      </button>
+      {report.total_untested_count > 0 && (
+        <button
+          type="button"
+          className={`compliance-stat-card ${localFilter === "untested" ? "active" : ""}`}
+          style={{ animationDelay: "0.15s" }}
+          onClick={() => onFilterChange("untested")}
+          title="Show untested checks"
+        >
+          <div className="compliance-stat-icon dim-bg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+            </svg>
+          </div>
+          <div className="compliance-stat-number untested">{report.total_untested_count}</div>
+          <div className="compliance-stat-label">Untested</div>
+        </button>
+      )}
+      <button
+        type="button"
+        className={`compliance-stat-card ${localFilter === "all" ? "active" : ""}`}
+        style={{ animationDelay: "0.2s" }}
+        onClick={() => onFilterChange("all")}
+        title="Show all checks"
+      >
+        <div className="compliance-stat-icon total-bg">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        </div>
+        <div className="compliance-stat-number total-count">{totalChecks}</div>
+        <div className="compliance-stat-label">Total</div>
+      </button>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentStatus }>) {
@@ -406,71 +597,12 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
       </div>
 
       {/* ── Summary Grid (vertical layout - no overflow) ────────────── */}
-      <div className="compliance-summary-grid">
-        <button
-          type="button"
-          className={`compliance-stat-card ${localFilter === "passed" ? "active" : ""}`}
-          style={{ animationDelay: "0.05s" }}
-          onClick={() => setLocalFilter("passed")}
-          title="Show passed checks"
-        >
-          <div className="compliance-stat-icon pass-bg">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
-          <div className="compliance-stat-number pass">{report.total_passed_count}</div>
-          <div className="compliance-stat-label">Passed</div>
-        </button>
-        <button
-          type="button"
-          className={`compliance-stat-card ${localFilter === "failed" ? "active" : ""}`}
-          style={{ animationDelay: "0.1s" }}
-          onClick={() => setLocalFilter("failed")}
-          title="Show failed checks"
-        >
-          <div className="compliance-stat-icon fail-bg">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </div>
-          <div className="compliance-stat-number fail">{report.total_failed_count}</div>
-          <div className="compliance-stat-label">Failed</div>
-        </button>
-        {report.total_untested_count > 0 && (
-          <button
-            type="button"
-            className={`compliance-stat-card ${localFilter === "untested" ? "active" : ""}`}
-            style={{ animationDelay: "0.15s" }}
-            onClick={() => setLocalFilter("untested")}
-            title="Show untested checks"
-          >
-            <div className="compliance-stat-icon dim-bg">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-              </svg>
-            </div>
-            <div className="compliance-stat-number untested">{report.total_untested_count}</div>
-            <div className="compliance-stat-label">Untested</div>
-          </button>
-        )}
-        <button
-          type="button"
-          className={`compliance-stat-card ${localFilter === "all" ? "active" : ""}`}
-          style={{ animationDelay: "0.2s" }}
-          onClick={() => setLocalFilter("all")}
-          title="Show all checks"
-        >
-          <div className="compliance-stat-icon total-bg">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-          </div>
-          <div className="compliance-stat-number total-count">{totalChecks}</div>
-          <div className="compliance-stat-label">Total</div>
-        </button>
-      </div>
+      <ComplianceSummaryGrid
+        report={report}
+        localFilter={localFilter}
+        onFilterChange={setLocalFilter}
+        totalChecks={totalChecks}
+      />
 
       {/* ── Categories ────────────────────────────────────────────────── */}
       <div className="compliance-categories-header">
@@ -520,88 +652,16 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
         </div>
       )}
 
-      <div className="compliance-categories">
-        {filteredReport?.categories.length === 0 ? (
-          <div className="compliance-empty-state">
-            No {localFilter === "all" ? "" : localFilter} checks in any category.
-          </div>
-        ) : (
-          filteredReport?.categories.map((cat) => {
-            const isExpanded = expandedCategory === cat.name;
-            // Percentage always reflects the full (unfiltered) category so it doesn't change with the filter
-            const original = report?.categories.find((c) => c.name === cat.name);
-            const total = original ? original.passed_count + original.failed_count + original.untested_count : 0;
-            const passPct = total > 0 ? Math.round(((original?.passed_count ?? 0) / total) * 100) : 0;
-
-            return (
-              <div key={cat.name} className={`compliance-category ${isExpanded ? "expanded" : ""}`}>
-                <button type="button" className="compliance-category-trigger" onClick={() =>
-                  setExpandedCategory(isExpanded ? null : cat.name)
-                }>
-                  <div className="compliance-category-summary">
-                    <div className="compliance-category-info">
-                      <div className="compliance-category-name">{cat.name}</div>
-                      <div className="compliance-category-meta">
-                        {localFilter === "passed" && (
-                          <span className="pass">{cat.passed_count} passed</span>
-                        )}
-                        {localFilter === "failed" && (
-                          <span className="fail">{cat.failed_count} failed</span>
-                        )}
-                        {localFilter === "untested" && (
-                          <span className="dim">{cat.untested_count} untested</span>
-                        )}
-                        {localFilter === "all" && (
-                          <>
-                            <span className="pass">{cat.passed_count} passed</span>
-                            {cat.failed_count > 0 && (
-                              <><span className="sep">·</span><span className="fail">{cat.failed_count} failed</span></>
-                            )}
-                            {cat.untested_count > 0 && (
-                              <><span className="sep">·</span><span className="dim">{cat.untested_count} untested</span></>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="compliance-category-progress">
-                      <div className="compliance-progress-bar">
-                        <div
-                          className="compliance-progress-fill"
-                          style={{ width: `${passPct}%` }}
-                        />
-                      </div>
-                      <span className="compliance-progress-label">{passPct}%</span>
-                    </div>
-                  </div>
-                  <svg
-                    width="16" height="16" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round"
-                    className={`compliance-chevron ${isExpanded ? "open" : ""}`}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-
-                {isExpanded && (
-                  <div className="compliance-category-body">
-                    {cat.checks.map((check) => (
-                      <ComplianceCheckRow
-                        key={check.check_id}
-                        check={check}
-                        aiConfigured={aiStatus?.configured ?? false}
-                        onFix={() => handleAIFix(check, cat.name)}
-                        fixing={fixingCheck === check.title}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+      <ComplianceCategoryList
+        filteredReport={filteredReport}
+        report={report}
+        expandedCategory={expandedCategory}
+        onToggle={setExpandedCategory}
+        localFilter={localFilter}
+        aiConfigured={aiStatus?.configured ?? false}
+        onFix={handleAIFix}
+        fixingCheck={fixingCheck}
+      />
 
       {/* ── AI Fix Result Modal + Follow-up Chat ───────────────────────── */}
       {fixResult && (
