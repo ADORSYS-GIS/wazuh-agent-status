@@ -27,10 +27,11 @@ The implementation must:
 
 ### Data Ownership
 
-| Category            | Source                                            | Examples                                                                               |
-| :------------------ | :------------------------------------------------ | :------------------------------------------------------------------------------------- |
-| **Source of truth** | Wazuh SCA results + Corporate compliance profiles | Raw check results, profile definitions                                                 |
-| **Derived data**    | Gateway evaluation output                         | Compliance score, compliance_status, category mappings, remediation, summary documents |
+| Category         | Owner                          | Examples                                                                               |
+| :--------------- | :----------------------------- | :------------------------------------------------------------------------------------- |
+| **Source data**  | Wazuh SCA + Corporate profiles | Raw check results, profile definitions                                                 |
+| **Domain model** | Gateway Compliance Engine      | Compliance score, compliance_status, category mappings, remediation, summary documents |
+| **Projection**   | OpenSearch Read Model          | Dashboard queries, fleet-level aggregation                                             |
 
 > OpenSearch data is read-only and cannot be manually modified. Derived data is overwritten on each sync cycle.
 
@@ -40,11 +41,12 @@ Each document represents one check for one agent. Used for drill-down views.
 
 ```json
 {
+  "type": "check",
   "agent_id": "001",
   "agent_name": "web-server-01",
   "os": "Ubuntu",
   "policy_id": "cis_ubuntu20-04",
-  "policy_name": "CIS Ubuntu Linux 20.04 LTS Benchmark v2.0.0",
+  "policy_name": "CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0",
   "scan_id": "1023532995",
   "profile_version": "1.2.0",
   "@timestamp": "2026-08-21T10:30:00Z",
@@ -108,14 +110,14 @@ Documents use deterministic IDs for idempotent re-indexing:
 - Check-level: `{agent_id}-{policy_id}-check-{check_id}`
 - Summary: `{agent_id}-summary`
 
-Including `policy_id` in the check-level ID prevents collisions when the same `check_id` exists across different policies.
+Including `policy_id` in the check-level ID prevents collisions when the same `check_id` exists across different policies. Document IDs intentionally exclude `profile_version` because profile changes should update the existing compliance posture instead of creating duplicate historical documents.
 
 ### Score Calculation
 
 The compliance score is calculated as:
 
 ```
-score = (passed / (passed + failed)) × 100
+score = round((passed / (passed + failed)) × 100)
 ```
 
 **Untested checks are excluded** from the score calculation because they do not represent evaluated compliance failures. A check is untested when the agent's SCA scan did not produce a result for that check (e.g., a service is inactive on the machine).
@@ -191,7 +193,7 @@ Wazuh Manager ────► Compliance Engine ────► OpenSearch Index
                   (desktop client)
 ```
 
-The gateway is not just moving data — it **transforms** raw SCA results into an enriched compliance model by applying corporate profiles, computing scores, and assigning categories.
+The gateway is not just moving data — it **transforms** raw SCA results into an enriched compliance model by applying corporate profiles, computing scores, and assigning categories. The gateway calls the Wazuh Manager API directly via HTTP (`/sca/*` endpoints) — it does not read SCA data from OpenSearch.
 
 ### Detailed Sync Flow
 
@@ -238,7 +240,7 @@ Both mechanisms use the same `POST /compliance/sync` endpoint and identical inde
 
 **2. On-Demand (SOC Analyst)** — The dashboard includes a **"Refresh Compliance"** button that initiates an asynchronous re-sync via the gateway API. The operation is protected by the same synchronization lock used by scheduled jobs — multiple simultaneous refresh requests reuse the existing synchronization task. This prevents Wazuh API overload from concurrent user requests.
 
-The dashboard provides query capability through the read model and command initiation through authenticated gateway API calls. It does not execute compliance evaluation.
+The dashboard does not execute synchronization directly on behalf of the user session. It sends an authenticated command request to the gateway, which controls execution. The dashboard provides query capability through the read model and command initiation through authenticated gateway API calls.
 
 ### Gateway API Contracts
 
@@ -408,7 +410,7 @@ The compliance index should define explicit mappings instead of relying on dynam
 | `check_status`         | `keyword` | `passed`, `failed`, or `untested`   |
 | `mandatory`            | `boolean` | Filter for mandatory checks         |
 | `remediation`          | `text`    | Full-text searchable                |
-| `compliance_standards` | `object`  | Nested compliance standard mappings |
+| `compliance_standards` | `nested`  | Nested compliance standard mappings |
 
 ---
 
@@ -467,7 +469,7 @@ The compliance index should define explicit mappings instead of relying on dynam
 
 ## Open Questions
 
-- Should compliance sync run inside the gateway or move to a dedicated worker in the future?
+- What operational thresholds should trigger extracting synchronization into a dedicated worker (e.g., sync duration, Wazuh API utilization, gateway latency impact)?
 - Should compliance history be retained, or only the latest state per agent?
 - Should OpenSearch store only current posture, or historical snapshots for trend analysis?
 - What is the expected maximum agent fleet size for capacity planning?
@@ -479,4 +481,4 @@ The compliance index should define explicit mappings instead of relying on dynam
 
 - [ADR-005: Unify SCA Compliance Views](architecture/adr/adr-005-unify-sca-compliance-views.md)
 - [wazuh-gateway SCA Doc](../wazuh-gateway/doc/sca.md)
-- [Compliance Profiles](../wazuh-gateway/src/compliance_profiles/)
+- [Compliance Profiles](https://github.com/ADORSYS-GIS/wazuh-gateway/tree/main/src/compliance_profiles)
