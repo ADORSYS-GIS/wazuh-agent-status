@@ -197,39 +197,64 @@ The gateway is not just moving data — it **transforms** raw SCA results into a
 
 ### Detailed Sync Flow
 
+The sync has two separate data paths: the **write path** (sync) and the **read path** (dashboard).
+
+#### Write Path — Synchronization
+
+Triggers (`POST /compliance/sync`) → Gateway → Manager API → Evaluate → OpenSearch
+
 ```
-  ┌──────────────┐                  ┌──────────────────┐
-  │  Wazuh       │    Read query    │  CronJob (K8s)   │
-  │  Dashboard   │ ◄─────────────── │  Every N hours   │
-  │              │                  └────────┬─────────┘
-  │  + Custom    │     OpenSearch             │
-  │  Compliance  │     ┌──────────────────────┼──── POST /compliance/sync
-  │  Dashboard   │     │                      │
-  │              │     │  wazuh-custom-       │
-  │  [Refresh    │ ◄───│  compliance-*        │
-  │   Button]────│─POST│                      │
-  │  (on-demand) │     └──────────────────────┘
-  └──────────────┘               │
-                                 │ bulk index
-                                 │
-              ┌──────────────────┴───────────────┐
-              │  wazuh-gateway (extended)         │
-              │                                   │
-              │  sync_all_agents():               │
-              │  1. GET /agents (active)          │
-              │  2. Concurrent fetch              │
-              │  3. Incremental (skip unchanged)  │
-              │  4. evaluate_compliance()         │
-              │  5. Bulk index to OpenSearch      │
-              │  6. Backoff on rate limits        │
-              │                                   │
-              └──────────────────┬───────────────┘
-                                 │
-                                 ▼
-              ┌──────────────────────────────────┐
-              │  Wazuh Manager API               │
-              │  /agents, /sca/*                 │
-              └──────────────────────────────────┘
+  ┌─────────────────┐     ┌─────────────────┐
+  │  CronJob (K8s)  │     │  Dashboard      │
+  │  Every N hours  │     │  [Refresh Btn]  │
+  └────────┬────────┘     └────────┬────────┘
+           │                       │
+           │  POST /compliance/sync│
+           └───────────┬───────────┘
+                       │
+                       ▼
+         ┌─────────────────────────┐
+         │  wazuh-gateway          │
+         │                         │
+         │  1. GET /agents (active)│
+         │  2. Concurrent fetch    │
+         │  3. Incremental (skip)  │
+         │  4. evaluate_compliance │
+         │  5. Backoff on limits   │
+         └────────────┬────────────┘
+                      │
+            ┌─────────┴──────────┐
+            │                    │
+            ▼                    ▼
+  ┌──────────────────┐  ┌──────────────────────┐
+  │  Wazuh Manager   │  │  OpenSearch          │
+  │  API             │  │  (bulk index)        │
+  │  /agents, /sca/* │  │  wazuh-custom-       │
+  │                  │  │  compliance-*        │
+  └──────────────────┘  └──────────────────────┘
+```
+
+#### Read Path — Dashboard
+
+```
+         ┌──────────────────────┐
+         │  OpenSearch          │
+         │  wazuh-custom-       │
+         │  compliance-*        │
+         └──────────┬───────────┘
+                    │
+                    │ query
+                    ▼
+         ┌──────────────────────┐
+         │  Wazuh Dashboard     │
+         │  Custom Compliance   │
+         │  Dashboard           │
+         │                      │
+         │  - Fleet score       │
+         │  - Agent table       │
+         │  - Non-compliant     │
+         │  - Drill-down        │
+         └──────────────────────┘
 ```
 
 ### Sync Control
