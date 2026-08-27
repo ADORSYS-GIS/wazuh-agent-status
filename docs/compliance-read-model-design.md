@@ -47,7 +47,7 @@ Each document represents one check for one agent. Used for drill-down views.
   "os": "Ubuntu",
   "policy_id": "cis_ubuntu20-04",
   "policy_name": "CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0",
-  "scan_id": "1023532995",
+  "scan_id": "cis_ubuntu20-04",
   "profile_version": "1.2.0",
   "@timestamp": "2026-08-21T10:30:00Z",
 
@@ -345,8 +345,10 @@ The gateway stores synchronization metadata to support incremental sync:
 ```json
 {
   "agent_id": "001",
-  "last_processed_scan_id": "1023532995",
-  "last_processed_profile_version": "1.2.0",
+  "last_scan_score": 85,
+  "last_scan_passed": 12,
+  "last_scan_failed": 2,
+  "last_profile_version": "1.2.0",
   "last_sync_timestamp": "2026-08-21T10:30:00Z"
 }
 ```
@@ -355,10 +357,12 @@ The gateway stores synchronization metadata to support incremental sync:
 
 Persistent synchronization metadata (agent scan IDs, profile versions, last sync timestamps) survives restarts through the OpenSearch metadata index. Runtime execution state (active jobs, progress tracking) is held in memory and recreated after restart — which means a restart triggers a full re-sync (safe default).
 
-An agent is skipped only when **both** conditions are met:
+An agent is skipped when all of the following are unchanged since the last sync:
 
-- SCA `scan_id` has not changed
-- Compliance `profile_version` has not changed
+- Compliance score, passed count, and failed count
+- Compliance `profile_version`
+
+The Wazuh SCA policies API does not expose a `scan_id` field. Score, passed, and failed counts serve as a more reliable change detection proxy because they capture cases where the same scan produces different results (e.g., after a profile update changes mandatory flags).
 
 A profile update (e.g., adding a mandatory flag, renaming a category) invalidates previous evaluations and triggers reprocessing of all affected agents.
 
@@ -401,7 +405,7 @@ With 10 concurrent: agents complete in ~2s each × (N ÷ 10) batches
 
 ### Incremental Sync
 
-Each agent's SCA `scan_id` is stored. On the next sync, only agents whose `scan_id` changed since the last sync are re-evaluated. Most agents will not have changed between sync cycles, so the typical sync processes only a fraction of the fleet.
+Each agent's last compliance score, passed count, failed count, and profile version are stored in the OpenSearch metadata index. On the next sync, only agents whose metrics changed since the last sync are re-evaluated. Most agents will not have changed between sync cycles, so the typical sync processes only a fraction of the fleet.
 
 ### Batched OpenSearch Indexing
 
@@ -417,25 +421,25 @@ The Wazuh Manager API has rate limits. The sync endpoint respects HTTP 429 respo
 
 The compliance index should define explicit mappings instead of relying on dynamic mappings. This prevents mapping conflicts and ensures predictable dashboard behavior.
 
-| Field                  | Type      | Notes                               |
-| :--------------------- | :-------- | :---------------------------------- |
-| `agent_id`             | `keyword` | Exact match, used for filtering     |
-| `agent_name`           | `keyword` | Exact match                         |
-| `os`                   | `keyword` | Exact match                         |
-| `policy_id`            | `keyword` | Exact match                         |
-| `policy_name`          | `text`    | Full-text searchable                |
-| `scan_id`              | `keyword` | Exact match                         |
-| `profile_version`      | `keyword` | Exact match                         |
-| `@timestamp`           | `date`    | Used for time-range queries         |
-| `score`                | `integer` | 0–100 range                         |
-| `compliance_status`    | `keyword` | `compliant` or `non-compliant`      |
-| `category`             | `keyword` | Exact match, used for aggregation   |
-| `check_id`             | `integer` | Exact match                         |
-| `check_title`          | `text`    | Full-text searchable                |
-| `check_status`         | `keyword` | `passed`, `failed`, or `untested`   |
-| `mandatory`            | `boolean` | Filter for mandatory checks         |
-| `remediation`          | `text`    | Full-text searchable                |
-| `compliance_standards` | `nested`  | Nested compliance standard mappings |
+| Field                  | Type      | Notes                                                                      |
+| :--------------------- | :-------- | :------------------------------------------------------------------------- |
+| `agent_id`             | `keyword` | Exact match, used for filtering                                            |
+| `agent_name`           | `keyword` | Exact match                                                                |
+| `os`                   | `keyword` | Exact match                                                                |
+| `policy_id`            | `keyword` | Exact match                                                                |
+| `policy_name`          | `text`    | Full-text searchable                                                       |
+| `scan_id`              | `keyword` | Populated with `policy_id` (Wazuh SCA API has no distinct scan identifier) |
+| `profile_version`      | `keyword` | Exact match                                                                |
+| `@timestamp`           | `date`    | Used for time-range queries                                                |
+| `score`                | `integer` | 0–100 range                                                                |
+| `compliance_status`    | `keyword` | `compliant` or `non-compliant`                                             |
+| `category`             | `keyword` | Exact match, used for aggregation                                          |
+| `check_id`             | `integer` | Exact match                                                                |
+| `check_title`          | `text`    | Full-text searchable                                                       |
+| `check_status`         | `keyword` | `passed`, `failed`, or `untested`                                          |
+| `mandatory`            | `boolean` | Filter for mandatory checks                                                |
+| `remediation`          | `text`    | Full-text searchable                                                       |
+| `compliance_standards` | `nested`  | Nested compliance standard mappings                                        |
 
 ---
 
