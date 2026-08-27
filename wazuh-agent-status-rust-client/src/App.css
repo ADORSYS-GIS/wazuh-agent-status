@@ -1309,11 +1309,22 @@ body {
   z-index: 1;
   animation: complianceStatFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: var(--delay, 0s);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: inherit;
+  text-align: left;
+  color: inherit;
+  appearance: none;
 }
 .compliance-stat-card:hover {
   transform: translateY(-2px);
   border-color: var(--primary-alpha-30);
   box-shadow: 0 8px 20px var(--overlay-black-40);
+}
+.compliance-stat-card.active {
+  border-color: var(--primary-alpha-50);
+  background: var(--primary-alpha-10);
+  box-shadow: 0 0 0 1px var(--primary-alpha-30), 0 8px 20px var(--overlay-black-40);
 }
 
 @keyframes complianceStatFadeIn {
