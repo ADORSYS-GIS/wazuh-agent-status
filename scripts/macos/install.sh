@@ -148,16 +148,6 @@ create_launchd_plist_file() {
 
     info_message "Creating plist file for $name..."
 
-    # Determine the EnvironmentVariables block: inject HOME only for the client (LaunchAgent)
-    local env_dict_extra=""
-    if [[ "$name" != "$SERVER_NAME" ]]; then
-        local real_user=$(get_real_user)
-        local user_home=$(eval echo "~$real_user")
-        env_dict_extra="
-        <key>HOME</key>
-        <string>$user_home</string>"
-    fi
-
     create_file "$filepath" "
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"https://www.apple.com/DTDs/PropertyList-1.0.dtd\">
@@ -172,7 +162,7 @@ create_launchd_plist_file() {
     <key>EnvironmentVariables</key>
     <dict>
         <key>WAZUH_STATUS_LOG_FILE</key>
-        <string>/var/log/wazuh-agent-status/wazuh-agent-status.log</string>$env_dict_extra
+        <string>/var/log/wazuh-agent-status/wazuh-agent-status.log</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
