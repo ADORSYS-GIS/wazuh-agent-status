@@ -24,6 +24,6 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.projectKey=wazuh-agent-status
             -Dsonar.sources=.
             -Dsonar.exclusions=**/target/**,**/node_modules/**,**/dist/**,**/coverage/**
