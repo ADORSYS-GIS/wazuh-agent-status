@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[217c60c](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/217c60c37b29c93483437eafde7dbc1bd3a56656)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[1f7c8cf](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1f7c8cf47b41062edcbac659b2b60663ef85e89c)
 
 ### Bug Fixes
 
@@ -58,7 +58,7 @@ All notable changes to this project will be documented in this file.
 - Ensure running services are not stopped during updates ([`a8458ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a8458acdfd384d5b0f19fb404acd1e83fb41f3db)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Reset agent state to unknown when server disconnects ([`3e0393c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3e0393cd78ab738da388c894d87a8db740151807))
 - Isolate SCA check status filtering and make stat cards interactive (#209) ([`232bec4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/232bec4c84a3644ac4df4a5897dba77927de33fb))
-- Remove hardcoded HOME variable from LaunchAgent plist ([`217c60c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/217c60c37b29c93483437eafde7dbc1bd3a56656))
+- Remove hardcoded HOME variable from LaunchAgent plist (#220) ([`6d16401`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6d164017a5e2add3c4540da2e8371591cd3f1c32)), Co-authored-by:GitHub Action <action@github.com>
 
 ### Documentation
 
@@ -236,6 +236,7 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 ---------, Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>, Co-authored-by:louise mbiti kongnyu <louisembiti@gmail.com>, Co-authored-by:GitHub Action <action@github.com>
 - Update default server listen address to 127.0.0.1:50505 ([`07fdb38`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/07fdb38f833a6f1ad95d6e3ca43befcdaba1d85e))
 - Update default communication port from 50506 to 50505 across documentation ([`d126204`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d126204ae8a986962f85515d418861c45f8772a6))
+- Bump application version to 0.5.3 across all installation and update scripts ([`1f7c8cf`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1f7c8cf47b41062edcbac659b2b60663ef85e89c))
 
 ### Performance
 
