@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[72218b6](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/72218b64dfc89910e9a01ec3aa0e175e0fc84577)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[217c60c](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/217c60c37b29c93483437eafde7dbc1bd3a56656)
 
 ### Bug Fixes
 
@@ -56,26 +56,9 @@ All notable changes to this project will be documented in this file.
 - Correct variable name for temporary directory and update warning messages ([`c4fc0f3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c4fc0f3b1a576c93197326a95ee14214374d47ed)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Remove unnecessary blank line in append_update_log function ([`0b85550`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/0b85550606575276145abf06d01073e5c1eea7f3)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Ensure running services are not stopped during updates ([`a8458ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a8458acdfd384d5b0f19fb404acd1e83fb41f3db)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
-- Add fallback for missing msg.exe on Windows Home ([`1b77a41`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1b77a41944b7fba048868c6c468a845777c36727))
-- Fix interactive consent popup user detection and result parsing ([`9c178c5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9c178c5e63a344a88b58c93d6fa1bd70d7a5aa09))
-- Add 5-stage user detection hierarchy so server execution always finds interactive user ([`a178ac3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a178ac3e4861f0d0ec14504e331619181a4faf00))
-- Replace Write-Output with Write-Host in Append-Log to prevent pipeline return array pollution ([`922f491`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/922f49139a3d4939f0ea3510464a9ac370e9481d))
-- Add explicit MessageBox Enum casting and task state check to prevent loop hanging ([`4d25cef`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4d25cef241a0613a2025cc51e9c926e05289e859))
-- Remove premature task state check race condition in popup loop ([`f44b650`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f44b650e7326d46c6dc9a6372689d33487abcdc4))
-- Use LogonType Interactive without UserId to fix task principal creation error ([`c4115a2`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c4115a2225fb934b3917f6ec69c7402c68288fcf))
-- Remove -WindowStyle Hidden from ScheduledTaskAction so MessageBox renders visibly ([`16fa903`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/16fa90312c67ecf400c7504a571e58df9d5cfa9a))
-- Guarantee non-null UserId for New-ScheduledTaskPrincipal to prevent interactive prompt ([`49de0e5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/49de0e5050cbd8252716a93550f91bbd209689f4))
-- Suppress pipeline array pollution from Form.Controls.Add and Add-Type ([`1fb57f7`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1fb57f70e535601510bfeda53b80e9cd6ce0960e))
-- Remove AcceptButton default to prevent auto-triggering Upgrade Now ([`df5b34e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/df5b34ebbe902db9b0c83f488d49b03ccbb5eabd))
-- Override utils.ps1 Log/InfoMessage to stop Write-Output return pipeline pollution ([`861c71d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/861c71dd0b598b54d3ed9a1cc4aeab3c9b91924a))
-- Fix Session 0 user resolution for Scheduled Task interactive popup ([`89a0fd2`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/89a0fd2e71d56ddaf715654d964bd3037346979f))
-- Use explorer.exe SID and C:\ProgramData for Session 0 Task Scheduler popup ([`7167bd3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7167bd37ec5ec823b54bfa4d542df42964d3b68c))
-- Return user account name instead of raw SID and fix catch block error variable reporting ([`c0ba634`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c0ba634cc1de788cf094672c2e3e76f66cd88d09))
-- Eliminate all remaining scripts/windows/adorsys-update.ps1 strict mode exception references across script ([`cf9b907`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cf9b907997b7c23b93f0fde14e3aae5d6a9be923))
-- Remove scripts/windows/adorsys-update.ps1 interpolation from scheduled task here-string causing strict mode crash ([`f2bedb9`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f2bedb9776e8071ddc1d20b02ecfa7c61d6b9ef3))
-- Correct parameter bindings for success popup ([`b2f8154`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b2f815428cef2351b3631b41ba7a98e02bb328ae))
-- Address reviewer comments ([`f861ee4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f861ee47f8ee78a93e45fb65d90632255c0791d3))
-- Update default port to 50506 across codebase ([`72218b6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/72218b64dfc89910e9a01ec3aa0e175e0fc84577))
+- Reset agent state to unknown when server disconnects ([`3e0393c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3e0393cd78ab738da388c894d87a8db740151807))
+- Isolate SCA check status filtering and make stat cards interactive (#209) ([`232bec4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/232bec4c84a3644ac4df4a5897dba77927de33fb))
+- Remove hardcoded HOME variable from LaunchAgent plist ([`217c60c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/217c60c37b29c93483437eafde7dbc1bd3a56656))
 
 ### Documentation
 
@@ -129,38 +112,6 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`c09f0c6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c09f0c6c551df214612d198acf412244195c309f))
 - Update CHANGELOG.md and checksums [skip ci] ([`5637810`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/56378105e8b80c1eefb9d182b2be945108813eaf))
 - Update CHANGELOG.md and checksums [skip ci] ([`ac755a5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ac755a5289dda3dbaa02cb391579d8421a1eec4c))
-- Update CHANGELOG.md and checksums [skip ci] ([`c348772`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c34877253f032ba82958092ea9a71991fe187416))
-- Update CHANGELOG.md and checksums [skip ci] ([`f0863ad`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f0863ad15683430ae1a6a63a29958bdd902e49d2))
-- Update CHANGELOG.md and checksums [skip ci] ([`fead763`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/fead763409cadf08af2df2642089731ec325b397))
-- Update CHANGELOG.md and checksums [skip ci] ([`d966c80`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d966c8062eb7635f0d58bdba539238db1d972626))
-- Update CHANGELOG.md and checksums [skip ci] ([`cac5c2d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cac5c2db445d85ec0378b479e74507d20e3a7d36))
-- Update CHANGELOG.md and checksums [skip ci] ([`6a3edfb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6a3edfbf520d4ed03eda2dfcd38eda13114a23c1))
-- Update CHANGELOG.md and checksums [skip ci] ([`07da7d4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/07da7d4805d311c0adc5f9325bccec6d4712cad9))
-- Update CHANGELOG.md and checksums [skip ci] ([`7d30990`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7d30990e44b3e0741dbdd7389051f35bc2c8eea7))
-- Update CHANGELOG.md and checksums [skip ci] ([`cf9398b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cf9398b2ffb1f54cecc2039d8a71369d7de5fba8))
-- Update CHANGELOG.md and checksums [skip ci] ([`b3194b3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b3194b349b216f479d7789dbbbd6029192c59ce2))
-- Update CHANGELOG.md and checksums [skip ci] ([`2893d2b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2893d2b6879c60b39038f58b39341445e83d462e))
-- Update CHANGELOG.md and checksums [skip ci] ([`eb6ff46`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/eb6ff46ee7211d4621a64fb43491d50391545a66))
-- Update CHANGELOG.md and checksums [skip ci] ([`b244f75`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b244f75e7108e3956ef4d4f3bf444fac1c6edb6e))
-- Update CHANGELOG.md and checksums [skip ci] ([`1e65089`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1e65089c295b36ead7c12269a1a1824778511a5d))
-- Update CHANGELOG.md and checksums [skip ci] ([`27bef53`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/27bef539cda9a7594947b0ba1b5e97773493e1ad))
-- Update CHANGELOG.md and checksums [skip ci] ([`6a07413`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6a07413ba6d4bb758181bd6c6a72899eb9e837eb))
-- Update CHANGELOG.md and checksums [skip ci] ([`5200641`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/52006413ff07cbb6ff08429269e7004ea2956bfe))
-- Update CHANGELOG.md and checksums [skip ci] ([`4eab2be`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4eab2bef233b3e2819e59fc17327cbc5fe49c0a5))
-- Update CHANGELOG.md and checksums [skip ci] ([`03af951`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/03af95108222a84e0861646424079bd53fe4a4df))
-- Update CHANGELOG.md and checksums [skip ci] ([`f3c0bca`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f3c0bca1836a2e8869a356b87a7b7f968b9e7e5b))
-- Update CHANGELOG.md and checksums [skip ci] ([`14dd482`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/14dd4829c6cec9ac51101adfc7c1b9214f5f8c21))
-- Update CHANGELOG.md and checksums [skip ci] ([`4c97dd8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/4c97dd82c2fd7b2befc7401fb556835c2190e632))
-- Update CHANGELOG.md and checksums [skip ci] ([`a040347`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a040347f2dd85fe17ba8e28090d0a6d41fc855d4))
-- Update CHANGELOG.md and checksums [skip ci] ([`dbf52ee`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/dbf52ee283ea6cbad45ec63474ca9dbcb6dbbe53))
-- Update CHANGELOG.md and checksums [skip ci] ([`db5e9f8`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/db5e9f860bb68a14ade2fa7b61a29c8b417737c5))
-- Update CHANGELOG.md and checksums [skip ci] ([`c8f618f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c8f618fdcff33423de17823ea4889527f514665e))
-- Update CHANGELOG.md and checksums [skip ci] ([`75a7501`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/75a7501224425eea6c5d5caffe32cc913268e221))
-- Update CHANGELOG.md and checksums [skip ci] ([`b26f6ff`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b26f6ff47ed69d343668750e3a9443eb50bf4336))
-- Update CHANGELOG.md and checksums [skip ci] ([`7968ce1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7968ce1bc53d794fb7aae6b98061728413947042))
-- Update CHANGELOG.md and checksums [skip ci] ([`5e19389`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5e19389d66a69e7d4e66b25b1739f4c0417a4c31))
-- Update CHANGELOG.md and checksums [skip ci] ([`39b6d58`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/39b6d589ba3aad31e5603e20ba19928f7ca58d8c))
-- Update CHANGELOG.md and checksums [skip ci] ([`386b5da`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/386b5daa08c5ae7c7594ce7b80fb79c429903f58))
 
 ### Features
 
@@ -181,13 +132,40 @@ All notable changes to this project will be documented in this file.
 - Resolve macOS update UI freeze & update AI command allowlist (#175) ([`779c333`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/779c33310ba7e32525d970792d6462ab594c675a))
 - Enhance update notification mechanism for macOS and Windows scripts ([`a7a333f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a7a333f74dba06232d96d37593411df7b5f6c018)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Resolve macOS update UI freeze & update AI command allowlist (#… (#179) ([`ce2576b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce2576b5630b6386bce9f34b131017806d5345d2)), Co-authored-by:GitHub Action <action@github.com>
-- Auto-update on version change for stable and prerelease ([`e18ae5b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e18ae5b3923351d4b9566d3b59b6e195a3ab6b52))
-- Add interactive GUI prompts via Scheduled Tasks on Windows ([`ddcd881`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ddcd88181068bdb42ef1b4e503ae9bdf58c54fd8))
-- Add direct WinForms MessageBox for interactive sessions (SessionId > 0) with Scheduled Task fallback ([`cccd6ac`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cccd6ac9579b7e966a8d7f7222336685fc1f93f2))
-- Add custom WinForms dialog with explicit Upgrade Now and Remind Me Later buttons ([`98a9014`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/98a9014c4cca73186fc1bc2d8f97b148236d944d))
-- Bypass consent popup when Update is explicitly invoked from GUI ([`3d12e15`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3d12e153c7891cc102eaadc1b7be846bfa4b6640))
-- Auto-update on version change for stable and prerelease on macOS and Linux (#194) ([`c7c81b4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c7c81b43d99279dd7bcd525007c002dff3412faa)), Co-authored-by:chojuninengu <chojuninengu@gmail.com>, Co-authored-by:GitHub Action <action@github.com>
 - Auto-update on version change for stable and prerelease on macOS and Linux (#194) ([`746b979`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/746b9799b011a0273b9a8ec843deb1ba562a3670)), Co-authored-by:chojuninengu <chojuninengu@gmail.com>, Co-authored-by:GitHub Action <action@github.com>
+- Auto-update on version change for stable and prerelease (#193) ([`9f09a6c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9f09a6cc4b00a7662bfd8d3833fc2725e3b6fa12)), Co-authored-by:chojuninengu <chojuninengu@gmail.com>, Co-authored-by:GitHub Action <action@github.com>
+
+* Remove 24-hour fallback timer for Windows
+
+* docs: update CHANGELOG.md and checksums [skip ci]
+
+* chore: Revert port back to 50506 in README.md
+
+* docs: update CHANGELOG.md and checksums [skip ci]
+
+* refactor(scripts): Fix SonarQube cognitive complexity and WMI issues in adorsys-update.ps1
+
+* refactor: reformat logging statement and function signature for better readability
+
+* docs: update CHANGELOG.md and checksums [skip ci]
+
+* refactor(scripts): Fix remaining SonarQube cognitive complexity issue in Invoke-InteractivePopup
+
+* docs: update CHANGELOG.md and checksums [skip ci]
+
+* fix(pr193): address reviewer comments
+
+* docs: update CHANGELOG.md and checksums [skip ci]
+
+* style: fix formatting in commands/mod.rs
+
+* docs: update CHANGELOG.md and checksums [skip ci]
+
+* fix(config): update default port to 50506 across codebase
+
+* docs: update CHANGELOG.md and checksums [skip ci]
+
+---------, Co-authored-by:GitHub Action <action@github.com>, Co-authored-by:mbiti2 <louisembiti@gmail.com>
 
 ### Miscellaneous Tasks
 
@@ -256,14 +234,13 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 * docs: update CHANGELOG.md and checksums [skip ci]
 
 ---------, Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>, Co-authored-by:louise mbiti kongnyu <louisembiti@gmail.com>, Co-authored-by:GitHub Action <action@github.com>
-- Increase default auto-update check interval from 30 minutes to 4 hours ([`c52a893`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c52a8938f2f945e88f2e16ba5276ebccd51b942a))
-- Revert port back to 50506 in README.md ([`97217a1`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/97217a13dc73a1c0c953b53b5b51c746f465c826))
+- Update default server listen address to 127.0.0.1:50505 ([`07fdb38`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/07fdb38f833a6f1ad95d6e3ca43befcdaba1d85e))
+- Update default communication port from 50506 to 50505 across documentation ([`d126204`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d126204ae8a986962f85515d418861c45f8772a6))
 
 ### Performance
 
 - Perform cleanup by removing dead code ([`106c4bf`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/106c4bf6c2d5552db71bc0f788176898ab2d5b9f))
 - Perform cleanup by removing dead code ([`b547b08`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b547b082c6ec5e70a89415e16fd0caf51111403d))
-- Remove unused openssl-sys dependency and switch reqwest to rustls-tls for fast Windows compilation ([`6345fed`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6345fed14db4a680f3c2f22f08414baff13f7a6f))
 
 ### Refactor
 
@@ -291,15 +268,10 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 - Update client components, improve agent metrics, and add compliance utilities ([`f7f6c7a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f7f6c7a1ec6671c3300c0682775c84621e5bfd20)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Simplify check icon rendering in ComplianceView component ([`ce53b62`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce53b629caaa9cbdd36cbb53a77dc70f6c8483a8)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Skip legacy process cleanup during installation if system is already migrated ([`a22a936`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a22a936aea455c1868852dab07273714b542c482))
-- Fix SonarQube cognitive complexity and WMI issues in adorsys-update.ps1 ([`babb652`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/babb652b706ad7d523823b3b662b93a626c5b68a))
-- Reformat logging statement and function signature for better readability ([`e871285`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e871285cb69a3714c4db54264a5b915445e7be1e))
-- Fix remaining SonarQube cognitive complexity issue in Invoke-InteractivePopup ([`197ac92`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/197ac92f52cc13b708a126252161cd337194c6c7))
 
 ### Styling
 
 - Update dismiss button background and remove shimmer animation ([`ca6d565`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ca6d5651d7af4bea151ce6861509a11ca31ce2b1))
-- Format Rust code via cargo fmt ([`2c5d12d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2c5d12d8f1e696102e8b8fc2813c48a50cab010f))
-- Fix formatting in commands/mod.rs ([`b5f895c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b5f895ce3d101f3425211ed08f7476fb68f3d18f))
 
 ### Testing
 
