@@ -12,18 +12,8 @@ permissions:
 
 jobs:
   scan:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: SonarSource/sonarqube-scan-action@v6
-        env:
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=wazuh-agent-status
-            -Dsonar.sources=.
-            -Dsonar.exclusions=**/target/**,**/node_modules/**,**/dist/**,**/coverage/**
+    uses: ADORSYS-GIS/adorsys-ci-cd-templates/.github/workflows/sonarqube.yml@main
+    with:
+      project-key: wazuh-agent-status
+      exclusions: "**/target/**,**/node_modules/**,**/dist/**,**/coverage/**"
+    secrets: inherit
