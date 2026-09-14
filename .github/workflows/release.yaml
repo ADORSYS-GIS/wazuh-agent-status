@@ -89,7 +89,7 @@ jobs:
       - name: Build Rust Server
         run: |
           cd ${{ env.SERVER_DIR }}
-          cargo build --release --target ${{ matrix.target }}
+          cargo build --locked --release --target ${{ matrix.target }}
           mkdir -p ../dist
           cp target/${{ matrix.target }}/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
 
@@ -119,7 +119,7 @@ jobs:
           cd ${{ env.CLIENT_DIR }}
           export RUST_BACKTRACE=1
           export TAURI_DEBUG=1
-          npm ci
+          npm ci --ignore-scripts
           npm run tauri build -- --bundles deb,rpm
           cp src-tauri/target/release/wazuh-agent-status ../dist/${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
           cp src-tauri/icons/icon.png ../dist/icon.png
@@ -209,7 +209,7 @@ jobs:
       - name: Build Rust Server
         run: |
           cd ${{ env.SERVER_DIR }}
-          cargo build --release --target ${{ matrix.target }}
+          cargo build --locked --release --target ${{ matrix.target }}
           mkdir -p ../dist
           cp target/${{ matrix.target }}/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
 
@@ -237,7 +237,7 @@ jobs:
       - name: Build Tauri Client (Tray App)
         run: |
           cd ${{ env.CLIENT_DIR }}
-          npm ci
+          npm ci --ignore-scripts
           npm run tauri build -- --target ${{ matrix.target }}
           cp src-tauri/target/${{ matrix.target }}/release/wazuh-agent-status ../dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
 
@@ -303,7 +303,7 @@ jobs:
         shell: cmd
         run: |
           cd ${{ env.SERVER_DIR }}
-          cargo build --release
+          cargo build --locked --release
           if not exist ..\dist mkdir ..\dist
           copy target\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
@@ -333,7 +333,7 @@ jobs:
         run: |
           cd ${{ env.CLIENT_DIR }}
 
-          npm ci
+          npm ci --ignore-scripts
           npm run tauri build
           cp src-tauri/target/release/wazuh-agent-status.exe ../dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
