@@ -2,6 +2,8 @@ name: Build and Release Binaries for Linux (amd64), macOS (AMD64, ARM64)
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
     paths:
@@ -41,7 +43,9 @@ jobs:
         shell: bash
         run: |
           RAW_VERSION=${GITHUB_REF#refs/tags/v}
-          if [[ "$RAW_VERSION" =~ - ]]; then
+          if [[ $GITHUB_REF != refs/tags/* ]]; then
+            echo "Not a tag push ($GITHUB_REF). Skipping version update."
+          elif [[ "$RAW_VERSION" =~ - ]]; then
             echo "Prerelease detected ($RAW_VERSION). Skipping version update for MSI compatibility."
           else
             sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
@@ -125,7 +129,7 @@ jobs:
           cp src-tauri/icons/icon.png ../dist/icon.png
 
       - name: Upload Linux client binaries
-        if: ${{ !env.ACT }}
+        if: ${{ !env.ACT && startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ env.CLIENT_APP_NAME }}-linux-${{ matrix.arch }}
@@ -134,7 +138,7 @@ jobs:
             dist/icon.png
 
       - name: Upload Linux server binaries
-        if: ${{ !env.ACT }}
+        if: ${{ !env.ACT && startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
@@ -176,7 +180,9 @@ jobs:
         shell: bash
         run: |
           RAW_VERSION=${GITHUB_REF#refs/tags/v}
-          if [[ "$RAW_VERSION" =~ - ]]; then
+          if [[ $GITHUB_REF != refs/tags/* ]]; then
+            echo "Not a tag push ($GITHUB_REF). Skipping version update."
+          elif [[ "$RAW_VERSION" =~ - ]]; then
             echo "Prerelease detected ($RAW_VERSION). Skipping version update for MSI compatibility."
           else
             sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
@@ -242,12 +248,14 @@ jobs:
           cp src-tauri/target/${{ matrix.target }}/release/wazuh-agent-status ../dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Upload MacOS client binaries
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
           path: dist/${{ env.CLIENT_APP_NAME }}-darwin-${{ matrix.arch }}
 
       - name: Upload MacOS server binaries
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
@@ -280,7 +288,9 @@ jobs:
         shell: bash
         run: |
           RAW_VERSION=${GITHUB_REF#refs/tags/v}
-          if [[ "$RAW_VERSION" =~ - ]]; then
+          if [[ $GITHUB_REF != refs/tags/* ]]; then
+            echo "Not a tag push ($GITHUB_REF). Skipping version update."
+          elif [[ "$RAW_VERSION" =~ - ]]; then
             echo "Prerelease detected ($RAW_VERSION). Skipping version update for MSI compatibility."
           else
             sed "s/^version = .*/version = \"$RAW_VERSION\"/" ${{ env.SERVER_DIR }}/Cargo.toml > temp_server.toml && mv temp_server.toml ${{ env.SERVER_DIR }}/Cargo.toml
@@ -338,18 +348,21 @@ jobs:
           cp src-tauri/target/release/wazuh-agent-status.exe ../dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
       - name: Upload windows client binaries
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}
           path: dist/${{ env.CLIENT_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
       - name: Upload windows server binaries
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}
           path: dist/${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
 
   update-changelog-and-checksums:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
