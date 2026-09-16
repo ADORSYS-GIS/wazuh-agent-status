@@ -90,10 +90,13 @@ jobs:
           sudo chmod 666 /dev/fuse
           sudo chown root:$(id -gn) /dev/fuse
 
+      - name: Sync Cargo.lock after version bump
+        run: |
+          cargo update --manifest-path ${{ env.SERVER_DIR }}/Cargo.toml -p wazuh-agent-status-rust-server
+
       - name: Build Rust Server
         run: |
           cd ${{ env.SERVER_DIR }}
-          cargo update -p wazuh-agent-status-rust-server
           cargo build --locked --release --target ${{ matrix.target }}
           mkdir -p ../dist
           cp target/${{ matrix.target }}/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
@@ -213,10 +216,13 @@ jobs:
             ${{ env.CLIENT_DIR }}/src-tauri
           key: rust-release-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Sync Cargo.lock after version bump
+        run: |
+          cargo update --manifest-path ${{ env.SERVER_DIR }}/Cargo.toml -p wazuh-agent-status-rust-server
+
       - name: Build Rust Server
         run: |
           cd ${{ env.SERVER_DIR }}
-          cargo update -p wazuh-agent-status-rust-server
           cargo build --locked --release --target ${{ matrix.target }}
           mkdir -p ../dist
           cp target/${{ matrix.target }}/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
@@ -311,11 +317,15 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Sync Cargo.lock after version bump
+        shell: bash
+        run: |
+          cargo update --manifest-path ${{ env.SERVER_DIR }}/Cargo.toml -p wazuh-agent-status-rust-server
+
       - name: Build Rust Server
         shell: cmd
         run: |
           cd ${{ env.SERVER_DIR }}
-          cargo update -p wazuh-agent-status-rust-server
           cargo build --locked --release
           if not exist ..\dist mkdir ..\dist
           copy target\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
@@ -406,6 +416,11 @@ jobs:
           config: cliff.toml
           args: --output CHANGELOG.md
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          toolchain: stable
+
       - name: Bump versions
         shell: bash
         run: |
@@ -421,10 +436,15 @@ jobs:
             fi
           fi
 
+      - name: Sync Cargo.lock after version bump
+        run: |
+          cargo update --manifest-path ${{ env.SERVER_DIR }}/Cargo.toml -p wazuh-agent-status-rust-server
+          cargo update --manifest-path ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml -p wazuh-agent-status
+
       - name: Commit and push changes
         run: |
           if [[ -n $(git status --porcelain) ]]; then
-            git add CHANGELOG.md checksums.sha256 ${{ env.SERVER_DIR }}/Cargo.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml ${{ env.CLIENT_DIR }}/package.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
+            git add CHANGELOG.md checksums.sha256 ${{ env.SERVER_DIR }}/Cargo.toml ${{ env.SERVER_DIR }}/Cargo.lock ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.lock ${{ env.CLIENT_DIR }}/package.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
             git commit -m "docs: update CHANGELOG.md, checksums, and app version [skip ci]"
             git push origin ${{ github.head_ref || github.ref_name }}
           else
