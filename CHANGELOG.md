@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+[b84154d](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b84154dc00773bf5ad2fa4f4f1d488c089992ab6)...[f47bca6](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f47bca6de5ea1a5f0a6cd2f802dfaee756be8f2b)
+
+### Documentation
+
+- Update CHANGELOG.md and checksums [skip ci] ([`887146f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/887146f66dbc1d919fd0ac3a760e667d9bf014db))
+
+### Miscellaneous Tasks
+
+- Sync Cargo.lock during version bump and commit it in release workflow ([`f47bca6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f47bca6de5ea1a5f0a6cd2f802dfaee756be8f2b))
+
 ## 0.5.4 - 2026-09-16
 
 [5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[b84154d](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b84154dc00773bf5ad2fa4f4f1d488c089992ab6)
