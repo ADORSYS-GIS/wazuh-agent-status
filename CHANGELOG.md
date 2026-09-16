@@ -2,9 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.5.4 - 2026-09-16
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[1f7c8cf](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1f7c8cf47b41062edcbac659b2b60663ef85e89c)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[b84154d](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b84154dc00773bf5ad2fa4f4f1d488c089992ab6)
 
 ### Bug Fixes
 
@@ -59,6 +59,7 @@ All notable changes to this project will be documented in this file.
 - Reset agent state to unknown when server disconnects ([`3e0393c`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3e0393cd78ab738da388c894d87a8db740151807))
 - Isolate SCA check status filtering and make stat cards interactive (#209) ([`232bec4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/232bec4c84a3644ac4df4a5897dba77927de33fb))
 - Remove hardcoded HOME variable from LaunchAgent plist (#220) ([`6d16401`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6d164017a5e2add3c4540da2e8371591cd3f1c32)), Co-authored-by:GitHub Action <action@github.com>
+- Address sonarqube vulnerabilities in release workflow (#238) ([`8ec506a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8ec506a1e57defd202db191a2709c271054c9b3c))
 
 ### Documentation
 
@@ -236,7 +237,11 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 ---------, Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>, Co-authored-by:louise mbiti kongnyu <louisembiti@gmail.com>, Co-authored-by:GitHub Action <action@github.com>
 - Update default server listen address to 127.0.0.1:50505 ([`07fdb38`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/07fdb38f833a6f1ad95d6e3ca43befcdaba1d85e))
 - Update default communication port from 50506 to 50505 across documentation ([`d126204`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/d126204ae8a986962f85515d418861c45f8772a6))
-- Bump application version to 0.5.3 across all installation and update scripts ([`1f7c8cf`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1f7c8cf47b41062edcbac659b2b60663ef85e89c))
+- Bump application version to 0.5.3 across all installation and update scripts (#222) ([`cc7b7b3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/cc7b7b3862b513f1079f1dc948a48fb72600f6be)), Co-authored-by:GitHub Action <action@github.com>
+- Add SonarQube status badge to README ([`56fac42`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/56fac42edd474802ee6dae5388da066f1b75804c))
+- Fix stale failing release badge ([`52067f9`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/52067f96bd4aedfbb980212be31a7038b2de9f35)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Updated checksum for tag 0.5.3 ([`3f5fc3a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3f5fc3a604843aaf2ed1af67be823a581ddd6edf))
+- Update Cargo.lock prior to cargo build --locked in release workflow ([`b84154d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/b84154dc00773bf5ad2fa4f4f1d488c089992ab6))
 
 ### Performance
 
@@ -269,6 +274,12 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 - Update client components, improve agent metrics, and add compliance utilities ([`f7f6c7a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f7f6c7a1ec6671c3300c0682775c84621e5bfd20)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Simplify check icon rendering in ComplianceView component ([`ce53b62`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ce53b629caaa9cbdd36cbb53a77dc70f6c8483a8)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Skip legacy process cleanup during installation if system is already migrated ([`a22a936`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a22a936aea455c1868852dab07273714b542c482))
+- Add SonarQube workflow configuration for pull requests and pushes ([`034b4c4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/034b4c48b65c8f1ba52a3830d158589e63d11fdb))
+- Update SonarQube project key in configuration ([`ebd98ec`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ebd98ecbc561bb14c74d1aa11aa7c74589059ec5))
+- Simplify SonarQube scan configuration by using shared template ([`11e9819`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/11e98191b5edd47e2e2b6d4e6c2d649d7e0c05a6))
+- Update SonarQube workflow reference to a specific commit ([`95dc88b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/95dc88b46aa769ac7949465563ad6a70ab9634e3))
+- Add SonarQube secrets for improved security ([`2545b14`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2545b142cbba77b7cc02250aa9c0993415d6cf4a))
+- Add SonarQube secrets for improved security ([`f91f11d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f91f11deffbdaf6c123730fe7aef42c36dea9cb5))
 
 ### Styling
 
@@ -277,6 +288,10 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 ### Testing
 
 - Add comprehensive unit tests for AI keychain configuration persistence and status tracking ([`79ac802`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/79ac802f86dc6933037fca24e11ff4782a0742b1)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+
+### Bump
+
+- Updated app version ([`7516300`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/7516300bcb7a0e99b69cdda8cd49ccaf15da2270))
 
 ## 0.4.2.rc1-user - 2025-07-16
 
