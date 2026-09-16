@@ -93,6 +93,7 @@ jobs:
       - name: Build Rust Server
         run: |
           cd ${{ env.SERVER_DIR }}
+          cargo update -p wazuh-agent-status-rust-server
           cargo build --locked --release --target ${{ matrix.target }}
           mkdir -p ../dist
           cp target/${{ matrix.target }}/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-linux-${{ matrix.arch }}
@@ -215,6 +216,7 @@ jobs:
       - name: Build Rust Server
         run: |
           cd ${{ env.SERVER_DIR }}
+          cargo update -p wazuh-agent-status-rust-server
           cargo build --locked --release --target ${{ matrix.target }}
           mkdir -p ../dist
           cp target/${{ matrix.target }}/release/wazuh-agent-status-rust-server ../dist/${{ env.SERVER_APP_NAME }}-darwin-${{ matrix.arch }}
@@ -313,6 +315,7 @@ jobs:
         shell: cmd
         run: |
           cd ${{ env.SERVER_DIR }}
+          cargo update -p wazuh-agent-status-rust-server
           cargo build --locked --release
           if not exist ..\dist mkdir ..\dist
           copy target\release\wazuh-agent-status-rust-server.exe ..\dist\${{ env.SERVER_APP_NAME }}-windows-${{ matrix.arch }}.exe
