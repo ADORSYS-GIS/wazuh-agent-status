@@ -7,7 +7,7 @@ else
     set -eu
 fi
 
-APP_VERSION=${APP_VERSION:-"0.5.3"}
+APP_VERSION=${APP_VERSION:-"0.5.4"}
 
 # Common configuration
 SERVER_NAME=${SERVER_NAME:-"wazuh-agent-status"}
