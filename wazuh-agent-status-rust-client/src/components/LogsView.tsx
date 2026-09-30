@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { LogLine } from "../types/agent";
 
 interface LogsViewProps {
@@ -12,6 +13,8 @@ interface LogsViewProps {
 
 export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }: LogsViewProps) {
   const [filter, setFilter] = useState("");
+  const [downloadState, setDownloadState] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   const filteredLogs = logs.filter((log) => {
@@ -28,6 +31,25 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [logs, filteredLogs.length]);
+
+  const handleDownload = async () => {
+    setDownloadState("loading");
+    setDownloadMsg(null);
+    try {
+      const path = await invoke<string>("download_logs");
+      setDownloadState("success");
+      setDownloadMsg(`Saved to: ${path}`);
+    } catch (e) {
+      setDownloadState("error");
+      setDownloadMsg(String(e));
+    } finally {
+      // Reset to idle after 4 s so the button is reusable
+      setTimeout(() => {
+        setDownloadState("idle");
+        setDownloadMsg(null);
+      }, 4000);
+    }
+  };
 
   const levelColor = (level: string) => {
     switch (level) {
@@ -101,13 +123,53 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
         )}
       </div>
 
+      {downloadMsg && (
+        <div className={`logs-download-feedback ${downloadState}`}>
+          {downloadState === "success" ? "✓ " : "✕ "}
+          {downloadMsg}
+        </div>
+      )}
+
       <div className="logs-footer">
         <span className="logs-count">
           Showing {filteredLogs.length} of {logs.length} lines
         </span>
-        <button type="button" className="logs-clear-btn" onClick={onClear}>
-          Clear
-        </button>
+        <div className="logs-footer-actions">
+          <button
+            type="button"
+            id="logs-download-btn"
+            className={`logs-download-btn ${downloadState}`}
+            onClick={handleDownload}
+            disabled={downloadState === "loading"}
+            title="Download ossec.log and active-responses.log to your Downloads folder"
+          >
+            {downloadState === "loading" ? (
+              <>
+                <span className="logs-download-spinner" />
+                Downloading…
+              </>
+            ) : downloadState === "success" ? (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Downloaded
+              </>
+            ) : (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Download Logs
+              </>
+            )}
+          </button>
+          <button type="button" className="logs-clear-btn" onClick={onClear}>
+            Clear
+          </button>
+        </div>
       </div>
     </div>
   );

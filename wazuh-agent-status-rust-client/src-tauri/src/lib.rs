@@ -75,6 +75,7 @@ pub fn run() {
             commands::check_for_updates,
             commands::start_update,
             commands::start_log_stream,
+            commands::download_logs,
             commands::fetch_compliance,
             commands::ai_commands::save_ai_config,
             commands::ai_commands::get_ai_status,
