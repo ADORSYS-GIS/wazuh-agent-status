@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, JSX } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 interface LogEntry {
   id: string;
@@ -11,6 +12,8 @@ interface UpdateModalProps {
   targetVersion: string;
   onDismiss: () => void;
 }
+
+type SaveState = "idle" | "loading" | "success" | "error";
 
 type Step = "connecting" | "preparing" | "downloading" | "installing" | "done" | "failed";
 
@@ -96,8 +99,28 @@ export function UpdateModal({ status, logs, targetVersion, onDismiss }: Readonly
   const [showTerminal, setShowTerminal] = useState(false);
   const [startedAt] = useState(Date.now());
   const [elapsed, setElapsed] = useState(0);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const currentStep = inferStep(logs);
+
+  const handleSaveLogs = async () => {
+    setSaveState("loading");
+    setSaveMsg(null);
+    try {
+      const content = logs.map((l) => l.text).join("\n");
+      const timestamp = Math.floor(Date.now() / 1000);
+      const filename = `wazuh-update-logs-${timestamp}.txt`;
+      const path = await invoke<string>("download_logs", { content, filename });
+      setSaveState("success");
+      setSaveMsg(`Saved to: ${path}`);
+    } catch (e) {
+      setSaveState("error");
+      setSaveMsg(String(e));
+    } finally {
+      setTimeout(() => { setSaveState("idle"); setSaveMsg(null); }, 4000);
+    }
+  };
 
   useEffect(() => {
     if (status === "running") {
@@ -210,11 +233,48 @@ export function UpdateModal({ status, logs, targetVersion, onDismiss }: Readonly
           )}
         </div>
 
-        {/* Fixed dismiss button */}
+        {/* Fixed footer: Save Logs + Dismiss — shown when update is no longer running */}
         {status !== "running" && (
-          <button type="button" className="update-modal-dismiss" onClick={onDismiss}>
-            {currentStep === "done" ? "Done" : "Close"}
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {saveMsg && (
+              <div className={`logs-download-feedback ${saveState}`} style={{ fontSize: "10px" }}>
+                {saveMsg}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                className={`logs-download-btn ${saveState}`}
+                style={{ fontSize: "12px", padding: "8px 14px" }}
+                onClick={handleSaveLogs}
+                disabled={saveState === "loading"}
+                title="Save update logs to your Downloads folder"
+              >
+                {saveState === "loading" ? (
+                  <><span className="logs-download-spinner" /> Saving…</>
+                ) : saveState === "success" ? (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Saved
+                  </>
+                ) : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Save Logs
+                  </>
+                )}
+              </button>
+              <button type="button" className="update-modal-dismiss" style={{ flex: 1 }} onClick={onDismiss}>
+                {currentStep === "done" ? "Done" : "Close"}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
