@@ -261,7 +261,8 @@ pub async fn download_logs(content: String, filename: String) -> Result<String, 
         dirs::download_dir().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
     dest.push(&filename);
 
-    std::fs::write(&dest, content.as_bytes())
+    tokio::fs::write(&dest, content.as_bytes())
+        .await
         .map_err(|e| format!("Failed to write log file to {}: {}", dest.display(), e))?;
 
     Ok(dest.to_string_lossy().to_string())

@@ -3094,12 +3094,12 @@ body {
 }
 .logs-download-feedback.success {
   background: rgba(16, 185, 129, 0.08);
-  color: #4ade80;
+  color: var(--success);
   border: 1px solid rgba(16, 185, 129, 0.2);
 }
 .logs-download-feedback.error {
   background: rgba(244, 63, 94, 0.08);
-  color: #f87171;
+  color: var(--error);
   border: 1px solid rgba(244, 63, 94, 0.2);
 }
 

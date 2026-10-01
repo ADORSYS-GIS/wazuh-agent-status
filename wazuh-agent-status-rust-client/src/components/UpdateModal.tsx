@@ -242,34 +242,48 @@ export function UpdateModal({ status, logs, targetVersion, onDismiss }: Readonly
               </div>
             )}
             <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                type="button"
-                className={`logs-download-btn ${saveState}`}
-                style={{ fontSize: "12px", padding: "8px 14px" }}
-                onClick={handleSaveLogs}
-                disabled={saveState === "loading"}
-                title="Save update logs to your Downloads folder"
-              >
-                {saveState === "loading" ? (
-                  <><span className="logs-download-spinner" /> Saving…</>
-                ) : saveState === "success" ? (
-                  <>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    Saved
-                  </>
-                ) : (
+              {(() => {
+                let iconAndText = (
                   <>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="7 10 12 15 17 10" />
                       <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
-                    Save Logs
+                    {" "}Save Logs
                   </>
-                )}
-              </button>
+                );
+                if (saveState === "loading") {
+                  iconAndText = (
+                    <>
+                      <span className="logs-download-spinner" />
+                      {" "}Saving…
+                    </>
+                  );
+                } else if (saveState === "success") {
+                  iconAndText = (
+                    <>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      {" "}Saved
+                    </>
+                  );
+                }
+
+                return (
+                  <button
+                    type="button"
+                    className={`logs-download-btn ${saveState}`}
+                    style={{ fontSize: "12px", padding: "8px 14px" }}
+                    onClick={handleSaveLogs}
+                    disabled={saveState === "loading"}
+                    title="Save update logs to your Downloads folder"
+                  >
+                    {iconAndText}
+                  </button>
+                );
+              })()}
               <button type="button" className="update-modal-dismiss" style={{ flex: 1 }} onClick={onDismiss}>
                 {currentStep === "done" ? "Done" : "Close"}
               </button>
