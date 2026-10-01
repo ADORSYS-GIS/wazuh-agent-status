@@ -3032,32 +3032,39 @@ body {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-dim);
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
+  white-space: nowrap;
 }
 .logs-download-btn:hover:not(:disabled) {
+  background: var(--overlay-white-08);
+  color: var(--text);
+}
+.logs-download-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* loading: subtle overlay, neutral */
+.logs-download-btn.loading {
+  background: var(--overlay-white-05);
+  color: var(--text-dim);
+}
+/* success: primary brand colour — matches Stream Logs active state */
+.logs-download-btn.success {
   background: var(--overlay-white-08);
   border-color: var(--primary);
   color: var(--primary);
 }
-.logs-download-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.logs-download-btn.success {
-  border-color: rgba(16, 185, 129, 0.4);
-  color: #4ade80;
-  background: rgba(16, 185, 129, 0.07);
-}
+/* error: standard app error red */
 .logs-download-btn.error {
   border-color: rgba(244, 63, 94, 0.4);
-  color: #f87171;
-  background: rgba(244, 63, 94, 0.07);
+  color: var(--error);
+  background: rgba(244, 63, 94, 0.06);
 }
 
 /* Spinner inside download button */
