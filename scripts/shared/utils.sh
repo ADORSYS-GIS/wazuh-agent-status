@@ -540,7 +540,13 @@ setup_sudoers() {
             echo "# Allow running downloaded setup scripts (prerelease updates)"
             echo "${wazuh_user} ALL=(ALL) NOPASSWD: /tmp/setup-agent-*.sh"
         } > "${sudoers_file}.tmp"
-        
+
+        # Skip rewriting if the file already matches the desired configuration
+        if [[ -f "${sudoers_file}" ]] && maybe_sudo cmp -s "${sudoers_file}.tmp" "${sudoers_file}"; then
+            rm -f "${sudoers_file}.tmp"
+            return 0
+        fi
+
         # Validate sudoers file before moving it (if visudo is available)
         if command -v visudo >/dev/null 2>&1 && ! maybe_sudo visudo -cf "${sudoers_file}.tmp"; then
             error_message "Invalid sudoers configuration generated. Skipping sudoers setup."
