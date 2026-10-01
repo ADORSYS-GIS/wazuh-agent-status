@@ -257,13 +257,12 @@ pub async fn fetch_compliance(
 /// the data was already delivered through the privileged server stream.
 #[tauri::command]
 pub async fn download_logs(content: String, filename: String) -> Result<String, String> {
-    let mut dest = dirs::download_dir()
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+    let mut dest =
+        dirs::download_dir().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
     dest.push(&filename);
 
-    std::fs::write(&dest, content.as_bytes()).map_err(|e| {
-        format!("Failed to write log file to {}: {}", dest.display(), e)
-    })?;
+    std::fs::write(&dest, content.as_bytes())
+        .map_err(|e| format!("Failed to write log file to {}: {}", dest.display(), e))?;
 
     Ok(dest.to_string_lossy().to_string())
 }
