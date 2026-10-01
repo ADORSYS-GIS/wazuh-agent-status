@@ -56,6 +56,7 @@ function AppLoading() {
 
 const STATUS_POLL_MS = 2_000;
 const UPDATE_POLL_MS = 5 * 60 * 1000;
+const MAX_LOG_LINES = 500;
 const STORAGE_KEY_VIEW = "wazuh_active_view";
 
 const IS_WINDOWS = typeof navigator !== "undefined"
@@ -93,9 +94,8 @@ function App() {
         parsed = { raw: event.payload, level: "UNKNOWN" };
       }
       setLogs((prev) => {
-        const MAX_LOGS = 500;
         const next = [...prev, parsed];
-        return next.length > MAX_LOGS ? next.slice(-MAX_LOGS) : next;
+        return next.length > MAX_LOG_LINES ? next.slice(-MAX_LOG_LINES) : next;
       });
     });
 
@@ -173,6 +173,7 @@ function App() {
 
     refreshData();
     let statusTimer = setInterval(refreshData, STATUS_POLL_MS);
+    // updateTimer is independent of focus state so background updates work
     const updateTimer = setInterval(refreshUpdateInfo, UPDATE_POLL_MS);
     let isPollingPaused = false;
 
@@ -194,11 +195,23 @@ function App() {
     const appWindow = getCurrentWindow();
     let unlistenBlur: (() => void) | null = null;
     let unlistenFocus: (() => void) | null = null;
+    let isCancelled = false;
 
-    appWindow.listen("tauri://blur", pausePolling).then(f => unlistenBlur = f);
-    appWindow.listen("tauri://focus", resumePolling).then(f => unlistenFocus = f);
+    const setupListeners = async () => {
+      const b = await appWindow.listen("tauri://blur", pausePolling);
+      const f = await appWindow.listen("tauri://focus", resumePolling);
+      if (isCancelled) {
+        b();
+        f();
+      } else {
+        unlistenBlur = b;
+        unlistenFocus = f;
+      }
+    };
+    setupListeners();
 
     return () => {
+      isCancelled = true;
       clearInterval(statusTimer);
       clearInterval(updateTimer);
       if (unlistenBlur) unlistenBlur();

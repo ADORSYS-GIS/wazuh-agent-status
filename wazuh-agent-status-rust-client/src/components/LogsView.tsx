@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { SaveLogsButton } from "./SaveLogsButton";
 import type { LogLine } from "../types/agent";
 
 interface LogsViewProps {
@@ -16,6 +17,13 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
   const [downloadState, setDownloadState] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const downloadTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (downloadTimerRef.current) window.clearTimeout(downloadTimerRef.current);
+    };
+  }, []);
 
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
@@ -32,17 +40,15 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
-  }, [logs, filteredLogs.length]);
+  }, [logs.length]);
 
   const handleDownload = async () => {
     setDownloadState("loading");
     setDownloadMsg(null);
     try {
-      // Take the last 100 lines of the in-memory streamed logs.
-      // This avoids any privileged disk reads — the data was already
-      // delivered through the server stream.
-      const last100 = logs.slice(-100);
-      const content = last100
+      // Export all buffered logs
+      const header = `# exported at ${new Date().toISOString()}\n`;
+      const content = header + logs
         .map((l) => `[${l.level}] ${l.raw}`)
         .join("\n");
 
@@ -54,9 +60,10 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
       setDownloadMsg(`Saved to: ${path}`);
     } catch (e) {
       setDownloadState("error");
-      setDownloadMsg(String(e));
+      setDownloadMsg(String(e instanceof Error ? e.message : e));
     } finally {
-      setTimeout(() => {
+      if (downloadTimerRef.current) window.clearTimeout(downloadTimerRef.current);
+      downloadTimerRef.current = window.setTimeout(() => {
         setDownloadState("idle");
         setDownloadMsg(null);
       }, 4000);
@@ -139,49 +146,14 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
           Showing {filteredLogs.length} of {logs.length} lines
         </span>
         <div className="logs-footer-actions">
-          {/* Download button is only shown while streaming */}
-          {isStreaming && (() => {
-            let iconAndText = (
-              <>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                {" "}Save Logs
-              </>
-            );
-            if (downloadState === "loading") {
-              iconAndText = (
-                <>
-                  <span className="logs-download-spinner" />
-                  {" "}Saving…
-                </>
-              );
-            } else if (downloadState === "success") {
-              iconAndText = (
-                <>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  {" "}Saved
-                </>
-              );
-            }
-
-            return (
-              <button
-                type="button"
-                id="logs-download-btn"
-                className={`logs-download-btn ${downloadState}`}
-                onClick={handleDownload}
-                disabled={downloadState === "loading"}
-                title="Save last 100 log lines to your Downloads folder"
-              >
-                {iconAndText}
-              </button>
-            );
-          })()}
+          {/* Download button is shown as long as we have logs */}
+          {logs.length > 0 && (
+            <SaveLogsButton
+              downloadState={downloadState}
+              onSave={handleDownload}
+              title="Save all loaded log lines to your Downloads folder"
+            />
+          )}
           <button type="button" className="logs-clear-btn" onClick={onClear}>
             Clear
           </button>

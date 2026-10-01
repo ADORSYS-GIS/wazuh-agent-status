@@ -257,9 +257,19 @@ pub async fn fetch_compliance(
 /// the data was already delivered through the privileged server stream.
 #[tauri::command]
 pub async fn download_logs(content: String, filename: String) -> Result<String, String> {
+    if content.len() > 50 * 1024 * 1024 {
+        return Err("Payload too large (max 50MB)".to_string());
+    }
+
+    let safe_filename = filename.replace(['/', '\\', '\0'], "_");
+    let safe_filename = safe_filename.trim_start_matches('.');
+    if safe_filename.is_empty() || safe_filename.len() > 128 {
+        return Err("Invalid filename".to_string());
+    }
+
     let mut dest =
         dirs::download_dir().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-    dest.push(&filename);
+    dest.push(safe_filename);
 
     tokio::fs::write(&dest, content.as_bytes())
         .await

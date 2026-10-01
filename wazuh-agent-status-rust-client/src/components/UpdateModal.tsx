@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, JSX } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { SaveLogsButton } from "./SaveLogsButton";
 
 interface LogEntry {
   id: string;
@@ -102,13 +103,21 @@ export function UpdateModal({ status, logs, targetVersion, onDismiss }: Readonly
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const downloadTimerRef = useRef<number | null>(null);
   const currentStep = inferStep(logs);
+
+  useEffect(() => {
+    return () => {
+      if (downloadTimerRef.current) window.clearTimeout(downloadTimerRef.current);
+    };
+  }, []);
 
   const handleSaveLogs = async () => {
     setSaveState("loading");
     setSaveMsg(null);
     try {
-      const content = logs.map((l) => l.text).join("\n");
+      const header = `# exported at ${new Date().toISOString()}\n`;
+      const content = header + logs.map((l) => `[UPDATE] ${l.text}`).join("\n");
       const timestamp = Math.floor(Date.now() / 1000);
       const filename = `wazuh-update-logs-${timestamp}.txt`;
       const path = await invoke<string>("download_logs", { content, filename });
@@ -116,9 +125,10 @@ export function UpdateModal({ status, logs, targetVersion, onDismiss }: Readonly
       setSaveMsg(`Saved to: ${path}`);
     } catch (e) {
       setSaveState("error");
-      setSaveMsg(String(e));
+      setSaveMsg(String(e instanceof Error ? e.message : e));
     } finally {
-      setTimeout(() => { setSaveState("idle"); setSaveMsg(null); }, 4000);
+      if (downloadTimerRef.current) window.clearTimeout(downloadTimerRef.current);
+      downloadTimerRef.current = window.setTimeout(() => { setSaveState("idle"); setSaveMsg(null); }, 4000);
     }
   };
 
@@ -235,56 +245,20 @@ export function UpdateModal({ status, logs, targetVersion, onDismiss }: Readonly
 
         {/* Fixed footer: Save Logs + Dismiss — shown when update is no longer running */}
         {status !== "running" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div className="update-modal-footer-col">
             {saveMsg && (
-              <div className={`logs-download-feedback ${saveState}`} style={{ fontSize: "10px" }}>
+              <div className={`logs-download-feedback ${saveState} update-modal-feedback`}>
                 {saveMsg}
               </div>
             )}
-            <div style={{ display: "flex", gap: "8px" }}>
-              {(() => {
-                let iconAndText = (
-                  <>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    {" "}Save Logs
-                  </>
-                );
-                if (saveState === "loading") {
-                  iconAndText = (
-                    <>
-                      <span className="logs-download-spinner" />
-                      {" "}Saving…
-                    </>
-                  );
-                } else if (saveState === "success") {
-                  iconAndText = (
-                    <>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      {" "}Saved
-                    </>
-                  );
-                }
-
-                return (
-                  <button
-                    type="button"
-                    className={`logs-download-btn ${saveState}`}
-                    style={{ fontSize: "12px", padding: "8px 14px" }}
-                    onClick={handleSaveLogs}
-                    disabled={saveState === "loading"}
-                    title="Save update logs to your Downloads folder"
-                  >
-                    {iconAndText}
-                  </button>
-                );
-              })()}
-              <button type="button" className="update-modal-dismiss" style={{ flex: 1 }} onClick={onDismiss}>
+            <div className="update-modal-footer-actions">
+              <SaveLogsButton
+                downloadState={saveState}
+                onSave={handleSaveLogs}
+                title="Save update logs to your Downloads folder"
+                className="update-modal-save-btn"
+              />
+              <button type="button" className="update-modal-dismiss update-modal-dismiss-btn" onClick={onDismiss}>
                 {currentStep === "done" ? "Done" : "Close"}
               </button>
             </div>
