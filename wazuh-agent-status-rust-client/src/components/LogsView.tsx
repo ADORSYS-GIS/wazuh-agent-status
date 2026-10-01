@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { LogLine } from "../types/agent";
 
@@ -17,14 +17,16 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
   const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  const filteredLogs = logs.filter((log) => {
-    if (!filter.trim()) return true;
-    const term = filter.toLowerCase();
-    return (
-      log.raw.toLowerCase().includes(term) ||
-      log.level.toLowerCase().includes(term)
-    );
-  });
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      if (!filter.trim()) return true;
+      const term = filter.toLowerCase();
+      return (
+        log.raw.toLowerCase().includes(term) ||
+        log.level.toLowerCase().includes(term)
+      );
+    });
+  }, [logs, filter]);
 
   useEffect(() => {
     if (logContainerRef.current) {

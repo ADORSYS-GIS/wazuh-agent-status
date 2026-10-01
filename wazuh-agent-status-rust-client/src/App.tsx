@@ -85,12 +85,17 @@ function App() {
     setLogs([]);
 
     const unlisten = await listen<string>("log-line", (event) => {
+      let parsed: LogLine;
       try {
-        const parsed: LogLine = JSON.parse(event.payload);
-        setLogs((prev) => [...prev, parsed]);
+        parsed = JSON.parse(event.payload);
       } catch {
-        setLogs((prev) => [...prev, { raw: event.payload, level: "UNKNOWN" }]);
+        parsed = { raw: event.payload, level: "UNKNOWN" };
       }
+      setLogs((prev) => {
+        const MAX_LOGS = 500;
+        const next = [...prev, parsed];
+        return next.length > MAX_LOGS ? next.slice(-MAX_LOGS) : next;
+      });
     });
 
     unlistenRef.current = unlisten;
@@ -166,12 +171,23 @@ function App() {
     };
 
     refreshData();
-    const statusTimer = setInterval(refreshData, STATUS_POLL_MS);
+    let statusTimer = setInterval(refreshData, STATUS_POLL_MS);
     const updateTimer = setInterval(refreshUpdateInfo, UPDATE_POLL_MS);
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        clearInterval(statusTimer);
+      } else {
+        refreshData();
+        statusTimer = setInterval(refreshData, STATUS_POLL_MS);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       clearInterval(statusTimer);
       clearInterval(updateTimer);
+      document.removeEventListener("visibilitychange", handleVisibility);
       if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
     };
   }, [refreshUpdateInfo]);
