@@ -1,10 +1,10 @@
 import React from "react";
 
 interface SaveLogsButtonProps {
-  downloadState: "idle" | "loading" | "success" | "error";
-  onSave: () => void;
-  title: string;
-  className?: string;
+  readonly downloadState: "idle" | "loading" | "success" | "error";
+  readonly onSave: () => void;
+  readonly title: string;
+  readonly className?: string;
 }
 
 export function SaveLogsButton({
