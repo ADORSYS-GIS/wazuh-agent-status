@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
 import type { AppConfig, View } from "./types/app";
@@ -173,21 +174,35 @@ function App() {
     refreshData();
     let statusTimer = setInterval(refreshData, STATUS_POLL_MS);
     const updateTimer = setInterval(refreshUpdateInfo, UPDATE_POLL_MS);
+    let isPollingPaused = false;
 
-    const handleVisibility = () => {
-      if (document.hidden) {
+    const pausePolling = () => {
+      if (!isPollingPaused) {
         clearInterval(statusTimer);
-      } else {
-        refreshData();
-        statusTimer = setInterval(refreshData, STATUS_POLL_MS);
+        isPollingPaused = true;
       }
     };
-    document.addEventListener("visibilitychange", handleVisibility);
+
+    const resumePolling = () => {
+      if (isPollingPaused) {
+        refreshData();
+        statusTimer = setInterval(refreshData, STATUS_POLL_MS);
+        isPollingPaused = false;
+      }
+    };
+
+    const appWindow = getCurrentWindow();
+    let unlistenBlur: (() => void) | null = null;
+    let unlistenFocus: (() => void) | null = null;
+
+    appWindow.listen("tauri://blur", pausePolling).then(f => unlistenBlur = f);
+    appWindow.listen("tauri://focus", resumePolling).then(f => unlistenFocus = f);
 
     return () => {
       clearInterval(statusTimer);
       clearInterval(updateTimer);
-      document.removeEventListener("visibilitychange", handleVisibility);
+      if (unlistenBlur) unlistenBlur();
+      if (unlistenFocus) unlistenFocus();
       if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
     };
   }, [refreshUpdateInfo]);
