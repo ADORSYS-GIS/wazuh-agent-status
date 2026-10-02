@@ -280,3 +280,47 @@ pub async fn download_logs(content: String, filename: String) -> Result<String, 
 
     Ok(dest.to_string_lossy().to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_download_logs_payload_too_large() {
+        let content = "a".repeat(MAX_PAYLOAD_SIZE + 1);
+        let res = download_logs(content, "test.log".to_string()).await;
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err(), "Payload too large (max 50MB)");
+    }
+
+    #[tokio::test]
+    async fn test_download_logs_invalid_filename() {
+        let res = download_logs("test".to_string(), ".".to_string()).await;
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err(), "Invalid filename");
+
+        let long_name = "a".repeat(MAX_FILENAME_LEN + 1);
+        let res = download_logs("test".to_string(), long_name).await;
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err(), "Invalid filename");
+    }
+
+    #[tokio::test]
+    async fn test_download_logs_sanitization() {
+        if let Some(mut expected_path) = dirs::download_dir() {
+            let content = "test content".to_string();
+            let filename = "../../../etc/passwd".to_string();
+            
+            let res = download_logs(content, filename).await;
+            if let Ok(saved_path) = res {
+                // filename replaces / with _
+                // ../../../etc/passwd -> .._.._.._etc_passwd
+                // trim_start_matches('.') removes leading .. -> _.._.._etc_passwd
+                expected_path.push("_.._.._etc_passwd");
+                assert_eq!(saved_path, expected_path.to_string_lossy().to_string());
+                
+                let _ = tokio::fs::remove_file(expected_path).await;
+            }
+        }
+    }
+}
