@@ -1,7 +1,8 @@
 
+import type { SaveState } from "../hooks/useLogDownloader";
 
 interface SaveLogsButtonProps {
-  readonly downloadState: "idle" | "loading" | "success" | "error";
+  readonly downloadState: SaveState;
   readonly onSave: () => void;
   readonly title: string;
   readonly className?: string;
