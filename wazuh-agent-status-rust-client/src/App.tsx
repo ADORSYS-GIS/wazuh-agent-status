@@ -193,19 +193,22 @@ function App() {
     };
 
     const appWindow = getCurrentWindow();
-    let unlistenBlur: (() => void) | null = null;
-    let unlistenFocus: (() => void) | null = null;
+    let unlistenFocusChanged: (() => void) | null = null;
     let isCancelled = false;
 
     const setupListeners = async () => {
-      const b = await appWindow.listen("tauri://blur", pausePolling);
-      const f = await appWindow.listen("tauri://focus", resumePolling);
+      const u = await appWindow.onFocusChanged(({ payload: focused }) => {
+        if (focused) {
+          resumePolling();
+        } else {
+          pausePolling();
+        }
+      });
+      
       if (isCancelled) {
-        b();
-        f();
+        u();
       } else {
-        unlistenBlur = b;
-        unlistenFocus = f;
+        unlistenFocusChanged = u;
       }
     };
     setupListeners();
@@ -214,8 +217,7 @@ function App() {
       isCancelled = true;
       clearInterval(statusTimer);
       clearInterval(updateTimer);
-      if (unlistenBlur) unlistenBlur();
-      if (unlistenFocus) unlistenFocus();
+      if (unlistenFocusChanged) unlistenFocusChanged();
       if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
     };
   }, [refreshUpdateInfo]);

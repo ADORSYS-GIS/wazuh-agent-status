@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, JSX } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useLogDownloader } from "../hooks/useLogDownloader";
 import { SaveLogsButton } from "./SaveLogsButton";
 
 interface LogEntry {
@@ -14,7 +14,6 @@ interface UpdateModalProps {
   onDismiss: () => void;
 }
 
-type SaveState = "idle" | "loading" | "success" | "error";
 
 type Step = "connecting" | "preparing" | "downloading" | "installing" | "done" | "failed";
 
@@ -100,36 +99,14 @@ export function UpdateModal({ status, logs, targetVersion, onDismiss }: Readonly
   const [showTerminal, setShowTerminal] = useState(false);
   const [startedAt] = useState(Date.now());
   const [elapsed, setElapsed] = useState(0);
-  const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
-  const downloadTimerRef = useRef<number | null>(null);
   const currentStep = inferStep(logs);
-
-  useEffect(() => {
-    return () => {
-      if (downloadTimerRef.current) window.clearTimeout(downloadTimerRef.current);
-    };
-  }, []);
+  const { saveState, saveMsg, downloadLogs } = useLogDownloader();
 
   const handleSaveLogs = async () => {
-    setSaveState("loading");
-    setSaveMsg(null);
-    try {
-      const header = `# exported at ${new Date().toISOString()}\n`;
-      const content = header + logs.map((l) => `[UPDATE] ${l.text}`).join("\n");
-      const timestamp = Math.floor(Date.now() / 1000);
-      const filename = `wazuh-update-logs-${timestamp}.txt`;
-      const path = await invoke<string>("download_logs", { content, filename });
-      setSaveState("success");
-      setSaveMsg(`Saved to: ${path}`);
-    } catch (e) {
-      setSaveState("error");
-      setSaveMsg(String(e instanceof Error ? e.message : e));
-    } finally {
-      if (downloadTimerRef.current) window.clearTimeout(downloadTimerRef.current);
-      downloadTimerRef.current = window.setTimeout(() => { setSaveState("idle"); setSaveMsg(null); }, 4000);
-    }
+    const header = `# exported at ${new Date().toISOString()}\n`;
+    const content = header + logs.map((l) => `[UPDATE] ${l.text}`).join("\n");
+    await downloadLogs(content, "update");
   };
 
   useEffect(() => {

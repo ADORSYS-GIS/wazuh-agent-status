@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useLogDownloader } from "../hooks/useLogDownloader";
 import { SaveLogsButton } from "./SaveLogsButton";
 import type { LogLine } from "../types/agent";
 
@@ -14,16 +14,8 @@ interface LogsViewProps {
 
 export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }: LogsViewProps) {
   const [filter, setFilter] = useState("");
-  const [downloadState, setDownloadState] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
-  const downloadTimerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (downloadTimerRef.current) window.clearTimeout(downloadTimerRef.current);
-    };
-  }, []);
+  const { saveState: downloadState, saveMsg: downloadMsg, downloadLogs } = useLogDownloader();
 
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
@@ -40,34 +32,14 @@ export function LogsView({ logs, isStreaming, error, onStart, onStop, onClear }:
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
-  }, [logs.length]);
+  }, [logs[logs.length - 1]]);
 
   const handleDownload = async () => {
-    setDownloadState("loading");
-    setDownloadMsg(null);
-    try {
-      // Export all buffered logs
-      const header = `# exported at ${new Date().toISOString()}\n`;
-      const content = header + logs
-        .map((l) => `[${l.level}] ${l.raw}`)
-        .join("\n");
-
-      const timestamp = Math.floor(Date.now() / 1000);
-      const filename = `wazuh-ossec-logs-${timestamp}.txt`;
-
-      const path = await invoke<string>("download_logs", { content, filename });
-      setDownloadState("success");
-      setDownloadMsg(`Saved to: ${path}`);
-    } catch (e) {
-      setDownloadState("error");
-      setDownloadMsg(String(e instanceof Error ? e.message : e));
-    } finally {
-      if (downloadTimerRef.current) window.clearTimeout(downloadTimerRef.current);
-      downloadTimerRef.current = window.setTimeout(() => {
-        setDownloadState("idle");
-        setDownloadMsg(null);
-      }, 4000);
-    }
+    const header = `# exported at ${new Date().toISOString()}\n`;
+    const content = header + logs
+      .map((l) => `[${l.level}] ${l.raw}`)
+      .join("\n");
+    await downloadLogs(content, "ossec");
   };
 
   const levelColor = (level: string) => {
