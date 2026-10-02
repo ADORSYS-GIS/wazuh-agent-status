@@ -310,7 +310,7 @@ mod tests {
         if let Some(mut expected_path) = dirs::download_dir() {
             let content = "test content".to_string();
             let filename = "../../../etc/passwd".to_string();
-            
+
             let res = download_logs(content, filename).await;
             if let Ok(saved_path) = res {
                 // filename replaces / with _
@@ -318,7 +318,7 @@ mod tests {
                 // trim_start_matches('.') removes leading .. -> _.._.._etc_passwd
                 expected_path.push("_.._.._etc_passwd");
                 assert_eq!(saved_path, expected_path.to_string_lossy().to_string());
-                
+
                 let _ = tokio::fs::remove_file(expected_path).await;
             }
         }
