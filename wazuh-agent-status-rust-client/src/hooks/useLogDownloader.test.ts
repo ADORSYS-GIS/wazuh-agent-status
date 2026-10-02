@@ -7,6 +7,17 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 import { invoke } from "@tauri-apps/api/core";
 const mockInvoke = vi.mocked(invoke);
 
+/** Helper: run downloadLogs and wait for the state update to settle */
+async function runDownload(
+  result: { current: ReturnType<typeof useLogDownloader> },
+  content = "content",
+  prefix = "ossec"
+) {
+  await act(async () => {
+    await result.current.downloadLogs(content, prefix);
+  });
+}
+
 describe("useLogDownloader", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -36,9 +47,7 @@ describe("useLogDownloader", () => {
     mockInvoke.mockResolvedValue("/downloads/wazuh-ossec-logs-1.txt");
     const { result } = renderHook(() => useLogDownloader());
 
-    await act(async () => {
-      await result.current.downloadLogs("log data", "ossec");
-    });
+    await runDownload(result, "log data", "ossec");
 
     expect(result.current.saveState).toBe("success");
     expect(result.current.saveMsg).toBe("Saved to: /downloads/wazuh-ossec-logs-1.txt");
@@ -48,9 +57,7 @@ describe("useLogDownloader", () => {
     mockInvoke.mockResolvedValue("/downloads/file.txt");
     const { result } = renderHook(() => useLogDownloader());
 
-    await act(async () => {
-      await result.current.downloadLogs("my logs", "update");
-    });
+    await runDownload(result, "my logs", "update");
 
     expect(mockInvoke).toHaveBeenCalledWith("download_logs", expect.objectContaining({
       content: "my logs",
@@ -62,9 +69,7 @@ describe("useLogDownloader", () => {
     mockInvoke.mockRejectedValue(new Error("Disk full"));
     const { result } = renderHook(() => useLogDownloader());
 
-    await act(async () => {
-      await result.current.downloadLogs("content", "ossec");
-    });
+    await runDownload(result);
 
     expect(result.current.saveState).toBe("error");
     expect(result.current.saveMsg).toBe("Disk full");
@@ -74,10 +79,7 @@ describe("useLogDownloader", () => {
     mockInvoke.mockResolvedValue("/downloads/file.txt");
     const { result } = renderHook(() => useLogDownloader());
 
-    await act(async () => {
-      await result.current.downloadLogs("content", "ossec");
-    });
-
+    await runDownload(result);
     expect(result.current.saveState).toBe("success");
 
     act(() => { vi.advanceTimersByTime(4000); });
