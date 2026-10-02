@@ -246,3 +246,81 @@ pub async fn fetch_compliance(
 
     Ok(report)
 }
+
+// ── Download Logs ─────────────────────────────────────────────────────────────
+
+/// Write `content` (assembled by the frontend from its in-memory log state)
+/// into the user's native Downloads folder.
+///
+/// Receiving the log content from the frontend avoids any need for the client
+/// process to read privileged files (e.g. /var/ossec/logs/ossec.log) directly —
+/// the data was already delivered through the privileged server stream.
+const MAX_PAYLOAD_SIZE: usize = 50 * 1024 * 1024; // 50MB
+const MAX_FILENAME_LEN: usize = 128;
+
+#[tauri::command]
+pub async fn download_logs(content: String, filename: String) -> Result<String, String> {
+    if content.len() > MAX_PAYLOAD_SIZE {
+        return Err("Payload too large (max 50MB)".to_string());
+    }
+
+    let safe_filename = filename.replace(['/', '\\', '\0'], "_");
+    let safe_filename = safe_filename.trim_start_matches('.');
+    if safe_filename.is_empty() || safe_filename.len() > MAX_FILENAME_LEN {
+        return Err("Invalid filename".to_string());
+    }
+
+    let mut dest = dirs::download_dir()
+        .ok_or_else(|| "Could not locate standard Downloads folder".to_string())?;
+    dest.push(safe_filename);
+
+    tokio::fs::write(&dest, content.as_bytes())
+        .await
+        .map_err(|e| format!("Failed to write log file to {}: {}", dest.display(), e))?;
+
+    Ok(dest.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_download_logs_payload_too_large() {
+        let content = "a".repeat(MAX_PAYLOAD_SIZE + 1);
+        let res = download_logs(content, "test.log".to_string()).await;
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err(), "Payload too large (max 50MB)");
+    }
+
+    #[tokio::test]
+    async fn test_download_logs_invalid_filename() {
+        let res = download_logs("test".to_string(), ".".to_string()).await;
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err(), "Invalid filename");
+
+        let long_name = "a".repeat(MAX_FILENAME_LEN + 1);
+        let res = download_logs("test".to_string(), long_name).await;
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err(), "Invalid filename");
+    }
+
+    #[tokio::test]
+    async fn test_download_logs_sanitization() {
+        if let Some(mut expected_path) = dirs::download_dir() {
+            let content = "test content".to_string();
+            let filename = "../../../etc/passwd".to_string();
+
+            let res = download_logs(content, filename).await;
+            if let Ok(saved_path) = res {
+                // filename replaces / with _
+                // ../../../etc/passwd -> .._.._.._etc_passwd
+                // trim_start_matches('.') removes leading .. -> _.._.._etc_passwd
+                expected_path.push("_.._.._etc_passwd");
+                assert_eq!(saved_path, expected_path.to_string_lossy().to_string());
+
+                let _ = tokio::fs::remove_file(expected_path).await;
+            }
+        }
+    }
+}

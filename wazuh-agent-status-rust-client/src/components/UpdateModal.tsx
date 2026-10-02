@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, JSX } from "react";
+import { useLogDownloader } from "../hooks/useLogDownloader";
+import { SaveLogsButton } from "./SaveLogsButton";
 
 interface LogEntry {
   id: string;
@@ -11,6 +13,7 @@ interface UpdateModalProps {
   targetVersion: string;
   onDismiss: () => void;
 }
+
 
 type Step = "connecting" | "preparing" | "downloading" | "installing" | "done" | "failed";
 
@@ -98,6 +101,13 @@ export function UpdateModal({ status, logs, targetVersion, onDismiss }: Readonly
   const [elapsed, setElapsed] = useState(0);
   const logEndRef = useRef<HTMLDivElement>(null);
   const currentStep = inferStep(logs);
+  const { saveState, saveMsg, downloadLogs } = useLogDownloader();
+
+  const handleSaveLogs = async () => {
+    const header = `# exported at ${new Date().toISOString()}\n`;
+    const content = header + logs.map((l) => `[UPDATE] ${l.text}`).join("\n");
+    await downloadLogs(content, "update");
+  };
 
   useEffect(() => {
     if (status === "running") {
@@ -210,11 +220,26 @@ export function UpdateModal({ status, logs, targetVersion, onDismiss }: Readonly
           )}
         </div>
 
-        {/* Fixed dismiss button */}
+        {/* Fixed footer: Save Logs + Dismiss — shown when update is no longer running */}
         {status !== "running" && (
-          <button type="button" className="update-modal-dismiss" onClick={onDismiss}>
-            {currentStep === "done" ? "Done" : "Close"}
-          </button>
+          <div className="update-modal-footer-col">
+            {saveMsg && (
+              <div className={`logs-download-feedback ${saveState} update-modal-feedback`}>
+                {saveMsg}
+              </div>
+            )}
+            <div className="update-modal-footer-actions">
+              <SaveLogsButton
+                downloadState={saveState}
+                onSave={handleSaveLogs}
+                title="Save update logs to your Downloads folder"
+                className="update-modal-save-btn"
+              />
+              <button type="button" className="update-modal-dismiss update-modal-dismiss-btn" onClick={onDismiss}>
+                {currentStep === "done" ? "Done" : "Close"}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
