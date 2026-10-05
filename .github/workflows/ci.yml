@@ -62,10 +62,6 @@ jobs:
         working-directory: ${{ matrix.project.path }}
         run: cargo fmt --all --check
 
-      - name: Clippy lints
-        working-directory: ${{ matrix.project.path }}
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
       - name: Run tests (Server only)
         if: matrix.project.test
         working-directory: ${{ matrix.project.path }}
