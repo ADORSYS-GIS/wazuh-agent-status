@@ -44,11 +44,13 @@ jobs:
           args: --output CHANGELOG.md
           
       - name: Commit and push changes
+        env:
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
         run: |
           if [[ -n $(git status --porcelain) ]]; then
             git add CHANGELOG.md checksums.sha256
             git commit -m "docs: update CHANGELOG.md and checksums [skip ci]"
-            git push origin ${{ github.head_ref || github.ref_name }}
+            git push origin "$REF_NAME"
           else
             echo "No changes to commit"
           fi
