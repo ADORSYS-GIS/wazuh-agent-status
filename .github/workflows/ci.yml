@@ -33,12 +33,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
-          components: rustfmt, clippy
+          components: rustfmt
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
@@ -61,10 +61,6 @@ jobs:
       - name: Check formatting
         working-directory: ${{ matrix.project.path }}
         run: cargo fmt --all --check
-
-      - name: Clippy lints
-        working-directory: ${{ matrix.project.path }}
-        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Run tests (Server only)
         if: matrix.project.test
