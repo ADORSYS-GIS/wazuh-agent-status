@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[01a9d2f](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/01a9d2f0401f0dbc7e75f0a73827d284f7849793)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[a38323b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a38323b23794406cc1bfc8ae09882433ed8a387a)
 
 ### Bug Fixes
 
@@ -62,6 +62,7 @@ All notable changes to this project will be documented in this file.
 - Address sonarqube vulnerabilities in release workflow (#238) ([`8ec506a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8ec506a1e57defd202db191a2709c271054c9b3c))
 - Skip sudoers rewrite when already configured ([`94ee32a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/94ee32a37ab0809eee5216b6f91b435404734b15)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Address Semgrep and PSScriptAnalyzer findings (#251) ([`01a9d2f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/01a9d2f0401f0dbc7e75f0a73827d284f7849793))
+- Remove TLS cert bypass from gateway client; add job permissions ([`a38323b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a38323b23794406cc1bfc8ae09882433ed8a387a))
 
 ### Documentation
 
@@ -116,6 +117,7 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`5637810`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/56378105e8b80c1eefb9d182b2be945108813eaf))
 - Update CHANGELOG.md and checksums [skip ci] ([`ac755a5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ac755a5289dda3dbaa02cb391579d8421a1eec4c))
 - Update CHANGELOG.md and checksums [skip ci] ([`f1e6a1b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f1e6a1b2e871fd7cd64137ebbcf2dca00dd48816))
+- Update CHANGELOG.md and checksums [skip ci] ([`e7356dc`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e7356dc4548c29087f0701ad406e27d2b03f90cf))
 
 ### Features
 
