@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
 import type { AppConfig, View } from "./types/app";
@@ -55,6 +56,7 @@ function AppLoading() {
 
 const STATUS_POLL_MS = 2_000;
 const UPDATE_POLL_MS = 5 * 60 * 1000;
+const MAX_LOG_LINES = 500;
 const STORAGE_KEY_VIEW = "wazuh_active_view";
 
 const IS_WINDOWS = typeof navigator !== "undefined"
@@ -85,12 +87,16 @@ function App() {
     setLogs([]);
 
     const unlisten = await listen<string>("log-line", (event) => {
+      let parsed: LogLine;
       try {
-        const parsed: LogLine = JSON.parse(event.payload);
-        setLogs((prev) => [...prev, parsed]);
+        parsed = JSON.parse(event.payload);
       } catch {
-        setLogs((prev) => [...prev, { raw: event.payload, level: "UNKNOWN" }]);
+        parsed = { raw: event.payload, level: "UNKNOWN" };
       }
+      setLogs((prev) => {
+        const next = [...prev, parsed];
+        return next.length > MAX_LOG_LINES ? next.slice(-MAX_LOG_LINES) : next;
+      });
     });
 
     unlistenRef.current = unlisten;
@@ -166,12 +172,52 @@ function App() {
     };
 
     refreshData();
-    const statusTimer = setInterval(refreshData, STATUS_POLL_MS);
+    let statusTimer = setInterval(refreshData, STATUS_POLL_MS);
+    // updateTimer is independent of focus state so background updates work
     const updateTimer = setInterval(refreshUpdateInfo, UPDATE_POLL_MS);
+    let isPollingPaused = false;
+
+    const pausePolling = () => {
+      if (!isPollingPaused) {
+        clearInterval(statusTimer);
+        isPollingPaused = true;
+      }
+    };
+
+    const resumePolling = () => {
+      if (isPollingPaused) {
+        refreshData();
+        statusTimer = setInterval(refreshData, STATUS_POLL_MS);
+        isPollingPaused = false;
+      }
+    };
+
+    const appWindow = getCurrentWindow();
+    let unlistenFocusChanged: (() => void) | null = null;
+    let isCancelled = false;
+
+    const setupListeners = async () => {
+      const u = await appWindow.onFocusChanged(({ payload: focused }) => {
+        if (focused) {
+          resumePolling();
+        } else {
+          pausePolling();
+        }
+      });
+      
+      if (isCancelled) {
+        u();
+      } else {
+        unlistenFocusChanged = u;
+      }
+    };
+    setupListeners();
 
     return () => {
+      isCancelled = true;
       clearInterval(statusTimer);
       clearInterval(updateTimer);
+      if (unlistenFocusChanged) unlistenFocusChanged();
       if (unlistenRef.current) { unlistenRef.current(); unlistenRef.current = null; }
     };
   }, [refreshUpdateInfo]);

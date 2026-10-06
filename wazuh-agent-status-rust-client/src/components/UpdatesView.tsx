@@ -33,7 +33,7 @@ export function UpdatesView({ updateInfo, agentStatus, onRefreshUpdates }: Reado
   }, [onRefreshUpdates]);
 
   useEffect(() => {
-    if (isUpdating && updateInfo) {
+    if (isUpdating && updateInfo && updateStatus === "running") {
       const trayUpdated = agentStatus.tray_version !== "Unknown" && agentStatus.tray_version === updateInfo.tray.latest_version;
       
       if (trayUpdated) {
@@ -41,7 +41,7 @@ export function UpdatesView({ updateInfo, agentStatus, onRefreshUpdates }: Reado
         onRefreshUpdates();
       }
     }
-  }, [agentStatus.tray_version, isUpdating, updateInfo, onRefreshUpdates]);
+  }, [agentStatus.tray_version, isUpdating, updateInfo, updateStatus, onRefreshUpdates]);
 
   const handleUpdate = async (isPrerelease: boolean) => {
     setLogs([{ id: crypto.randomUUID(), text: "[STATUS] Starting orchestrated update..." }]);

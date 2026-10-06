@@ -3017,6 +3017,92 @@ body {
   background: var(--overlay-white-08);
   color: var(--text);
 }
+
+/* Download Logs button */
+.logs-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logs-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.logs-download-btn:hover:not(:disabled) {
+  background: var(--overlay-white-08);
+  color: var(--text);
+}
+.logs-download-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* loading: subtle overlay, neutral */
+.logs-download-btn.loading {
+  background: var(--overlay-white-05);
+  color: var(--text-dim);
+}
+/* success: primary brand colour — matches Stream Logs active state */
+.logs-download-btn.success {
+  background: var(--overlay-white-08);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+/* error: standard app error red */
+.logs-download-btn.error {
+  border-color: rgba(244, 63, 94, 0.4);
+  color: var(--error);
+  background: rgba(244, 63, 94, 0.06);
+}
+
+/* Spinner inside download button */
+.logs-download-spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: logsDownloadSpin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes logsDownloadSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Inline feedback message above the footer */
+.logs-download-feedback {
+  margin-top: 8px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 1.4;
+  animation: fadeIn 0.2s ease;
+  word-break: break-all;
+}
+.logs-download-feedback.success {
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.logs-download-feedback.error {
+  background: rgba(244, 63, 94, 0.08);
+  color: var(--error);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+}
+
 .logs-error-banner {
   color: #f87171;
   text-align: center;
@@ -3120,4 +3206,24 @@ body {
   background: rgba(234, 88, 12, 0.2);
   color: #fde68a;
   border: 1px solid rgba(234, 88, 12, 0.3);
+}
+/* UpdateModal Extracted Inline Styles */
+.update-modal-footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.update-modal-feedback {
+  font-size: 10px;
+}
+.update-modal-footer-actions {
+  display: flex;
+  gap: 8px;
+}
+.update-modal-save-btn {
+  font-size: 12px;
+  padding: 8px 14px;
+}
+.update-modal-dismiss-btn {
+  flex: 1;
 }
