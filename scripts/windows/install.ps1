@@ -1,3 +1,12 @@
+# PSScriptAnalyzer rule suppressions for style rules intentionally not applied
+# to this installer script (see ticket #251):
+#   - PSUseApprovedVerbs: helper names (Create-Service, Create-StartupShortcut,
+#     Create-StartMenuShortcut, Validate-Installation) are chosen to be explicit
+#     and to avoid colliding with native cmdlets (e.g. New-Service); "Validate"
+#     reads more clearly than the approved "Test" here.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
+param()
+
 # Set strict mode for error handling
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -14,10 +23,10 @@ $REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$R
 $TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
 
 try {
-    $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
-    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath
+    $script:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
+    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $script:ChecksumsPath
     Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
-    if ((Get-FileHash $U -Alg SHA256).Hash.ToLower() -ne (Select-String -Path $global:ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0].ToLower()) { throw }
+    if ((Get-FileHash $U -Alg SHA256).Hash.ToLower() -ne (Select-String -Path $script:ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0].ToLower()) { throw }
     . $U
 } catch { Write-Error "Bootstrap failed: $($_.Exception.Message)"; exit 1 }
 
@@ -48,7 +57,7 @@ $BaseURL = if ($null -ne $env:BASE_URL) { $env:BASE_URL } else { "https://github
 $ServerURL = "$BaseURL/$SERVER_NAME-windows-$ARCH.exe"
 $ClientURL = "$BaseURL/$CLIENT_NAME-windows-$ARCH.exe"
 $BinChecksumsURL = "$BaseURL/checksums.sha256"
-$global:ChecksumsURL = "$REPO_URL/checksums.sha256"
+$script:ChecksumsURL = "$REPO_URL/checksums.sha256"
 
 function Validate-Installation {
     PrintStep 6 "Validating installation and configuration..."

@@ -1,5 +1,14 @@
 #requires -version 5.1
 
+# PSScriptAnalyzer rule suppressions for style rules intentionally not applied
+# to this update script (see ticket #251):
+#   - PSUseApprovedVerbs: helper names (Append-Log, Run-Update) use verbs with
+#     clear intent for this script.
+#   - PSUseShouldProcessForStateChangingFunctions: Remove-TempFile intentionally
+#     deletes a temp file unconditionally as part of a scripted update.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+
 # ---- Parameters ----
 param(
     [switch]$Prerelease,
@@ -32,7 +41,7 @@ if (-not $IsAdmin) {
         [System.Diagnostics.Process]::Start($psi) | Out-Null
         exit
     } catch {
-        Write-Host "Administrator approval is required. Exiting."
+        Write-Output "Administrator approval is required. Exiting."
         exit 1
     }
 }
@@ -46,14 +55,14 @@ $AGENT_REPO_REF = if ($env:WAZUH_AGENT_REPO_REF) { $env:WAZUH_AGENT_REPO_REF } e
 $TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
 
 try {
-    $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
-    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
-    if ((Get-FileHash $U -Alg SHA256).Hash.ToLower() -ne (Select-String -Path $global:ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0].ToLower()) { throw }
+    $script:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
+    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $script:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
+    if ((Get-FileHash $U -Alg SHA256).Hash.ToLower() -ne (Select-String -Path $script:ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0].ToLower()) { throw }
     . $U
 } catch { Write-Error "Bootstrap failed"; exit 1 }
 
 # Override utils.ps1 logging functions to use Append-Log (Write-Host) and prevent pipeline array pollution
-function Log { param([string]$Level, [string]$Message, [string]$Color = "White") Append-Log "$Level $Message" }
+function Log { param([string]$Level, [string]$Message) Append-Log "$Level $Message" }
 function InfoMessage { param([string]$Message) Append-Log $Message "INFO" }
 function WarnMessage { param([string]$Message) Append-Log $Message "WARN" }
 function ErrorMessage { param([string]$Message) Append-Log $Message "ERROR" }
@@ -187,7 +196,7 @@ function Get-ActiveConsoleUser {
 
 function Invoke-DirectWinFormsPopup {
     param([string]$Message, [string]$Title)
-    
+
     Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop | Out-Null
     [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
     return 0
@@ -195,7 +204,7 @@ function Invoke-DirectWinFormsPopup {
 
 function Wait-PopupResult {
     param([string]$ResultFile, [string]$TaskName, [int]$TimeoutSeconds)
-    
+
     $elapsed = 0
     while (-not (Test-Path $ResultFile)) {
         if ($elapsed -ge $TimeoutSeconds) {
@@ -208,11 +217,11 @@ function Wait-PopupResult {
         Start-Sleep -Seconds 1
         $elapsed++
     }
-    
+
     $userChoice = (Get-Content -Path $ResultFile -Raw).Trim()
     Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
     Remove-TempFile $ResultFile
-    
+
     if ($userChoice -eq "Yes") {
         return 0
     } else {
@@ -229,10 +238,10 @@ function Invoke-ScheduledTaskPopup {
             InfoMessage "No active desktop session found. Proceeding with background upgrade."
             return 0
         }
-        
+
         $guid = [guid]::NewGuid().ToString('N')
         $taskName = "WazuhUpdatePopup_$guid"
-        
+
         $pubDir = Join-Path $env:ProgramData "WazuhAgentStatus"
         if (-not (Test-Path $pubDir)) {
             New-Item -ItemType Directory -Path $pubDir -Force | Out-Null
@@ -243,7 +252,7 @@ function Invoke-ScheduledTaskPopup {
 
         $escapedMsg = $Message.Replace("'", "''")
         $escapedTitle = $Title.Replace("'", "''")
-        
+
         $script = @"
 Add-Type -AssemblyName System.Windows.Forms | Out-Null
 
@@ -255,14 +264,14 @@ try {
 }
 "@
         $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
-        
+
         $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-NoProfile -EncodedCommand $encoded"
         $principal = New-ScheduledTaskPrincipal -UserId $consoleUser -LogonType Interactive
         $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -Priority 4
-        
+
         Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Settings $settings -Force | Out-Null
         Start-ScheduledTask -TaskName $taskName | Out-Null
-        
+
         return Wait-PopupResult -ResultFile $resultFile -TaskName $taskName -TimeoutSeconds $TimeoutSeconds
     } catch {
         $err = $_
@@ -278,7 +287,7 @@ function Invoke-InteractivePopup {
         [string]$Title = "Wazuh Update",
         [int]$TimeoutSeconds = 600
     )
-    
+
     # 1. Try direct WinForms GUI if running in an interactive desktop session (SessionId > 0)
     try {
         $sessionId = [System.Diagnostics.Process]::GetCurrentProcess().SessionId

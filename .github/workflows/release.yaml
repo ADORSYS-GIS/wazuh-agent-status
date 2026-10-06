@@ -104,10 +104,11 @@ jobs:
       - name: Configure Gateway URL from Secrets
         shell: bash
         env:
+          REF_NAME: ${{ github.ref_name }}
           GATEWAY_URL_DEV: ${{ secrets.WAZUH_GATEWAY_URL_DEV }}
           GATEWAY_URL_PROD: ${{ secrets.WAZUH_GATEWAY_URL_PROD }}
         run: |
-          if [[ "${{ github.ref_name }}" == *"rc"* ]]; then
+          if [[ "$REF_NAME" == *"rc"* ]]; then
             GATEWAY_URL="${GATEWAY_URL_DEV}"
           else
             GATEWAY_URL="${GATEWAY_URL_PROD}"
@@ -230,10 +231,11 @@ jobs:
       - name: Configure Gateway URL from Secrets
         shell: bash
         env:
+          REF_NAME: ${{ github.ref_name }}
           GATEWAY_URL_DEV: ${{ secrets.WAZUH_GATEWAY_URL_DEV }}
           GATEWAY_URL_PROD: ${{ secrets.WAZUH_GATEWAY_URL_PROD }}
         run: |
-          if [[ "${{ github.ref_name }}" == *"rc"* ]]; then
+          if [[ "$REF_NAME" == *"rc"* ]]; then
             GATEWAY_URL="${GATEWAY_URL_DEV}"
           else
             GATEWAY_URL="${GATEWAY_URL_PROD}"
@@ -333,10 +335,11 @@ jobs:
       - name: Configure Gateway URL from Secrets
         shell: bash
         env:
+          REF_NAME: ${{ github.ref_name }}
           GATEWAY_URL_DEV: ${{ secrets.WAZUH_GATEWAY_URL_DEV }}
           GATEWAY_URL_PROD: ${{ secrets.WAZUH_GATEWAY_URL_PROD }}
         run: |
-          if [[ "${{ github.ref_name }}" == *"rc"* ]]; then
+          if [[ "$REF_NAME" == *"rc"* ]]; then
             GATEWAY_URL="${GATEWAY_URL_DEV}"
           else
             GATEWAY_URL="${GATEWAY_URL_PROD}"
@@ -394,7 +397,7 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: ./dist/
           merge-multiple: true
@@ -442,11 +445,13 @@ jobs:
           cargo update --manifest-path ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml -p wazuh-agent-status
 
       - name: Commit and push changes
+        env:
+          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
           if [[ -n $(git status --porcelain) ]]; then
             git add CHANGELOG.md checksums.sha256 ${{ env.SERVER_DIR }}/Cargo.toml ${{ env.SERVER_DIR }}/Cargo.lock ${{ env.CLIENT_DIR }}/src-tauri/Cargo.toml ${{ env.CLIENT_DIR }}/src-tauri/Cargo.lock ${{ env.CLIENT_DIR }}/package.json ${{ env.CLIENT_DIR }}/src-tauri/tauri.conf.json
             git commit -m "docs: update CHANGELOG.md, checksums, and app version [skip ci]"
-            git push origin ${{ github.head_ref || github.ref_name }}
+            git push origin "$TARGET_BRANCH"
           else
             echo "No changes to commit"
           fi
@@ -470,7 +475,7 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: ./dist/
           merge-multiple: true

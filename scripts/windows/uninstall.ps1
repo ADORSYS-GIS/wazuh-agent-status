@@ -1,3 +1,15 @@
+# PSScriptAnalyzer rule suppressions for style rules intentionally not applied
+# to this uninstaller script (see ticket #251):
+#   - PSUseApprovedVerbs: helper name Validate-Uninstallation uses "Validate"
+#     for clarity over the approved "Test".
+#   - PSUseShouldProcessForStateChangingFunctions: these internal helpers
+#     intentionally perform destructive operations as part of a scripted,
+#     non-interactive uninstall; adding ShouldProcess confirmation would break
+#     unattended operation.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+param()
+
 # Set strict mode for error handling
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -10,9 +22,9 @@ $REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$R
 $TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
 
 try {
-    $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
-    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
-    if ((Get-FileHash $U -Alg SHA256).Hash.ToLower() -ne (Select-String -Path $global:ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0].ToLower()) { throw }
+    $script:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
+    Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $script:ChecksumsPath; Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
+    if ((Get-FileHash $U -Alg SHA256).Hash.ToLower() -ne (Select-String -Path $script:ChecksumsPath -Pattern "scripts/shared/utils.ps1").Line.Split(" ")[0].ToLower()) { throw }
     . $U
 } catch { Write-Error "Bootstrap failed"; exit 1 }
 
@@ -131,7 +143,7 @@ function Unregister-Uninstaller {
         "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\WazuhAgentStatus",
         "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\WazuhAgentStatus"
     )
-    
+
     $found = $false
     foreach ($RegistryPath in $RegistryPaths) {
         if (Test-Path $RegistryPath) {
@@ -140,7 +152,7 @@ function Unregister-Uninstaller {
             $found = $true
         }
     }
-    
+
     if (-not $found) {
         WarnMessage "Application registration not found in Registry."
     }
@@ -205,7 +217,7 @@ function Validate-Uninstallation {
     }
 }
 
-function Remove-Binaries {
+function Remove-Binary {
     Remove-File $SERVER_EXE
     Remove-File $CLIENT_EXE
     Remove-File "$SERVER_EXE.old"
@@ -229,10 +241,10 @@ function Uninstall-WazuhAgentStatus {
         Remove-StartupShortcut -ShortcutName $CLIENT_NAME
         Remove-StartMenuShortcut -ShortcutName "Wazuh Agent Status"
         Unregister-Uninstaller
-        
+
         Remove-WazuhAgentService -ServiceName $SERVER_NAME
 
-        Remove-Binaries
+        Remove-Binary
         Validate-Uninstallation
         SuccessMessage "Wazuh Agent Status uninstalled successfully"
     }
