@@ -37,11 +37,6 @@ pub struct FeaturesConfig {
 pub struct AppConfig {
     pub server_addr: String,
     pub gateway_url: String,
-    /// Allow the HTTP client to accept self-signed / invalid TLS certificates
-    /// when talking to the gateway. Disabled by default; enable only for
-    /// deployments that rely on self-signed certificates.
-    #[serde(default)]
-    pub allow_invalid_certs: bool,
     pub brand: BrandConfig,
     pub features: FeaturesConfig,
 }
@@ -93,29 +88,18 @@ impl AppConfig {
         };
 
         // 4. Environment variable override for gateway URL
-        let mut config = config;
         if let Ok(url) = std::env::var("WAZUH_GATEWAY_URL") {
             log::info!(
                 "Overriding gateway_url from WAZUH_GATEWAY_URL env var: {}",
                 url
             );
-            config.gateway_url = url;
+            Ok(AppConfig {
+                gateway_url: url,
+                ..config
+            })
+        } else {
+            Ok(config)
         }
-
-        // 5. Environment variable override for TLS certificate verification
-        if let Ok(val) = std::env::var("WAZUH_ALLOW_INVALID_CERTS") {
-            let allow = matches!(
-                val.trim().to_ascii_lowercase().as_str(),
-                "true" | "1" | "yes"
-            );
-            config.allow_invalid_certs = allow;
-            log::info!(
-                "Overriding allow_invalid_certs from WAZUH_ALLOW_INVALID_CERTS env var: {}",
-                allow
-            );
-        }
-
-        Ok(config)
     }
 
     fn load_from_path(path: std::path::PathBuf) -> Result<Self, String> {

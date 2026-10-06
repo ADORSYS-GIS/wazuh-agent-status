@@ -142,15 +142,9 @@ pub struct ComplianceReport {
     pub categories: Vec<ComplianceCategory>,
 }
 
-fn gateway_http_client(allow_invalid_certs: bool) -> Result<reqwest::Client, String> {
-    let mut builder = reqwest::Client::builder().timeout(std::time::Duration::from_secs(15));
-    if allow_invalid_certs {
-        // Only relax TLS certificate validation when explicitly enabled via the
-        // app config (`allow_invalid_certs`) or the WAZUH_ALLOW_INVALID_CERTS
-        // environment variable. Disabled by default.
-        builder = builder.danger_accept_invalid_certs(true);
-    }
-    builder
+fn gateway_http_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))
 }
@@ -202,7 +196,7 @@ pub async fn fetch_compliance(
 
     log::debug!("Fetching compliance from: {}", url);
 
-    let client = gateway_http_client(config.allow_invalid_certs)?;
+    let client = gateway_http_client()?;
 
     let mut req = client
         .get(&url)
