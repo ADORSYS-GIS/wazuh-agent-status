@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::{RwLock, broadcast};
 use tokio::time;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::config::{AgentPaths, Config};
 use crate::models::{AgentState, ComponentUpdate, LogLine, UpdateStatus, VersionInfo};
