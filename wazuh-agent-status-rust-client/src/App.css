@@ -1698,7 +1698,7 @@ body {
   height: 40px;
   border-radius: 10px;
   background: rgba(168, 85, 247, 0.1);
-  color: #c4b5fd;
+  color: #e9d5ff;
   border: 1px solid rgba(168, 85, 247, 0.2);
   display: flex;
   align-items: center;
@@ -2129,7 +2129,7 @@ body {
   padding: 4px 10px;
   background: rgba(168, 85, 247, 0.1);
   border: 1px solid rgba(168, 85, 247, 0.2);
-  color: #c4b5fd;
+  color: #e9d5ff;
   border-radius: 6px;
   font-size: 0.65rem;
   font-weight: 600;
@@ -3159,7 +3159,7 @@ body {
   border: 1px solid rgba(244, 63, 94, 0.2);
   border-radius: 8px;
   padding: 12px;
-  color: #fca5a5;
+  color: #fecaca;
 }
 .error-boundary-stack {
   background: #111827;
@@ -3176,7 +3176,7 @@ body {
 .error-boundary-reload {
   background: linear-gradient(135deg, #00aaff, #38bdf8);
   border: none;
-  color: white;
+  color: #0f172a;
   padding: 10px 20px;
   border-radius: 8px;
   font-size: 13px;
@@ -3199,12 +3199,12 @@ body {
 }
 .self-healing-badge.active {
   background: rgba(34, 197, 94, 0.15);
-  color: #86efac;
+  color: #bbf7d0;
   border: 1px solid rgba(34, 197, 94, 0.2);
 }
 .self-healing-badge.disabled {
   background: rgba(234, 88, 12, 0.2);
-  color: #fde68a;
+  color: #fef3c7;
   border: 1px solid rgba(234, 88, 12, 0.3);
 }
 /* UpdateModal Extracted Inline Styles */
