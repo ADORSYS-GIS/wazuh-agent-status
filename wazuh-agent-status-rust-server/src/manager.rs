@@ -680,49 +680,13 @@ impl AgentManager {
         Self::wait_for_update_command(child, tx, windows_response_log, kill_tx).await;
     }
 
-    async fn run_update_task(
-        paths: Arc<AgentPaths>,
-        tx: mpsc::Sender<String>,
-        is_prerelease: bool,
-        prerelease_version: Option<String>,
+    async fn build_update_command(
+        script_path: std::path::PathBuf,
+        prerelease_tag: Option<String>,
         is_manual: bool,
-    ) {
-        if let Err(e) = tx
-            .send("UPDATE_PROGRESS: [STATUS] Starting update process...".to_string())
-            .await
-        {
-            warn!(error = %e, "Failed to send initial progress message");
-            return;
-        }
-
-        let mut prerelease_tag = None;
-        let script_path = if is_prerelease {
-            let version = match prerelease_version {
-                Some(v) if v != "Unknown" => v,
-                _ => {
-                    let _ = tx.send("UPDATE_PROGRESS: [FAILURE] Could not determine latest prerelease version".to_string()).await;
-                    return;
-                }
-            };
-            prerelease_tag = Some(format!("refs/tags/v{version}"));
-            match Self::download_prerelease_script(&version, &tx).await {
-                Some(p) => p,
-                None => return,
-            }
-        } else {
-            match Self::prepare_standard_script(&paths, &tx).await {
-                Some(p) => p,
-                None => return,
-            }
-        };
-
-        let configured_manager = if prerelease_tag.is_some() {
-            read_configured_manager()
-        } else {
-            None
-        };
-
-        let cmd = if cfg!(target_os = "windows") {
+        configured_manager: Option<String>,
+    ) -> Command {
+        if cfg!(target_os = "windows") {
             let mut c = Command::new("powershell.exe");
             c.args([
                 "-NoProfile",
@@ -771,11 +735,70 @@ impl AgentManager {
                 c.arg(script_path.as_os_str());
                 c
             }
+        }
+    }
+
+    async fn resolve_script_path(
+        paths: &AgentPaths,
+        tx: &mpsc::Sender<String>,
+        is_prerelease: bool,
+        prerelease_version: Option<String>,
+    ) -> Option<(std::path::PathBuf, Option<String>)> {
+        if is_prerelease {
+            let version = match prerelease_version {
+                Some(v) if v != "Unknown" => v,
+                _ => {
+                    let _ = tx.send("UPDATE_PROGRESS: [FAILURE] Could not determine latest prerelease version".to_string()).await;
+                    return None;
+                }
+            };
+            let tag = Some(format!("refs/tags/v{version}"));
+            let path = match Self::download_prerelease_script(&version, tx).await {
+                Some(p) => p,
+                None => return None,
+            };
+            Some((path, tag))
+        } else {
+            let path = match Self::prepare_standard_script(paths, tx).await {
+                Some(p) => p,
+                None => return None,
+            };
+            Some((path, None))
+        }
+    }
+
+    async fn run_update_task(
+        paths: Arc<AgentPaths>,
+        tx: mpsc::Sender<String>,
+        is_prerelease: bool,
+        prerelease_version: Option<String>,
+        is_manual: bool,
+    ) {
+        if let Err(e) = tx
+            .send("UPDATE_PROGRESS: [STATUS] Starting update process...".to_string())
+            .await
+        {
+            warn!(error = %e, "Failed to send initial progress message");
+            return;
+        }
+
+        let (script_path, prerelease_tag) =
+            match Self::resolve_script_path(&paths, &tx, is_prerelease, prerelease_version).await {
+                Some(res) => res,
+                None => return,
+            };
+
+        let configured_manager = if prerelease_tag.is_some() {
+            read_configured_manager()
+        } else {
+            None
         };
+        let cmd =
+            Self::build_update_command(script_path, prerelease_tag, is_manual, configured_manager)
+                .await;
 
         Self::execute_update_command(cmd, tx, paths).await;
     }
-
     pub async fn initiate_update(
         &self,
         is_prerelease: bool,
