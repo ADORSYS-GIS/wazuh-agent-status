@@ -363,6 +363,60 @@ impl AgentManager {
 
     /// Initiate an update process and return a stream of log output.
 
+    fn get_prerelease_url(version: &str) -> String {
+        if cfg!(target_os = "windows") {
+            format!(
+                "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v{}/scripts/windows/setup-agent.ps1",
+                version
+            )
+        } else {
+            format!(
+                "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v{}/scripts/setup-agent.sh",
+                version
+            )
+        }
+    }
+
+    fn get_prerelease_tmp_script(version: &str) -> std::path::PathBuf {
+        let mut tmp_dir = std::env::temp_dir();
+        if cfg!(target_os = "windows") {
+            tmp_dir.push(format!("setup-agent-{}.ps1", version));
+        } else {
+            tmp_dir.push(format!("setup-agent-{}.sh", version));
+        }
+        tmp_dir
+    }
+
+    async fn save_prerelease_script(
+        tmp_script: &std::path::PathBuf,
+        bytes: &[u8],
+    ) -> std::io::Result<()> {
+        if cfg!(target_os = "windows") {
+            tokio::fs::write(tmp_script, bytes).await
+        } else {
+            let cmd_str = format!("cat > {}", tmp_script.display());
+            let mut cmd = Command::new("sudo");
+            cmd.arg("sh")
+                .arg("-c")
+                .arg(&cmd_str)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .stderr(Stdio::piped());
+            let mut child = cmd.spawn()?;
+            if let Some(mut stdin) = child.stdin.take() {
+                let _ = tokio::io::AsyncWriteExt::write_all(&mut stdin, bytes).await;
+            }
+            let out = child.wait_with_output().await?;
+            if out.status.success() {
+                Ok(())
+            } else {
+                Err(std::io::Error::other(
+                    String::from_utf8_lossy(&out.stderr).into_owned(),
+                ))
+            }
+        }
+    }
+
     async fn download_prerelease_script(
         version: &str,
         tx: &mpsc::Sender<String>,
@@ -373,83 +427,10 @@ impl AgentManager {
                 version
             ))
             .await;
-        let url = if cfg!(target_os = "windows") {
-            format!(
-                "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v{}/scripts/windows/setup-agent.ps1",
-                version
-            )
-        } else {
-            format!(
-                "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent/refs/tags/v{}/scripts/setup-agent.sh",
-                version
-            )
-        };
+        let url = Self::get_prerelease_url(version);
 
-        match crate::http::fetch_bytes(&url, Duration::from_secs(30)).await {
-            Ok(bytes) => {
-                let tmp_script: std::path::PathBuf = if cfg!(target_os = "windows") {
-                    let mut tmp_dir = std::env::temp_dir();
-                    tmp_dir.push(format!("setup-agent-{}.ps1", version));
-                    tmp_dir
-                } else {
-                    let mut tmp_dir = std::env::temp_dir();
-                    tmp_dir.push(format!("setup-agent-{}.sh", version));
-                    tmp_dir
-                };
-
-                info!(script_path = %tmp_script.display(), "Saving setup script to temporary file");
-                let save_result = if cfg!(target_os = "windows") {
-                    tokio::fs::write(&tmp_script, bytes).await
-                } else {
-                    let cmd_str = format!("cat > {}", tmp_script.display());
-                    let mut cmd = Command::new("sudo");
-                    cmd.arg("sh")
-                        .arg("-c")
-                        .arg(&cmd_str)
-                        .stdin(Stdio::piped())
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::piped());
-                    match cmd.spawn() {
-                        Ok(mut child) => {
-                            if let Some(mut stdin) = child.stdin.take() {
-                                let _ =
-                                    tokio::io::AsyncWriteExt::write_all(&mut stdin, &bytes).await;
-                            }
-                            match child.wait_with_output().await {
-                                Ok(out) if out.status.success() => Ok(()),
-                                Ok(out) => Err(std::io::Error::other(
-                                    String::from_utf8_lossy(&out.stderr).into_owned(),
-                                )),
-                                Err(e) => Err(e),
-                            }
-                        }
-                        Err(e) => Err(e),
-                    }
-                };
-
-                if let Err(e) = save_result {
-                    warn!(error = %e, "Failed to save setup script");
-                    let _ = tx
-                        .send(format!(
-                            "UPDATE_PROGRESS: [FAILURE] Failed to save setup script: {e}"
-                        ))
-                        .await;
-                    return None;
-                }
-                if !cfg!(target_os = "windows") {
-                    let _ = tokio::process::Command::new("chmod")
-                        .arg("+x")
-                        .arg(&tmp_script)
-                        .status()
-                        .await;
-                }
-
-                info!(script = %tmp_script.display(), "Executing prerelease setup script");
-                let _ = tx
-                    .send("UPDATE_PROGRESS: [STATUS] Executing prerelease setup...".to_string())
-                    .await;
-                Some(tmp_script)
-            }
+        let bytes = match crate::http::fetch_bytes(&url, Duration::from_secs(30)).await {
+            Ok(b) => b,
             Err(e) => {
                 warn!(error = %e, "Failed to download setup script");
                 let _ = tx
@@ -457,9 +438,36 @@ impl AgentManager {
                         "UPDATE_PROGRESS: [FAILURE] Failed to download setup script: {e}"
                     ))
                     .await;
-                None
+                return None;
             }
+        };
+
+        let tmp_script = Self::get_prerelease_tmp_script(version);
+        info!(script_path = %tmp_script.display(), "Saving setup script to temporary file");
+
+        if let Err(e) = Self::save_prerelease_script(&tmp_script, &bytes).await {
+            warn!(error = %e, "Failed to save setup script");
+            let _ = tx
+                .send(format!(
+                    "UPDATE_PROGRESS: [FAILURE] Failed to save setup script: {e}"
+                ))
+                .await;
+            return None;
         }
+
+        if !cfg!(target_os = "windows") {
+            let _ = tokio::process::Command::new("chmod")
+                .arg("+x")
+                .arg(&tmp_script)
+                .status()
+                .await;
+        }
+
+        info!(script = %tmp_script.display(), "Executing prerelease setup script");
+        let _ = tx
+            .send("UPDATE_PROGRESS: [STATUS] Executing prerelease setup...".to_string())
+            .await;
+        Some(tmp_script)
     }
 
     async fn prepare_standard_script(
@@ -495,6 +503,137 @@ impl AgentManager {
         }
     }
 
+    fn pipe_stdout(
+        stdout: tokio::process::ChildStdout,
+        tx: mpsc::Sender<String>,
+        log_path: std::path::PathBuf,
+    ) {
+        tokio::spawn(async move {
+            let mut reader = BufReader::new(stdout).lines();
+            while let Ok(Some(line)) = reader.next_line().await {
+                append_update_log(&log_path, &line).await;
+                let _ = tx.send(format!("UPDATE_PROGRESS: {}", line)).await;
+            }
+        });
+    }
+
+    fn pipe_stderr(
+        stderr: tokio::process::ChildStderr,
+        tx: mpsc::Sender<String>,
+        log_path: std::path::PathBuf,
+    ) {
+        tokio::spawn(async move {
+            let mut reader = BufReader::new(stderr).lines();
+            while let Ok(Some(line)) = reader.next_line().await {
+                append_update_log(&log_path, &line).await;
+                let _ = tx.send(format!("UPDATE_PROGRESS: [ERROR] {}", line)).await;
+            }
+        });
+    }
+
+    fn tail_active_response_log(
+        log_path: std::path::PathBuf,
+        tx: mpsc::Sender<String>,
+        mut kill_rx: tokio::sync::oneshot::Receiver<()>,
+    ) {
+        if log_path.as_os_str().is_empty() {
+            return;
+        }
+        tokio::spawn(async move {
+            let initial_len = tokio::fs::metadata(&log_path)
+                .await
+                .map(|m| m.len())
+                .unwrap_or(0);
+            if let Ok(mut file) = tokio::fs::File::open(&log_path).await {
+                let _ = file.seek(std::io::SeekFrom::Start(initial_len)).await;
+                let mut reader = BufReader::new(file);
+                let mut line = String::new();
+                loop {
+                    tokio::select! {
+                        _ = &mut kill_rx => break,
+                        res = reader.read_line(&mut line) => {
+                            match res {
+                                Ok(0) => { tokio::time::sleep(Duration::from_millis(200)).await; }
+                                Ok(_) => {
+                                    let t = line.trim();
+                                    if !t.is_empty() { let _ = tx.send(format!("UPDATE_PROGRESS: {}", t)).await; }
+                                    line.clear();
+                                }
+                                Err(_) => break,
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    async fn wait_for_update_command(
+        mut child: tokio::process::Child,
+        tx: mpsc::Sender<String>,
+        log_path: std::path::PathBuf,
+        kill_tx: tokio::sync::oneshot::Sender<()>,
+    ) {
+        match tokio::time::timeout(UPDATE_TIMEOUT, child.wait()).await {
+            Ok(Ok(status)) if status.success() => {
+                let _ = kill_tx.send(());
+                append_update_log(&log_path, "[SUCCESS] Update completed successfully").await;
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                let _ = tx
+                    .send("UPDATE_PROGRESS: [SUCCESS] Update completed successfully".to_string())
+                    .await;
+            }
+            Ok(Ok(status)) => {
+                let _ = kill_tx.send(());
+                append_update_log(
+                    &log_path,
+                    &format!(
+                        "[FAILURE] Update script exited with code: {:?}",
+                        status.code()
+                    ),
+                )
+                .await;
+                let _ = tx
+                    .send(format!(
+                        "UPDATE_PROGRESS: [FAILURE] Update script exited with code: {:?}",
+                        status.code()
+                    ))
+                    .await;
+            }
+            Ok(Err(e)) => {
+                let _ = kill_tx.send(());
+                append_update_log(
+                    &log_path,
+                    &format!("[FAILURE] Failed to wait for update script: {e}"),
+                )
+                .await;
+                let _ = tx
+                    .send(format!(
+                        "UPDATE_PROGRESS: [FAILURE] Failed to wait for update script: {e}"
+                    ))
+                    .await;
+            }
+            Err(_) => {
+                let _ = kill_tx.send(());
+                #[cfg(unix)]
+                if let Some(pid) = child.id() {
+                    let _ = unsafe { libc::kill(-(pid as i32), libc::SIGKILL) };
+                }
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+                append_update_log(
+                    &log_path,
+                    &format!(
+                        "[FAILURE] Update script timed out after {}s and was terminated",
+                        UPDATE_TIMEOUT.as_secs()
+                    ),
+                )
+                .await;
+                let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Update script timed out after {}s and was terminated", UPDATE_TIMEOUT.as_secs())).await;
+            }
+        }
+    }
+
     async fn execute_update_command(
         mut cmd: Command,
         tx: mpsc::Sender<String>,
@@ -505,152 +644,40 @@ impl AgentManager {
 
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
         info!("Spawning update command");
-        match cmd.spawn() {
-            Ok(mut child) => {
-                let stdout = child.stdout.take().unwrap();
-                let stderr = child.stderr.take().unwrap();
-                let tx_clone = tx.clone();
 
-                let windows_response_log = if cfg!(target_os = "windows") {
-                    paths.active_response_log.clone()
-                } else {
-                    std::path::PathBuf::new()
-                };
-
-                let w1 = windows_response_log.clone();
-                tokio::spawn(async move {
-                    let mut reader = BufReader::new(stdout).lines();
-                    while let Ok(Some(line)) = reader.next_line().await {
-                        append_update_log(&w1, &line).await;
-                        let _ = tx_clone.send(format!("UPDATE_PROGRESS: {}", line)).await;
-                    }
-                });
-
-                let tx_clone2 = tx.clone();
-                let w2 = windows_response_log.clone();
-                tokio::spawn(async move {
-                    let mut reader = BufReader::new(stderr).lines();
-                    while let Ok(Some(line)) = reader.next_line().await {
-                        append_update_log(&w2, &line).await;
-                        let _ = tx_clone2
-                            .send(format!("UPDATE_PROGRESS: [ERROR] {}", line))
-                            .await;
-                    }
-                });
-
-                let active_response_log = if cfg!(target_os = "windows") {
-                    std::path::PathBuf::new()
-                } else {
-                    paths.active_response_log.clone()
-                };
-
-                let (kill_tx, mut kill_rx) = tokio::sync::oneshot::channel::<()>();
-                if !active_response_log.as_os_str().is_empty() {
-                    let tx_log = tx.clone();
-                    tokio::spawn(async move {
-                        let initial_len = match tokio::fs::metadata(&active_response_log).await {
-                            Ok(m) => m.len(),
-                            Err(_) => 0,
-                        };
-                        if let Ok(mut file) = tokio::fs::File::open(&active_response_log).await {
-                            let _ = file.seek(std::io::SeekFrom::Start(initial_len)).await;
-                            let mut reader = BufReader::new(file);
-                            let mut line = String::new();
-                            loop {
-                                tokio::select! {
-                                    _ = &mut kill_rx => break,
-                                    res = reader.read_line(&mut line) => {
-                                        match res {
-                                            Ok(0) => { tokio::time::sleep(Duration::from_millis(200)).await; }
-                                            Ok(_) => {
-                                                let t = line.trim();
-                                                if !t.is_empty() { let _ = tx_log.send(format!("UPDATE_PROGRESS: {}", t)).await; }
-                                                line.clear();
-                                            }
-                                            Err(_) => break,
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-
-                match tokio::time::timeout(UPDATE_TIMEOUT, child.wait()).await {
-                    Ok(Ok(status)) if status.success() => {
-                        let _ = kill_tx.send(());
-                        append_update_log(
-                            &windows_response_log,
-                            "[SUCCESS] Update completed successfully",
-                        )
-                        .await;
-                        tokio::time::sleep(Duration::from_millis(500)).await;
-                        let _ = tx
-                            .send(
-                                "UPDATE_PROGRESS: [SUCCESS] Update completed successfully"
-                                    .to_string(),
-                            )
-                            .await;
-                    }
-                    Ok(Ok(status)) => {
-                        let _ = kill_tx.send(());
-                        append_update_log(
-                            &windows_response_log,
-                            &format!(
-                                "[FAILURE] Update script exited with code: {:?}",
-                                status.code()
-                            ),
-                        )
-                        .await;
-                        let _ = tx
-                            .send(format!(
-                                "UPDATE_PROGRESS: [FAILURE] Update script exited with code: {:?}",
-                                status.code()
-                            ))
-                            .await;
-                    }
-                    Ok(Err(e)) => {
-                        let _ = kill_tx.send(());
-                        append_update_log(
-                            &windows_response_log,
-                            &format!("[FAILURE] Failed to wait for update script: {e}"),
-                        )
-                        .await;
-                        let _ = tx
-                            .send(format!(
-                                "UPDATE_PROGRESS: [FAILURE] Failed to wait for update script: {e}"
-                            ))
-                            .await;
-                    }
-                    Err(_) => {
-                        let _ = kill_tx.send(());
-                        #[cfg(unix)]
-                        if let Some(pid) = child.id() {
-                            let _ = unsafe { libc::kill(-(pid as i32), libc::SIGKILL) };
-                        }
-                        let _ = child.kill().await;
-                        let _ = child.wait().await;
-                        append_update_log(
-                            &windows_response_log,
-                            &format!(
-                                "[FAILURE] Update script timed out after {}s and was terminated",
-                                UPDATE_TIMEOUT.as_secs()
-                            ),
-                        )
-                        .await;
-                        let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Update script timed out after {}s and was terminated", UPDATE_TIMEOUT.as_secs())).await;
-                    }
-                }
-            }
+        let mut child = match cmd.spawn() {
+            Ok(c) => c,
             Err(e) => {
                 let error_hint = if cfg!(target_os = "windows") {
-                    "check that PowerShell is available"
+                    "check PowerShell"
                 } else {
-                    "check sudoers configuration"
+                    "check sudoers"
                 };
                 let _ = tx.send(format!("UPDATE_PROGRESS: [FAILURE] Failed to start update script ({error_hint}): {e}")).await;
+                return;
             }
-        }
+        };
+
+        let stdout = child.stdout.take().unwrap();
+        let stderr = child.stderr.take().unwrap();
+
+        let windows_response_log = if cfg!(target_os = "windows") {
+            paths.active_response_log.clone()
+        } else {
+            std::path::PathBuf::new()
+        };
+        Self::pipe_stdout(stdout, tx.clone(), windows_response_log.clone());
+        Self::pipe_stderr(stderr, tx.clone(), windows_response_log.clone());
+
+        let active_response_log = if cfg!(target_os = "windows") {
+            std::path::PathBuf::new()
+        } else {
+            paths.active_response_log.clone()
+        };
+        let (kill_tx, kill_rx) = tokio::sync::oneshot::channel::<()>();
+
+        Self::tail_active_response_log(active_response_log, tx.clone(), kill_rx);
+        Self::wait_for_update_command(child, tx, windows_response_log, kill_tx).await;
     }
 
     async fn run_update_task(
@@ -695,7 +722,7 @@ impl AgentManager {
             None
         };
 
-        let mut cmd = if cfg!(target_os = "windows") {
+        let cmd = if cfg!(target_os = "windows") {
             let mut c = Command::new("powershell.exe");
             c.args([
                 "-NoProfile",
