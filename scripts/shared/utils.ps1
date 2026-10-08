@@ -1,15 +1,23 @@
 # Centralized Utility Functions for Wazuh-Agent-Status PowerShell Scripts
 # Designed to be downloaded and sourced via a bootstrap mechanism
 
-# Function to handle logging with timestamp and optional colors
+# PSScriptAnalyzer rule suppressions for style rules intentionally not applied
+# to this installer utility library (see ticket #251):
+#   - PSUseApprovedVerbs: helper names (Ensure-Directory, Prepare-DestinationFile,
+#     Download-File, Download-And-VerifyFile) use verbs with clear intent for
+#     installer code; no approved verb matches "Ensure"/"Download"/"Prepare"
+#     without an awkward rename.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
+param()
+
+# Function to handle logging with timestamp
 function Log {
     param (
         [Parameter(Mandatory)]
         [string]$Level,
         [Parameter(Mandatory)]
         [AllowEmptyString()]
-        [string]$Message,
-        [string]$Color = "White"
+        [string]$Message
     )
     $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-Output "$Timestamp $Level $Message"
@@ -18,33 +26,33 @@ function Log {
 # Logging helpers
 function InfoMessage {
     param ([string]$Message)
-    Log "[INFO]" $Message "White"
+    Log -Level "[INFO]" -Message $Message
 }
 
 function WarnMessage {
     param ([string]$Message)
-    Log "[WARNING]" $Message "Yellow"
+    Log -Level "[WARNING]" -Message $Message
 }
 
 function ErrorMessage {
     param ([string]$Message)
-    Log "[ERROR]" $Message "Red"
+    Log -Level "[ERROR]" -Message $Message
 }
 
 function SuccessMessage {
     param ([string]$Message)
-    Log "[SUCCESS]" $Message "Green"
+    Log -Level "[SUCCESS]" -Message $Message
 }
 
 function ErrorExit {
     param ([string]$Message)
-    ErrorMessage $Message
+    ErrorMessage -Message $Message
     exit 1
 }
 
 function PrintStep {
     param ([int]$StepNumber, [string]$Message)
-    Log "[STEP]" "Step ${StepNumber}: $Message"
+    Log -Level "[STEP]" -Message "Step ${StepNumber}: $Message"
 }
 
 function Ensure-Directory {
@@ -145,8 +153,8 @@ function Download-And-VerifyFile {
         [string]$Destination,
         [string]$ChecksumPattern,
         [string]$FileName = "Unknown file",
-        [string]$ChecksumFile = $global:ChecksumsPath,
-        [string]$ChecksumUrl = $global:ChecksumsURL
+        [string]$ChecksumFile = $script:ChecksumsPath,
+        [string]$ChecksumUrl = $script:ChecksumsURL
     )
 
     Download-File -Url $Url -Destination $Destination -Description $FileName

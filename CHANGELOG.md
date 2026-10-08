@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[94ee32a](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/94ee32a37ab0809eee5216b6f91b435404734b15)
+[5c58196](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/5c5819620edc2916142e0e1de7e2e46540879728)...[a38323b](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a38323b23794406cc1bfc8ae09882433ed8a387a)
 
 ### Bug Fixes
 
@@ -61,6 +61,8 @@ All notable changes to this project will be documented in this file.
 - Remove hardcoded HOME variable from LaunchAgent plist (#220) ([`6d16401`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/6d164017a5e2add3c4540da2e8371591cd3f1c32)), Co-authored-by:GitHub Action <action@github.com>
 - Address sonarqube vulnerabilities in release workflow (#238) ([`8ec506a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/8ec506a1e57defd202db191a2709c271054c9b3c))
 - Skip sudoers rewrite when already configured ([`94ee32a`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/94ee32a37ab0809eee5216b6f91b435404734b15)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
+- Address Semgrep and PSScriptAnalyzer findings (#251) ([`01a9d2f`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/01a9d2f0401f0dbc7e75f0a73827d284f7849793))
+- Remove TLS cert bypass from gateway client; add job permissions ([`a38323b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/a38323b23794406cc1bfc8ae09882433ed8a387a))
 
 ### Documentation
 
@@ -114,6 +116,8 @@ All notable changes to this project will be documented in this file.
 - Update CHANGELOG.md and checksums [skip ci] ([`c09f0c6`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/c09f0c6c551df214612d198acf412244195c309f))
 - Update CHANGELOG.md and checksums [skip ci] ([`5637810`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/56378105e8b80c1eefb9d182b2be945108813eaf))
 - Update CHANGELOG.md and checksums [skip ci] ([`ac755a5`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/ac755a5289dda3dbaa02cb391579d8421a1eec4c))
+- Update CHANGELOG.md and checksums [skip ci] ([`f1e6a1b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f1e6a1b2e871fd7cd64137ebbcf2dca00dd48816))
+- Update CHANGELOG.md and checksums [skip ci] ([`e7356dc`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/e7356dc4548c29087f0701ad406e27d2b03f90cf))
 
 ### Features
 
@@ -168,6 +172,7 @@ All notable changes to this project will be documented in this file.
 * docs: update CHANGELOG.md and checksums [skip ci]
 
 ---------, Co-authored-by:GitHub Action <action@github.com>, Co-authored-by:mbiti2 <louisembiti@gmail.com>
+- Add SAST workflow ([`aaf2fbb`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/aaf2fbbbff1dd2e6ed1dedb3ce3687a8a62ee236))
 
 ### Miscellaneous Tasks
 
@@ -242,6 +247,9 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 - Add SonarQube status badge to README ([`56fac42`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/56fac42edd474802ee6dae5388da066f1b75804c))
 - Fix stale failing release badge ([`52067f9`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/52067f96bd4aedfbb980212be31a7038b2de9f35)), Signed-off-by:Awambeng Rodrick <awambengrodrick@gmail.com>
 - Bump app version to v0.5.4 and fix release workflow Cargo.lock sync (#242) ([`9ad913e`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9ad913e7261a60b9c6fa5e3155159a2d0f7636c8)), Co-authored-by:GitHub Action <action@github.com>
+- Remove clippy/shellcheck/psscriptanalyzer (moved to SAST) ([`3e754d4`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/3e754d489e0858d010c4bcd7d9e2c5c123f4fcea))
+- Fix run-shell-injection and pin checkout to SHA ([`71475c3`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/71475c30f59ec67459028e85ed68142bb8c2b17b))
+- Drop unused clippy component from CI toolchain ([`1994a65`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/1994a6591b617cedf838c5f22afefc273e580951))
 
 ### Performance
 
@@ -280,6 +288,10 @@ This reverts commit 3b287a1e894cf33cd5f65a668f17283ecba4b90a.
 - Update SonarQube workflow reference to a specific commit ([`95dc88b`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/95dc88b46aa769ac7949465563ad6a70ab9634e3))
 - Add SonarQube secrets for improved security ([`2545b14`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/2545b142cbba77b7cc02250aa9c0993415d6cf4a))
 - Add SonarQube secrets for improved security ([`f91f11d`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/f91f11deffbdaf6c123730fe7aef42c36dea9cb5))
+
+### Security
+
+- Disable always-on-top, add log downloads, and optimize memory (#247) ([`87ed2be`](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/87ed2be951424a76801bf71872bd8a7ff6e8b20f))
 
 ### Styling
 

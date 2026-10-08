@@ -144,7 +144,6 @@ pub struct ComplianceReport {
 
 fn gateway_http_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
         .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))
