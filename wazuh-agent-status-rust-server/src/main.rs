@@ -70,7 +70,7 @@ async fn run_server(mut shutdown_rx: tokio::sync::oneshot::Receiver<()>) -> anyh
         .and_then(|n| n.to_str())
         .unwrap_or("wazuh-agent-status.log");
 
-    let _ = std::fs::create_dir_all(log_dir);
+    let _ = tokio::fs::create_dir_all(log_dir).await;
 
     let file_appender = RollingFileAppender::new(Rotation::DAILY, log_dir, log_name);
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
