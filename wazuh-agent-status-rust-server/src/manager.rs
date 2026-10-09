@@ -361,8 +361,6 @@ impl AgentManager {
 
     // ── Update Execution ──────────────────────────────────────────────────────
 
-    /// Initiate an update process and return a stream of log output.
-
     fn get_prerelease_url(version: &str) -> String {
         if cfg!(target_os = "windows") {
             format!(
@@ -799,6 +797,7 @@ impl AgentManager {
 
         Self::execute_update_command(cmd, tx, paths).await;
     }
+    /// Initiate an update process and return a stream of log output.
     pub async fn initiate_update(
         &self,
         is_prerelease: bool,
