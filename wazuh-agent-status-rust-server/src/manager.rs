@@ -554,6 +554,7 @@ impl AgentManager {
         match tokio::time::timeout(UPDATE_TIMEOUT, child.wait()).await {
             Ok(Ok(status)) if status.success() => {
                 let _ = kill_tx.send(());
+                info!("Update completed successfully");
                 append_update_log(&log_path, "[SUCCESS] Update completed successfully").await;
                 tokio::time::sleep(Duration::from_millis(500)).await;
                 let _ = tx
@@ -562,6 +563,7 @@ impl AgentManager {
             }
             Ok(Ok(status)) => {
                 let _ = kill_tx.send(());
+                warn!(exit_code = ?status.code(), "Update script failed");
                 append_update_log(
                     &log_path,
                     &format!(
@@ -579,6 +581,7 @@ impl AgentManager {
             }
             Ok(Err(e)) => {
                 let _ = kill_tx.send(());
+                warn!(error = %e, "Failed to wait for update script");
                 append_update_log(
                     &log_path,
                     &format!("[FAILURE] Failed to wait for update script: {e}"),
@@ -598,6 +601,10 @@ impl AgentManager {
                 }
                 let _ = child.kill().await;
                 let _ = child.wait().await;
+                warn!(
+                    seconds = UPDATE_TIMEOUT.as_secs(),
+                    "Update script timed out; terminated"
+                );
                 append_update_log(
                     &log_path,
                     &format!(
