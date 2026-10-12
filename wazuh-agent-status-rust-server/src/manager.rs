@@ -40,7 +40,7 @@ async fn append_update_log(path: &std::path::Path, line: &str) {
 /// Read the configured Wazuh manager address from ossec.conf so update scripts
 /// reinstall the agent against the same manager instead of the wazuh.example.com
 /// default. Matches the simple `<address>` extraction the install scripts use.
-fn read_configured_manager() -> Option<String> {
+async fn read_configured_manager() -> Option<String> {
     let path = if cfg!(target_os = "windows") {
         r"C:\Program Files (x86)\ossec-agent\ossec.conf"
     } else if cfg!(target_os = "macos") {
@@ -49,7 +49,7 @@ fn read_configured_manager() -> Option<String> {
         "/var/ossec/etc/ossec.conf"
     };
 
-    let content = std::fs::read_to_string(path).ok()?;
+    let content = tokio::fs::read_to_string(path).await.ok()?;
     let start = content.find("<address>")? + "<address>".len();
     let end = content[start..].find("</address>")?;
     let manager = content[start..start + end].trim();
@@ -386,33 +386,10 @@ impl AgentManager {
     }
 
     async fn save_prerelease_script(
-        tmp_script: &std::path::PathBuf,
+        tmp_script: &std::path::Path,
         bytes: &[u8],
     ) -> std::io::Result<()> {
-        if cfg!(target_os = "windows") {
-            tokio::fs::write(tmp_script, bytes).await
-        } else {
-            let cmd_str = format!("cat > {}", tmp_script.display());
-            let mut cmd = Command::new("sudo");
-            cmd.arg("sh")
-                .arg("-c")
-                .arg(&cmd_str)
-                .stdin(Stdio::piped())
-                .stdout(Stdio::null())
-                .stderr(Stdio::piped());
-            let mut child = cmd.spawn()?;
-            if let Some(mut stdin) = child.stdin.take() {
-                let _ = tokio::io::AsyncWriteExt::write_all(&mut stdin, bytes).await;
-            }
-            let out = child.wait_with_output().await?;
-            if out.status.success() {
-                Ok(())
-            } else {
-                Err(std::io::Error::other(
-                    String::from_utf8_lossy(&out.stderr).into_owned(),
-                ))
-            }
-        }
+        tokio::fs::write(tmp_script, bytes).await
     }
 
     async fn download_prerelease_script(
@@ -509,6 +486,7 @@ impl AgentManager {
         tokio::spawn(async move {
             let mut reader = BufReader::new(stdout).lines();
             while let Ok(Some(line)) = reader.next_line().await {
+                info!(line = %line, "Update stdout");
                 append_update_log(&log_path, &line).await;
                 let _ = tx.send(format!("UPDATE_PROGRESS: {}", line)).await;
             }
@@ -523,6 +501,7 @@ impl AgentManager {
         tokio::spawn(async move {
             let mut reader = BufReader::new(stderr).lines();
             while let Ok(Some(line)) = reader.next_line().await {
+                warn!(line = %line, "Update stderr");
                 append_update_log(&log_path, &line).await;
                 let _ = tx.send(format!("UPDATE_PROGRESS: [ERROR] {}", line)).await;
             }
@@ -787,7 +766,7 @@ impl AgentManager {
             };
 
         let configured_manager = if prerelease_tag.is_some() {
-            read_configured_manager()
+            read_configured_manager().await
         } else {
             None
         };
