@@ -22,8 +22,8 @@ project actually ships.
 ## Decision
 
 Generate a CycloneDX SBOM in CI with Trivy, using the shared `sbom.yml`
-workflow from `adorsys-ci-cd-templates`. The job runs from the SAST workflow
-(`.github/workflows/sast.yml`), scans the repository contents, and uploads
+workflow from [adorsys-ci-cd-templates](https://github.com/ADORSYS-GIS/adorsys-ci-cd-templates). The job runs from the SAST workflow
+[sast.yaml](../../../.github/workflows/sast.yml), scans the repository contents, and uploads
 `sbom.json` as a workflow artifact.
 
 The GitHub Dependency Graph stays enabled as a baseline and for Dependabot
