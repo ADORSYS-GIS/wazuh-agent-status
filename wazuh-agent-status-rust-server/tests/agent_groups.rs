@@ -42,7 +42,7 @@ fn test_extract_groups_edge_cases() -> std::io::Result<()> {
     // Actual first group
     writeln!(tmp_file, "# first_valid_group")?;
     // Empty lines
-    writeln!(tmp_file, "")?;
+    writeln!(tmp_file)?;
     writeln!(tmp_file, "   ")?;
     // Source file with and without --> suffix, and without slash
     writeln!(tmp_file, "# Source file: test_no_arrow/conf.xml")?;
