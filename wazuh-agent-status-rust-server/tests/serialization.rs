@@ -89,16 +89,40 @@ fn test_system_metrics_agentd_found_default() {
 
 #[test]
 fn test_log_line_levels() {
-    use wazuh_agent_status_rust_server::models::{LogLine, LogLevel};
+    use wazuh_agent_status_rust_server::models::{LogLevel, LogLine};
 
-    assert_eq!(LogLine::from_raw("CRITICAL: disc full".into()).level, LogLevel::Error);
-    assert_eq!(LogLine::from_raw("FATAL error".into()).level, LogLevel::Error);
-    assert_eq!(LogLine::from_raw("ERROR: connection lost".into()).level, LogLevel::Error);
-    assert_eq!(LogLine::from_raw("WARNING: slow response".into()).level, LogLevel::Warning);
-    assert_eq!(LogLine::from_raw("WARN: high load".into()).level, LogLevel::Warning);
-    assert_eq!(LogLine::from_raw("DEBUG: tracing id 1".into()).level, LogLevel::Debug);
-    assert_eq!(LogLine::from_raw("INFO: service started".into()).level, LogLevel::Info);
-    assert_eq!(LogLine::from_raw("some regular output".into()).level, LogLevel::Unknown);
+    assert_eq!(
+        LogLine::from_raw("CRITICAL: disc full".into()).level,
+        LogLevel::Error
+    );
+    assert_eq!(
+        LogLine::from_raw("FATAL error".into()).level,
+        LogLevel::Error
+    );
+    assert_eq!(
+        LogLine::from_raw("ERROR: connection lost".into()).level,
+        LogLevel::Error
+    );
+    assert_eq!(
+        LogLine::from_raw("WARNING: slow response".into()).level,
+        LogLevel::Warning
+    );
+    assert_eq!(
+        LogLine::from_raw("WARN: high load".into()).level,
+        LogLevel::Warning
+    );
+    assert_eq!(
+        LogLine::from_raw("DEBUG: tracing id 1".into()).level,
+        LogLevel::Debug
+    );
+    assert_eq!(
+        LogLine::from_raw("INFO: service started".into()).level,
+        LogLevel::Info
+    );
+    assert_eq!(
+        LogLine::from_raw("some regular output".into()).level,
+        LogLevel::Unknown
+    );
 }
 
 #[test]
