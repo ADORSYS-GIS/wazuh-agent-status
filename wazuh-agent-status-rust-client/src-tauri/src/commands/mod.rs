@@ -353,15 +353,15 @@ mod tests {
         let key = "secret-agent-key";
         let agent_id = "007";
         let timestamp = 1700000000;
-        let nonce = "test-nonce-123";
+        let nonce = generate_nonce();
 
-        let proof1 = compute_hmac_proof(key, agent_id, timestamp, nonce);
-        let proof2 = compute_hmac_proof(key, agent_id, timestamp, nonce);
+        let proof1 = compute_hmac_proof(key, agent_id, timestamp, &nonce);
+        let proof2 = compute_hmac_proof(key, agent_id, timestamp, &nonce);
         assert_eq!(proof1, proof2);
         assert_eq!(proof1.len(), 64); // SHA256 hex string
 
         // Changing key alters proof
-        let proof_diff = compute_hmac_proof("other-key", agent_id, timestamp, nonce);
+        let proof_diff = compute_hmac_proof("other-key", agent_id, timestamp, &nonce);
         assert_ne!(proof1, proof_diff);
     }
 
