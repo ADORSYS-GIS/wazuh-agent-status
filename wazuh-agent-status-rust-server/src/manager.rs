@@ -1086,3 +1086,563 @@ impl AgentManager {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    struct TestProvider {
+        state: AgentState,
+    }
+
+    impl StatusProvider for TestProvider {
+        fn get_agent_status(
+            &self,
+        ) -> Result<crate::models::AgentStatus, crate::errors::ServerError> {
+            Ok(self.state.status.clone())
+        }
+        fn get_connection_status(
+            &self,
+        ) -> Result<crate::models::ConnectionStatus, crate::errors::ServerError> {
+            Ok(self.state.connection.clone())
+        }
+        fn get_agent_version(&self) -> Result<String, crate::errors::ServerError> {
+            Ok(self.state.version.clone())
+        }
+        fn get_tray_version(&self) -> Result<String, crate::errors::ServerError> {
+            Ok(self.state.tray_version.clone())
+        }
+        fn get_agent_groups(&self) -> Result<Vec<String>, crate::errors::ServerError> {
+            Ok(self.state.groups.clone())
+        }
+        fn get_system_metrics(
+            &self,
+        ) -> Result<crate::models::SystemMetrics, crate::errors::ServerError> {
+            Ok(self.state.metrics.clone())
+        }
+        fn get_partial_state(&self) -> Result<AgentState, crate::errors::ServerError> {
+            Ok(self.state.clone())
+        }
+    }
+
+    fn make_test_paths(dir: &std::path::Path) -> AgentPaths {
+        AgentPaths {
+            merged_mg: dir.join("merged.mg"),
+            state_file: dir.join("wazuh-agentd.state"),
+            version_json: dir.join("version.json"),
+            version_file: dir.join("version.txt"),
+            pid_file: dir.join("wazuh-agentd.pid"),
+            update_script: dir.join("update.sh"),
+            wazuh_control: dir.join("wazuh-control"),
+            ossec_log: dir.join("ossec.log"),
+            client_keys: dir.join("client.keys"),
+            active_response_log: dir.join("active-responses.log"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_append_update_log() {
+        let dir = tempdir().unwrap();
+        let log_path = dir.path().join("sub").join("test_update.log");
+
+        // Empty path should be safely ignored
+        append_update_log(std::path::Path::new(""), "ignored").await;
+
+        append_update_log(&log_path, "line 1").await;
+        append_update_log(&log_path, "line 2").await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let content = tokio::fs::read_to_string(&log_path).await.unwrap();
+        assert_eq!(content, "line 1\nline 2\n");
+    }
+
+    #[test]
+    fn test_read_client_keys_variations() {
+        let dir = tempdir().unwrap();
+        let paths = make_test_paths(dir.path());
+
+        // 1. Missing file
+        let (id, name, key) = AgentManager::read_client_keys(&paths);
+        assert_eq!((id.as_str(), name.as_str(), key.as_str()), ("", "", ""));
+
+        // 2. Empty file
+        std::fs::write(&paths.client_keys, "").unwrap();
+        let (id, name, key) = AgentManager::read_client_keys(&paths);
+        assert_eq!((id.as_str(), name.as_str(), key.as_str()), ("", "", ""));
+
+        // 3. Single token (malformed)
+        std::fs::write(&paths.client_keys, "onlyone\n").unwrap();
+        let (id, name, key) = AgentManager::read_client_keys(&paths);
+        assert_eq!((id.as_str(), name.as_str(), key.as_str()), ("", "", ""));
+
+        // 4. Two tokens
+        std::fs::write(&paths.client_keys, "001 agent-linux\n").unwrap();
+        let (id, name, key) = AgentManager::read_client_keys(&paths);
+        assert_eq!(
+            (id.as_str(), name.as_str(), key.as_str()),
+            ("001", "agent-linux", "")
+        );
+
+        // 5. Full 4+ tokens: id name ip key
+        std::fs::write(
+            &paths.client_keys,
+            "042 production-srv any 1234567890abcdef extra-data\n",
+        )
+        .unwrap();
+        let (id, name, key) = AgentManager::read_client_keys(&paths);
+        assert_eq!(
+            (id.as_str(), name.as_str(), key.as_str()),
+            ("042", "production-srv", "1234567890abcdef")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_manager_initialization_and_state() {
+        let dir = tempdir().unwrap();
+        let paths = make_test_paths(dir.path());
+        std::fs::write(&paths.client_keys, "007 bond any secret777\n").unwrap();
+
+        let config = Arc::new(Config {
+            self_healing: false,
+            ..Config::default()
+        });
+
+        let provider = Box::new(TestProvider {
+            state: AgentState {
+                status: crate::models::AgentStatus::Active,
+                connection: crate::models::ConnectionStatus::Connected,
+                version: "4.8.0".to_string(),
+                tray_version: "1.2.0".to_string(),
+                groups: vec!["production".to_string()],
+                metrics: crate::models::SystemMetrics::default(),
+                self_healing_enabled: false,
+                agent_id: "007".to_string(),
+                agent_name: "bond".to_string(),
+                agent_key: "secret777".to_string(),
+            },
+        });
+
+        let manager = AgentManager::new_custom(Arc::clone(&config), Arc::new(paths), provider);
+
+        assert_eq!(manager.config().self_healing, false);
+        let state = manager.get_state().await;
+        assert_eq!(state.agent_id, "007");
+        assert_eq!(state.agent_name, "bond");
+        assert_eq!(state.agent_key, "secret777");
+
+        let mut sub = manager.subscribe();
+        assert!(sub.try_recv().is_err()); // No messages yet
+    }
+
+    #[tokio::test]
+    async fn test_stream_logs_missing_and_existing() {
+        let dir = tempdir().unwrap();
+        let paths = make_test_paths(dir.path());
+        let config = Arc::new(Config {
+            self_healing: false,
+            ..Config::default()
+        });
+
+        let provider = Box::new(TestProvider {
+            state: AgentState::default(),
+        });
+        let manager = AgentManager::new_custom(config, Arc::new(paths.clone()), provider);
+
+        // 1. Missing file
+        let mut rx = manager.stream_logs().await;
+        let line = rx.recv().await.unwrap();
+        assert!(line.raw.contains("[ERROR] Log file not found"));
+
+        // 2. Existing file with historical lines
+        let mut file = std::fs::File::create(&paths.ossec_log).unwrap();
+        writeln!(file, "2026/10/21 12:00:00 ossec-agent: INFO: Starting").unwrap();
+        writeln!(file, "2026/10/21 12:00:01 ossec-agent: INFO: Connected").unwrap();
+        drop(file);
+
+        let mut rx2 = manager.stream_logs().await;
+        let line1 = rx2.recv().await.unwrap();
+        assert!(line1.raw.contains("Starting"));
+        let line2 = rx2.recv().await.unwrap();
+        assert!(line2.raw.contains("Connected"));
+    }
+
+    #[tokio::test]
+    async fn test_check_and_auto_update_in_progress_guard() {
+        let dir = tempdir().unwrap();
+        let paths = make_test_paths(dir.path());
+        let config = Arc::new(Config {
+            self_healing: false,
+            ..Config::default()
+        });
+
+        let provider = Box::new(TestProvider {
+            state: AgentState::default(),
+        });
+        let manager = AgentManager::new_custom(config, Arc::new(paths), provider);
+
+        // Simulate update already running
+        manager.update_in_progress.store(true, Ordering::SeqCst);
+        manager.check_and_auto_update().await;
+        // If guard works, flag remains true
+        assert!(manager.update_in_progress.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn test_version_cache_fresh_hit() {
+        let dir = tempdir().unwrap();
+        let paths = make_test_paths(dir.path());
+        let config = Arc::new(Config {
+            version_cache_ttl: Duration::from_secs(3600),
+            self_healing: false,
+            ..Config::default()
+        });
+
+        let provider = Box::new(TestProvider {
+            state: AgentState {
+                tray_version: "2.0.0".to_string(),
+                ..AgentState::default()
+            },
+        });
+        let manager = AgentManager::new_custom(config, Arc::new(paths), provider);
+        manager.state.write().await.tray_version = "2.0.0".to_string();
+
+        // Pre-populate cache
+        let cached_status = UpdateStatus {
+            tray: ComponentUpdate {
+                name: "Wazuh Setup".to_string(),
+                current_version: "2.0.0".to_string(),
+                latest_version: "2.0.0".to_string(),
+                state: crate::models::UpdateState::UpToDate,
+                can_update: false,
+            },
+            has_updates: false,
+        };
+
+        {
+            let mut cache = manager.version_cache.write().await;
+            *cache = Some(VersionCache {
+                status: cached_status.clone(),
+                info: VersionInfo {
+                    framework: crate::models::FrameworkVersion {
+                        version: "2.0.0".to_string(),
+                        prerelease_version: String::new(),
+                    },
+                    prerelease_test_groups: vec![],
+                },
+                fetched_at: Instant::now(),
+            });
+        }
+
+        // Call get_version_status: should hit the fresh cache directly
+        let status = manager.get_version_status().await;
+        assert_eq!(status.tray.current_version, "2.0.0");
+        assert_eq!(status.tray.state, crate::models::UpdateState::UpToDate);
+        assert!(!status.has_updates);
+    }
+
+    #[test]
+    fn test_read_configured_manager_returns_option() {
+        let _ = read_configured_manager();
+    }
+
+    #[tokio::test]
+    async fn test_get_version_status_both_endpoints_fail() {
+        let dir = tempdir().unwrap();
+        let paths = make_test_paths(dir.path());
+        let config = Arc::new(Config {
+            version_url: "http://127.0.0.1:9/invalid".to_string(),
+            stable_version_url: "http://127.0.0.1:9/invalid".to_string(),
+            self_healing: false,
+            ..Config::default()
+        });
+
+        let provider = Box::new(TestProvider {
+            state: AgentState {
+                tray_version: "1.0.0".to_string(),
+                ..AgentState::default()
+            },
+        });
+        let manager = AgentManager::new_custom(config, Arc::new(paths), provider);
+        manager.state.write().await.tray_version = "1.0.0".to_string();
+
+        let status = manager.get_version_status().await;
+        assert_eq!(status.tray.latest_version, "Unknown");
+        assert_eq!(status.tray.current_version, "1.0.0");
+        assert_eq!(status.tray.state, crate::models::UpdateState::Unknown);
+        assert!(!status.has_updates);
+    }
+
+    // ── Mock HTTP helpers ─────────────────────────────────────────────────────
+
+    /// Minimal HTTP/1.1 server serving `/versions.json` and `/version.txt`.
+    /// A `None` body yields a 404 for that route.
+    async fn spawn_mock_server(
+        manifest: Option<&'static str>,
+        stable: Option<&'static str>,
+    ) -> String {
+        use tokio::io::AsyncReadExt;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            loop {
+                let Ok((mut sock, _)) = listener.accept().await else {
+                    break;
+                };
+                tokio::spawn(async move {
+                    let mut buf = vec![0u8; 4096];
+                    let n = sock.read(&mut buf).await.unwrap_or(0);
+                    let req = String::from_utf8_lossy(&buf[..n]);
+                    let body = if req.starts_with("GET /versions.json") {
+                        manifest
+                    } else if req.starts_with("GET /version.txt") {
+                        stable
+                    } else {
+                        None
+                    };
+                    let resp = match body {
+                        Some(b) => format!(
+                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                            b.len(),
+                            b
+                        ),
+                        None => "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                            .to_string(),
+                    };
+                    let _ = sock.write_all(resp.as_bytes()).await;
+                    let _ = sock.shutdown().await;
+                });
+            }
+        });
+        format!("http://{addr}")
+    }
+
+    fn manager_with(
+        base: &str,
+        tray_version: &str,
+        groups: Vec<String>,
+        dir: &std::path::Path,
+    ) -> AgentManager {
+        let config = Arc::new(Config {
+            version_url: format!("{base}/versions.json"),
+            stable_version_url: format!("{base}/version.txt"),
+            version_cache_ttl: Duration::from_secs(3600),
+            self_healing: false,
+            ..Config::default()
+        });
+        let state = AgentState {
+            tray_version: tray_version.to_string(),
+            groups,
+            ..AgentState::default()
+        };
+        let provider = Box::new(TestProvider {
+            state: state.clone(),
+        });
+        AgentManager::new_custom(config, Arc::new(make_test_paths(dir)), provider)
+    }
+
+    async fn set_local(manager: &AgentManager, tray_version: &str, groups: Vec<String>) {
+        let mut s = manager.state.write().await;
+        s.tray_version = tray_version.to_string();
+        s.groups = groups;
+    }
+
+    // ── get_version_status branches ──────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_get_version_status_manifest_outdated() {
+        let dir = tempdir().unwrap();
+        let base = spawn_mock_server(
+            Some(r#"{"framework":{"version":"2.0.0","prerelease_version":""}}"#),
+            Some("2.0.0\n"),
+        )
+        .await;
+        let manager = manager_with(&base, "1.0.0", vec![], dir.path());
+        set_local(&manager, "1.0.0", vec![]).await;
+
+        let status = manager.get_version_status().await;
+        assert_eq!(status.tray.state, crate::models::UpdateState::Outdated);
+        assert_eq!(status.tray.latest_version, "2.0.0");
+        assert!(status.has_updates);
+
+        // Second call hits the fresh cache
+        let cached = manager.get_version_status().await;
+        assert_eq!(cached.tray.state, crate::models::UpdateState::Outdated);
+
+        // Local version changes -> cache invalidated and recomputed
+        set_local(&manager, "2.0.0", vec![]).await;
+        let refreshed = manager.get_version_status().await;
+        assert_eq!(refreshed.tray.state, crate::models::UpdateState::UpToDate);
+        assert_eq!(refreshed.tray.current_version, "2.0.0");
+        assert!(!refreshed.has_updates);
+    }
+
+    #[tokio::test]
+    async fn test_get_version_status_manifest_prerelease() {
+        let dir = tempdir().unwrap();
+        let base = spawn_mock_server(
+            Some(
+                r#"{"framework":{"version":"1.0.0","prerelease_version":"1.1.0-rc1"},"prerelease_test_groups":["beta"]}"#,
+            ),
+            Some("1.0.0"),
+        )
+        .await;
+        let groups = vec!["Beta".to_string()];
+        let manager = manager_with(&base, "1.0.0", groups.clone(), dir.path());
+        set_local(&manager, "1.0.0", groups).await;
+
+        let status = manager.get_version_status().await;
+        assert_eq!(
+            status.tray.state,
+            crate::models::UpdateState::PrereleaseAvailable
+        );
+        assert_eq!(status.tray.latest_version, "1.1.0-rc1");
+        assert!(status.has_updates);
+    }
+
+    #[tokio::test]
+    async fn test_get_version_status_manifest_unknown_local() {
+        let dir = tempdir().unwrap();
+        // version.txt missing -> falls back to manifest framework.version
+        let base = spawn_mock_server(Some(r#"{"framework":{"version":"3.0.0"}}"#), None).await;
+        let manager = manager_with(&base, "Unknown", vec![], dir.path());
+        set_local(&manager, "Unknown", vec![]).await;
+
+        let status = manager.get_version_status().await;
+        assert_eq!(status.tray.state, crate::models::UpdateState::Unknown);
+        assert_eq!(status.tray.latest_version, "3.0.0");
+        assert!(!status.has_updates);
+    }
+
+    #[tokio::test]
+    async fn test_get_version_status_stable_only() {
+        let dir = tempdir().unwrap();
+        // versions.json 404 (no cache, so no fallback) -> plain version.txt path
+        let base = spawn_mock_server(None, Some("3.0.0")).await;
+        let manager = manager_with(&base, "2.0.0", vec![], dir.path());
+
+        set_local(&manager, "2.0.0", vec![]).await;
+        let status = manager.get_version_status().await;
+        assert_eq!(status.tray.state, crate::models::UpdateState::Outdated);
+        assert_eq!(status.tray.latest_version, "3.0.0");
+        assert!(status.has_updates);
+
+        set_local(&manager, "3.0.0", vec![]).await;
+        let status = manager.get_version_status().await;
+        assert_eq!(status.tray.state, crate::models::UpdateState::UpToDate);
+        assert!(!status.has_updates);
+    }
+
+    #[tokio::test]
+    async fn test_get_version_status_invalid_manifest_and_empty_stable() {
+        let dir = tempdir().unwrap();
+        // Malformed JSON manifest + blank version.txt -> both treated as unavailable
+        let base = spawn_mock_server(Some("not json"), Some("  \n")).await;
+        let manager = manager_with(&base, "1.0.0", vec![], dir.path());
+        set_local(&manager, "1.0.0", vec![]).await;
+
+        let status = manager.get_version_status().await;
+        assert_eq!(status.tray.state, crate::models::UpdateState::Unknown);
+        assert_eq!(status.tray.latest_version, "Unknown");
+        assert!(!status.has_updates);
+    }
+
+    #[tokio::test]
+    async fn test_check_and_auto_update_up_to_date() {
+        let dir = tempdir().unwrap();
+        let base =
+            spawn_mock_server(Some(r#"{"framework":{"version":"1.0.0"}}"#), Some("1.0.0")).await;
+        let manager = manager_with(&base, "1.0.0", vec![], dir.path());
+        set_local(&manager, "1.0.0", vec![]).await;
+
+        manager.check_and_auto_update().await;
+        // Guard must be released after returning
+        assert!(!manager.update_in_progress.load(Ordering::SeqCst));
+    }
+
+    // ── Polling loop ─────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_start_polling_broadcasts_state() {
+        let dir = tempdir().unwrap();
+        let base =
+            spawn_mock_server(Some(r#"{"framework":{"version":"1.2.0"}}"#), Some("1.2.0")).await;
+        let config = Arc::new(Config {
+            version_url: format!("{base}/versions.json"),
+            stable_version_url: format!("{base}/version.txt"),
+            poll_interval: Duration::from_millis(50),
+            auto_update_check_interval: Duration::from_secs(3600),
+            self_healing: false,
+            ..Config::default()
+        });
+        let provider = Box::new(TestProvider {
+            state: AgentState {
+                status: crate::models::AgentStatus::Active,
+                connection: crate::models::ConnectionStatus::Connected,
+                version: "4.8.0".to_string(),
+                tray_version: "1.2.0".to_string(),
+                ..AgentState::default()
+            },
+        });
+        let manager =
+            AgentManager::new_custom(config, Arc::new(make_test_paths(dir.path())), provider);
+        let mut sub = manager.subscribe();
+
+        let _ = tokio::time::timeout(Duration::from_millis(400), manager.start_polling()).await;
+
+        let update = sub
+            .try_recv()
+            .expect("polling should broadcast a state change");
+        assert_eq!(update.version, "4.8.0");
+        assert_eq!(update.tray_version, "1.2.0");
+        assert!(!update.self_healing_enabled);
+        assert_eq!(manager.get_state().await.version, "4.8.0");
+        assert!(!manager.update_in_progress.load(Ordering::SeqCst));
+    }
+
+    // ── Log streaming ────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_stream_logs_history_cap_and_live_tail() {
+        let dir = tempdir().unwrap();
+        let paths = make_test_paths(dir.path());
+        let mut file = std::fs::File::create(&paths.ossec_log).unwrap();
+        for i in 0..60 {
+            writeln!(file, "history line {i}").unwrap();
+        }
+        drop(file);
+
+        let provider = Box::new(TestProvider {
+            state: AgentState::default(),
+        });
+        let manager = AgentManager::new_custom(
+            Arc::new(Config::default()),
+            Arc::new(paths.clone()),
+            provider,
+        );
+
+        let mut rx = manager.stream_logs().await;
+        // Only the last 50 lines are replayed
+        let first = rx.recv().await.unwrap();
+        assert!(first.raw.contains("history line 10"));
+        for _ in 0..49 {
+            rx.recv().await.unwrap();
+        }
+
+        // Give the tailer time to seek to EOF, then append a live line
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&paths.ossec_log)
+            .unwrap();
+        writeln!(file, "live line").unwrap();
+        drop(file);
+
+        let live = tokio::time::timeout(Duration::from_secs(3), rx.recv())
+            .await
+            .expect("live line should arrive")
+            .unwrap();
+        assert!(live.raw.contains("live line"));
+    }
+}

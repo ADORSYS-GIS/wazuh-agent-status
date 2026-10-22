@@ -32,3 +32,28 @@ fn test_extract_groups_single() -> std::io::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_extract_groups_edge_cases() -> std::io::Result<()> {
+    let mut tmp_file = NamedTempFile::new()?;
+    // Empty comment
+    writeln!(tmp_file, "#")?;
+    writeln!(tmp_file, "#   ")?;
+    // Actual first group
+    writeln!(tmp_file, "# first_valid_group")?;
+    // Empty lines
+    writeln!(tmp_file, "")?;
+    writeln!(tmp_file, "   ")?;
+    // Source file with and without --> suffix, and without slash
+    writeln!(tmp_file, "# Source file: test_no_arrow/conf.xml")?;
+    writeln!(tmp_file, "# Source file: invalid_no_slash")?;
+    writeln!(tmp_file, "# Source file: /leading_slash_empty_group")?;
+
+    let groups = extract_groups(tmp_file.path())?;
+    assert_eq!(groups, vec!["first_valid_group", "test_no_arrow"]);
+
+    // Non-existent file
+    assert!(extract_groups("/non/existent/path/merged.mg").is_err());
+
+    Ok(())
+}

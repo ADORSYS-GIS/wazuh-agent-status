@@ -322,4 +322,86 @@ mod tests {
             }
         }
     }
+
+    #[tokio::test]
+    async fn test_download_logs_success() {
+        if let Some(_dest_dir) = dirs::download_dir() {
+            let res = download_logs(
+                "hello world\n".to_string(),
+                "sample_test_download.log".to_string(),
+            )
+            .await;
+            if let Ok(path) = res {
+                let p = std::path::PathBuf::from(&path);
+                assert!(p.exists());
+                let _ = tokio::fs::remove_file(p).await;
+            }
+        }
+    }
+
+    #[test]
+    fn test_generate_nonce() {
+        let n1 = generate_nonce();
+        let n2 = generate_nonce();
+        assert!(!n1.is_empty());
+        assert!(!n2.is_empty());
+        assert_ne!(n1, n2);
+    }
+
+    #[test]
+    fn test_compute_hmac_proof() {
+        let key = "secret-agent-key";
+        let agent_id = "007";
+        let timestamp = 1700000000;
+        let nonce = "test-nonce-123";
+
+        let proof1 = compute_hmac_proof(key, agent_id, timestamp, nonce);
+        let proof2 = compute_hmac_proof(key, agent_id, timestamp, nonce);
+        assert_eq!(proof1, proof2);
+        assert_eq!(proof1.len(), 64); // SHA256 hex string
+
+        // Changing key alters proof
+        let proof_diff = compute_hmac_proof("other-key", agent_id, timestamp, nonce);
+        assert_ne!(proof1, proof_diff);
+    }
+
+    #[test]
+    fn test_gateway_http_client_creation() {
+        assert!(gateway_http_client().is_ok());
+    }
+
+    #[test]
+    fn test_compliance_report_serde() {
+        let report = ComplianceReport {
+            agent_id: "001".to_string(),
+            agent_name: "test-agent".to_string(),
+            os: "linux".to_string(),
+            score: 85,
+            compliance_status: "passed".to_string(),
+            total_passed_count: 10,
+            total_failed_count: 2,
+            total_untested_count: 0,
+            categories: vec![ComplianceCategory {
+                name: "System".to_string(),
+                status: "passed".to_string(),
+                passed_count: 10,
+                failed_count: 2,
+                untested_count: 0,
+                checks: vec![ComplianceCheckResult {
+                    check_id: 1001,
+                    title: "Check SSH".to_string(),
+                    status: "passed".to_string(),
+                    mandatory: true,
+                    remediation: "None".to_string(),
+                }],
+            }],
+        };
+
+        let json = serde_json::to_string(&report).unwrap();
+        let deserialized: ComplianceReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.agent_id, "001");
+        assert_eq!(deserialized.score, 85);
+        assert_eq!(deserialized.categories.len(), 1);
+        assert_eq!(deserialized.categories[0].checks[0].check_id, 1001);
+    }
 }

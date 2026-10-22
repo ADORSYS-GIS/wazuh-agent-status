@@ -11,11 +11,66 @@ permissions:
   contents: read
 
 jobs:
+  coverage:
+    name: Rust Coverage
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: 0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          workspaces: |
+            wazuh-agent-status-rust-server
+            wazuh-agent-status-rust-client/src-tauri
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@d9be7d8cda89035c9c843f78bd44d4f72d8403d4
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Install Linux system dependencies (Client)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsoup-3.0-dev \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev
+
+      - name: Generate coverage (Server)
+        run: cargo llvm-cov --manifest-path wazuh-agent-status-rust-server/Cargo.toml --lcov --output-path lcov-server.info
+
+      - name: Generate coverage (Client)
+        run: cargo llvm-cov --manifest-path wazuh-agent-status-rust-client/src-tauri/Cargo.toml --lcov --output-path lcov-client.info
+
+      - name: Merge LCOV reports
+        run: cat lcov-server.info lcov-client.info > lcov.info
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage
+          path: lcov.info
+          retention-days: 1
+
   scan:
-    uses: ADORSYS-GIS/adorsys-ci-cd-templates/.github/workflows/sonarqube.yml@1566ed0da26bd29f41625655dd7171a5464762fd
+    needs: [coverage]
+    uses: ADORSYS-GIS/adorsys-ci-cd-templates/.github/workflows/sonarqube.yml@8617a17cfc5f5a8897c2a3806bb543c20b4b57e0
     with:
       project-key: wazuh-agent-status
       exclusions: "**/target/**,**/node_modules/**,**/dist/**,**/coverage/**"
+      rust-coverage-report-paths: lcov.info
+      coverage-artifact-name: rust-coverage
     secrets:
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
