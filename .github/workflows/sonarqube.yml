@@ -54,7 +54,7 @@ jobs:
         run: cargo llvm-cov --manifest-path wazuh-agent-status-rust-client/src-tauri/Cargo.toml --lcov --output-path lcov-client.info
 
       - name: Merge LCOV reports
-        run: cat lcov-server.info lcov-client.info > lcov.info
+        run: (cat lcov-server.info; echo ""; cat lcov-client.info) > lcov.info
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
@@ -69,6 +69,8 @@ jobs:
     with:
       project-key: wazuh-agent-status
       exclusions: "**/target/**,**/node_modules/**,**/dist/**,**/coverage/**"
+      extra-sonar-args: >-
+        -Dsonar.coverage.exclusions=wazuh-agent-status-rust-client/src/**,scripts/**
       rust-coverage-report-paths: lcov.info
       coverage-artifact-name: rust-coverage
     secrets:

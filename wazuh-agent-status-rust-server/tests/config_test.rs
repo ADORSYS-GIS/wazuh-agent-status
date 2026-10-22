@@ -109,6 +109,26 @@ fn test_config_env_behavior() {
             .contains("ossec.log")
     );
 
+    // Test log_file_path default and override
+    let log_path_default = wazuh_agent_status_rust_server::config::AgentPaths::log_file_path();
+    assert!(log_path_default.to_string_lossy().contains("wazuh-agent-status.log"));
+
+    unsafe {
+        std::env::set_var("WAZUH_STATUS_LOG_FILE", "/tmp/custom-status.log");
+    }
+    let log_path_custom = wazuh_agent_status_rust_server::config::AgentPaths::log_file_path();
+    assert_eq!(log_path_custom, std::path::PathBuf::from("/tmp/custom-status.log"));
+    unsafe {
+        std::env::remove_var("WAZUH_STATUS_LOG_FILE");
+    }
+
+    // Test non-localhost warning branch
+    unsafe {
+        std::env::set_var("WAZUH_STATUS_ADDR", "0.0.0.0:50505");
+    }
+    let cfg_public = Config::from_env();
+    assert_eq!(cfg_public.listen_addr, "0.0.0.0:50505");
+
     // Cleanup
     unsafe {
         std::env::remove_var("WAZUH_STATUS_ADDR");

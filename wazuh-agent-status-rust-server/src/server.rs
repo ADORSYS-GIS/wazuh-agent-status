@@ -412,4 +412,23 @@ mod tests {
 
         handle.abort();
     }
+
+    #[tokio::test]
+    async fn test_handle_log_stream() {
+        let dir = tempdir().unwrap();
+        let paths = test_paths(dir.path());
+        let provider = Box::new(FixedProvider(AgentState::default()));
+        let manager = Arc::new(AgentManager::new_custom(
+            Arc::new(Config::default()),
+            Arc::new(paths),
+            provider,
+        ));
+
+        let mut buf = Vec::new();
+        let res = handle_log_stream(&mut buf, &manager).await;
+        assert!(res.is_ok());
+        let out = String::from_utf8_lossy(&buf);
+        assert!(out.contains("LOG_LINE: "));
+        assert!(out.contains("Log file not found"));
+    }
 }

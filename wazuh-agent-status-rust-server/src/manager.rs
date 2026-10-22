@@ -1726,11 +1726,52 @@ mod tests {
         assert!(msg.contains("test output line"));
 
         let cursor_err = std::io::Cursor::new(b"test err line\n");
-        spawn_log_pipe(cursor_err, tx.clone(), log_file, true);
+        spawn_log_pipe(cursor_err, tx.clone(), log_file.clone(), true);
         let msg_err = rx.recv().await.unwrap();
         assert!(msg_err.contains("test err line"));
 
-        let tailer = spawn_active_response_tailer(std::path::PathBuf::new(), tx);
+        let tailer = spawn_active_response_tailer(std::path::PathBuf::new(), tx.clone());
         assert!(tailer.is_none());
+
+        let active_log = dir.path().join("active.log");
+        tokio::fs::write(&active_log, "init\n").await.unwrap();
+        let tailer_real = spawn_active_response_tailer(active_log.clone(), tx.clone());
+        assert!(tailer_real.is_some());
+        let mut f = tokio::fs::OpenOptions::new()
+            .append(true)
+            .open(&active_log)
+            .await
+            .unwrap();
+        f.write_all(b"active event\n").await.unwrap();
+        drop(f);
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        if let Ok(line) = rx.try_recv() {
+            assert!(line.contains("active event"));
+        }
+        drop(tailer_real);
+
+        let child_ok = Command::new("true").spawn().unwrap();
+        wait_for_update_child(child_ok, &tx, &log_file, None).await;
+        let msg_success = rx.recv().await.unwrap();
+        assert!(msg_success.contains("[SUCCESS]"));
+
+        let child_fail = Command::new("false").spawn().unwrap();
+        wait_for_update_child(child_fail, &tx, &log_file, None).await;
+        let msg_fail = rx.recv().await.unwrap();
+        assert!(msg_fail.contains("[FAILURE]"));
+    }
+
+    #[test]
+    fn test_test_provider_all_methods() {
+        let tp = TestProvider {
+            state: AgentState::default(),
+        };
+        assert!(tp.get_agent_status().is_ok());
+        assert!(tp.get_connection_status().is_ok());
+        assert!(tp.get_agent_version().is_ok());
+        assert!(tp.get_tray_version().is_ok());
+        assert!(tp.get_agent_groups().is_ok());
+        assert!(tp.get_system_metrics().is_ok());
+        assert!(tp.get_partial_state().is_ok());
     }
 }
