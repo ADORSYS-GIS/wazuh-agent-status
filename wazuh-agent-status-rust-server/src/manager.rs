@@ -1705,4 +1705,32 @@ mod tests {
             .unwrap();
         assert!(live.raw.contains("live line"));
     }
+
+    #[tokio::test]
+    async fn test_update_helpers() {
+        let (tx, mut rx) = mpsc::channel(10);
+        let dir = tempdir().unwrap();
+        let paths = make_test_paths(dir.path());
+
+        let script = prepare_standard_script(&paths, &tx).await;
+        assert!(script.is_some());
+
+        let p = std::path::Path::new("/bin/true");
+        let _cmd1 = build_update_command(p, false, None, None).await;
+        let _cmd2 = build_update_command(p, true, Some("v1.2.3"), Some("10.0.0.1")).await;
+
+        let log_file = dir.path().join("update.log");
+        let cursor = std::io::Cursor::new(b"test output line\n");
+        spawn_log_pipe(cursor, tx.clone(), log_file.clone(), false);
+        let msg = rx.recv().await.unwrap();
+        assert!(msg.contains("test output line"));
+
+        let cursor_err = std::io::Cursor::new(b"test err line\n");
+        spawn_log_pipe(cursor_err, tx.clone(), log_file, true);
+        let msg_err = rx.recv().await.unwrap();
+        assert!(msg_err.contains("test err line"));
+
+        let tailer = spawn_active_response_tailer(std::path::PathBuf::new(), tx);
+        assert!(tailer.is_none());
+    }
 }
