@@ -215,26 +215,36 @@ mod tests {
 
     #[test]
     fn test_get_status_icon_all_branches() {
-        let mut state = AgentState::default();
-
-        state.status = AgentStatus::Active;
-        state.connection = ConnectionStatus::Connected;
-        let icon_active = get_status_icon(&state);
+        let state_active = AgentState {
+            status: AgentStatus::Active,
+            connection: ConnectionStatus::Connected,
+            ..Default::default()
+        };
+        let icon_active = get_status_icon(&state_active);
         assert_eq!(icon_active.width(), 32);
 
-        state.status = AgentStatus::Inactive;
-        state.connection = ConnectionStatus::Disconnected;
-        let icon_inactive = get_status_icon(&state);
+        let state_inactive = AgentState {
+            status: AgentStatus::Inactive,
+            connection: ConnectionStatus::Disconnected,
+            ..Default::default()
+        };
+        let icon_inactive = get_status_icon(&state_inactive);
         assert_eq!(icon_inactive.width(), 32);
 
-        state.status = AgentStatus::Unknown;
-        state.connection = ConnectionStatus::Unknown;
-        let icon_unknown = get_status_icon(&state);
+        let state_unknown = AgentState {
+            status: AgentStatus::Unknown,
+            connection: ConnectionStatus::Unknown,
+            ..Default::default()
+        };
+        let icon_unknown = get_status_icon(&state_unknown);
         assert_eq!(icon_unknown.width(), 32);
 
-        state.status = AgentStatus::Active;
-        state.connection = ConnectionStatus::Disconnected;
-        let icon_disc = get_status_icon(&state);
+        let state_disc = AgentState {
+            status: AgentStatus::Active,
+            connection: ConnectionStatus::Disconnected,
+            ..Default::default()
+        };
+        let icon_disc = get_status_icon(&state_disc);
         assert_eq!(icon_disc.width(), 32);
     }
 }
