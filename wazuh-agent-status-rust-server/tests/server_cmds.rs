@@ -77,9 +77,50 @@ async fn test_server_subscribe_logs() {
     // The stream closes after the error line since the log file doesn't exist in tests
 }
 
+#[tokio::test]
+async fn test_server_get_version() {
+    let (_manager, addr) = setup_test_server().await;
+
+    let mut stream = TcpStream::connect(&addr).await.unwrap();
+    stream.write_all(b"get-version\n").await.unwrap();
+
+    let mut reader = BufReader::new(&mut stream).lines();
+    let line = reader.next_line().await.unwrap().unwrap();
+    assert!(line.starts_with("VERSION_CHECK: "));
+}
+
+#[tokio::test]
+async fn test_server_subscribe_status() {
+    let (_manager, addr) = setup_test_server().await;
+
+    let mut stream = TcpStream::connect(&addr).await.unwrap();
+    stream.write_all(b"subscribe-status\n").await.unwrap();
+
+    let mut reader = BufReader::new(&mut stream).lines();
+    let initial_line = reader.next_line().await.unwrap().unwrap();
+    assert!(initial_line.starts_with("STATUS_UPDATE: "));
+
+    drop(stream); // Disconnect client cleanly
+}
+
+#[tokio::test]
+async fn test_server_empty_line_and_spaces() {
+    let (_manager, addr) = setup_test_server().await;
+
+    let mut stream = TcpStream::connect(&addr).await.unwrap();
+    stream.write_all(b"   \n\nget-version\n").await.unwrap();
+
+    let mut reader = BufReader::new(&mut stream).lines();
+    let line = reader.next_line().await.unwrap().unwrap();
+    assert!(line.starts_with("VERSION_CHECK: "));
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async fn setup_test_server() -> (Arc<AgentManager>, String) {
+    unsafe {
+        std::env::set_var("WAZUH_TEST_MODE", "1");
+    }
     // Find a free port by binding to 0
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
@@ -94,6 +135,8 @@ async fn setup_test_server() -> (Arc<AgentManager>, String) {
     let config = Arc::new(Config {
         listen_addr: addr_str.clone(),
         max_connections: 20,
+        self_healing: false,
+        poll_interval: Duration::from_millis(50),
         ..Config::default()
     });
     let paths = Arc::new(AgentPaths::native());

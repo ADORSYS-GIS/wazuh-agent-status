@@ -1697,7 +1697,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(168, 85, 247, 0.1);
+  background: #1e1b4b;
   color: #c4b5fd;
   border: 1px solid rgba(168, 85, 247, 0.2);
   display: flex;
@@ -2127,7 +2127,7 @@ body {
   gap: 5px;
   margin-top: 6px;
   padding: 4px 10px;
-  background: rgba(168, 85, 247, 0.1);
+  background: #1e1b4b;
   border: 1px solid rgba(168, 85, 247, 0.2);
   color: #c4b5fd;
   border-radius: 6px;
@@ -2138,7 +2138,7 @@ body {
   font-family: inherit;
 }
 .ai-fix-btn:hover {
-  background: rgba(168, 85, 247, 0.2);
+  background: #312e81;
   border-color: rgba(168, 85, 247, 0.35);
   transform: translateY(-1px);
 }
@@ -3155,7 +3155,7 @@ body {
   font-size: 16px;
 }
 .error-boundary-card {
-  background: rgba(244, 63, 94, 0.1);
+  background: #4c0519;
   border: 1px solid rgba(244, 63, 94, 0.2);
   border-radius: 8px;
   padding: 12px;
@@ -3176,7 +3176,7 @@ body {
 .error-boundary-reload {
   background: linear-gradient(135deg, #00aaff, #38bdf8);
   border: none;
-  color: white;
+  color: #0b1120;
   padding: 10px 20px;
   border-radius: 8px;
   font-size: 13px;
@@ -3198,12 +3198,12 @@ body {
   align-items: center;
 }
 .self-healing-badge.active {
-  background: rgba(34, 197, 94, 0.15);
+  background: #052e16;
   color: #86efac;
   border: 1px solid rgba(34, 197, 94, 0.2);
 }
 .self-healing-badge.disabled {
-  background: rgba(234, 88, 12, 0.2);
+  background: #451a03;
   color: #fde68a;
   border: 1px solid rgba(234, 88, 12, 0.3);
 }

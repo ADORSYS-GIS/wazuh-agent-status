@@ -178,3 +178,110 @@ pub(crate) fn collect_unix_system_metrics(sys: &System) -> SystemMetrics {
         agentd_found,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    fn make_test_paths(dir: &std::path::Path) -> AgentPaths {
+        AgentPaths {
+            merged_mg: dir.join("merged.mg"),
+            state_file: dir.join("wazuh-agentd.state"),
+            version_json: dir.join("version.json"),
+            version_file: dir.join("version.txt"),
+            pid_file: dir.join("wazuh-agentd.pid"),
+            update_script: dir.join("update.sh"),
+            wazuh_control: dir.join("wazuh-control"),
+            ossec_log: dir.join("ossec.log"),
+            client_keys: dir.join("client.keys"),
+            active_response_log: dir.join("active-responses.log"),
+        }
+    }
+
+    #[test]
+    fn test_unix_status_provider_versions() {
+        let dir = tempdir().unwrap();
+        let paths = make_test_paths(dir.path());
+
+        let provider = UnixStatusProvider::new(paths.clone());
+
+        // Initial: files don't exist
+        assert_eq!(provider.get_agent_version().unwrap(), "Unknown");
+        assert_eq!(provider.get_tray_version().unwrap(), "Unknown");
+
+        // Write valid version.json
+        let mut vj = fs::File::create(&paths.version_json).unwrap();
+        writeln!(vj, r#"{{"version": "5.0.1"}}"#).unwrap();
+        drop(vj);
+        assert_eq!(provider.get_agent_version().unwrap(), "5.0.1");
+
+        // Write version.json without version key
+        let mut vj_bad = fs::File::create(&paths.version_json).unwrap();
+        writeln!(vj_bad, r#"{{"status": "ok"}}"#).unwrap();
+        drop(vj_bad);
+        assert_eq!(provider.get_agent_version().unwrap(), "Unknown");
+
+        // Write invalid json
+        let mut vj_invalid = fs::File::create(&paths.version_json).unwrap();
+        writeln!(vj_invalid, "not-json").unwrap();
+        drop(vj_invalid);
+        assert_eq!(provider.get_agent_version().unwrap(), "Unknown");
+
+        // Write tray version
+        let mut vt = fs::File::create(&paths.version_file).unwrap();
+        writeln!(vt, "  1.4.2\n").unwrap();
+        drop(vt);
+        assert_eq!(provider.get_tray_version().unwrap(), "1.4.2");
+    }
+
+    #[test]
+    fn test_unix_status_provider_paths_and_groups() {
+        let dir = tempdir().unwrap();
+        let paths = make_test_paths(dir.path());
+        let provider = UnixStatusProvider::new(paths.clone());
+
+        assert_eq!(
+            provider.get_state_file_path(),
+            Some(paths.state_file.as_path())
+        );
+        // merged.mg missing -> empty groups
+        assert!(provider.get_agent_groups().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_unix_status_provider_metrics_and_status() {
+        let dir = tempdir().unwrap();
+        let paths = make_test_paths(dir.path());
+        let provider = UnixStatusProvider::new(paths);
+
+        // System metrics should return without error
+        let metrics = provider.get_system_metrics().unwrap();
+        assert!(metrics.total_memory > 0);
+
+        // Agent status check (wazuh-agentd is likely not running in test runner)
+        let _ = provider.get_agent_status();
+        let _ = provider.get_connection_status();
+    }
+
+    #[test]
+    fn test_collect_unix_system_metrics_empty() {
+        let sys = System::new();
+        let metrics = collect_unix_system_metrics(&sys);
+        assert_eq!(metrics.cpu_usage, 0.0);
+        assert_eq!(metrics.used_memory, 0);
+        assert!(!metrics.agent_found);
+        assert!(!metrics.agentd_found);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_is_thread() {
+        // Current process PID should not be a thread of another process
+        let pid = std::process::id();
+        assert!(!is_thread(pid));
+        // Non-existent PID should return false
+        assert!(!is_thread(9999999));
+    }
+}

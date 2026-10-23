@@ -260,3 +260,141 @@ async fn run_sync_loop(
     log::warn!("Server closed status stream for {}", addr);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn test_agent_state_defaults() {
+        let state = AgentState::default();
+        assert!(matches!(state.status, AgentStatus::Unknown));
+        assert!(matches!(state.connection, ConnectionStatus::Unknown));
+        assert_eq!(state.version, "Unknown");
+        assert_eq!(state.tray_version, "Unknown");
+        assert!(state.self_healing_enabled);
+        assert!(state.groups.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_run_sync_loop_and_receive_state() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap().to_string();
+
+        let (state_tx, state_rx) = tokio::sync::watch::channel(AgentState::default());
+
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let (reader, mut writer) = socket.split();
+            let mut reader = BufReader::new(reader);
+            let mut cmd = String::new();
+            let _ = reader.read_line(&mut cmd).await;
+            assert_eq!(cmd.trim(), "subscribe-status");
+
+            let json = r#"{"status":"Active","connection":"Connected","version":"4.8.0","tray_version":"1.2.0","groups":[],"metrics":{"cpu_usage":0.0,"memory_usage":0.0,"total_memory":0,"used_memory":0},"self_healing_enabled":true,"agent_id":"001","agent_name":"test","agent_key":"test_key"}"#;
+            let msg = format!("STATUS_UPDATE: {json}\n");
+            let _ = writer.write_all(msg.as_bytes()).await;
+            let _ = writer.flush().await;
+        });
+
+        // Run sync loop - will exit once the mock server finishes
+        let _ = run_sync_loop(addr, state_tx).await;
+        let current = state_rx.borrow().clone();
+        assert!(matches!(current.status, AgentStatus::Active));
+        assert!(matches!(current.connection, ConnectionStatus::Connected));
+        assert_eq!(current.version, "4.8.0");
+    }
+
+    #[tokio::test]
+    async fn test_check_updates_and_run_update() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap().to_string();
+
+        let manager = AgentManager {
+            state_rx: tokio::sync::watch::channel(AgentState::default()).1,
+            server_addr: addr.clone(),
+        };
+
+        tokio::spawn(async move {
+            loop {
+                let Ok((mut socket, _)) = listener.accept().await else {
+                    break;
+                };
+                tokio::spawn(async move {
+                    let (reader, mut writer) = socket.split();
+                    let mut reader = BufReader::new(reader);
+                    let mut cmd = String::new();
+                    if reader.read_line(&mut cmd).await.is_ok() {
+                        let trimmed = cmd.trim();
+                        if trimmed == "get-version" {
+                            let resp = "VERSION_CHECK: {\"has_updates\": true}\n";
+                            let _ = writer.write_all(resp.as_bytes()).await;
+                        } else if trimmed == "update" || trimmed == "update-prerelease" {
+                            let _ = writer
+                                .write_all(b"UPDATE_PROGRESS: [STATUS] Downloading...\n")
+                                .await;
+                            let _ = writer
+                                .write_all(b"UPDATE_PROGRESS: [SUCCESS] Updated\n")
+                                .await;
+                        } else if trimmed == "subscribe-logs" {
+                            let _ = writer
+                                .write_all(b"LOG_LINE: {\"raw\": \"test line\"}\n")
+                                .await;
+                        }
+                    }
+                });
+            }
+        });
+
+        // 1. check_updates
+        let updates = manager.check_updates().await.unwrap();
+        assert_eq!(
+            updates.get("has_updates").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+
+        // 2. run_update (stable)
+        let mut rx = manager.run_update(false).await.unwrap();
+        let l1 = rx.recv().await.unwrap();
+        assert!(l1.contains("Downloading"));
+
+        // 3. run_update (prerelease)
+        let mut rx_pre = manager.run_update(true).await.unwrap();
+        let l2 = rx_pre.recv().await.unwrap();
+        assert!(l2.contains("Downloading"));
+
+        // 4. stream_logs
+        let mut log_rx = manager.stream_logs().await.unwrap();
+        let log_msg = log_rx.recv().await.unwrap();
+        assert!(log_msg.contains("test line"));
+
+        // 5. get_state and subscribe
+        let st = manager.get_state();
+        assert_eq!(st.version, "Unknown");
+        let _sub = manager.subscribe();
+    }
+
+    #[tokio::test]
+    async fn test_agent_manager_new_and_disconnects() {
+        let mgr = AgentManager::new("127.0.0.1:1".to_string());
+        assert!(matches!(mgr.get_state().status, AgentStatus::Unknown));
+        assert_eq!(mgr.get_state().version, "Unknown");
+        let _sub = mgr.subscribe();
+
+        // 1. check_updates connection failure
+        let res = mgr.check_updates().await;
+        assert!(res.is_err());
+
+        // 2. run_update connection failure
+        let mut rx = mgr.run_update(false).await.unwrap();
+        let msg = rx.recv().await.unwrap();
+        assert!(msg.contains("[FAILURE] Failed to connect to server"));
+
+        // 3. stream_logs connection failure
+        let mut log_rx = mgr.stream_logs().await.unwrap();
+        let log_msg = log_rx.recv().await.unwrap();
+        assert!(log_msg.contains("[ERROR] Failed to connect to server for logs"));
+    }
+}
