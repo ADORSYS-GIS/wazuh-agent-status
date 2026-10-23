@@ -683,11 +683,17 @@ async fn save_setup_script(tmp_script: &std::path::Path, bytes: &[u8]) -> std::i
     if cfg!(target_os = "windows") {
         tokio::fs::write(tmp_script, bytes).await
     } else {
-        let cmd_str = format!("cat > {}", tmp_script.display());
+        // Direct write if possible; fall back to elevated shell if permissions require it
+        if tokio::fs::write(tmp_script, bytes).await.is_ok() {
+            return Ok(());
+        }
+
         let mut cmd = Command::new("sudo");
         cmd.arg("sh")
             .arg("-c")
-            .arg(&cmd_str)
+            .arg("cat > \"$1\"")
+            .arg("_")
+            .arg(tmp_script)
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(Stdio::piped());
@@ -763,11 +769,28 @@ async fn download_prerelease_script(
 
     // Make executable on Unix
     if !cfg!(target_os = "windows") {
-        let _ = Command::new("chmod")
+        match Command::new("chmod")
             .arg("+x")
             .arg(&tmp_script)
             .status()
-            .await;
+            .await
+        {
+            Ok(status) if !status.success() => {
+                warn!(
+                    status = %status,
+                    path = %tmp_script.display(),
+                    "chmod +x failed on setup script"
+                );
+            }
+            Err(e) => {
+                warn!(
+                    error = %e,
+                    path = %tmp_script.display(),
+                    "Failed to execute chmod on setup script"
+                );
+            }
+            _ => {}
+        }
     }
 
     info!(script = %tmp_script.display(), "Executing prerelease setup script");
@@ -1759,6 +1782,17 @@ mod tests {
         wait_for_update_child(child_fail, &tx, &log_file, None).await;
         let msg_fail = rx.recv().await.unwrap();
         assert!(msg_fail.contains("[FAILURE]"));
+
+        let test_script = dir.path().join("setup.sh");
+        assert!(
+            save_setup_script(&test_script, b"#!/bin/sh\necho ok")
+                .await
+                .is_ok()
+        );
+        assert_eq!(
+            tokio::fs::read(&test_script).await.unwrap(),
+            b"#!/bin/sh\necho ok"
+        );
     }
 
     #[test]

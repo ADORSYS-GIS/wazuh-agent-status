@@ -91,7 +91,7 @@ async fn test_server_get_version() {
 
 #[tokio::test]
 async fn test_server_subscribe_status() {
-    let (manager, addr) = setup_test_server().await;
+    let (_manager, addr) = setup_test_server().await;
 
     let mut stream = TcpStream::connect(&addr).await.unwrap();
     stream.write_all(b"subscribe-status\n").await.unwrap();
@@ -100,10 +100,6 @@ async fn test_server_subscribe_status() {
     let initial_line = reader.next_line().await.unwrap().unwrap();
     assert!(initial_line.starts_with("STATUS_UPDATE: "));
 
-    // Trigger state change broadcast from manager
-    let mut new_state = manager.get_state().await;
-    new_state.version = "9.9.9".to_string();
-    let _ = manager.subscribe(); // ensure channel active
     drop(stream); // Disconnect client cleanly
 }
 
@@ -140,6 +136,7 @@ async fn setup_test_server() -> (Arc<AgentManager>, String) {
         listen_addr: addr_str.clone(),
         max_connections: 20,
         self_healing: false,
+        poll_interval: Duration::from_millis(50),
         ..Config::default()
     });
     let paths = Arc::new(AgentPaths::native());

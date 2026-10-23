@@ -65,7 +65,7 @@ jobs:
 
   scan:
     needs: [coverage]
-    uses: ADORSYS-GIS/adorsys-ci-cd-templates/.github/workflows/sonarqube.yml@8617a17cfc5f5a8897c2a3806bb543c20b4b57e0
+    uses: ADORSYS-GIS/adorsys-ci-cd-templates/.github/workflows/sonarqube.yml@7ff1bbd8ae9b1ee58cd195ff80b95c03b7787205
     with:
       project-key: wazuh-agent-status
       exclusions: "**/target/**,**/node_modules/**,**/dist/**,**/coverage/**"
