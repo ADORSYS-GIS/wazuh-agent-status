@@ -112,3 +112,64 @@ impl AppConfig {
         Ok(config)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_from_path_valid() {
+        let temp_path = std::env::temp_dir().join("test_app_config.json");
+        let json = r##"{
+            "server_addr": "127.0.0.1:9099",
+            "gateway_url": "https://gateway.example.com",
+            "brand": {
+                "name": "Wazuh Agent",
+                "company": "Adorsys",
+                "logo_path": "/icons/logo.png",
+                "theme": {
+                    "primary_color": "#0055ff",
+                    "secondary_color": "#ffffff",
+                    "dark_mode": true
+                }
+            },
+            "features": {
+                "self_healing": true,
+                "log_streaming": true,
+                "os_updates_check": false
+            }
+        }"##;
+        std::fs::write(&temp_path, json).unwrap();
+
+        let cfg = AppConfig::load_from_path(temp_path.clone()).unwrap();
+        assert_eq!(cfg.server_addr, "127.0.0.1:9099");
+        assert_eq!(cfg.gateway_url, "https://gateway.example.com");
+        assert_eq!(cfg.brand.name, "Wazuh Agent");
+        assert!(cfg.brand.theme.dark_mode);
+        assert!(cfg.features.self_healing);
+        assert!(!cfg.features.os_updates_check);
+
+        let _ = std::fs::remove_file(temp_path);
+    }
+
+    #[test]
+    fn test_load_from_path_missing_and_invalid() {
+        let missing = std::path::PathBuf::from("/non/existent/path/config.json");
+        assert!(AppConfig::load_from_path(missing).is_err());
+
+        let invalid_path = std::env::temp_dir().join("test_invalid_app_config.json");
+        std::fs::write(&invalid_path, b"not json").unwrap();
+        assert!(AppConfig::load_from_path(invalid_path.clone()).is_err());
+        let _ = std::fs::remove_file(invalid_path);
+    }
+
+    #[test]
+    fn test_embedded_app_config_validity() {
+        let embedded = include_str!("../app_config.json");
+        let parsed: AppConfig = serde_json::from_str(embedded).unwrap();
+        assert!(!parsed.server_addr.is_empty());
+        assert!(!parsed.gateway_url.is_empty());
+        assert!(!parsed.brand.name.is_empty());
+        assert!(!parsed.brand.theme.primary_color.is_empty());
+    }
+}

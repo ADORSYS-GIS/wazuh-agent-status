@@ -86,3 +86,77 @@ fn test_system_metrics_agentd_found_default() {
     assert!(!metrics.agentd_found);
     assert!(metrics.agent_found);
 }
+
+#[test]
+fn test_log_line_levels() {
+    use wazuh_agent_status_rust_server::models::{LogLevel, LogLine};
+
+    assert_eq!(
+        LogLine::from_raw("CRITICAL: disc full".into()).level,
+        LogLevel::Error
+    );
+    assert_eq!(
+        LogLine::from_raw("FATAL error".into()).level,
+        LogLevel::Error
+    );
+    assert_eq!(
+        LogLine::from_raw("ERROR: connection lost".into()).level,
+        LogLevel::Error
+    );
+    assert_eq!(
+        LogLine::from_raw("WARNING: slow response".into()).level,
+        LogLevel::Warning
+    );
+    assert_eq!(
+        LogLine::from_raw("WARN: high load".into()).level,
+        LogLevel::Warning
+    );
+    assert_eq!(
+        LogLine::from_raw("DEBUG: tracing id 1".into()).level,
+        LogLevel::Debug
+    );
+    assert_eq!(
+        LogLine::from_raw("INFO: service started".into()).level,
+        LogLevel::Info
+    );
+    assert_eq!(
+        LogLine::from_raw("some regular output".into()).level,
+        LogLevel::Unknown
+    );
+}
+
+#[test]
+fn test_update_status_and_version_info_models() {
+    use wazuh_agent_status_rust_server::models::{
+        ComponentUpdate, FrameworkVersion, UpdateState, UpdateStatus, VersionInfo,
+    };
+
+    let status = UpdateStatus {
+        tray: ComponentUpdate {
+            name: "Wazuh Setup".into(),
+            current_version: "1.0.0".into(),
+            latest_version: "1.1.0".into(),
+            state: UpdateState::PrereleaseAvailable,
+            can_update: true,
+        },
+        has_updates: true,
+    };
+
+    let json = serde_json::to_string(&status).unwrap();
+    assert!(json.contains("prereleaseavailable"));
+    let parsed: UpdateStatus = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.tray.state, UpdateState::PrereleaseAvailable);
+    assert!(parsed.has_updates);
+
+    let info = VersionInfo {
+        framework: FrameworkVersion {
+            version: "2.0.0".into(),
+            prerelease_version: "2.1.0-beta".into(),
+        },
+        prerelease_test_groups: vec!["beta-testers".into()],
+    };
+    let info_json = serde_json::to_string(&info).unwrap();
+    let info_parsed: VersionInfo = serde_json::from_str(&info_json).unwrap();
+    assert_eq!(info_parsed.framework.version, "2.0.0");
+    assert_eq!(info_parsed.framework.prerelease_version, "2.1.0-beta");
+}

@@ -259,6 +259,16 @@ const MAX_FILENAME_LEN: usize = 128;
 
 #[tauri::command]
 pub async fn download_logs(content: String, filename: String) -> Result<String, String> {
+    let dest_dir = dirs::download_dir()
+        .ok_or_else(|| "Could not locate standard Downloads folder".to_string())?;
+    write_logs_to_dir(content, filename, dest_dir).await
+}
+
+pub(crate) async fn write_logs_to_dir(
+    content: String,
+    filename: String,
+    mut dest: std::path::PathBuf,
+) -> Result<String, String> {
     if content.len() > MAX_PAYLOAD_SIZE {
         return Err("Payload too large (max 50MB)".to_string());
     }
@@ -269,8 +279,6 @@ pub async fn download_logs(content: String, filename: String) -> Result<String, 
         return Err("Invalid filename".to_string());
     }
 
-    let mut dest = dirs::download_dir()
-        .ok_or_else(|| "Could not locate standard Downloads folder".to_string())?;
     dest.push(safe_filename);
 
     tokio::fs::write(&dest, content.as_bytes())
@@ -287,39 +295,120 @@ mod tests {
     #[tokio::test]
     async fn test_download_logs_payload_too_large() {
         let content = "a".repeat(MAX_PAYLOAD_SIZE + 1);
-        let res = download_logs(content, "test.log".to_string()).await;
+        let res = write_logs_to_dir(content, "test.log".to_string(), std::env::temp_dir()).await;
         assert!(res.is_err());
         assert_eq!(res.unwrap_err(), "Payload too large (max 50MB)");
     }
 
     #[tokio::test]
     async fn test_download_logs_invalid_filename() {
-        let res = download_logs("test".to_string(), ".".to_string()).await;
+        let res =
+            write_logs_to_dir("test".to_string(), ".".to_string(), std::env::temp_dir()).await;
         assert!(res.is_err());
         assert_eq!(res.unwrap_err(), "Invalid filename");
 
         let long_name = "a".repeat(MAX_FILENAME_LEN + 1);
-        let res = download_logs("test".to_string(), long_name).await;
+        let res = write_logs_to_dir("test".to_string(), long_name, std::env::temp_dir()).await;
         assert!(res.is_err());
         assert_eq!(res.unwrap_err(), "Invalid filename");
     }
 
     #[tokio::test]
     async fn test_download_logs_sanitization() {
-        if let Some(mut expected_path) = dirs::download_dir() {
-            let content = "test content".to_string();
-            let filename = "../../../etc/passwd".to_string();
+        let mut expected_path = std::env::temp_dir();
+        let content = "test content".to_string();
+        let filename = "../../../etc/passwd".to_string();
 
-            let res = download_logs(content, filename).await;
-            if let Ok(saved_path) = res {
-                // filename replaces / with _
-                // ../../../etc/passwd -> .._.._.._etc_passwd
-                // trim_start_matches('.') removes leading .. -> _.._.._etc_passwd
-                expected_path.push("_.._.._etc_passwd");
-                assert_eq!(saved_path, expected_path.to_string_lossy().to_string());
+        let res = write_logs_to_dir(content, filename, std::env::temp_dir()).await;
+        if let Ok(saved_path) = res {
+            // filename replaces / with _
+            // ../../../etc/passwd -> .._.._.._etc_passwd
+            // trim_start_matches('.') removes leading .. -> _.._.._etc_passwd
+            expected_path.push("_.._.._etc_passwd");
+            assert_eq!(saved_path, expected_path.to_string_lossy().to_string());
 
-                let _ = tokio::fs::remove_file(expected_path).await;
-            }
+            let _ = tokio::fs::remove_file(expected_path).await;
         }
+    }
+
+    #[tokio::test]
+    async fn test_download_logs_success() {
+        let res = write_logs_to_dir(
+            "hello world\n".to_string(),
+            "sample_test_download.log".to_string(),
+            std::env::temp_dir(),
+        )
+        .await;
+        assert!(res.is_ok());
+        let path = res.unwrap();
+        let p = std::path::PathBuf::from(&path);
+        assert!(p.exists());
+        let _ = tokio::fs::remove_file(p).await;
+    }
+
+    #[test]
+    fn test_generate_nonce() {
+        let n1 = generate_nonce();
+        let n2 = generate_nonce();
+        assert!(!n1.is_empty());
+        assert!(!n2.is_empty());
+        assert_ne!(n1, n2);
+    }
+
+    #[test]
+    fn test_compute_hmac_proof() {
+        let key = "secret-agent-key";
+        let agent_id = "007";
+        let timestamp = 1700000000;
+        let nonce = generate_nonce();
+
+        let proof1 = compute_hmac_proof(key, agent_id, timestamp, &nonce);
+        let proof2 = compute_hmac_proof(key, agent_id, timestamp, &nonce);
+        assert_eq!(proof1, proof2);
+        assert_eq!(proof1.len(), 64); // SHA256 hex string
+
+        // Changing key alters proof
+        let proof_diff = compute_hmac_proof("other-key", agent_id, timestamp, &nonce);
+        assert_ne!(proof1, proof_diff);
+    }
+
+    #[test]
+    fn test_gateway_http_client_creation() {
+        assert!(gateway_http_client().is_ok());
+    }
+
+    #[test]
+    fn test_compliance_report_serde() {
+        let report = ComplianceReport {
+            agent_id: "001".to_string(),
+            agent_name: "test-agent".to_string(),
+            os: "linux".to_string(),
+            score: 85,
+            compliance_status: "passed".to_string(),
+            total_passed_count: 10,
+            total_failed_count: 2,
+            total_untested_count: 0,
+            categories: vec![ComplianceCategory {
+                name: "System".to_string(),
+                status: "passed".to_string(),
+                passed_count: 10,
+                failed_count: 2,
+                untested_count: 0,
+                checks: vec![ComplianceCheckResult {
+                    check_id: 1001,
+                    title: "Check SSH".to_string(),
+                    status: "passed".to_string(),
+                    mandatory: true,
+                    remediation: "None".to_string(),
+                }],
+            }],
+        };
+
+        let json = serde_json::to_string(&report).unwrap();
+        let deserialized: ComplianceReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.agent_id, "001");
+        assert_eq!(deserialized.score, 85);
+        assert_eq!(deserialized.categories.len(), 1);
+        assert_eq!(deserialized.categories[0].checks[0].check_id, 1001);
     }
 }

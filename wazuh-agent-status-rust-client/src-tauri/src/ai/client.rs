@@ -297,3 +297,266 @@ Provide a single non-interactive deterministic command that produces a clear pas
 - Be something the user can run immediately to confirm the fix took effect
 
 Be concise, precise, and provide copy-paste-ready non-interactive commands only."#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ai_provider_config_default_and_status() {
+        let def = AiProviderConfig::default();
+        assert_eq!(def.base_url, "https://api.openai.com/v1");
+        assert_eq!(def.model, "gpt-4o");
+        assert_eq!(def.timeout_secs, 30);
+        assert!(def.api_key.is_empty());
+
+        let status_unconfigured = AiProviderStatus::from(&def);
+        assert!(!status_unconfigured.configured);
+
+        let mut configured = def.clone();
+        configured.api_key = "sk-test-key".to_string();
+        let status_configured = AiProviderStatus::from(&configured);
+        assert!(status_configured.configured);
+        assert_eq!(status_configured.model, "gpt-4o");
+    }
+
+    #[test]
+    fn test_ai_client_validation() {
+        let valid = AiProviderConfig {
+            base_url: "https://api.openai.com/v1".to_string(),
+            api_key: "valid-key".to_string(),
+            model: "gpt-4o".to_string(),
+            ..AiProviderConfig::default()
+        };
+        let client = AiClient::new(valid.clone()).unwrap();
+        assert_eq!(client.config.base_url, "https://api.openai.com/v1");
+        assert_eq!(client.config.model, "gpt-4o");
+        assert_eq!(client.config.api_key, "valid-key");
+    }
+
+    #[test]
+    fn test_system_prompt_non_empty() {
+        assert!(DEFAULT_SCA_FIX_PROMPT.contains("Risk Level"));
+        assert!(DEFAULT_SCA_FIX_PROMPT.contains("Verification"));
+    }
+
+    #[test]
+    fn test_chat_response_deserialization() {
+        let json = "{\"choices\":[{\"message\":{\"content\":\"Risk Level Low\"}}]}";
+        let resp: ChatCompletionResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices.len(), 1);
+        assert_eq!(
+            resp.choices[0].message.content.as_deref(),
+            Some("Risk Level Low")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_ai_client_ping_missing_key() {
+        let config = AiProviderConfig {
+            api_key: String::new(),
+            ..AiProviderConfig::default()
+        };
+        let client = AiClient::new(config).unwrap();
+        let res = client.ping().await;
+        assert_eq!(res.unwrap_err(), "API key is required");
+    }
+
+    #[tokio::test]
+    async fn test_ai_client_network_failures() {
+        let config = AiProviderConfig {
+            base_url: "http://127.0.0.1:9/v1".to_string(),
+            api_key: "test-key".to_string(),
+            timeout_secs: 1,
+            ..AiProviderConfig::default()
+        };
+        let client = AiClient::new(config).unwrap();
+        assert!(client.ping().await.is_err());
+        assert!(client.chat("test").await.is_err());
+        assert!(client.list_models().await.is_err());
+    }
+
+    #[test]
+    fn test_models_response_deserialization() {
+        let json = r#"{"data":[{"id":"gpt-4o","object":"model","created":1600000000,"owned_by":"system"}]}"#;
+        let resp: ModelsResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.data.len(), 1);
+        assert_eq!(resp.data[0].id, "gpt-4o");
+
+        let err_json = r#"{"data":[],"error":{"message":"quota exceeded"}}"#;
+        let err_resp: ModelsResponse = serde_json::from_str(err_json).unwrap();
+        assert_eq!(err_resp.error.unwrap().message, "quota exceeded");
+    }
+
+    #[test]
+    fn test_chat_response_with_error_and_empty() {
+        let err_json = r#"{"choices":[],"error":{"message":"server error"}}"#;
+        let resp: ChatCompletionResponse = serde_json::from_str(err_json).unwrap();
+        assert_eq!(resp.error.unwrap().message, "server error");
+
+        let empty_json = r#"{"choices":[]}"#;
+        let empty_resp: ChatCompletionResponse = serde_json::from_str(empty_json).unwrap();
+        assert!(empty_resp.choices.is_empty());
+    }
+
+    // ── Mock HTTP provider ───────────────────────────────────────────────────
+
+    /// Minimal HTTP server. Routes are matched by the first path segment
+    /// (e.g. `/ok/...`, `/err500/...`) so each scenario gets its own base URL.
+    async fn spawn_mock_provider() -> String {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            while let Ok((mut sock, _)) = listener.accept().await {
+                tokio::spawn(async move {
+                    // Read headers, then drain the body according to Content-Length.
+                    let mut buf = Vec::new();
+                    let mut chunk = [0u8; 4096];
+                    let header_end = loop {
+                        let n = sock.read(&mut chunk).await.unwrap_or(0);
+                        if n == 0 {
+                            return;
+                        }
+                        buf.extend_from_slice(&chunk[..n]);
+                        if let Some(pos) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                            break pos + 4;
+                        }
+                    };
+                    let head = String::from_utf8_lossy(&buf[..header_end]).to_string();
+                    let content_len = head
+                        .lines()
+                        .find_map(|l| {
+                            let l = l.to_ascii_lowercase();
+                            l.strip_prefix("content-length:")
+                                .map(|v| v.trim().parse::<usize>().unwrap_or(0))
+                        })
+                        .unwrap_or(0);
+                    while buf.len() - header_end < content_len {
+                        let n = sock.read(&mut chunk).await.unwrap_or(0);
+                        if n == 0 {
+                            break;
+                        }
+                        buf.extend_from_slice(&chunk[..n]);
+                    }
+
+                    let path = head.split_whitespace().nth(1).unwrap_or("/").to_string();
+                    let scenario = path.trim_start_matches('/').split('/').next().unwrap_or("");
+                    let is_chat = path.ends_with("/chat/completions");
+                    let (status, body): (&str, &str) = match (scenario, is_chat) {
+                        ("ok", true) => (
+                            "200 OK",
+                            r#"{"choices":[{"message":{"content":"fixed it"}}]}"#,
+                        ),
+                        ("ok", false) => (
+                            "200 OK",
+                            r#"{"data":[{"id":"gpt-4o","object":"model","created":1,"owned_by":"system"}]}"#,
+                        ),
+                        ("apierr", true) => (
+                            "200 OK",
+                            r#"{"choices":[],"error":{"message":"quota exceeded"}}"#,
+                        ),
+                        ("apierr", false) => (
+                            "200 OK",
+                            r#"{"data":[],"error":{"message":"quota exceeded"}}"#,
+                        ),
+                        ("empty", _) => ("200 OK", r#"{"choices":[]}"#),
+                        ("badjson", _) => ("200 OK", "not json"),
+                        ("unauth", _) => ("401 Unauthorized", ""),
+                        ("forbidden", _) => ("403 Forbidden", ""),
+                        ("nf", _) => ("404 Not Found", ""),
+                        _ => ("500 Internal Server Error", "boom"),
+                    };
+                    let resp = format!(
+                        "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        body.len()
+                    );
+                    let _ = sock.write_all(resp.as_bytes()).await;
+                    let _ = sock.shutdown().await;
+                });
+            }
+        });
+        format!("http://{addr}")
+    }
+
+    fn client_for(base: &str, scenario: &str) -> AiClient {
+        AiClient::new(AiProviderConfig {
+            base_url: format!("{base}/{scenario}/"),
+            api_key: "test-key".to_string(),
+            model: "gpt-4o".to_string(),
+            system_prompt: Some("custom prompt".to_string()),
+            timeout_secs: 5,
+        })
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_chat_response_branches() {
+        let base = spawn_mock_provider().await;
+
+        assert_eq!(
+            client_for(&base, "ok").chat("hi").await.unwrap(),
+            "fixed it"
+        );
+
+        let err = client_for(&base, "err500").chat("hi").await.unwrap_err();
+        assert!(err.contains("HTTP 500"), "{err}");
+        assert!(err.contains("boom"), "{err}");
+
+        let err = client_for(&base, "apierr").chat("hi").await.unwrap_err();
+        assert!(err.contains("AI API error: quota exceeded"), "{err}");
+
+        let err = client_for(&base, "empty").chat("hi").await.unwrap_err();
+        assert_eq!(err, "AI returned an empty response");
+
+        let err = client_for(&base, "badjson").chat("hi").await.unwrap_err();
+        assert!(err.contains("Failed to parse AI response"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn test_ping_status_branches() {
+        let base = spawn_mock_provider().await;
+
+        assert_eq!(client_for(&base, "ok").ping().await.unwrap(), "Connected");
+        assert_eq!(
+            client_for(&base, "nf").ping().await.unwrap(),
+            "Connected (models endpoint not exposed)"
+        );
+
+        let err = client_for(&base, "unauth").ping().await.unwrap_err();
+        assert!(err.contains("Authentication failed"), "{err}");
+        let err = client_for(&base, "forbidden").ping().await.unwrap_err();
+        assert!(err.contains("Authentication failed"), "{err}");
+
+        let err = client_for(&base, "err500").ping().await.unwrap_err();
+        assert!(err.contains("Provider returned HTTP 500"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn test_list_models_branches() {
+        let base = spawn_mock_provider().await;
+
+        let models = client_for(&base, "ok").list_models().await.unwrap();
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0].id, "gpt-4o");
+        assert_eq!(models[0].owned_by, "system");
+
+        // Non-success status yields an empty list rather than an error
+        assert!(
+            client_for(&base, "err500")
+                .list_models()
+                .await
+                .unwrap()
+                .is_empty()
+        );
+
+        let err = client_for(&base, "apierr").list_models().await.unwrap_err();
+        assert!(err.contains("Models API error: quota exceeded"), "{err}");
+
+        let err = client_for(&base, "badjson")
+            .list_models()
+            .await
+            .unwrap_err();
+        assert!(err.contains("Failed to parse models response"), "{err}");
+    }
+}

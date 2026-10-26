@@ -25,4 +25,5 @@ windows-service = "0.7"
 libc = "0.2"
 
 [dev-dependencies]
+serial_test = "4.0.1"
 tempfile = "3.27.0"
