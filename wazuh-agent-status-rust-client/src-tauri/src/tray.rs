@@ -187,15 +187,15 @@ fn get_status_icon(state: &AgentState) -> tauri::image::Image<'_> {
     };
 
     // Draw a status dot in the bottom-right corner
-    let dot_radius = 4;
-    let center_x = (width - dot_radius - 2) as i32;
-    let center_y = (height - dot_radius - 2) as i32;
+    let dot_radius = 4i32;
+    let center_x = (width as i32) - dot_radius - 2;
+    let center_y = (height as i32) - dot_radius - 2;
 
-    for x in (center_x - dot_radius as i32)..(center_x + dot_radius as i32) {
-        for y in (center_y - dot_radius as i32)..(center_y + dot_radius as i32) {
+    for x in (center_x - dot_radius)..(center_x + dot_radius) {
+        for y in (center_y - dot_radius)..(center_y + dot_radius) {
             let dx = x - center_x;
             let dy = y - center_y;
-            if dx * dx + dy * dy <= (dot_radius * dot_radius) as i32
+            if dx * dx + dy * dy <= (dot_radius * dot_radius)
                 && x >= 0
                 && x < width as i32
                 && y >= 0

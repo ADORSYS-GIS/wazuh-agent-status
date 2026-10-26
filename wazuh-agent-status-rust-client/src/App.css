@@ -1697,8 +1697,8 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(168, 85, 247, 0.1);
-  color: #c4b5fd;
+  background-color: #2a1644;
+  color: #ffffff;
   border: 1px solid rgba(168, 85, 247, 0.2);
   display: flex;
   align-items: center;
@@ -2127,9 +2127,9 @@ body {
   gap: 5px;
   margin-top: 6px;
   padding: 4px 10px;
-  background: rgba(168, 85, 247, 0.1);
+  background-color: #2a1644;
   border: 1px solid rgba(168, 85, 247, 0.2);
-  color: #c4b5fd;
+  color: #ffffff;
   border-radius: 6px;
   font-size: 0.65rem;
   font-weight: 600;
@@ -3155,11 +3155,11 @@ body {
   font-size: 16px;
 }
 .error-boundary-card {
-  background: rgba(244, 63, 94, 0.1);
+  background-color: #2b1118;
   border: 1px solid rgba(244, 63, 94, 0.2);
   border-radius: 8px;
   padding: 12px;
-  color: #fca5a5;
+  color: #ffffff;
 }
 .error-boundary-stack {
   background: #111827;
@@ -3176,7 +3176,7 @@ body {
 .error-boundary-reload {
   background: linear-gradient(135deg, #00aaff, #38bdf8);
   border: none;
-  color: white;
+  color: #0f172a;
   padding: 10px 20px;
   border-radius: 8px;
   font-size: 13px;
@@ -3198,13 +3198,13 @@ body {
   align-items: center;
 }
 .self-healing-badge.active {
-  background: rgba(34, 197, 94, 0.15);
-  color: #86efac;
+  background-color: #112a1a;
+  color: #ffffff;
   border: 1px solid rgba(34, 197, 94, 0.2);
 }
 .self-healing-badge.disabled {
-  background: rgba(234, 88, 12, 0.2);
-  color: #fde68a;
+  background-color: #2b190c;
+  color: #ffffff;
   border: 1px solid rgba(234, 88, 12, 0.3);
 }
 /* UpdateModal Extracted Inline Styles */
