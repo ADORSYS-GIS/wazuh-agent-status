@@ -8,8 +8,8 @@
 | :--- | :--- |
 | **Document ID** | ADR-001 |
 | **Status** | `Accepted` |
-| **Date** | 2026-10-22 |
-| **Recorded** | 2026-10-22 |
+| **Date** | 2026-10-26 |
+| **Recorded** | 2026-10-26 |
 | **Deciders** | SIEM team |
 | **Governs** | `charts/wazuh-gateway`, `wazuh-gateway`, `wazuh-agent-status-rust-client`, `wazuh-agent-status-rust-server`, `queue/sca/db/sca.db` |
 | **Amends** | N/A |
