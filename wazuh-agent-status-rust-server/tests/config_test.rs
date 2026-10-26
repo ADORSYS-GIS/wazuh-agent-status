@@ -1,3 +1,4 @@
+use serial_test::serial;
 use std::time::Duration;
 use wazuh_agent_status_rust_server::config::Config;
 
@@ -22,6 +23,7 @@ fn test_default_config() {
 }
 
 #[test]
+#[serial]
 fn test_config_env_behavior() {
     // We group environment-dependent tests into one function because
     // std::env is process-global and tests run in parallel.

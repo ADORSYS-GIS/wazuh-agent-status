@@ -1,3 +1,4 @@
+use serial_test::serial;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -6,7 +7,18 @@ use wazuh_agent_status_rust_server::config::{AgentPaths, Config};
 use wazuh_agent_status_rust_server::manager::AgentManager;
 use wazuh_agent_status_rust_server::server::TcpServer;
 
+async fn read_line_timeout<R: tokio::io::AsyncBufRead + Unpin>(
+    reader: &mut tokio::io::Lines<R>,
+) -> String {
+    tokio::time::timeout(Duration::from_secs(5), reader.next_line())
+        .await
+        .expect("socket read timed out")
+        .expect("socket read error")
+        .expect("connection closed unexpectedly")
+}
+
 #[tokio::test]
+#[serial]
 async fn test_server_invalid_command() {
     let (_manager, addr) = setup_test_server().await;
 
@@ -16,11 +28,12 @@ async fn test_server_invalid_command() {
     writer.write_all(b"UNKNOWN_COMMAND\n").await.unwrap();
 
     let mut reader = BufReader::new(&mut reader_raw).lines();
-    let line = reader.next_line().await.unwrap().unwrap();
+    let line = read_line_timeout(&mut reader).await;
     assert_eq!(line, "ERROR: Unknown command: UNKNOWN_COMMAND");
 }
 
 #[tokio::test]
+#[serial]
 async fn test_server_large_payload() {
     let (_manager, addr) = setup_test_server().await;
 
@@ -32,13 +45,14 @@ async fn test_server_large_payload() {
 
     // Server should close connection or error out
     let mut reader = BufReader::new(&mut stream).lines();
-    let res = reader.next_line().await;
-    if let Ok(Some(line)) = res {
+    let res = tokio::time::timeout(Duration::from_secs(5), reader.next_line()).await;
+    if let Ok(Ok(Some(line))) = res {
         assert!(line.contains("ERROR"));
     }
 }
 
 #[tokio::test]
+#[serial]
 async fn test_server_concurrent_clients() {
     let (_manager, addr) = setup_test_server().await;
 
@@ -52,7 +66,7 @@ async fn test_server_concurrent_clients() {
                 .expect("Failed to connect");
             stream.write_all(b"get-version\n").await.unwrap();
             let mut reader = BufReader::new(&mut stream).lines();
-            let line = reader.next_line().await.unwrap().unwrap();
+            let line = read_line_timeout(&mut reader).await;
             assert!(line.contains("Version:") || line.contains("Unknown"));
         }));
     }
@@ -63,6 +77,7 @@ async fn test_server_concurrent_clients() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_server_subscribe_logs() {
     let (_manager, addr) = setup_test_server().await;
 
@@ -72,12 +87,13 @@ async fn test_server_subscribe_logs() {
     writer.write_all(b"subscribe-logs\n").await.unwrap();
 
     let mut reader = BufReader::new(&mut reader_raw).lines();
-    let line = reader.next_line().await.unwrap().unwrap();
+    let line = read_line_timeout(&mut reader).await;
     assert!(line.starts_with("LOG_LINE:"));
     // The stream closes after the error line since the log file doesn't exist in tests
 }
 
 #[tokio::test]
+#[serial]
 async fn test_server_get_version() {
     let (_manager, addr) = setup_test_server().await;
 
@@ -85,11 +101,12 @@ async fn test_server_get_version() {
     stream.write_all(b"get-version\n").await.unwrap();
 
     let mut reader = BufReader::new(&mut stream).lines();
-    let line = reader.next_line().await.unwrap().unwrap();
+    let line = read_line_timeout(&mut reader).await;
     assert!(line.starts_with("VERSION_CHECK: "));
 }
 
 #[tokio::test]
+#[serial]
 async fn test_server_subscribe_status() {
     let (_manager, addr) = setup_test_server().await;
 
@@ -97,13 +114,14 @@ async fn test_server_subscribe_status() {
     stream.write_all(b"subscribe-status\n").await.unwrap();
 
     let mut reader = BufReader::new(&mut stream).lines();
-    let initial_line = reader.next_line().await.unwrap().unwrap();
+    let initial_line = read_line_timeout(&mut reader).await;
     assert!(initial_line.starts_with("STATUS_UPDATE: "));
 
     drop(stream); // Disconnect client cleanly
 }
 
 #[tokio::test]
+#[serial]
 async fn test_server_empty_line_and_spaces() {
     let (_manager, addr) = setup_test_server().await;
 
@@ -111,16 +129,13 @@ async fn test_server_empty_line_and_spaces() {
     stream.write_all(b"   \n\nget-version\n").await.unwrap();
 
     let mut reader = BufReader::new(&mut stream).lines();
-    let line = reader.next_line().await.unwrap().unwrap();
+    let line = read_line_timeout(&mut reader).await;
     assert!(line.starts_with("VERSION_CHECK: "));
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async fn setup_test_server() -> (Arc<AgentManager>, String) {
-    unsafe {
-        std::env::set_var("WAZUH_TEST_MODE", "1");
-    }
     // Find a free port by binding to 0
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
