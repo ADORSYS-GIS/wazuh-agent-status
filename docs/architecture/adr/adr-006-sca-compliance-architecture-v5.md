@@ -1,4 +1,4 @@
-# ADR-005: Query Local Endpoint SCA SQLite Database in wazuh-agent-status while Retaining Gateway for v4
+# ADR-006: Query Local Endpoint SCA SQLite Database in wazuh-agent-status while Retaining Gateway for v4
 
 > We will update wazuh-agent-status to read Security Configuration Assessment (SCA) results directly from the local agent SQLite database (`queue/sca/db/sca.db` across Linux, macOS, and Windows) on endpoints, while retaining the wazuh-gateway Helm deployment in the cluster to support remaining Wazuh 4.x users until fleet migration is complete.
 
@@ -6,12 +6,12 @@
 
 | Field | Value |
 | :--- | :--- |
-| **Document ID** | ADR-005 |
+| **Document ID** | ADR-006 |
 | **Status** | `Accepted` |
 | **Date** | 2026-10-26 |
 | **Recorded** | 2026-10-26 |
 | **Deciders** | SIEM team |
-| **Governs** | `charts/wazuh-gateway`, `wazuh-gateway`, `wazuh-agent-status-rust-client`, `wazuh-agent-status-rust-server`, `queue/sca/db/sca.db` |
+| **Governs** | `charts/wazuh-gateway` ([ADORSYS-GIS/wazuh-helm](https://github.com/ADORSYS-GIS/wazuh-helm)), `wazuh-gateway` ([ADORSYS-GIS/wazuh-gateway](https://github.com/ADORSYS-GIS/wazuh-gateway)), `wazuh-agent-status-rust-client`, `wazuh-agent-status-rust-server`, `queue/sca/db/sca.db` |
 | **Amends** | N/A |
 | **Amended by** | N/A |
 | **Supersedes** | N/A |
