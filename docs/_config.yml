@@ -19,6 +19,9 @@ aux_links:
   "GitHub": "https://github.com/ADORSYS-GIS/wazuh-agent-status"
 
 exclude:
-  - architecture
-  - roadmap.md
-  - rust-migration-technical-proposal.md
+  - architecture/architecture.md
+  - architecture/current-system-analysis.md
+  - architecture/phase-1-rust-client-plan.md
+  - adr
+  - architecture/rust-migration-technical-proposal.md
+  - reference/roadmap.md

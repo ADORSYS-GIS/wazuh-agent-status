@@ -20,7 +20,7 @@ The client application periodically checks the official GitHub repository for ne
 - Click **Check for Updates**.
 - If a new version is available, you will receive a notification in the main dashboard prompting you to install it.
 
-![Update Notification](../assets/update-notification.png)
+![Update Notification](../../assets/update-notification.png)
 
 ### 2. Release Channels (Stable vs. Prerelease)
 The desktop client does not have a manual toggle for release channels. Instead, the release channel is **centrally managed** via your Wazuh Manager.

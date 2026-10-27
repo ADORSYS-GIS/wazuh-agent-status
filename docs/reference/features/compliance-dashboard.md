@@ -28,7 +28,7 @@ At the top of the dashboard, you will see a summary of your system's overall com
 - Number of passed checks
 - Number of failed checks
 
-![Compliance Summary Section](../assets/compliance-summary.png)
+![Compliance Summary Section](../../assets/compliance-summary.png)
 
 ### 3. Understanding the Checks
 When you scroll through the list, you will see a variety of individual compliance rules. Here is what they mean:
@@ -42,7 +42,7 @@ When you scroll through the list, you will see a variety of individual complianc
 - **Password Policy:** Scans the system's security policies to ensure strong password requirements are enforced, such as minimum password length, complexity, and mandatory password rotation.
 - **Prohibited Software Checks:** Scans your installed packages or registry keys to verify that unauthorized, outdated, or known-vulnerable applications (like outdated Java versions or insecure browser plugins) are **not** installed on your machine. If it fails, it means the software was found and should be uninstalled.
 
-![Compliance Checks List](../assets/compliance-checks.png)
+![Compliance Checks List](../../assets/compliance-checks.png)
 
 ### 4. View Remediation Details
 Click on any failed check to expand its details. Inside, you will see:

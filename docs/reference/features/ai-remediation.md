@@ -29,7 +29,7 @@ Before you can use AI remediation, you need to configure your AI provider settin
    - **Model Selection:** Choose or type in the model you wish to use (e.g., `gpt-4o`, `llama3`).
 4. Save your configuration.
 
-![AI Configuration Settings](../assets/ai-settings.png)
+![AI Configuration Settings](../../assets/ai-settings.png)
 
 ## Step-by-Step Guide
 
@@ -42,12 +42,12 @@ Before you can use AI remediation, you need to configure your AI provider settin
 - Click the **Fix with AI** button. 
 - Wait a few seconds while the AI analyzes the policy and generates the appropriate command for your specific operating system (Linux, macOS, or Windows).
 
-![AI Generating Fix](../assets/ai-generating.png)
+![AI Generating Fix](../../assets/ai-generating.png)
 
 ### 3. Review the Command
 The AI will present a terminal command. Carefully read the command and the accompanying explanation to understand what configuration files or registry keys it will modify.
 
-![AI Command Display](../assets/ai-command.png)
+![AI Command Display](../../assets/ai-command.png)
 
 ### 4. Execute the Fix
 - If you are satisfied with the command, click the **Execute** button.

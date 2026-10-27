@@ -133,20 +133,23 @@ Alternatively, run the generated executable located in the `src-tauri/target/rel
 
 ## Documentation
 
+Start at [docs/README.md](docs/README.md) for the documentation entry point
+(SDLC map and quick links).
+
 ### Feature Guides
-- **[Real-Time Monitoring & System Tray](docs/features/real-time-monitoring.md)**: How to monitor agent status using the tray icon and menu.
-- **[Compliance Dashboard](docs/features/compliance-dashboard.md)**: How to review Security Configuration Assessment (SCA) results.
-- **[AI-Powered Remediation](docs/features/ai-remediation.md)**: How to generate and execute fixes for failed compliance checks.
-- **[Real-Time Log Streaming](docs/features/log-streaming.md)**: How to view Wazuh agent logs directly in the dashboard.
-- **[Update Management](docs/features/auto-update.md)**: How to check for updates and configure release channels.
-- **[Self-Healing Capabilities](docs/features/self-healing.md)**: How the server automatically restarts crashed agents.
+- **[Real-Time Monitoring & System Tray](docs/reference/features/real-time-monitoring.md)**: How to monitor agent status using the tray icon and menu.
+- **[Compliance Dashboard](docs/reference/features/compliance-dashboard.md)**: How to review Security Configuration Assessment (SCA) results.
+- **[AI-Powered Remediation](docs/reference/features/ai-remediation.md)**: How to generate and execute fixes for failed compliance checks.
+- **[Real-Time Log Streaming](docs/reference/features/log-streaming.md)**: How to view Wazuh agent logs directly in the dashboard.
+- **[Update Management](docs/reference/features/auto-update.md)**: How to check for updates and configure release channels.
+- **[Self-Healing Capabilities](docs/reference/features/self-healing.md)**: How the server automatically restarts crashed agents.
 
 ### Technical & Architecture
 - **[Architecture Overview](docs/architecture/architecture.md)**: High-level view of the system design.
-- **[AI Compliance Fixes (Technical)](docs/ai-compliance-fixes.md)**: Technical detail on AI fix generation and command execution.
-- **[Rust Migration Proposal](docs/rust-migration-technical-proposal.md)**: Details of the completed Rust migration.
-- **[Decision Log (ADRs)](docs/architecture/adr/)**: Architectural decision records.
-- **[Roadmap](docs/roadmap.md)**: Future development plans.
+- **[AI Compliance Fixes (Technical)](docs/architecture/ai-compliance-fixes.md)**: Technical detail on AI fix generation and command execution.
+- **[Rust Migration Proposal](docs/architecture/rust-migration-technical-proposal.md)**: Details of the completed Rust migration.
+- **[Decision Log (ADRs)](docs/adr/)**: Architectural decision records.
+- **[Roadmap](docs/reference/roadmap.md)**: Future development plans.
 
 ## Project Structure
 
@@ -160,11 +163,10 @@ wazuh-agent-status/
 │   ├── windows/
 │   └── shared/
 ├── docs/
-│   └── architecture/
-│       ├── adr/
-│       ├── architecture.md
-│       ├── current-system-analysis.md
-│       └── phase-1-rust-client-plan.md
+│   ├── README.md
+│   ├── architecture/        # design: architecture.md, ADRs, migration proposals
+│   ├── operations/          # operate: installation.md, troubleshooting.md
+│   └── reference/           # cross-cutting: roadmap.md, features/
 ├── .github/workflows/
 ├── CHANGELOG.md
 ├── cliff.toml

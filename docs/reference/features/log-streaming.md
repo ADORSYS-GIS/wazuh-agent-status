@@ -33,7 +33,7 @@ If the log stream is moving too quickly or you want to pause to read a specific 
 - **Filter:** Use the text input at the top of the logs view to instantly filter the stream (e.g., type "ERROR" or "WARNING" to only see those lines).
 - **Clear:** Click the **Clear** button at the bottom of the screen to empty the current log view and start fresh.
 
-![Real-Time Log Stream](../assets/log-stream.png)
+![Real-Time Log Stream](../../assets/log-stream.png)
 
 ### 5. Troubleshooting with Logs
 If your tray icon is showing a disconnected state ( Red Dot), the log stream is the best place to find out why.

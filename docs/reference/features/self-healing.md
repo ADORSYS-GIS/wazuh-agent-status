@@ -24,7 +24,7 @@ If the Wazuh agent goes offline unexpectedly, you might temporarily see a  Red D
 - The server will immediately attempt to restart the agent.
 - If successful, the tray icon will return to a 🟢 Green Dot within a few minutes.
 
-![Agent Disconnected Status](../assets/agent-disconnected.png) ![Agent Active Status](../assets/agent-active.png)
+![Agent Disconnected Status](../../assets/agent-disconnected.png) ![Agent Active Status](../../assets/agent-active.png)
 
 ### 3. Checking the Logs
 You can confirm that a self-healing action took place by checking the log stream:

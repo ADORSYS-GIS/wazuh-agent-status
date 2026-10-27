@@ -47,7 +47,7 @@ If you need to debug the application or submit an issue on GitHub, you will like
 
 > **💡 Tip**
 >
-> You can also view real-time logs directly in the desktop app. For more details on how to monitor and filter your agent's activity, check out the [Real-Time Log Streaming Guide](features/log-streaming.md).
+> You can also view real-time logs directly in the desktop app. For more details on how to monitor and filter your agent's activity, check out the [Real-Time Log Streaming Guide](../reference/features/log-streaming.md).
 
 ---
 
