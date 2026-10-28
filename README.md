@@ -54,7 +54,7 @@ Open **PowerShell as Administrator** and run:
 Invoke-RestMethod -Uri "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/main/scripts/windows/install.ps1" | Invoke-Expression
 ```
 
-*(Note: The Windows installation automatically configures the server as a Windows Service and sets the client to start automatically on login.)*
+_(Note: The Windows installation automatically configures the server as a Windows Service and sets the client to start automatically on login.)_
 
 ## Building and Running from Source
 
@@ -63,6 +63,7 @@ Follow these step-by-step instructions to build the application yourself or cont
 ### Step 1: Install Prerequisites
 
 Ensure you have the following installed on your system:
+
 - **Rust**: Install via [rustup.rs](https://rustup.rs/)
 - **Node.js**: Required for building the Tauri client UI (version 18+ recommended)
 - **Platform Specific Dependencies**:
@@ -83,6 +84,7 @@ By default, the client and server communicate over TCP port `50505`. If you need
 
 1. **Update the Client Configuration:**
    Edit the file `wazuh-agent-status-rust-client/src-tauri/app_config.json` and change `"server_addr"` to your desired port:
+
    ```json
    {
      "server_addr": "127.0.0.1:50506"
@@ -97,16 +99,19 @@ By default, the client and server communicate over TCP port `50505`. If you need
 The server acts as the background service monitoring the Wazuh agent.
 
 **Build:**
+
 ```bash
 cd wazuh-agent-status-rust-server
 cargo build --release
 ```
 
 **Run (with default port 50505):**
+
 - **Linux/macOS:** `sudo ./target/release/wazuh-agent-status-rust-server`
 - **Windows:** `.\target\release\wazuh-agent-status-rust-server.exe` (Run as Administrator)
 
 **Run (with custom port 50506):**
+
 - **Linux/macOS:** `sudo WAZUH_STATUS_ADDR="127.0.0.1:50506" ./target/release/wazuh-agent-status-rust-server`
 - **Windows (PowerShell):** `$env:WAZUH_STATUS_ADDR="127.0.0.1:50506"; .\target\release\wazuh-agent-status-rust-server.exe` (Run as Administrator)
 
@@ -115,15 +120,18 @@ cargo build --release
 Open a new terminal window to build and run the client.
 
 **Build:**
+
 ```bash
 cd wazuh-agent-status-rust-client
 npm install
 npm run tauri build
 ```
-*(On Windows, ensure you run these commands in PowerShell or Git Bash).*
+
+_(On Windows, ensure you run these commands in PowerShell or Git Bash)._
 
 **Run in Development Mode:**
 To quickly test the client without running the compiled executable, use:
+
 ```bash
 npm run tauri dev
 ```
@@ -137,6 +145,7 @@ Start at [docs/README.md](docs/README.md) for the documentation entry point
 (SDLC map and quick links).
 
 ### Feature Guides
+
 - **[Real-Time Monitoring & System Tray](docs/reference/features/real-time-monitoring.md)**: How to monitor agent status using the tray icon and menu.
 - **[Compliance Dashboard](docs/reference/features/compliance-dashboard.md)**: How to review Security Configuration Assessment (SCA) results.
 - **[AI-Powered Remediation](docs/reference/features/ai-remediation.md)**: How to generate and execute fixes for failed compliance checks.
@@ -145,6 +154,7 @@ Start at [docs/README.md](docs/README.md) for the documentation entry point
 - **[Self-Healing Capabilities](docs/reference/features/self-healing.md)**: How the server automatically restarts crashed agents.
 
 ### Technical & Architecture
+
 - **[Architecture Overview](docs/architecture/architecture.md)**: High-level view of the system design.
 - **[AI Compliance Fixes (Technical)](docs/architecture/ai-compliance-fixes.md)**: Technical detail on AI fix generation and command execution.
 - **[Rust Migration Proposal](docs/architecture/rust-migration-technical-proposal.md)**: Details of the completed Rust migration.
