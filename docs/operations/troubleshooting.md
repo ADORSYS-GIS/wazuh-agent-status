@@ -13,6 +13,7 @@ If you are experiencing issues with Wazuh Agent Status, check the following comm
 If the tray icon is red and the dashboard shows "Agent Disconnected", this means the Rust server is unable to communicate with the local Wazuh agent on your machine.
 
 **Steps to Fix:**
+
 1. **Verify Wazuh is Installed:** Make sure the actual Wazuh Agent is installed on your machine.
 2. **Check the Service:** Ensure the Wazuh service is running.
    - **Windows:** Open `services.msc` and look for `Wazuh`.
@@ -27,11 +28,12 @@ If the tray icon is red and the dashboard shows "Agent Disconnected", this means
 
 When attempting to generate a fix in the Compliance Dashboard, you may receive an error stating `AI Rate Limit Exceeded`.
 
-**Reason:** 
+**Reason:**
 This occurs when you have requested too many automated fixes within a short time frame, hitting the quota for the default API key configured in the desktop client.
 
 **Steps to Fix:**
-If you require more frequent fixes and are hitting the limit of the default shared key, you can bypass this quota by supplying your own custom API key. 
+If you require more frequent fixes and are hitting the limit of the default shared key, you can bypass this quota by supplying your own custom API key.
+
 1. Open the main dashboard from the system tray.
 2. Navigate to the **Settings** or **AI Configuration** tab.
 3. Enter your personal API Key and configure your preferred AI provider.
@@ -47,7 +49,7 @@ If you need to debug the application or submit an issue on GitHub, you will like
 
 > **💡 Tip**
 >
-> You can also view real-time logs directly in the desktop app. For more details on how to monitor and filter your agent's activity, check out the [Real-Time Log Streaming Guide](features/log-streaming.md).
+> You can also view real-time logs directly in the desktop app. For more details on how to monitor and filter your agent's activity, check out the [Real-Time Log Streaming Guide](../reference/features/log-streaming.md).
 
 ---
 
