@@ -174,9 +174,10 @@ wazuh-agent-status/
 │   └── shared/
 ├── docs/
 │   ├── README.md
-│   ├── architecture/        # design: architecture.md, ADRs, migration proposals
-│   ├── operations/          # operate: installation.md, troubleshooting.md
-│   └── reference/           # cross-cutting: roadmap.md, features/
+│   ├── adr/                # decision: architecture decision records
+│   ├── architecture/       # design: architecture.md, migration proposals
+│   ├── operations/         # operate: installation.md, troubleshooting.md
+│   └── reference/          # cross-cutting: roadmap.md, features/
 ├── .github/workflows/
 ├── CHANGELOG.md
 ├── cliff.toml
