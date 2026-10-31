@@ -55,6 +55,31 @@ pub fn notify_update_available(
 ) {
 }
 
+/// Shows a desktop notification reminding the user to update or restart
+/// (ADR-0003). Returns `true` if a native notification was sent.
+///
+/// macOS only delivers notifications from Developer ID–signed app bundles,
+/// which the client is not yet (ADORSYS-GIS/wazuh#2282), so on macOS this
+/// returns `false` and the app shows its in-app banner instead.
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+pub fn notify_os_reminder(app: tauri::AppHandle, title: String, body: String) -> bool {
+    use tauri_plugin_notification::NotificationExt;
+
+    app.notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .show()
+        .is_ok()
+}
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+pub fn notify_os_reminder(_app: tauri::AppHandle, _title: String, _body: String) -> bool {
+    false
+}
+
 #[tauri::command]
 pub async fn check_for_updates(
     manager: State<'_, Arc<AgentManager>>,
@@ -117,6 +142,11 @@ pub struct ComplianceCheckResult {
     pub status: String,
     pub mandatory: bool,
     pub remediation: String,
+    /// Days left before a failing grace-period check (OS update / restart,
+    /// ADR-0003) counts against compliance. Only set by the gateway while the
+    /// check is failing and still inside its grace period.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grace_remaining_days: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -400,6 +430,7 @@ mod tests {
                     status: "passed".to_string(),
                     mandatory: true,
                     remediation: "None".to_string(),
+                    grace_remaining_days: None,
                 }],
             }],
         };
