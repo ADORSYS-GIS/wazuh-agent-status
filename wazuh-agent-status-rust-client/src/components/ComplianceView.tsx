@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { AgentStatus, ComplianceReport, ComplianceCheckResult } from "../types/agent";
 import type { AiFixResult, AiProviderStatus, FailedCheckInput } from "../types/ai";
 import { ComplianceFixModal } from "./ComplianceFixModal";
-import { scoreColor, scoreLabel, formatRelativeTime } from "../utils/compliance";
+import { scoreColor, scoreLabel, formatRelativeTime, isCompliantStatus } from "../utils/compliance";
 
 type ComplianceFilter = "all" | "passed" | "failed" | "untested";
 
@@ -485,7 +485,7 @@ export function ComplianceView({ agentStatus }: Readonly<{ agentStatus: AgentSta
 
   if (!report || !agentInfo) return null;
 
-  const isCompliant = report.compliance_status === "Passed";
+  const isCompliant = isCompliantStatus(report.compliance_status);
   const circ = 2 * Math.PI * 52; // circumference for r=52
   const scoreColorVal = scoreColor(report.score);
   const scoreLabelText = scoreLabel(report.score);
