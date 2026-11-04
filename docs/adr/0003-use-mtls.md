@@ -10,10 +10,6 @@
 | **Deciders**      | Wazuh maintainers                                |
 | **Governs**       | Client-server communication transport security   |
 
-## Status
-
-Rejected ❌
-
 ## Context
 
 The original proposal was to use mutual TLS (mTLS) to encrypt and authenticate communication between the client and server components.

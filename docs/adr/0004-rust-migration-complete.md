@@ -10,10 +10,6 @@
 | **Deciders**      | Wazuh maintainers                            |
 | **Governs**       | Repository codebase (Go implementation)      |
 
-## Status
-
-Accepted ✅
-
 ## Context
 
 The project initially had a Go-based implementation split across two components:

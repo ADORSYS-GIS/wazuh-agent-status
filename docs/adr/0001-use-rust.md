@@ -10,10 +10,6 @@
 | **Deciders**      | Wazuh maintainers                            |
 | **Governs**       | Client and server implementation (Rust)      |
 
-## Status
-
-Accepted ✅
-
 ## Context
 
 The original Go implementation had high memory usage, CGO dependency overhead, and limited cross-platform consistency. The Go client consumed ~10 MB RSS with ~2.2 GB VSZ, and the Go server consumed ~10.5 MB RSS with ~1.9 GB VSZ.

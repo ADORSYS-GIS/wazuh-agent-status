@@ -6,7 +6,7 @@
 
 | Field             | Value                                         |
 | :---------------- | :-------------------------------------------- |
-| **Document ID**   | ADR-005                                       |
+| **Document ID**   | ADR-0005                                      |
 | **Status**        | `Accepted`                                    |
 | **Date**          | 2026-10-20                                    |
 | **Deciders**      | Wazuh maintainers                             |

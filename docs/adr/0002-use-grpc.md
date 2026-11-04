@@ -10,10 +10,6 @@
 | **Deciders**      | Wazuh maintainers                            |
 | **Governs**       | Client-server communication protocol         |
 
-## Status
-
-Deferred ⏳
-
 ## Context
 
 The current implementation uses a custom TCP-based protocol over localhost (port 50505). Commands are sent as newline-terminated plaintext strings (e.g., `get-version`, `subscribe-status`, `initiate-update-stream`), and responses are returned as plaintext with structured JSON payloads.
