@@ -8,10 +8,10 @@ central documentation repository:
 
 ## Index
 
-| ID      | Title                                               | Status   | Date | Relations          |
-| :------ | :-------------------------------------------------- | :------- | :--- | :----------------- |
-| [ADR-001](adr-001-use-rust.md) | Use Rust for Client and Server                      | Accepted | N/A  | N/A                |
-| [ADR-002](adr-002-use-grpc.md) | Use gRPC for Communication                          | Deferred | N/A  | N/A                |
-| [ADR-003](adr-003-use-mtls.md) | Use mTLS for Local Communication                    | Rejected | N/A  | N/A                |
-| [ADR-004](adr-004-rust-migration-complete.md) | Rust Migration Complete — Go Implementation Removed | Accepted | N/A  | relates to ADR-001 |
-| [ADR-005](adr-005-generate-sbom-in-ci.md) | Generate CycloneDX SBOM in CI                       | Accepted | N/A  | N/A                |
+| ID       | Title                                               | Status   | Date       | Relations            |
+| :------- | :-------------------------------------------------- | :------- | :--------- | :------------------- |
+| [ADR-0001](0001-use-rust.md) | Use Rust for Client and Server                      | Accepted | 2026-04-01 | N/A                  |
+| [ADR-0002](0002-use-grpc.md) | Use gRPC for Communication                          | Deferred | 2026-04-01 | N/A                  |
+| [ADR-0003](0003-use-mtls.md) | Use mTLS for Local Communication                    | Rejected | 2026-04-01 | N/A                  |
+| [ADR-0004](0004-rust-migration-complete.md) | Rust Migration Complete — Go Implementation Removed | Accepted | 2026-06-30 | relates to ADR-0001  |
+| [ADR-0005](0005-generate-sbom-in-ci.md) | Generate CycloneDX SBOM in CI                       | Accepted | 2026-10-20 | N/A                  |

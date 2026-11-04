@@ -1,4 +1,14 @@
-# ADR-002: Use gRPC for Communication
+# ADR-0002: Use gRPC for Communication
+
+## Metadata
+
+| Field             | Value                                        |
+| :---------------- | :------------------------------------------- |
+| **Document ID**   | ADR-0002                                     |
+| **Status**        | `Deferred`                                   |
+| **Date**          | 2026-04-01                                   |
+| **Deciders**      | Wazuh maintainers                            |
+| **Governs**       | Client-server communication protocol         |
 
 ## Status
 

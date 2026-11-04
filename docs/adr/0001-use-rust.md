@@ -1,4 +1,14 @@
-# ADR-001: Use Rust for Client and Server
+# ADR-0001: Use Rust for Client and Server
+
+## Metadata
+
+| Field             | Value                                        |
+| :---------------- | :------------------------------------------- |
+| **Document ID**   | ADR-0001                                     |
+| **Status**        | `Accepted`                                   |
+| **Date**          | 2026-04-01                                   |
+| **Deciders**      | Wazuh maintainers                            |
+| **Governs**       | Client and server implementation (Rust)      |
 
 ## Status
 

@@ -1,4 +1,14 @@
-# ADR-004: Rust Migration Complete — Go Implementation Removed
+# ADR-0004: Rust Migration Complete — Go Implementation Removed
+
+## Metadata
+
+| Field             | Value                                        |
+| :---------------- | :------------------------------------------- |
+| **Document ID**   | ADR-0004                                     |
+| **Status**        | `Accepted`                                   |
+| **Date**          | 2026-06-30                                   |
+| **Deciders**      | Wazuh maintainers                            |
+| **Governs**       | Repository codebase (Go implementation)      |
 
 ## Status
 
@@ -11,7 +21,7 @@ The project initially had a Go-based implementation split across two components:
 - `wazuh-agent-status-client/` — Go tray client using `fyne.io/systray`
 - `wazuh-agent-status/` — Go TCP server using the standard `net` library
 
-A decision was made in [ADR-001](adr-001-use-rust.md) to migrate the system to Rust for better performance, security, and maintainability. The migration was executed incrementally:
+A decision was made in [ADR-0001](0001-use-rust.md) to migrate the system to Rust for better performance, security, and maintainability. The migration was executed incrementally:
 
 **Phase 1**: Build a Rust replacement client (`wazuh-agent-status-rust-client/` using Tauri) while keeping the Go server running.
 
