@@ -63,6 +63,7 @@ Wazuh Agent Status includes a **Self-Healing** feature. If enabled, the backgrou
 To enable self-healing, you need to set the `WAZUH_STATUS_SELF_HEALING` environment variable to `true` for the background service.
 
 **On Linux (`systemd`):**
+
 1. Edit the service file: `sudo systemctl edit wazuh-agent-status`
 2. Add the following block:
    ```ini
@@ -72,6 +73,7 @@ To enable self-healing, you need to set the `WAZUH_STATUS_SELF_HEALING` environm
 3. Restart the service: `sudo systemctl restart wazuh-agent-status`
 
 **On Windows (`Service Manager`):**
+
 1. Open the System Properties > Environment Variables.
 2. Under "System variables", click "New".
 3. Set the Variable name to `WAZUH_STATUS_SELF_HEALING` and value to `true`.

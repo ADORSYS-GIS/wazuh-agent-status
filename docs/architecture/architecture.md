@@ -67,7 +67,7 @@ The current Rust implementation uses a **Push/Subscribe** model over TCP (port 5
 ## 7. Target Architecture (Hardened)
 
 Our long-term goal is a Zero-Trust, event-driven architecture with gRPC and mTLS. For a complete technical breakdown of this vision, see:
-👉 **[Rust Migration Proposal](../rust-migration-technical-proposal.md)**
+👉 **[Rust Migration Proposal](rust-migration-technical-proposal.md)**
 
 ---
 

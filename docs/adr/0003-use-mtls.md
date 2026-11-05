@@ -1,8 +1,14 @@
-# ADR-003: Use mTLS for Local Communication
+# ADR-0003: Use mTLS for Local Communication
 
-## Status
+## Metadata
 
-Rejected ❌
+| Field             | Value                                            |
+| :---------------- | :----------------------------------------------- |
+| **Document ID**   | ADR-0003                                         |
+| **Status**        | `Rejected`                                       |
+| **Date**          | 2026-04-01                                       |
+| **Deciders**      | Wazuh maintainers                                |
+| **Governs**       | Client-server communication transport security   |
 
 ## Context
 

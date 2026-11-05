@@ -94,6 +94,16 @@ export function scoreLabel(score: number): string {
   return "Poor";
 }
 
+/**
+ * Whether a gateway compliance report counts as compliant.
+ * The wazuh-gateway returns "compliant" / "non-compliant"; older gateway
+ * builds returned "Passed" / "Failed". Comparison is case-insensitive.
+ */
+export function isCompliantStatus(status: string | null | undefined): boolean {
+  const s = (status ?? "").trim().toLowerCase();
+  return s === "compliant" || s === "passed";
+}
+
 // ─── Command Helpers ─────────────────────────────────────────────────────────
 
 const WINDOWS_ADMIN_VERBS = [

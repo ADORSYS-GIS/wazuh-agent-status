@@ -71,6 +71,7 @@ pub fn run() {
             commands::get_agent_status,
             commands::get_config,
             commands::notify_update_available,
+            commands::notify_os_reminder,
             commands::get_system_metrics,
             commands::check_for_updates,
             commands::start_update,

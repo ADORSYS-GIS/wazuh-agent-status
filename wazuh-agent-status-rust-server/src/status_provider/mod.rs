@@ -117,3 +117,139 @@ pub use windows::WindowsStatusProvider as NativeStatusProvider;
 pub fn native_provider(paths: AgentPaths) -> NativeStatusProvider {
     NativeStatusProvider::new(paths)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    struct DummyProvider {
+        metrics: SystemMetrics,
+        has_state_path: bool,
+        state_file: Option<std::path::PathBuf>,
+    }
+
+    impl StatusProvider for DummyProvider {
+        fn get_agent_status(&self) -> Result<AgentStatus> {
+            Ok(AgentStatus::Active)
+        }
+        fn get_connection_status(&self) -> Result<ConnectionStatus> {
+            Ok(ConnectionStatus::Connected)
+        }
+        fn get_agent_version(&self) -> Result<String> {
+            Ok("4.8.0".to_string())
+        }
+        fn get_tray_version(&self) -> Result<String> {
+            Ok("1.2.0".to_string())
+        }
+        fn get_agent_groups(&self) -> Result<Vec<String>> {
+            Ok(vec!["default".to_string()])
+        }
+        fn get_system_metrics(&self) -> Result<SystemMetrics> {
+            Ok(self.metrics.clone())
+        }
+        fn get_state_file_path(&self) -> Option<&Path> {
+            if self.has_state_path {
+                self.state_file.as_deref()
+            } else {
+                None
+            }
+        }
+    }
+
+    #[test]
+    fn test_read_connection_from_state_file() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            "# State file\nstatus='connected'\nlast_keepalive='2026-10-21'"
+        )
+        .unwrap();
+        assert_eq!(
+            read_connection_from_state_file(file.path()).unwrap(),
+            ConnectionStatus::Connected
+        );
+
+        let mut disc_file = NamedTempFile::new().unwrap();
+        writeln!(disc_file, "status='disconnected'").unwrap();
+        assert_eq!(
+            read_connection_from_state_file(disc_file.path()).unwrap(),
+            ConnectionStatus::Disconnected
+        );
+
+        let non_existent = std::path::PathBuf::from("/path/that/does/not/exist/ever");
+        assert_eq!(
+            read_connection_from_state_file(&non_existent).unwrap(),
+            ConnectionStatus::Disconnected
+        );
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        // Reading a directory as file triggers an I/O error
+        let err = read_connection_from_state_file(temp_dir.path());
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn test_get_partial_state_with_state_file() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "status='connected'").unwrap();
+
+        let provider = DummyProvider {
+            metrics: SystemMetrics {
+                agentd_found: true,
+                agent_found: true,
+                cpu_usage: 1.0,
+                memory_usage: 2.0,
+                total_memory: 1000,
+                used_memory: 200,
+            },
+            has_state_path: true,
+            state_file: Some(file.path().to_path_buf()),
+        };
+
+        let state = provider.get_partial_state().unwrap();
+        assert_eq!(state.status, AgentStatus::Active);
+        assert_eq!(state.connection, ConnectionStatus::Connected);
+        assert_eq!(state.version, "4.8.0");
+        assert_eq!(state.tray_version, "1.2.0");
+        assert_eq!(state.groups, vec!["default".to_string()]);
+
+        // Agentd not found => status Inactive and connection Disconnected
+        let inactive_provider = DummyProvider {
+            metrics: SystemMetrics {
+                agentd_found: false,
+                agent_found: false,
+                cpu_usage: 0.0,
+                memory_usage: 0.0,
+                total_memory: 1000,
+                used_memory: 0,
+            },
+            has_state_path: true,
+            state_file: Some(file.path().to_path_buf()),
+        };
+        let inactive_state = inactive_provider.get_partial_state().unwrap();
+        assert_eq!(inactive_state.status, AgentStatus::Inactive);
+        assert_eq!(inactive_state.connection, ConnectionStatus::Disconnected);
+    }
+
+    #[test]
+    fn test_get_partial_state_without_state_file() {
+        let provider = DummyProvider {
+            metrics: SystemMetrics {
+                agentd_found: true,
+                agent_found: true,
+                cpu_usage: 1.0,
+                memory_usage: 2.0,
+                total_memory: 1000,
+                used_memory: 200,
+            },
+            has_state_path: false,
+            state_file: None,
+        };
+
+        let state = provider.get_partial_state().unwrap();
+        assert_eq!(state.status, AgentStatus::Active);
+        assert_eq!(state.connection, ConnectionStatus::Connected);
+    }
+}

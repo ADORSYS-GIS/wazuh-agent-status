@@ -94,3 +94,74 @@ pub async fn generate_fixes_batch(inputs: Vec<FailedCheckInput>) -> Vec<AiFixRes
 
     results
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_fix_prompt() {
+        let input = FailedCheckInput {
+            title: "Ensure password expiration is 90 days".to_string(),
+            remediation: "Set PASS_MAX_DAYS 90 in /etc/login.defs".to_string(),
+            os: "ubuntu".to_string(),
+            mandatory: true,
+            category: "Identity and Access".to_string(),
+        };
+
+        let prompt = build_fix_prompt(&input);
+        assert!(prompt.contains("Ensure password expiration is 90 days"));
+        assert!(prompt.contains("Mandatory**: Yes"));
+        assert!(prompt.contains("ubuntu"));
+        assert!(prompt.contains("/etc/login.defs"));
+    }
+
+    #[test]
+    fn test_failed_check_input_and_result_serde() {
+        let input = FailedCheckInput {
+            title: "Test check".to_string(),
+            remediation: "Fix it".to_string(),
+            os: "linux".to_string(),
+            mandatory: false,
+            category: "General".to_string(),
+        };
+
+        let json = serde_json::to_string(&input).unwrap();
+        let parsed: FailedCheckInput = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.title, "Test check");
+
+        let res = AiFixResult {
+            markdown: "## Fix".to_string(),
+            success: true,
+            error: None,
+        };
+        let res_json = serde_json::to_string(&res).unwrap();
+        let res_parsed: AiFixResult = serde_json::from_str(&res_json).unwrap();
+        assert!(res_parsed.success);
+        assert_eq!(res_parsed.markdown, "## Fix");
+    }
+
+    #[tokio::test]
+    async fn test_generate_fixes_batch_empty() {
+        let batch = generate_fixes_batch(vec![]).await;
+        assert!(batch.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_generate_fix_execution() {
+        let input = FailedCheckInput {
+            title: "Check SSH".to_string(),
+            remediation: "Disable root login".to_string(),
+            os: "linux".to_string(),
+            mandatory: true,
+            category: "SSH".to_string(),
+        };
+
+        let result = generate_fix(input.clone()).await;
+        // Handles missing or invalid config gracefully without panic
+        assert!(!result.success || !result.markdown.is_empty());
+
+        let batch = generate_fixes_batch(vec![input]).await;
+        assert_eq!(batch.len(), 1);
+    }
+}

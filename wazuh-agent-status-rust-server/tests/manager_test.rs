@@ -36,6 +36,7 @@ impl StatusProvider for MockProvider {
 async fn test_manager_polling_notification() {
     let config = Arc::new(Config {
         poll_interval: Duration::from_millis(100),
+        self_healing: false,
         ..Config::default()
     });
     let paths = Arc::new(AgentPaths::native());

@@ -15,7 +15,7 @@ This document describes how the AI remediation feature works, its technical arch
 
 When a compliance check fails (e.g., password expiration policy, unused services enabled), the UI offers a **"Fix with AI"** option.
 
-![AI Compliance Fix Flow](images/ai-compliance-fix-flow.png)
+![AI Compliance Fix Flow](../images/ai-compliance-fix-flow.png)
 
 ### Fix Generation Flow
 

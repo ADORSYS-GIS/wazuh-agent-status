@@ -187,15 +187,15 @@ fn get_status_icon(state: &AgentState) -> tauri::image::Image<'_> {
     };
 
     // Draw a status dot in the bottom-right corner
-    let dot_radius = 4;
-    let center_x = (width - dot_radius - 2) as i32;
-    let center_y = (height - dot_radius - 2) as i32;
+    let dot_radius: i32 = 4;
+    let center_x = (width as i32) - dot_radius - 2;
+    let center_y = (height as i32) - dot_radius - 2;
 
-    for x in (center_x - dot_radius as i32)..(center_x + dot_radius as i32) {
-        for y in (center_y - dot_radius as i32)..(center_y + dot_radius as i32) {
+    for x in (center_x - dot_radius)..(center_x + dot_radius) {
+        for y in (center_y - dot_radius)..(center_y + dot_radius) {
             let dx = x - center_x;
             let dy = y - center_y;
-            if dx * dx + dy * dy <= (dot_radius * dot_radius) as i32
+            if dx * dx + dy * dy <= dot_radius * dot_radius
                 && x >= 0
                 && x < width as i32
                 && y >= 0
@@ -207,4 +207,44 @@ fn get_status_icon(state: &AgentState) -> tauri::image::Image<'_> {
     }
 
     tauri::image::Image::new_owned(img.into_raw(), width, height)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_status_icon_all_branches() {
+        let state_active = AgentState {
+            status: AgentStatus::Active,
+            connection: ConnectionStatus::Connected,
+            ..Default::default()
+        };
+        let icon_active = get_status_icon(&state_active);
+        assert_eq!(icon_active.width(), 32);
+
+        let state_inactive = AgentState {
+            status: AgentStatus::Inactive,
+            connection: ConnectionStatus::Disconnected,
+            ..Default::default()
+        };
+        let icon_inactive = get_status_icon(&state_inactive);
+        assert_eq!(icon_inactive.width(), 32);
+
+        let state_unknown = AgentState {
+            status: AgentStatus::Unknown,
+            connection: ConnectionStatus::Unknown,
+            ..Default::default()
+        };
+        let icon_unknown = get_status_icon(&state_unknown);
+        assert_eq!(icon_unknown.width(), 32);
+
+        let state_disc = AgentState {
+            status: AgentStatus::Active,
+            connection: ConnectionStatus::Disconnected,
+            ..Default::default()
+        };
+        let icon_disc = get_status_icon(&state_disc);
+        assert_eq!(icon_disc.width(), 32);
+    }
 }

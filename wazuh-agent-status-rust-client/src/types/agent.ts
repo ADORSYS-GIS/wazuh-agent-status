@@ -42,6 +42,8 @@ export interface ComplianceCheckResult {
     status: string;
     mandatory: boolean;
     remediation: string;
+    /** Days left before a failing OS update/restart check counts against compliance (ADR-0003). */
+    grace_remaining_days?: number;
 }
 
 export interface ComplianceCategory {

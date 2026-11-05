@@ -13,6 +13,7 @@ Wazuh Agent Status is built with security and data privacy as core principles. B
 All real-time monitoring and compliance data displayed in the application is fetched securely from the centralized Wazuh **Gateway**.
 
 ### How it works
+
 The `wazuh-agent-status-rust-server` runs as a background service on your machine. It communicates with the remote Wazuh Gateway API to fetch information regarding your local agent's status.
 
 To ensure this network communication cannot be spoofed or intercepted, the application connects to the Gateway over a secured connection. We rely on **HMAC authentication** to verify that the client is authorized to retrieve compliance data or issue commands for the agent.
@@ -28,18 +29,20 @@ In addition to syncing data with the Wazuh Gateway and checking GitHub for updat
 When you click "Generate Fix", we are extremely careful about the data transmitted to the AI provider.
 
 ### What is sent to the AI:
+
 - **Check Title:** (e.g., "Ensure password length is greater than 14")
 - **Check Description:** The generic policy description associated with the check.
 - **Operating System:** (e.g., "Windows 11" or "Ubuntu 22.04") to ensure the generated shell command is compatible with your environment.
 
 ### What is NEVER sent to the AI:
+
 - Your Wazuh agent ID, IP address, or hostnames.
 - Real-time log data or event streams.
 - The contents of your local files or specific configurations (we only send the generic title of the policy that failed, not the actual state of your machine).
 
 ## 3. Sandboxed Execution
 
-When the AI returns a fix command, it is **never executed automatically**. 
+When the AI returns a fix command, it is **never executed automatically**.
 
 1. The command is displayed to you in the UI for review.
 2. It runs inside a restricted sub-shell managed by the Rust server.

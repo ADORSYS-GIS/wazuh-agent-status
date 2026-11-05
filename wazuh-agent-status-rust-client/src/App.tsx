@@ -5,7 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
 import type { AppConfig, View } from "./types/app";
-import type { AgentStatus, SystemMetrics, UpdateStatus, LogLine } from "./types/agent";
+import type { AgentStatus, SystemMetrics, UpdateStatus, LogLine, ComplianceReport } from "./types/agent";
 
 import { IconHome, IconLogs, IconShield, IconSettings, IconCheckSquare } from "./components/Icons";
 import { StatusView } from "./components/StatusView";
@@ -14,6 +14,8 @@ import { UpdatesView } from "./components/UpdatesView";
 import { SettingsView } from "./components/SettingsView";
 import { ComplianceView } from "./components/ComplianceView";
 import { UpdateAvailableModal } from "./components/UpdateAvailableModal";
+import { OsReminderBanner } from "./components/OsReminderBanner";
+import { getOsReminders, claimDailyReminder, type OsReminder } from "./utils/osReminders";
 
 import { computeBrandCSS, getBrandLogoUrl } from "./brand";
 
@@ -56,6 +58,8 @@ function AppLoading() {
 
 const STATUS_POLL_MS = 2_000;
 const UPDATE_POLL_MS = 5 * 60 * 1000;
+// OS update / restart reminders (ADR-0003): SCA rescans every 12h, so hourly is plenty.
+const OS_REMINDER_POLL_MS = 60 * 60 * 1000;
 const MAX_LOG_LINES = 500;
 const STORAGE_KEY_VIEW = "wazuh_active_view";
 
@@ -79,6 +83,7 @@ function App() {
   const unlistenRef = useRef<(() => void) | null>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const lastNotifiedUpdateVersionRef = useRef<string | null>(null);
+  const [osReminders, setOsReminders] = useState<OsReminder[]>([]);
 
   const startLogStream = useCallback(async () => {
     if (isLogStreaming) return;
@@ -145,6 +150,45 @@ function App() {
       latestVersion: updateInfo.tray.latest_version,
     }).catch(console.error);
   }, [activeView, updateInfo]);
+
+  // OS update / restart reminders (ADR-0003): poll the compliance report,
+  // show the in-app banner and send at most one desktop notification per
+  // reminder per day (Windows/Linux; macOS needs a signed app, see #2282).
+  const osUpdatesCheck = config?.features.os_updates_check ?? false;
+  useEffect(() => {
+    if (!osUpdatesCheck || !agentStatus.agent_id || agentStatus.connection !== "Connected") {
+      setOsReminders([]);
+      return;
+    }
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const report = await invoke<ComplianceReport>("fetch_compliance", {
+          agentId: agentStatus.agent_id,
+          statusFilter: null,
+          mandatory: null,
+          category: null,
+        });
+        if (cancelled) return;
+        const reminders = getOsReminders(report);
+        setOsReminders(reminders);
+        const now = new Date();
+        for (const r of reminders) {
+          if (claimDailyReminder(r.kind, now)) {
+            invoke<boolean>("notify_os_reminder", { title: r.title, body: r.body }).catch(console.error);
+          }
+        }
+      } catch (e) {
+        console.error("OS reminder check failed:", e);
+      }
+    };
+    check();
+    const timer = setInterval(check, OS_REMINDER_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [osUpdatesCheck, agentStatus.agent_id, agentStatus.connection]);
 
   const openUpdatesFromPrompt = useCallback(() => {
     setShowUpdatePrompt(false);
@@ -359,6 +403,7 @@ function App() {
       </nav>
 
       <main className="main-content" ref={mainContentRef}>
+        <OsReminderBanner reminders={osReminders} onOpenCompliance={() => setActiveView("compliance")} />
         {activeView === "status" && <StatusView agentStatus={agentStatus} metrics={metrics} config={config} />}
         {activeView === "logs" && (
           <LogsView
