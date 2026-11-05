@@ -7,7 +7,7 @@
 | Field | Value |
 | :--- | :--- |
 | **Document ID** | ADR-0006 |
-| **Status** | `Accepted` |
+| **Status** | `Proposed` |
 | **Date** | 2026-10-26 |
 | **Recorded** | 2026-10-26 |
 | **Deciders** | SIEM team |
