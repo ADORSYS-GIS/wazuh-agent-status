@@ -105,14 +105,14 @@ The detailed technical design, including document schemas, index mapping, and sy
 
 ## Evidence
 
-| Claim                                                               | Where                                               |
-| :------------------------------------------------------------------ | :-------------------------------------------------- |
-| The gateway implements the compliance evaluation engine             | `wazuh-gateway/src/compliance/mod.rs`               |
-| The gateway exposes the sync and sync-status endpoints              | `wazuh-gateway/src/lib.rs`                          |
-| The sync workflow implements concurrency and incremental skip logic | `wazuh-gateway/src/compliance/sync.rs`              |
-| The indexer writes check-level and summary documents to OpenSearch  | `wazuh-gateway/src/compliance/indexer.rs`           |
-| The gateway tracks first-failed state for grace-period checks       | `wazuh-gateway/src/compliance/grace.rs`             |
-| The detailed design and schemas are captured                        | `docs/compliance-read-model-design.md` in this repo |
+| Claim                                                               | Where                                                                                                                                                             |
+| :------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The gateway implements the compliance evaluation engine             | [wazuh-gateway `src/compliance/mod.rs`](https://github.com/ADORSYS-GIS/wazuh-gateway/blob/9424d96a15c45cd472652326df06adb810303d6a/src/compliance/mod.rs)         |
+| The gateway exposes the sync and sync-status endpoints              | [wazuh-gateway `src/lib.rs`](https://github.com/ADORSYS-GIS/wazuh-gateway/blob/9424d96a15c45cd472652326df06adb810303d6a/src/lib.rs)                               |
+| The sync workflow implements concurrency and incremental skip logic | [wazuh-gateway `src/compliance/sync.rs`](https://github.com/ADORSYS-GIS/wazuh-gateway/blob/f246a1925ef07865adeeaec5daa75457f8b11174/src/compliance/sync.rs)       |
+| The indexer writes check-level and summary documents to OpenSearch  | [wazuh-gateway `src/compliance/indexer.rs`](https://github.com/ADORSYS-GIS/wazuh-gateway/blob/9424d96a15c45cd472652326df06adb810303d6a/src/compliance/indexer.rs) |
+| The gateway tracks first-failed state for grace-period checks       | [wazuh-gateway `src/compliance/grace.rs`](https://github.com/ADORSYS-GIS/wazuh-gateway/blob/9424d96a15c45cd472652326df06adb810303d6a/src/compliance/grace.rs)     |
+| The detailed design and schemas are captured                        | [compliance-read-model-design.md](https://github.com/ADORSYS-GIS/wazuh-agent-status/blob/main/docs/compliance-read-model-design.md)                               |
 
 ## References
 
@@ -125,6 +125,7 @@ The detailed technical design, including document schemas, index mapping, and sy
 
 ## Solution implementation
 
-| Kind   | Tracking | Status     | What it covers                                           |
-| :----- | :------- | :--------- | :------------------------------------------------------- |
-| Commit | 9ac74e2  | 2026-08-21 | Adds the ADR and compliance read model design as ADR-005 |
+| Kind   | Tracking                                                                                                     | Status     | What it covers                                              |
+| :----- | :----------------------------------------------------------------------------------------------------------- | :--------- | :---------------------------------------------------------- |
+| Commit | [9ac74e2](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9ac74e2de3e77578a455797889becc1cff20707a) | 2026-08-21 | Adds the ADR and compliance read model design as ADR-005    |
+| Commit | [9b5d9f3](https://github.com/ADORSYS-GIS/wazuh-agent-status/commit/9b5d9f3807a9523deab64491db05111ae258380b) | 2026-11-05 | Standardizes the ADR as ADR-0006 and updates the design doc |
