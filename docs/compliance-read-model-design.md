@@ -1,12 +1,12 @@
-# Compliance Read Model — Technical Design
+# Compliance Read Model - Technical Design
 
-> Companion document to [ADR-005: Unify SCA Compliance Views](architecture/adr/adr-005-unify-sca-compliance-views.md).
+> Companion document to [ADR-0006: Unify SCA Compliance Views](adr/0006-unify-sca-compliance-views.md).
 
 ## Overview
 
 This document describes the technical implementation for enriching SCA results with corporate compliance profiles and making them available in the Wazuh Dashboard via a dedicated OpenSearch index.
 
-> For architectural context, decision rationale, and trade-offs, see [ADR-005](architecture/adr/adr-005-unify-sca-compliance-views.md).
+> For architectural context, decision rationale, and trade-offs, see [ADR-0006](adr/0006-unify-sca-compliance-views.md).
 
 ---
 
@@ -98,8 +98,8 @@ We maintain both granular and aggregated documents because SOC analysts require 
 
 The gateway determines `compliance_status` at the **report level**:
 
-- `"compliant"` — all mandatory checks pass
-- `"non-compliant"` — any mandatory check fails
+- `"compliant"` - all mandatory checks pass
+- `"non-compliant"` - any mandatory check fails
 
 Category-level `status` is derived from whether any check in that category failed, but it does not affect the overall `compliance_status`. A failed optional check does not make an agent non-compliant.
 
@@ -128,9 +128,9 @@ Example: `passed=80, failed=10, untested=10` → `score = 80/(80+10) = 89`
 
 Each document includes a `profile_version` field indicating which version of the corporate compliance profile was used for evaluation. This enables:
 
-- **Audit trail** — Determining which rules were active when a compliance result was computed
-- **Historical debugging** — Understanding why an agent's status changed (profile update vs SCA scan change)
-- **Rollback safety** — Reverting a profile change and re-syncing produces results traceable to the new version
+- **Audit trail** - Determining which rules were active when a compliance result was computed
+- **Historical debugging** - Understanding why an agent's status changed (profile update vs SCA scan change)
+- **Rollback safety** - Reverting a profile change and re-syncing produces results traceable to the new version
 
 Profile version is derived from the compliance profile files (e.g., git tag or semantic version in the profile metadata).
 
@@ -164,12 +164,18 @@ This is the core transformation performed by the gateway on each sync cycle:
 1. Fetch SCA policies for the agent from Wazuh Manager
 2. Retrieve the corporate compliance profile matching the agent's OS
 3. Match corporate checks against Wazuh SCA check results (by title, compliance standard overlap, or check ID)
-4. Apply mandatory rules — determine overall `compliance_status` at report level
+4. Apply mandatory rules - determine overall `compliance_status` at report level
 5. Calculate compliance score: `passed / (passed + failed) × 100`
 6. Generate `ComplianceReport` with category breakdowns and per-check statuses
 7. Persist to OpenSearch read model (check-level + summary documents)
 
-> This evaluation logic already exists in `wazuh-gateway/src/compliance/mod.rs`. No new evaluation code is needed — only the OpenSearch persistence layer is added.
+> This evaluation logic already exists in `wazuh-gateway/src/compliance/mod.rs`. No new evaluation code is needed, only the OpenSearch persistence layer.
+
+### Grace-Period Checks
+
+Some compliance rules carry a `grace_days` setting (for example, "no OS updates pending"). A grace-period check only counts against compliance after it has been failing for the configured number of days. The gateway tracks when each `(agent, check)` pair was first seen failing in a dedicated grace store (`wazuh-custom-compliance_grace`, one document per agent/check pair) and forgets the entry once the check passes again.
+
+The grace store fails open: if OpenSearch cannot be reached, a failing check is treated as just failed, so a device is never marked non-compliant because of a gateway outage. The remaining grace time is exposed per check (for example, `grace_remaining_days`) so consumers can show how long a check has left before it counts against compliance.
 
 ---
 
@@ -193,13 +199,13 @@ Wazuh Manager ────► Compliance Engine ────► OpenSearch Index
                   (desktop client)
 ```
 
-The gateway is not just moving data — it **transforms** raw SCA results into an enriched compliance model by applying corporate profiles, computing scores, and assigning categories. The gateway calls the Wazuh Manager API directly via HTTP (`/sca/*` endpoints) — it does not read SCA data from OpenSearch.
+The gateway is not just moving data - it **transforms** raw SCA results into an enriched compliance model by applying corporate profiles, computing scores, and assigning categories. The gateway calls the Wazuh Manager API directly via HTTP (`/sca/*` endpoints) - it does not read SCA data from OpenSearch.
 
 ### Detailed Sync Flow
 
 The sync has two separate data paths: the **write path** (sync) and the **read path** (dashboard).
 
-#### Write Path — Synchronization
+#### Write Path - Synchronization
 
 Triggers (`POST /compliance/sync`) → Gateway → Manager API → Evaluate → OpenSearch
 
@@ -234,7 +240,7 @@ Triggers (`POST /compliance/sync`) → Gateway → Manager API → Evaluate → 
   └──────────────────┘  └──────────────────────┘
 ```
 
-#### Read Path — Dashboard
+#### Read Path - Dashboard
 
 ```
          ┌──────────────────────┐
@@ -261,9 +267,9 @@ Triggers (`POST /compliance/sync`) → Gateway → Manager API → Evaluate → 
 
 Both mechanisms use the same `POST /compliance/sync` endpoint and identical indexing logic.
 
-**1. Automatic (Scheduled)** — A Kubernetes CronJob calls `POST /compliance/sync` every N hours (configurable, default: 4 hours). Keeps the dashboard data fresh without manual intervention.
+**1. Automatic (Scheduled)** - A Kubernetes CronJob calls `POST /compliance/sync` every N hours (configurable, default: 4 hours). Keeps the dashboard data fresh without manual intervention.
 
-**2. On-Demand (SOC Analyst)** — The dashboard includes a **"Refresh Compliance"** button that initiates an asynchronous re-sync via the gateway API. The operation is protected by the same synchronization lock used by scheduled jobs — multiple simultaneous refresh requests reuse the existing synchronization task. This prevents Wazuh API overload from concurrent user requests.
+**2. On-Demand (SOC Analyst)** - The dashboard includes a **"Refresh Compliance"** button that initiates an asynchronous re-sync via the gateway API. The operation is protected by the same synchronization lock used by scheduled jobs - multiple simultaneous refresh requests reuse the existing synchronization task. This prevents Wazuh API overload from concurrent user requests.
 
 The dashboard does not execute synchronization directly on behalf of the user session. It sends an authenticated command request to the gateway, which controls execution. The dashboard provides query capability through the read model and command initiation through authenticated gateway API calls.
 
@@ -345,24 +351,27 @@ The gateway stores synchronization metadata to support incremental sync:
 ```json
 {
   "agent_id": "001",
+  "policy_id": "cis_ubuntu20-04",
   "last_scan_score": 85,
   "last_scan_passed": 12,
   "last_scan_failed": 2,
   "last_profile_version": "1.2.0",
+  "last_content_hash": "a1b2c3",
   "last_sync_timestamp": "2026-08-21T10:30:00Z"
 }
 ```
 
-**Storage:** OpenSearch metadata index (`wazuh-custom-compliance-meta`). This survives pod restarts and avoids local filesystem dependency in Kubernetes.
+**Storage:** OpenSearch metadata index (`wazuh-compliance-sync-meta`). The document ID is `{agent_id}-{policy_id}-sync-meta`. This survives pod restarts and avoids local filesystem dependency in Kubernetes.
 
-Persistent synchronization metadata (agent scan IDs, profile versions, last sync timestamps) survives restarts through the OpenSearch metadata index. Runtime execution state (active jobs, progress tracking) is held in memory and recreated after restart — which means a restart triggers a full re-sync (safe default).
+Persistent synchronization metadata (agent scan IDs, profile versions, profile content hash, last sync timestamps) survives restarts through the OpenSearch metadata index. Runtime execution state (active jobs, progress tracking) is held in memory and recreated after restart, which means a restart triggers a full re-sync (safe default).
 
 An agent is skipped when all of the following are unchanged since the last sync:
 
 - Compliance score, passed count, and failed count
 - Compliance `profile_version`
+- Profile `content_hash` (a hash of the compliance profile rules that were applied)
 
-The Wazuh SCA policies API does not expose a `scan_id` field. Score, passed, and failed counts serve as a more reliable change detection proxy because they capture cases where the same scan produces different results (e.g., after a profile update changes mandatory flags).
+The Wazuh SCA policies API does not expose a `scan_id` field. Score, passed, and failed counts serve as a more reliable change detection proxy because they capture cases where the same scan produces different results (e.g., after a profile update changes mandatory flags). The `content_hash` additionally detects profile edits that do not change the version number.
 
 A profile update (e.g., adding a mandatory flag, renaming a category) invalidates previous evaluations and triggers reprocessing of all affected agents.
 
@@ -454,7 +463,7 @@ The compliance index should define explicit mappings instead of relying on dynam
 | Panel                      | Description                                                                                    |
 | :------------------------- | :--------------------------------------------------------------------------------------------- |
 | **Fleet Compliance Score** | Gauge chart showing fleet-wide average compliance score                                        |
-| **Agent Compliance Table** | Table of all agents with score, compliance_status, passed/failed counts — sortable, filterable |
+| **Agent Compliance Table** | Table of all agents with score, compliance_status, passed/failed counts - sortable, filterable |
 | **Non-Compliant Agents**   | Filtered view showing agents with `compliance_status: non-compliant`                           |
 | **Category Breakdown**     | Bar chart showing pass/fail distribution across categories                                     |
 | **Mandatory Failures**     | Table filtered to `mandatory: true` and `check_status: failed`                                 |
@@ -471,10 +480,10 @@ The compliance index should define explicit mappings instead of relying on dynam
 | :--- | :------------------------------------------------------------------------------------------------------ | :----------------------------------- |
 | 1.1  | Add OpenSearch client dependency (`opensearch` crate)                                                   | `Cargo.toml`                         |
 | 1.2  | Add OpenSearch connection config                                                                        | `src/config.rs`                      |
-| 1.3  | Implement `bulk_index_compliance()` — indexes ComplianceReport to OpenSearch with deterministic doc IDs | `src/compliance/mod.rs`              |
-| 1.4  | Implement compliance synchronization workflow — concurrent agent processing, incremental sync           | `src/handlers/mod.rs`                |
+| 1.3  | Implement `bulk_index_compliance()` - indexes ComplianceReport to OpenSearch with deterministic doc IDs | `src/compliance/mod.rs`              |
+| 1.4  | Implement compliance synchronization workflow - concurrent agent processing, incremental sync           | `src/handlers/mod.rs`                |
 | 1.5  | Add `POST /compliance/sync` and `GET /compliance/sync-status/{sync_id}` endpoints                       | `src/handlers/mod.rs`                |
-| 1.6  | Add rate limit handling — exponential backoff on HTTP 429                                               | `src/client/mod.rs`                  |
+| 1.6  | Add rate limit handling - exponential backoff on HTTP 429                                               | `src/client/mod.rs`                  |
 | 1.7  | Add Kubernetes CronJob manifest                                                                         | `wazuh-helm/charts/wazuh/templates/` |
 
 ### Phase 2: OpenSearch Dashboards
@@ -508,6 +517,6 @@ The compliance index should define explicit mappings instead of relying on dynam
 
 ## References
 
-- [ADR-005: Unify SCA Compliance Views](architecture/adr/adr-005-unify-sca-compliance-views.md)
+- [ADR-0006: Unify SCA Compliance Views](adr/0006-unify-sca-compliance-views.md)
 - [wazuh-gateway SCA Doc](../wazuh-gateway/doc/sca.md)
 - [Compliance Profiles](https://github.com/ADORSYS-GIS/wazuh-gateway/tree/main/src/compliance_profiles)
