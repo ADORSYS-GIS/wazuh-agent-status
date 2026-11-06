@@ -105,4 +105,4 @@ Delete or revert `.github/dependabot.yml`. Dependabot will cease opening automat
 | Kind   | Tracking                                                                                         | Status | What it covers                                       |
 | :----- | :----------------------------------------------------------------------------------------------- | :----- | :--------------------------------------------------- |
 | Issue  | [ADORSYS-GIS/wazuh-agent-status#276](https://github.com/ADORSYS-GIS/wazuh-agent-status/issues/276) | Open   | Add dependabot configuration to wazuh-agent-status   |
-| PR     | [ADORSYS-GIS/wazuh-agent-status#282](https://github.com/ADORSYS-GIS/wazuh-agent-status/pull/282)   | Open   | Adds .github/dependabot.yml and ADR-0007             |
+| PR     | [ADORSYS-GIS/wazuh-agent-status#279](https://github.com/ADORSYS-GIS/wazuh-agent-status/pull/282)   | Open   | Adds .github/dependabot.yml and ADR-0007             |
