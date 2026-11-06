@@ -1,0 +1,42 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: "/wazuh-agent-status-rust-client/src-tauri"
+    schedule:
+      interval: daily
+      time: "08:00"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+  - package-ecosystem: cargo
+    directory: "/wazuh-agent-status-rust-server"
+    schedule:
+      interval: daily
+      time: "08:00"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+  - package-ecosystem: npm
+    directory: "/wazuh-agent-status-rust-client"
+    schedule:
+      interval: daily
+      time: "08:00"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+  - package-ecosystem: bundler
+    directory: "/docs"
+    schedule:
+      interval: daily
+      time: "08:00"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      time: "08:00"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
