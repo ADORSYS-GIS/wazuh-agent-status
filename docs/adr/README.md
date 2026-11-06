@@ -15,5 +15,5 @@ central documentation repository:
 | [ADR-0003](0003-use-mtls.md) | Use mTLS for Local Communication | Rejected | 2026-04-01 | N/A |
 | [ADR-0004](0004-rust-migration-complete.md) | Rust Migration Complete — Go Implementation Removed | Accepted | 2026-06-30 | relates to ADR-0001 |
 | [ADR-0005](0005-generate-sbom-in-ci.md) | Generate CycloneDX SBOM in CI | Accepted | 2026-10-20 | N/A |
-| [ADR-0006](0006-sca-compliance-architecture-v5.md) | Query Local Endpoint SCA SQLite Database in wazuh-agent-status while Retaining Gateway for v4 | Proposed | 2026-10-26 | N/A |
 | [ADR-0006](0006-unify-sca-compliance-views.md) | Unify SCA Compliance Views | Accepted | 2026-11-05 | N/A |
+| [ADR-0007](0007-sca-compliance-architecture-v5.md) | Query Local Endpoint SCA SQLite Database in wazuh-agent-status while Retaining Gateway for v4 | Proposed | 2026-10-26 | N/A |
