@@ -1,8 +1,9 @@
 # Wazuh Agent Status
 
 [![Release](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/release.yaml/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/release.yaml)
-
 [![SonarQube](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/sonarqube.yml/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/sonarqube.yml)
+[![Static Application Security Testing](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/sast.yml/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/sast.yml)
+[![Dependabot Updates](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/ADORSYS-GIS/wazuh-agent-status/actions/workflows/dependabot/dependabot-updates)
 
 **Wazuh Agent Status** is a Rust-based application designed to monitor the state of Wazuh agents. It provides real-time insights into the operational status of agents through a system tray application with a modern web-based UI.
 
