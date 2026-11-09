@@ -64,7 +64,7 @@ jobs:
           cache-dependency-path: ${{ env.CLIENT_DIR }}/package-lock.json
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
           toolchain: stable
           targets: ${{ matrix.target }}
@@ -208,7 +208,7 @@ jobs:
           cache-dependency-path: ${{ env.CLIENT_DIR }}/package-lock.json
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
           toolchain: stable
           targets: ${{ matrix.target }}
@@ -321,7 +321,7 @@ jobs:
           node-version: "20"
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
           toolchain: stable
 
@@ -426,7 +426,7 @@ jobs:
           args: --output CHANGELOG.md
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
           toolchain: stable
 
