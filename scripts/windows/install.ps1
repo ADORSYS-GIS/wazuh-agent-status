@@ -13,7 +13,7 @@ $REPO_REF = if ($env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO
 $REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$REPO_REF"
 $TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
 
-try {
+try {0.5.2-rc.2
     $global:ChecksumsPath = Join-Path $TMP "checksums.sha256"; $U = Join-Path $TMP "utils.ps1"
     Invoke-WebRequest "$REPO_URL/checksums.sha256" -OutFile $global:ChecksumsPath
     Invoke-WebRequest "$REPO_URL/scripts/shared/utils.ps1" -OutFile $U
