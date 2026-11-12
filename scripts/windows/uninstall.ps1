@@ -16,7 +16,7 @@ $ErrorActionPreference = "Stop"
 
 # Configuration
 
-$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.4" }
+$APP_VERSION = if ($env:APP_VERSION) { $env:APP_VERSION } else { "0.5.7" }
 $REPO_REF = if ($env:WAZUH_AGENT_STATUS_REPO_REF) { $env:WAZUH_AGENT_STATUS_REPO_REF } else { "main" }
 $REPO_URL = "https://raw.githubusercontent.com/ADORSYS-GIS/wazuh-agent-status/$REPO_REF"
 $TMP = Join-Path $env:TEMP "wazuh-agent-status-install"; if (-not (Test-Path $TMP)) { mkdir $TMP | Out-Null }
