@@ -44,7 +44,7 @@ jobs:
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
 
       - name: Install CI tools
-        uses: taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
         with:
           tool: cargo-machete, cargo-nextest
 
